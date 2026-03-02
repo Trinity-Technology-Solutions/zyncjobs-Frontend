@@ -61,9 +61,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       {/* Header */}
-      <div className="bg-white border-b">
+      <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-4">
           <button
             onClick={onBack}
@@ -77,7 +77,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Profile Header */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border p-6 mb-6 card-hover">
           <div className="flex items-start gap-6">
             {/* Profile Photo */}
             <div className="flex-shrink-0">
@@ -88,7 +88,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                   className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
                 />
               ) : (
-                <div className="w-24 h-24 bg-gray-300 rounded-full flex items-center justify-center text-2xl font-semibold text-gray-600">
+                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center text-2xl font-semibold text-white shadow-lg">
                   {candidate.name?.charAt(0)?.toUpperCase() || 'C'}
                 </div>
               )}
@@ -130,7 +130,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowMessage(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                  className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:shadow-glow transition-all duration-300 btn-glow"
                 >
                   <MessageCircle className="w-4 h-4" />
                   Send Message
@@ -161,7 +161,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           <div className="lg:col-span-2 space-y-6">
             {/* Profile Summary */}
             {candidate.profileSummary && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Profile Summary</h2>
                 <p className="text-gray-700 whitespace-pre-line">{candidate.profileSummary}</p>
               </div>
@@ -169,7 +169,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Employment */}
             {(candidate.employment || candidate.experience) && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-blue-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Employment</h2>
                 {candidate.companyName && (
                   <p className="font-medium text-gray-900 mb-2">{candidate.companyName} - {candidate.roleTitle}</p>
@@ -180,7 +180,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Projects */}
             {candidate.projects && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-purple-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Projects</h2>
                 <p className="text-gray-700 whitespace-pre-line">{candidate.projects}</p>
               </div>
@@ -188,7 +188,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Internships */}
             {candidate.internships && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-cyan-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Internships</h2>
                 <p className="text-gray-700 whitespace-pre-line">{candidate.internships}</p>
               </div>
@@ -196,7 +196,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Education */}
             {candidate.education && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-green-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Education</h2>
                 <p className="text-gray-700 whitespace-pre-line">{candidate.education}</p>
               </div>
@@ -204,7 +204,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Accomplishments */}
             {(candidate.certifications || candidate.awards || candidate.clubsCommittees || candidate.competitiveExams || candidate.academicAchievements) && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-yellow-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Accomplishments</h2>
                 <div className="space-y-4">
                   {candidate.certifications && (
@@ -246,11 +246,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           <div className="space-y-6">
             {/* Skills */}
             {candidate.skills && candidate.skills.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Skills</h2>
                 <div className="flex flex-wrap gap-2">
                   {candidate.skills.map((skill: string, index: number) => (
-                    <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full">
+                    <span key={index} className="px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-sm rounded-full shadow-md hover:shadow-lg transition-shadow">
                       {skill}
                     </span>
                   ))}
@@ -260,7 +260,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Portfolio Links */}
             {candidate.portfolioLinks && candidate.portfolioLinks.length > 0 && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-purple-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Portfolio & Links</h2>
                 <div className="space-y-3">
                   {candidate.portfolioLinks.map((link: any) => (
@@ -283,14 +283,14 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             {/* Languages */}
             {candidate.languages && (
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              <div className="bg-gradient-to-br from-white to-cyan-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Languages</h2>
                 <p className="text-gray-700 whitespace-pre-line">{candidate.languages}</p>
               </div>
             )}
 
             {/* Additional Info */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="bg-gradient-to-br from-white to-blue-50 rounded-lg shadow-sm border p-6 card-hover">
               <h2 className="text-xl font-semibold mb-4">Additional Information</h2>
               <div className="space-y-3 text-sm">
                 {candidate.yearsExperience && (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, startTransition } from 'react';
 import APITest from './components/APITest';
 import Header from './components/Header';
 import NewHero from './components/NewHero';
@@ -81,6 +81,7 @@ const SkillAssessmentPage = lazy(() => import('./pages/SkillAssessmentPage'));
 const InterviewScheduling = lazy(() => import('./components/InterviewScheduling'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
+const CandidateInterviewsPage = lazy(() => import('./pages/CandidateInterviewsPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -177,30 +178,34 @@ function App() {
     
     // Handle reset password with token
     if (page.startsWith('reset-password/')) {
-      setCurrentPage(page);
+      startTransition(() => {
+        setCurrentPage(page);
+      });
       return;
     }
     
-    // Close any open modals when navigating to actual pages
-    setShowLoginModal(false);
-    setShowRegisterModal(false);
-    setShowEmployerLoginModal(false);
-    setShowRoleSelectionModal(false);
-    setShowCandidateRegisterModal(false);
-    setShowEmployerRegisterModal(false);
-    
-    // Add to navigation history
-    if (page !== currentPage) {
-      setNavigationHistory(prev => [...prev, page]);
-    }
-    
-    setCurrentPage(page);
-    if (topic) {
-      setCurrentTopic(topic);
-    }
-    if (typeof topic === 'object') {
-      setCurrentData(topic);
-    }
+    startTransition(() => {
+      // Close any open modals when navigating to actual pages
+      setShowLoginModal(false);
+      setShowRegisterModal(false);
+      setShowEmployerLoginModal(false);
+      setShowRoleSelectionModal(false);
+      setShowCandidateRegisterModal(false);
+      setShowEmployerRegisterModal(false);
+      
+      // Add to navigation history
+      if (page !== currentPage) {
+        setNavigationHistory(prev => [...prev, page]);
+      }
+      
+      setCurrentPage(page);
+      if (topic) {
+        setCurrentTopic(topic);
+      }
+      if (typeof topic === 'object') {
+        setCurrentData(topic);
+      }
+    });
     
     // Scroll to top when navigating
     setTimeout(() => {
@@ -585,7 +590,7 @@ function App() {
   if (currentPage === 'settings') {
     if (!user) {
       // Not logged in, redirect to role selection page
-      setCurrentPage('role-selection');
+      startTransition(() => setCurrentPage('role-selection'));
       return null;
     }
     return (
@@ -600,7 +605,7 @@ function App() {
   if (currentPage === 'my-jobs') {
     if (!user) {
       // Not logged in, redirect to role selection page
-      setCurrentPage('role-selection');
+      startTransition(() => setCurrentPage('role-selection'));
       return null;
     }
     return (
@@ -613,7 +618,7 @@ function App() {
 
   if (currentPage === 'my-applications') {
     if (!user) {
-      setCurrentPage('role-selection');
+      startTransition(() => setCurrentPage('role-selection'));
       return null;
     }
     return <MyApplicationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />;
@@ -724,7 +729,15 @@ function App() {
   }
 
   if (currentPage === 'interviews') {
-    return (
+    if (!user) {
+      startTransition(() => setCurrentPage('role-selection'));
+      return null;
+    }
+    return user.type === 'candidate' ? (
+      <Suspense fallback={<LoadingFallback />}>
+        <CandidateInterviewsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+      </Suspense>
+    ) : (
       <div className="min-h-screen bg-gray-50">
         <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
         <InterviewScheduling />

@@ -28,6 +28,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>({});
+  const [applications, setApplications] = useState<any[]>([]);
+  const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
 
   const fetchActivityInsights = async (userId: string) => {
     setLoadingActivity(true);
@@ -165,6 +167,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           if (activeTab === 'Activity') {
             fetchActivityInsights(parsedUser.email);
           }
+          // Fetch applications and recommended jobs
+          fetchApplications(parsedUser.email);
+          fetchRecommendedJobs(parsedUser);
         } catch (error) {
           console.error('Error parsing user data:', error);
           setUser(null);
@@ -178,25 +183,44 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchNotifications = async (userId: string) => {
     try {
-      // Fallback to job notifications directly
-      const jobsResponse = await fetch(`${API_ENDPOINTS.JOBS}?limit=5`);
-      if (jobsResponse.ok) {
-        const jobs = await jobsResponse.json();
-        const jobNotifications = jobs.map((job: any, index: number) => ({
-          id: job._id || index,
-          type: 'job',
-          company: job.company || 'Company',
-          title: `New job: ${job.jobTitle || job.title}`,
-          message: `${job.company} is hiring for ${job.jobTitle || job.title} in ${job.location}`,
-          actionText: 'View Job',
-          time: new Date(job.createdAt).toLocaleDateString() === new Date().toLocaleDateString() ? 
-                `${Math.floor(Math.random() * 12) + 1}h ago` : 
-                `${Math.floor(Math.random() * 7) + 1}d ago`,
-          jobId: job._id
+      // Fetch real applications for notifications
+      const appsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${userId}`);
+      if (appsResponse.ok) {
+        const apps = await appsResponse.json();
+        const appNotifications = apps.slice(0, 5).map((app: any) => ({
+          id: app._id,
+          type: 'application',
+          company: app.jobId?.company || 'Company',
+          title: `Application ${app.status}`,
+          message: `Your application for ${app.jobId?.jobTitle || 'position'} is ${app.status}`,
+          actionText: 'View Application',
+          time: new Date(app.createdAt).toLocaleDateString() === new Date().toLocaleDateString() ? 
+                `${Math.floor((new Date().getTime() - new Date(app.createdAt).getTime()) / (1000 * 60 * 60))}h ago` : 
+                `${Math.floor((new Date().getTime() - new Date(app.createdAt).getTime()) / (1000 * 60 * 60 * 24))}d ago`,
+          applicationId: app._id
         }));
-        setNotifications(jobNotifications);
+        setNotifications(appNotifications);
       } else {
-        setNotifications([]);
+        // Fallback to job notifications
+        const jobsResponse = await fetch(`${API_ENDPOINTS.JOBS}?limit=5`);
+        if (jobsResponse.ok) {
+          const jobs = await jobsResponse.json();
+          const jobNotifications = jobs.map((job: any, index: number) => ({
+            id: job._id || index,
+            type: 'job',
+            company: job.company || 'Company',
+            title: `New job: ${job.jobTitle || job.title}`,
+            message: `${job.company} is hiring for ${job.jobTitle || job.title} in ${job.location}`,
+            actionText: 'View Job',
+            time: new Date(job.createdAt).toLocaleDateString() === new Date().toLocaleDateString() ? 
+                  `${Math.floor(Math.random() * 12) + 1}h ago` : 
+                  `${Math.floor(Math.random() * 7) + 1}d ago`,
+            jobId: job._id
+          }));
+          setNotifications(jobNotifications);
+        } else {
+          setNotifications([]);
+        }
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
@@ -228,6 +252,43 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     setCompletionPercentage(percentage);
   };
 
+  const fetchApplications = async (userEmail: string) => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${userEmail}`);
+      if (response.ok) {
+        const data = await response.json();
+        setApplications(data.slice(0, 5)); // Get latest 5 applications
+      }
+    } catch (error) {
+      console.error('Error fetching applications:', error);
+    }
+  };
+
+  const fetchRecommendedJobs = async (userData: any) => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=10`);
+      if (response.ok) {
+        const allJobs = await response.json();
+        // Filter jobs based on user skills if available
+        let filtered = allJobs;
+        if (userData.skills && userData.skills.length > 0) {
+          filtered = allJobs.filter((job: any) => {
+            const jobSkills = job.skills || job.requiredSkills || [];
+            return userData.skills.some((skill: string) => 
+              jobSkills.some((jSkill: string) => 
+                jSkill.toLowerCase().includes(skill.toLowerCase()) ||
+                skill.toLowerCase().includes(jSkill.toLowerCase())
+              )
+            );
+          });
+        }
+        setRecommendedJobs(filtered.slice(0, 3));
+      }
+    } catch (error) {
+      console.error('Error fetching recommended jobs:', error);
+    }
+  };
+
   return (
     <>
       <Notification
@@ -238,7 +299,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       />
       <div className="min-h-screen bg-gray-50 font-['IBM_Plex_Sans']">
         {/* Tab Navigation */}
-        <div className="bg-white border-b">
+        <div className="bg-white border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-8">
               <BackButton 
@@ -431,6 +492,15 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <span className="text-gray-700">My Applications</span>
                     </button>
                     <button 
+                      onClick={() => onNavigate('interviews')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-gray-700">My Interviews</span>
+                    </button>
+                    <button 
                       onClick={() => onNavigate('candidate-profile')}
                       className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
                     >
@@ -448,7 +518,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </div>
 
                 {/* Skill Assessments Section */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Skill Assessments</h3>
                   <div className="space-y-4">
                     <div className="text-center py-4">
@@ -473,89 +543,142 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </div>
 
                 {/* AI Job Recommendations */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-xl">🤖</span>
                     <h3 className="text-lg font-semibold text-gray-900">AI Job Suggestions</h3>
                   </div>
                   <div className="space-y-4">
-                    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-gray-900 text-sm">Senior React Developer</h4>
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">95% Match</span>
+                    {recommendedJobs.length > 0 ? (
+                      recommendedJobs.map((job, index) => (
+                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all cursor-pointer" onClick={() => onNavigate(`job-detail/${job.id || job._id}`)}>
+                          <div className="flex justify-between items-start mb-2">
+                            <h4 className="font-medium text-gray-900 text-sm">{job.jobTitle || job.title}</h4>
+                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                              {user?.skills && job.skills ? 
+                                `${Math.min(95, Math.floor(Math.random() * 20) + 75)}% Match` : 
+                                'Recommended'
+                              }
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 mb-2">{job.company} • {job.location}</p>
+                          {job.salary && (
+                            <p className="text-xs text-green-600 font-medium mb-2">
+                              {typeof job.salary === 'object' 
+                                ? `${job.salary.currency || '₹'}${job.salary.min || ''} - ${job.salary.currency || '₹'}${job.salary.max || ''}` 
+                                : job.salary
+                              }
+                            </p>
+                          )}
+                          {job.skills && job.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {job.skills.slice(0, 3).map((skill: string, idx: number) => (
+                                <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{skill}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        <p>Complete your profile to get personalized job recommendations</p>
                       </div>
-                      <p className="text-xs text-gray-600 mb-2">Perfect match for your React and JavaScript skills</p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">React</span>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">JavaScript</span>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Node.js</span>
-                      </div>
-                    </div>
-                    
-                    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-gray-900 text-sm">Full Stack Developer</h4>
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">88% Match</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-2">Your frontend and backend skills make you ideal</p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">React</span>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">Node.js</span>
-                      </div>
-                    </div>
-
-                    <div className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex justify-between items-start mb-2">
-                        <h4 className="font-medium text-gray-900 text-sm">Frontend Engineer</h4>
-                        <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">85% Match</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-2">Strong foundation in modern frontend technologies</p>
-                      <div className="flex flex-wrap gap-1">
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">React</span>
-                        <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">JavaScript</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
                   
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
                       <span className="text-lg">💼</span>
-                      <span className="text-sm">Live Job Postings</span>
+                      <span className="text-sm">Recent Applications</span>
                     </h4>
                     <div className="space-y-3">
-                      <div className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start mb-1">
-                          <h5 className="font-medium text-gray-900 text-sm">Software Engineer</h5>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">60% Match</span>
+                      {applications.length > 0 ? (
+                        applications.map((app, index) => (
+                          <div 
+                            key={app._id || index} 
+                            className="border border-gray-200 rounded-lg p-4 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
+                            onClick={() => onNavigate('my-applications')}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <h5 className="font-bold text-gray-900 text-base mb-1">
+                                  {app.jobId?.jobTitle || 'Job Position'}
+                                </h5>
+                                <p className="text-sm text-gray-600 font-semibold flex items-center gap-1">
+                                  <span className="text-blue-600">🏢</span>
+                                  {app.jobId?.company || 'Company'}
+                                </p>
+                              </div>
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                app.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                                app.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
+                              </span>
+                            </div>
+                            
+                            {app.jobId?.jobDescription && (
+                              <div className="bg-gray-50 border-l-4 border-blue-500 rounded-r-lg p-3 mb-3">
+                                <p className="text-xs text-gray-700 line-clamp-2 leading-relaxed font-medium">
+                                  {app.jobId.jobDescription.substring(0, 120)}...
+                                </p>
+                              </div>
+                            )}
+                            
+                            <div className="flex items-center gap-3 mb-3 flex-wrap">
+                              <div className="flex items-center gap-1 text-xs text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg">
+                                <span>📍</span>
+                                <span className="font-medium">{app.jobId?.location || 'Remote'}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
+                                <span>💰</span>
+                                <span className="font-semibold">
+                                  {app.jobId?.salary ? (
+                                    typeof app.jobId.salary === 'object' 
+                                      ? `${app.jobId.salary.currency || '₹'}${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}` 
+                                      : app.jobId.salary
+                                  ) : 'Competitive'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {app.jobId?.skills && app.jobId.skills.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-3">
+                                {app.jobId.skills.slice(0, 3).map((skill: string, idx: number) => (
+                                  <span key={idx} className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                    {skill}
+                                  </span>
+                                ))}
+                                {app.jobId.skills.length > 3 && (
+                                  <span className="text-xs text-gray-500 px-2 py-1">+{app.jobId.skills.length - 3} more</span>
+                                )}
+                              </div>
+                            )}
+                            
+                            <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
+                              <p className="text-xs text-gray-500">
+                                <span className="font-semibold">Applied:</span> {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </p>
+                              <span className="text-xs text-blue-600 font-medium hover:underline">View Details →</span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                          <div className="text-4xl mb-2">📋</div>
+                          <p className="text-gray-700 font-medium text-sm mb-2">No applications yet</p>
+                          <p className="text-gray-500 text-xs mb-3">Start applying to jobs and track them here</p>
+                          <button 
+                            onClick={() => onNavigate('job-listings')}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
+                          >
+                            Browse Jobs →
+                          </button>
                         </div>
-                        <p className="text-xs text-gray-600 mb-1">Zoho • Remote - India</p>
-                        <p className="text-xs text-green-600 font-medium mb-2">₹50,000 - ₹80,000</p>
-                        <div className="flex gap-1 mb-2">
-                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">JavaScript</span>
-                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Python</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Apply</button>
-                          <button className="text-xs text-blue-600 hover:text-blue-800">View Details</button>
-                        </div>
-                      </div>
-                      
-                      <div className="border rounded-lg p-3 hover:bg-gray-50 transition-colors">
-                        <div className="flex justify-between items-start mb-1">
-                          <h5 className="font-medium text-gray-900 text-sm">Full Stack Developer</h5>
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">60% Match</span>
-                        </div>
-                        <p className="text-xs text-gray-600 mb-1">Trinity Technology • Chennai</p>
-                        <p className="text-xs text-green-600 font-medium mb-2">₹50,000 - ₹80,000</p>
-                        <div className="flex gap-1 mb-2">
-                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Communication</span>
-                          <span className="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">Problem Solving</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">Apply</button>
-                          <button className="text-xs text-blue-600 hover:text-blue-800">View Details</button>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -67,7 +67,7 @@ const SalaryReportPage: React.FC<SalaryReportPageProps> = ({ onNavigate, user, o
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {jobRoles.map((job, index) => (
-                <div key={index} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all">
+                <div key={index} className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all card-hover">
                   <h3 className="font-bold text-lg text-gray-900 mb-3">{job.role}</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
@@ -100,7 +100,7 @@ const SalaryReportPage: React.FC<SalaryReportPageProps> = ({ onNavigate, user, o
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {demandSkills.map((skill, index) => (
-                <div key={index} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200 hover:shadow-lg transition-all">
+                <div key={index} className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl p-6 border border-yellow-200 hover:shadow-lg transition-all card-hover">
                   <h3 className="font-bold text-lg text-gray-900 mb-3">{skill.skill}</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">
@@ -127,7 +127,7 @@ const SalaryReportPage: React.FC<SalaryReportPageProps> = ({ onNavigate, user, o
             </div>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {locationData.map((location, index) => (
-                <div key={index} className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all">
+                <div key={index} className="bg-gradient-to-br from-green-50 to-teal-50 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all card-hover">
                   <h3 className="font-bold text-lg text-gray-900 mb-3">{location.city}</h3>
                   <div className="space-y-2">
                     <div className="flex justify-between">

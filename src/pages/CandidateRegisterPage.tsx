@@ -130,7 +130,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} />
       <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
@@ -142,9 +142,9 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
           Back to home
         </button>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 card-hover">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Building2 className="w-8 h-8 text-blue-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Join ZyncJobs</h2>
@@ -245,7 +245,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -266,7 +266,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
               onClick={() => {
                 window.location.href = `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/auth/google/candidate`;
               }}
-              className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors card-hover"
             >
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>

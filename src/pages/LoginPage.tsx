@@ -84,13 +84,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} />
 
       <div className="flex items-center justify-center py-16 px-4">
-        <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg w-full max-w-md p-8">
           <div className="text-center mb-8">
-            <div className="bg-red-600 text-white w-16 h-16 rounded flex items-center justify-center mx-auto mb-6 font-bold text-2xl">
+            <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white w-16 h-16 rounded flex items-center justify-center mx-auto mb-6 font-bold text-2xl shadow-lg">
               Z
             </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome</h2>
@@ -150,7 +150,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>

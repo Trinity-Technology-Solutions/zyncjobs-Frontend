@@ -139,9 +139,9 @@ const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({ onNavigate }) =
         isVisible={notification.isVisible}
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="bg-white rounded-lg shadow-lg p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg p-8 card-hover">
           <div className="mb-8">
             <BackButton 
               onClick={() => onNavigate && onNavigate('dashboard')}

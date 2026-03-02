@@ -44,7 +44,7 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
           </p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-8 mb-8 card-hover">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Interview Success Tips</h2>
           <div className="grid md:grid-cols-2 gap-6">
             {tips.map((tip, index) => (
@@ -61,7 +61,7 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-8 card-hover">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Common Interview Questions</h2>
           <div className="prose max-w-none">
             <p className="text-gray-600 mb-4">

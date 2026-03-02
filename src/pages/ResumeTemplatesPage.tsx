@@ -59,7 +59,7 @@ const ResumeTemplatesPage: React.FC<ResumeTemplatesPageProps> = ({ onNavigate, u
     : allTemplates[activeCategory as keyof typeof allTemplates] || [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       {/* Main Content */}
@@ -104,7 +104,7 @@ const ResumeTemplatesPage: React.FC<ResumeTemplatesPageProps> = ({ onNavigate, u
               <div className="templates-grid">
                 {templates.map((template, index) => (
                   <div key={template.name} className="templates-grid__cell" data-name={template.name}>
-                    <div className="templates-card" onClick={() => {
+                    <div className="templates-card card-hover" onClick={() => {
                       onNavigate?.('resume-editor', template.name);
                     }}>
                       <div className="templates-card__body">

@@ -7,7 +7,8 @@ import BackButton from '../components/BackButton';
 
 interface Job {
   jobTitle: string;
-  _id: string;
+  _id?: string;
+  id: string;
   title: string;
   location: string;
   salary: any;
@@ -31,7 +32,7 @@ interface JobManagementPageProps {
 const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user, onLogout }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('active');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('posted');
@@ -56,16 +57,30 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           (userData.email === 'muthees@trinitetech.com' && job.company?.toLowerCase().includes('trinity'))
         );
         
+        console.log('📋 Employer jobs found:', employerJobs.length);
+        
         // Fetch application counts for each job
         const jobsWithCounts = await Promise.all(
           employerJobs.map(async (job: any) => {
             try {
-              const appResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/job/${job._id}`);
+              // Only fetch if job has valid id
+              const jobId = job.id || job._id;
+              if (!jobId) {
+                console.log('⚠️ Job without id:', job);
+                return { ...job, applicationCount: 0, shortlistedCount: 0 };
+              }
+              
+              console.log('🔍 Fetching applications for job:', jobId, job.jobTitle);
+              const appResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/job/${jobId}`);
+              
               if (appResponse.ok) {
                 const applications = await appResponse.json();
+                console.log('✅ Applications for', job.jobTitle, ':', applications.length);
                 const applicationCount = applications.length;
                 const shortlistedCount = applications.filter((app: any) => app.status === 'shortlisted').length;
                 return { ...job, applicationCount, shortlistedCount };
+              } else {
+                console.log('❌ Failed to fetch applications for', job.jobTitle, ':', appResponse.status);
               }
             } catch (error) {
               console.error('Error fetching applications for job:', job._id, error);
@@ -74,6 +89,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           })
         );
         
+        console.log('📊 Jobs with counts:', jobsWithCounts);
         setJobs(jobsWithCounts);
       }
     } catch (error) {
@@ -107,7 +123,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   };
 
   const handleSelectAll = () => {
-    setSelectedJobs(selectedJobs.length === filteredJobs.length ? [] : filteredJobs.map(job => job._id));
+    setSelectedJobs(selectedJobs.length === filteredJobs.length ? [] : filteredJobs.map(job => job.id || job._id).filter((id): id is string => id !== undefined));
   };
 
   const filteredJobs = jobs.filter(job => {
@@ -115,7 +131,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     const matchesSearch = jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          job.location?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filter === 'all' || 
-                         (filter === 'active' && (job.status === 'active' || !job.status)) ||
+                         (filter === 'active' && (job.status === 'active' || job.status === 'approved' || !job.status)) ||
                          (filter === 'closed' && job.status === 'closed') ||
                          (filter === 'expired' && job.status === 'expired');
     return matchesSearch && matchesFilter;
@@ -123,7 +139,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
 
   const statusCounts = {
     all: jobs.length,
-    active: jobs.filter(job => job.status === 'active').length,
+    active: jobs.filter(job => job.status === 'active' || job.status === 'approved' || !job.status).length,
     closed: jobs.filter(job => job.status === 'closed').length,
     expired: jobs.filter(job => job.status === 'expired').length
   };
@@ -268,27 +284,29 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             <div className="p-4 border-b">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <CheckSquare className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm text-gray-600">Select All</span>
-                  <RefreshCw className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Refresh</span>
-                  <Users className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm text-gray-600">Collaborate</span>
-                  <span className="text-sm text-gray-600">Close</span>
+                  {[<CheckSquare key="icon1" className="w-5 h-5 text-gray-400" />,
+                  <span key="text1" className="text-sm text-gray-600">Select All</span>,
+                  <RefreshCw key="icon2" className="w-4 h-4 text-gray-400" />,
+                  <span key="text2" className="text-sm text-gray-600">Refresh</span>,
+                  <Users key="icon3" className="w-4 h-4 text-gray-400" />,
+                  <span key="text3" className="text-sm text-gray-600">Collaborate</span>,
+                  <span key="text4" className="text-sm text-gray-600">Close</span>]}
                 </div>
                 <span className="text-sm text-gray-500">Sort by: Posted/sent date</span>
               </div>
             </div>
             
             <div className="divide-y divide-gray-200">
-              {filteredJobs.map((job: Job) => (
-                <div key={job._id} className="p-4 hover:bg-gray-50">
+              {filteredJobs.map((job: Job) => {
+                const jobId = job.id || job._id;
+                return (
+                <div key={jobId} className="p-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4 flex-1">
                       <input
                         type="checkbox"
-                        checked={selectedJobs.includes(job._id)}
-                        onChange={() => handleSelectJob(job._id)}
+                        checked={selectedJobs.includes(jobId!)}
+                        onChange={() => handleSelectJob(jobId!)}
                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                       
@@ -314,11 +332,18 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     
                     <div className="flex items-center space-x-8">
                       <button
+                        key="responses"
                         onClick={() => {
                           // Navigate to applications for this job
-                          sessionStorage.setItem('selectedJobId', job._id);
+                          console.log('🔘 Button clicked for job:', jobId, job.jobTitle);
+                          sessionStorage.setItem('selectedJobId', jobId!);
                           sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
                           sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
+                          console.log('✅ SessionStorage set:', {
+                            jobId: sessionStorage.getItem('selectedJobId'),
+                            title: sessionStorage.getItem('selectedJobTitle'),
+                            company: sessionStorage.getItem('selectedJobCompany')
+                          });
                           onNavigate('application-management');
                         }}
                         className="text-center hover:bg-blue-50 p-2 rounded transition-colors"
@@ -327,25 +352,25 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         <div className="text-xs text-gray-500">Total Responses</div>
                       </button>
                       
-                      <div className="text-center">
+                      <div key="shortlisted" className="text-center">
                         <div className="text-lg font-semibold text-green-600">{job.shortlistedCount || 0}</div>
                         <div className="text-xs text-gray-500">Shortlisted</div>
                       </div>
                       
-                      <div className="text-right">
+                      <div key="sent" className="text-right">
                         <div className="text-sm text-gray-600">sent by Me</div>
                         <div className="text-xs text-gray-500">
                           {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
                         </div>
                       </div>
                       
-                      <button className="p-1 hover:bg-gray-100 rounded">
+                      <button key="menu" className="p-1 hover:bg-gray-100 rounded">
                         <MoreVertical className="w-4 h-4 text-gray-400" />
                       </button>
                     </div>
                   </div>
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         )}
