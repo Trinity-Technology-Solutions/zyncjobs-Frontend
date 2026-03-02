@@ -21,6 +21,7 @@ export interface RegisterData {
 }
 
 export interface User {
+  name: string;
   id: string;
   email: string;
   userType: 'jobseeker' | 'employer';
@@ -39,8 +40,6 @@ export interface User {
 
 export const authAPI = {
   async register(userData: RegisterData): Promise<{ id: string; message: string; userType: string; user?: any; accessToken?: string; refreshToken?: string }> {
-    console.log('Calling register API:', API_ENDPOINTS.REGISTER);
-    console.log('Register data:', { ...userData, password: '***' });
     
     const response = await fetch(API_ENDPOINTS.REGISTER, {
       method: 'POST',
@@ -49,12 +48,9 @@ export const authAPI = {
       },
       body: JSON.stringify(userData),
     });
-
-    console.log('Register response status:', response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Register error response:', errorText);
       let error;
       try {
         error = JSON.parse(errorText);
@@ -65,7 +61,6 @@ export const authAPI = {
     }
 
     const result = await response.json();
-    console.log('Register success:', result);
     
     // Store tokens if provided
     if (result.accessToken) {
@@ -79,8 +74,6 @@ export const authAPI = {
   },
 
   async login(loginData: LoginData): Promise<{ message: string; user: User; accessToken?: string; refreshToken?: string }> {
-    console.log('Calling login API:', API_ENDPOINTS.LOGIN);
-    console.log('Login data:', { email: loginData.email, password: '***' });
     
     const response = await fetch(API_ENDPOINTS.LOGIN, {
       method: 'POST',
@@ -89,12 +82,9 @@ export const authAPI = {
       },
       body: JSON.stringify(loginData),
     });
-
-    console.log('Login response status:', response.status);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Login error response:', errorText);
       let error;
       try {
         error = JSON.parse(errorText);
@@ -105,7 +95,6 @@ export const authAPI = {
     }
 
     const result = await response.json();
-    console.log('Login success:', result);
     
     // Store tokens if provided
     if (result.accessToken) {

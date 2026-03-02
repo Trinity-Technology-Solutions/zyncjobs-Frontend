@@ -3,7 +3,7 @@ import { Video, Phone, Calendar, Clock } from 'lucide-react';
 
 const MeetingTest = () => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<any>(null);
   const [formData, setFormData] = useState({
     platform: 'zoom',
     topic: 'Test Meeting',
@@ -36,7 +36,7 @@ const MeetingTest = () => {
       }
     } catch (error) {
       console.error('Error:', error);
-      setResult({ success: false, error: error.message });
+      setResult({ success: false, error: (error as Error).message });
     } finally {
       setLoading(false);
     }

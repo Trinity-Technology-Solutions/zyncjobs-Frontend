@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 // Note: This component doesn't use React Router since it's integrated into the main App
 // Instead, it gets data from URL search params directly
 
@@ -53,31 +53,8 @@ interface ResumeData {
   }>;
 }
 
-// Dynamic template imports
-const templateComponents: { [key: string]: React.LazyExoticComponent<React.ComponentType<{ data: ResumeData }>> } = {
-  'amsterdam': lazy(() => import('../components/templates/amsterdam')),
-  'athens': lazy(() => import('../components/templates/athens')),
-  'berlin': lazy(() => import('../components/templates/berlin')),
-  'boston': lazy(() => import('../components/templates/boston')),
-  'brussels': lazy(() => import('../components/templates/brussels')),
-  'chicago': lazy(() => import('../components/templates/chicago')),
-  'copenhagen': lazy(() => import('../components/templates/copenhagen')),
-  'dublin': lazy(() => import('../components/templates/dublin')),
-  'london': lazy(() => import('../components/templates/london')),
-  'madrid': lazy(() => import('../components/templates/madrid')),
-  'milan': lazy(() => import('../components/templates/milan')),
-  'new-york': lazy(() => import('../components/templates/new-york')),
-  'oslo': lazy(() => import('../components/templates/oslo')),
-  'paris': lazy(() => import('../components/templates/paris')),
-  'prague': lazy(() => import('../components/templates/prague')),
-  'santiago': lazy(() => import('../components/templates/santiago')),
-  'shanghai': lazy(() => import('../components/templates/shanghai')),
-  'singapore': lazy(() => import('../components/templates/singapore')),
-  'stockholm': lazy(() => import('../components/templates/stockholm')),
-  'sydney': lazy(() => import('../components/templates/sydney')),
-  'toronto': lazy(() => import('../components/templates/toronto')),
-  'vienna': lazy(() => import('../components/templates/vienna'))
-};
+// Templates removed - placeholder
+const templateComponents: { [key: string]: React.LazyExoticComponent<React.ComponentType<{ data: ResumeData }>> } = {};
 
 interface ResumeViewerPageProps {
   template?: string;

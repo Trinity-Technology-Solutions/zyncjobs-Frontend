@@ -6,17 +6,20 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 
 interface Job {
+  jobTitle: string;
   _id: string;
   title: string;
   location: string;
   salary: any;
   created_at: string;
+  createdAt?: string;
   status: string;
   type: string;
   views: number;
   company: string;
   applicationCount?: number;
   shortlistedCount?: number;
+  [key: string]: any;
 }
 
 interface JobManagementPageProps {
@@ -294,7 +297,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           <h3 className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
                             {job.jobTitle || job.title || 'Job Position'}
                           </h3>
-                          {job.applicationCount > 0 && (
+                          {(job.applicationCount ?? 0) > 0 && (
                             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
                               {job.applicationCount} New
                             </span>
@@ -332,7 +335,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       <div className="text-right">
                         <div className="text-sm text-gray-600">sent by Me</div>
                         <div className="text-xs text-gray-500">
-                          {new Date(job.createdAt || job.created_at).toLocaleDateString('en-GB')}
+                          {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
                         </div>
                       </div>
                       

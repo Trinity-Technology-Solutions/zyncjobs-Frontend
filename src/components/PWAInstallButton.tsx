@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Download, Smartphone } from 'lucide-react';
-import { PWAManager } from '../utils/pwa';
 
 const PWAInstallButton: React.FC = () => {
   const [showInstall, setShowInstall] = useState(false);
@@ -32,7 +31,16 @@ const PWAInstallButton: React.FC = () => {
       return;
     }
 
-    PWAManager.showInstallPrompt();
+    // Show install prompt
+    if ((window as any).deferredPrompt) {
+      (window as any).deferredPrompt.prompt();
+      (window as any).deferredPrompt.userChoice.then((choiceResult: any) => {
+        if (choiceResult.outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        (window as any).deferredPrompt = null;
+      });
+    }
     setShowInstall(false);
   };
 

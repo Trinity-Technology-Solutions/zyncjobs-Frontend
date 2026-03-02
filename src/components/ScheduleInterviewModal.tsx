@@ -85,7 +85,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('❌ Error: ' + error.message);
+      alert('❌ Error: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -135,7 +135,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error: ' + error.message);
+      alert('Error: ' + (error as Error).message);
     } finally {
       setGeneratingLink(false);
     }
@@ -167,7 +167,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error: ' + error.message);
+      alert('Error: ' + (error as Error).message);
     } finally {
       setGeneratingLink(false);
     }

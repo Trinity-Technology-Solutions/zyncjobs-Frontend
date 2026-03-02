@@ -107,7 +107,7 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
   };
 
   const getAverageRating = (reviews: any[]) => {
-    if (reviews.length === 0) return 0;
+    if (reviews.length === 0) return '0';
     const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
     return (sum / reviews.length).toFixed(1);
   };

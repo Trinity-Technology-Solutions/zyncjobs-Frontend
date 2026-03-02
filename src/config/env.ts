@@ -1,14 +1,9 @@
 // Environment Configuration
 // Only non-sensitive frontend configuration
 
-// Debug: Log environment variables
-console.log('🔧 VITE_API_URL:', import.meta.env.VITE_API_URL);
-console.log('🔧 Environment:', import.meta.env.MODE);
-console.log('🔧 All env vars:', import.meta.env);
-
 export const config = {
   // API Configuration - Use Trinity Jobs Render endpoint
-  API_URL: import.meta.env.VITE_API_URL || 'https://trinity-jobs.onrender.com',
+  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:5173/',
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'ZyncJobs',
@@ -23,9 +18,6 @@ export const config = {
   IS_DEVELOPMENT: import.meta.env.DEV,
   IS_PRODUCTION: import.meta.env.PROD,
 };
-
-// Debug: Log final API URL
-console.log('🌐 Final API_URL:', config.API_URL);
 
 // API Endpoints
 export const API_ENDPOINTS = {

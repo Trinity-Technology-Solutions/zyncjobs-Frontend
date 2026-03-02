@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
-import { getCompanyLogo } from '../utils/logoHelper';
+import { getCompanyLogo } from '../utils/logoUtils';
 
 interface LatestJobsProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -73,7 +73,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
       if (response.ok) {
         const data = await response.json();
         // Ensure jobs are sorted by creation date (newest first)
-        const sortedJobs = data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const sortedJobs = data.sort((a: { createdAt: string | number | Date; }, b: { createdAt: string | number | Date; }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setJobs(sortedJobs);
       } else {
         console.error('Failed to fetch jobs');

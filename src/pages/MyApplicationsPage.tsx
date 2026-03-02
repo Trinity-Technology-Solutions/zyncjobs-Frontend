@@ -44,6 +44,9 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [showTimeline, setShowTimeline] = useState<string | null>(null);
   const [withdrawingApp, setWithdrawingApp] = useState<string | null>(null);
   const [withdrawalReason, setWithdrawalReason] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreApplications, setHasMoreApplications] = useState(true);
+  const applicationsPerPage = 10;
 
   useEffect(() => {
     fetchMyApplications();
@@ -53,24 +56,42 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
     fetchMyApplications();
   }, [filter]);
 
-  const fetchMyApplications = async () => {
+  const fetchMyApplications = async (page = 1, append = false) => {
     if (!user?.email) {
       setLoading(false);
       return;
     }
 
     try {
-      setLoading(true);
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${user.email}`);
+      if (!append) setLoading(true);
+      
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', applicationsPerPage.toString());
+      
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${user.email}?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setApplications(data);
+        
+        if (append) {
+          setApplications(prev => [...prev, ...data]);
+        } else {
+          setApplications(data);
+        }
+        
+        setHasMoreApplications(data.length === applicationsPerPage);
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
     } finally {
-      setLoading(false);
+      if (!append) setLoading(false);
     }
+  };
+
+  const handleLoadMoreApplications = () => {
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    fetchMyApplications(nextPage, true);
   };
 
   const handleEditApplication = (appId: string, currentCoverLetter: string) => {
@@ -610,6 +631,17 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                 ))
               )}
             </div>
+            
+            {filteredApplications.length > 0 && hasMoreApplications && (
+              <div className="flex justify-center py-6">
+                <button
+                  onClick={handleLoadMoreApplications}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Load More Applications
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
