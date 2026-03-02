@@ -1,0 +1,278 @@
+/* Mobile-First Responsive Design */
+
+/* Base mobile styles */
+@media (max-width: 640px) {
+  /* Typography */
+  .mobile-text-sm { font-size: 0.875rem; }
+  .mobile-text-base { font-size: 1rem; }
+  .mobile-text-lg { font-size: 1.125rem; }
+  .mobile-text-xl { font-size: 1.25rem; }
+  .mobile-text-2xl { font-size: 1.5rem; }
+  
+  /* Spacing */
+  .mobile-p-2 { padding: 0.5rem; }
+  .mobile-p-4 { padding: 1rem; }
+  .mobile-p-6 { padding: 1.5rem; }
+  .mobile-m-2 { margin: 0.5rem; }
+  .mobile-m-4 { margin: 1rem; }
+  
+  /* Layout */
+  .mobile-full { width: 100%; }
+  .mobile-flex-col { flex-direction: column; }
+  .mobile-hidden { display: none; }
+  .mobile-block { display: block; }
+  
+  /* Grid adjustments */
+  .mobile-grid-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .mobile-gap-2 { gap: 0.5rem; }
+  .mobile-gap-4 { gap: 1rem; }
+  
+  /* Touch targets */
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px;
+  }
+  
+  /* Navigation */
+  .mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 8px 0;
+    z-index: 50;
+  }
+  
+  .mobile-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px;
+    text-decoration: none;
+    color: #6b7280;
+    font-size: 0.75rem;
+  }
+  
+  .mobile-nav-item.active {
+    color: #3b82f6;
+  }
+  
+  /* Forms */
+  .mobile-form-input {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px; /* Prevents zoom on iOS */
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+  }
+  
+  .mobile-form-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border-radius: 8px;
+    margin-top: 8px;
+  }
+  
+  /* Cards */
+  .mobile-card {
+    margin: 8px;
+    padding: 16px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Job listings mobile */
+  .mobile-job-card {
+    padding: 16px;
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+  }
+  
+  .mobile-job-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  
+  .mobile-job-company {
+    color: #6b7280;
+    font-size: 0.875rem;
+    margin-bottom: 8px;
+  }
+  
+  .mobile-job-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-bottom: 12px;
+  }
+  
+  /* Search mobile */
+  .mobile-search-container {
+    position: sticky;
+    top: 0;
+    background: white;
+    padding: 16px;
+    border-bottom: 1px solid #e5e7eb;
+    z-index: 10;
+  }
+  
+  .mobile-search-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 24px;
+    background: #f9fafb;
+  }
+  
+  /* Filters mobile */
+  .mobile-filters {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 16px;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    z-index: 40;
+  }
+  
+  .mobile-filters.open {
+    transform: translateY(0);
+  }
+  
+  .mobile-filter-button {
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 56px;
+    height: 56px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 30;
+  }
+  
+  /* Dashboard mobile */
+  .mobile-dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
+  }
+  
+  .mobile-stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Profile mobile */
+  .mobile-profile-header {
+    text-align: center;
+    padding: 24px 16px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+  }
+  
+  .mobile-profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    border: 4px solid white;
+  }
+  
+  /* Modal mobile */
+  .mobile-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: flex-end;
+    z-index: 50;
+  }
+  
+  .mobile-modal-content {
+    background: white;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 24px 16px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  
+  /* Swipe gestures */
+  .mobile-swipeable {
+    touch-action: pan-x;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  /* Loading states */
+  .mobile-skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+  }
+  
+  @keyframes loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  
+  /* Accessibility */
+  .mobile-focus-visible:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+  
+  /* Safe areas for notched devices */
+  .mobile-safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Utility classes */
+  .mobile-overflow-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .mobile-no-scroll {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+}
+
+/* Tablet adjustments */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .tablet-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tablet-p-6 { padding: 1.5rem; }
+  .tablet-text-lg { font-size: 1.125rem; }
+}
+
+/* Desktop overrides */
+@media (min-width: 1025px) {
+  .mobile-hidden { display: block; }
+  .mobile-nav { display: none; }
+  .mobile-filter-button { display: none; }
+}
