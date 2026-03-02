@@ -116,16 +116,20 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const hasTechMatch = techKeywords.some(keyword => 
             jobTitle.includes(keyword) || 
             jobDescription.includes(keyword) ||
-            jobSkills.some(skill => skill.includes(keyword))
+            jobSkills.some((skill: string | string[]) => {
+              const skillStr = Array.isArray(skill) ? skill.join(' ') : skill;
+              return skillStr.includes(keyword);
+            })
           );
           
           // Check skill overlap
           const skillOverlap = skillNames.filter(skill => 
-            jobSkills.some(jobSkill => 
-              jobSkill.includes(skill) || 
-              skill.includes(jobSkill) ||
-              jobSkill === skill
-            )
+            jobSkills.some((jobSkill: string | string[]) => {
+              const jobSkillStr = Array.isArray(jobSkill) ? jobSkill.join(' ') : jobSkill;
+              return jobSkillStr.includes(skill) || 
+                skill.includes(jobSkillStr) ||
+                jobSkillStr === skill;
+            })
           ).length;
           
           console.log(`Job: ${jobTitle}, Tech Match: ${hasTechMatch}, Skill Overlap: ${skillOverlap}`);
@@ -137,7 +141,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
         
         if (matchingJobs.length === 0) {
           console.log('⚠️ No matching jobs found, showing recent jobs');
-          setRealJobs(allJobs.slice(0, 3).map(job => ({
+          setRealJobs(allJobs.slice(0, 3).map((job: any) => ({
             ...job,
             matchPercentage: 70
           })));
@@ -146,7 +150,10 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const jobsWithMatch = matchingJobs.slice(0, 3).map((job: any) => {
             const jobSkills = job.skills?.map((s: string) => s.toLowerCase()) || [];
             const skillOverlap = skillNames.filter(skill => 
-              jobSkills.some(jobSkill => jobSkill.includes(skill) || skill.includes(jobSkill))
+              jobSkills.some((jobSkill: string | string[]) => {
+                const jobSkillStr = Array.isArray(jobSkill) ? jobSkill.join(' ') : jobSkill;
+                return jobSkillStr.includes(skill) || skill.includes(jobSkillStr);
+              })
             ).length;
             
             const matchPercentage = Math.min(95, 60 + (skillOverlap * 10));
@@ -157,7 +164,10 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
               aiAnalysis: {
                 recommendation: `Strong candidate with ${skillOverlap} matching skills. Consider for interview.`,
                 strengths: skillNames.filter(skill => 
-                  jobSkills.some(jobSkill => jobSkill.includes(skill))
+                  jobSkills.some((jobSkill: string | string[]) => {
+                    const jobSkillStr = Array.isArray(jobSkill) ? jobSkill.join(' ') : jobSkill;
+                    return jobSkillStr.includes(skill);
+                  })
                 ).slice(0, 3)
               }
             };

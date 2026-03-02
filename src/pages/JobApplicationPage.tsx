@@ -178,7 +178,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                             alert('Upload failed: ' + result.error);
                           }
                         } catch (error) {
-                          alert('Upload failed: ' + error.message);
+                          alert('Upload failed: ' + (error as Error).message);
                         }
                       }
                     }}
@@ -365,6 +365,16 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
   const renderReviewStep = () => {
     const userData = JSON.parse(localStorage.getItem('user') || '{}');
     const existingResume = userData?.resume;
+    
+    // Check if user has any resume data
+    const hasResume = existingResume && (
+      existingResume.name || 
+      existingResume.filename || 
+      existingResume.url || 
+      existingResume.path ||
+      existingResume.status ||
+      typeof existingResume === 'string'
+    );
     
     // Get resume name from various sources
     const getResumeName = () => {

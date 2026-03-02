@@ -190,7 +190,7 @@ const ResumeReadyPage: React.FC<ResumeReadyPageProps> = ({ onNavigate, user, onL
 
       <Footer onNavigate={onNavigate} />
 
-      <style jsx>{`
+      <style>{`
         .resume-ready-container {
           max-width: 1200px;
           margin: 0 auto;

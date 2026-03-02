@@ -60,7 +60,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       console.log('Login successful:', response);
       
       // Check if this is an employer account - REJECT if so
-      if (response.user.userType === 'employer') {
+      const apiUserType = response.user.userType as string;
+      if (apiUserType === 'employer' || apiUserType === 'recruiter') {
         setError('This is an employer account. Please use "Employer Login" instead.');
         setLoading(false);
         return;
@@ -77,7 +78,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       
       // Call onLogin with user data
       console.log('Raw API response userType:', response.user.userType);
-      const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
+      const userType: 'candidate' | 'employer' = (apiUserType === 'employer' || apiUserType === 'recruiter') ? 'employer' : 'candidate';
       console.log('Mapped user type for app:', userType);
       onLogin({ 
         name: displayName, 

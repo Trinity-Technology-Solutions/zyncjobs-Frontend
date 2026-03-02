@@ -26,6 +26,9 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const [searchTerm, setSearchTerm] = useState('');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMoreCompanies, setHasMoreCompanies] = useState(true);
+  const companiesPerPage = 12;
   
   // Filter states
   const [industryInput, setIndustryInput] = useState('');
@@ -69,25 +72,42 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   // Fetch companies from API
-  const fetchCompanies = async () => {
+  const fetchCompanies = async (page = 1, append = false) => {
     try {
+      if (!append) setLoading(true);
+      
       const params = new URLSearchParams();
       if (searchTerm) params.append('search', searchTerm);
+      params.append('page', page.toString());
+      params.append('limit', companiesPerPage.toString());
       
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setCompanies(data);
+        
+        if (append) {
+          setCompanies(prev => [...prev, ...data]);
+        } else {
+          setCompanies(data);
+        }
+        
+        setHasMoreCompanies(data.length === companiesPerPage);
       } else {
         console.error('Failed to fetch companies');
-        setCompanies([]);
+        if (!append) setCompanies([]);
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      setCompanies([]);
+      if (!append) setCompanies([]);
     } finally {
-      setLoading(false);
+      if (!append) setLoading(false);
     }
+  };
+
+  const handleLoadMoreCompanies = () => {
+    const nextPage = currentPage + 1;
+    setCurrentPage(nextPage);
+    fetchCompanies(nextPage, true);
   };
 
   useEffect(() => {
@@ -339,6 +359,17 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               </div>
             </div>
             ))}
+          </div>
+        )}
+        
+        {companies.length > 0 && hasMoreCompanies && (
+          <div className="flex justify-center py-8">
+            <button
+              onClick={handleLoadMoreCompanies}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Load More Companies
+            </button>
           </div>
         )}
       </div>

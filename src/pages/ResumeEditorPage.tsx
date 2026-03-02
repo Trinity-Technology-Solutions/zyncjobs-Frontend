@@ -1,10 +1,8 @@
-import React, { useState, lazy, Suspense, ErrorBoundary } from 'react';
+import React, { useState, Suspense } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import aiService from '../services/aiService';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 
 class TemplateErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
   constructor(props: {children: React.ReactNode}) {
@@ -80,31 +78,8 @@ interface ResumeData {
   }>;
 }
 
-// Dynamic template imports
-const templateComponents: { [key: string]: any } = {
-  'amsterdam': lazy(() => import('../components/templates/amsterdam')),
-  'athens': lazy(() => import('../components/templates/athens')),
-  'berlin': lazy(() => import('../components/templates/berlin')),
-  'boston': lazy(() => import('../components/templates/boston')),
-  'brussels': lazy(() => import('../components/templates/brussels')),
-  'chicago': lazy(() => import('../components/templates/chicago')),
-  'copenhagen': lazy(() => import('../components/templates/copenhagen')),
-  'dublin': lazy(() => import('../components/templates/dublin')),
-  'london': lazy(() => import('../components/templates/london')),
-  'madrid': lazy(() => import('../components/templates/madrid')),
-  'milan': lazy(() => import('../components/templates/milan')),
-  'new-york': lazy(() => import('../components/templates/new-york')),
-  'oslo': lazy(() => import('../components/templates/oslo')),
-  'paris': lazy(() => import('../components/templates/paris')),
-  'prague': lazy(() => import('../components/templates/prague')),
-  'santiago': lazy(() => import('../components/templates/santiago')),
-  'shanghai': lazy(() => import('../components/templates/shanghai')),
-  'singapore': lazy(() => import('../components/templates/singapore')),
-  'stockholm': lazy(() => import('../components/templates/stockholm')),
-  'sydney': lazy(() => import('../components/templates/sydney')),
-  'toronto': lazy(() => import('../components/templates/toronto')),
-  'vienna': lazy(() => import('../components/templates/vienna'))
-};
+// Templates removed - placeholder
+const templateComponents: { [key: string]: any } = {};
 
 const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, onLogout, template }) => {
   const selectedTemplate = template || 'london';
@@ -154,7 +129,7 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
           location: `${prev.city}, ${prev.country}`,
           start: prev.experience[0]?.start || '',
           end: prev.experience[0]?.end || '',
-          details: field === 'workDescription' ? value.split('\n').filter(line => line.trim()) : (prev.experience[0]?.details || [prev.workDescription].filter(d => d))
+          details: field === 'workDescription' ? value.split('\n').filter((line: string) => line.trim()) : (prev.experience[0]?.details || [prev.workDescription].filter(d => d))
         }];
       }
       // Update experience location when city or country changes
@@ -201,6 +176,12 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
       if (format === 'pdf') {
         const resumeElement = document.querySelector('[data-resume-content]');
         if (resumeElement) {
+          // Lazy load PDF libraries
+          const [html2canvas, { default: jsPDF }] = await Promise.all([
+            import('html2canvas').then(m => m.default),
+            import('jspdf')
+          ]);
+          
           // Generate PDF from the resume element
           const canvas = await html2canvas(resumeElement as HTMLElement, {
             scale: 2,

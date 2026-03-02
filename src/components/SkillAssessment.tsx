@@ -4,17 +4,17 @@ import { API_ENDPOINTS } from '../config/constants';
 import BackButton from './BackButton';
 
 const SkillAssessment = () => {
-  const [skills, setSkills] = useState([]);
-  const [filteredSkills, setFilteredSkills] = useState([]);
+  const [skills, setSkills] = useState<string[]>([]);
+  const [filteredSkills, setFilteredSkills] = useState<string[]>([]);
   const [skillSearch, setSkillSearch] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('');
   const [showSkillDropdown, setShowSkillDropdown] = useState(false);
-  const [assessment, setAssessment] = useState(null);
+  const [assessment, setAssessment] = useState<any>(null);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState([]);
+  const [answers, setAnswers] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState(1800);
-  const [result, setResult] = useState(null);
-  const [myAssessments, setMyAssessments] = useState([]);
+  const [result, setResult] = useState<any>(null);
+  const [myAssessments, setMyAssessments] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSkills();
@@ -110,19 +110,19 @@ const SkillAssessment = () => {
     }
   };
 
-  const formatTime = (seconds) => {
+  const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleSkillSearch = (e) => {
+  const handleSkillSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSkillSearch(value);
     setSelectedSkill(value);
     
     if (value.length >= 1) {
-      const filtered = skills.filter(skill => 
+      const filtered = skills.filter((skill: string) => 
         skill.toLowerCase().includes(value.toLowerCase())
       ).slice(0, 10);
       setFilteredSkills(filtered);
@@ -133,7 +133,7 @@ const SkillAssessment = () => {
     }
   };
 
-  const selectSkill = (skill) => {
+  const selectSkill = (skill: string) => {
     setSelectedSkill(skill);
     setSkillSearch(skill);
     setShowSkillDropdown(false);
@@ -192,7 +192,7 @@ const SkillAssessment = () => {
         <div className="mb-6">
           <h3 className="text-lg font-medium mb-4">{question.question}</h3>
           <div className="space-y-3">
-            {question.options.map((option, index) => (
+            {question.options.map((option: string, index: number) => (
               <label key={index} className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                 <input
                   type="radio"

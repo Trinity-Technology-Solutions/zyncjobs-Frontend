@@ -26,7 +26,7 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">
-              {getCandidateName(candidate).split(' ').map(n => n[0]).join('').toUpperCase()}
+              {getCandidateName(candidate).split(' ').map((n: any[]) => n[0]).join('').toUpperCase()}
             </div>
             <div>
               <h2 className="text-2xl font-bold text-gray-900">{getCandidateName(candidate)}</h2>
@@ -95,7 +95,7 @@ const CandidateProfileModal: React.FC<CandidateProfileModalProps> = ({ candidate
               <span>Skills & Technologies</span>
             </h4>
             <div className="flex flex-wrap gap-2">
-              {getCandidateSkills(candidate).map((skill, index) => (
+              {getCandidateSkills(candidate).map((skill: string | number | boolean | React.ReactElement<any, string | React.JSXElementConstructor<any>> | Iterable<React.ReactNode> | null | undefined, index: React.Key | null | undefined) => (
                 <span 
                   key={index} 
                   className={skill === 'No skills listed' ? 'text-gray-500 text-sm' : 'bg-blue-100 text-blue-800 px-3 py-2 rounded-full text-sm font-medium'}

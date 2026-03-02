@@ -497,17 +497,13 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         )}
 
         {candidates.length > 0 && hasMoreCandidates && (
-          <div className="text-center mt-12">
-            <div className="bg-white/60 backdrop-blur-sm rounded-xl p-6 border border-gray-200 inline-block">
-              <p className="text-gray-600 mb-4">Showing {candidates.length} candidate{candidates.length !== 1 ? 's' : ''}</p>
-              <button 
-                onClick={handleLoadMoreCandidates}
-                className="bg-gradient-to-r from-gray-800 to-gray-900 text-white px-8 py-4 rounded-xl font-semibold hover:from-gray-900 hover:to-black transition-all duration-200 shadow-lg hover:shadow-xl flex items-center space-x-3 mx-auto"
-              >
-                <Users className="w-5 h-5" />
-                <span>Load More Candidates</span>
-              </button>
-            </div>
+          <div className="flex justify-center py-8">
+            <button
+              onClick={handleLoadMoreCandidates}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Load More Candidates
+            </button>
           </div>
         )}
       </div>
