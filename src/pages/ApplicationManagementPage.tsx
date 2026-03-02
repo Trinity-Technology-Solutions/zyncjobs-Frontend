@@ -21,39 +21,69 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchApplications();
-  }, [user]);
+    // Get jobId from sessionStorage
+    const storedJobId = sessionStorage.getItem('selectedJobId');
+    console.log('📋 SessionStorage jobId:', storedJobId);
+    setJobId(storedJobId);
+  }, []);
+
+  useEffect(() => {
+    if (jobId) {
+      fetchApplications();
+    }
+  }, [jobId]);
 
   const fetchApplications = async () => {
     try {
       setLoading(true);
       
-      // Get the specific job ID from sessionStorage (set by JobManagementPage)
-      const jobId = sessionStorage.getItem('selectedJobId');
+      console.log('📋 Fetching applications for jobId:', jobId);
       
-      if (!jobId) {
+      if (!jobId || jobId === 'undefined' || jobId === 'null') {
+        console.error('❌ Invalid jobId:', jobId);
         setApplications([]);
-        setError('No job selected');
+        setError('No job selected. Please select a job from Job Management.');
+        setLoading(false);
         return;
       }
+      
+      console.log('🔍 Calling API:', `${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`);
       
       // Fetch applications from API
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`);
       
       if (!response.ok) {
+        console.error('❌ API Error:', response.status, response.statusText);
         throw new Error('Failed to fetch applications');
       }
       
       const fetchedApplications = await response.json();
+      console.log('✅ Applications fetched:', fetchedApplications.length);
       
       // Transform applications to include job details
       const applicationsWithJobDetails = await Promise.all(
         fetchedApplications.map(async (app: any) => {
           try {
-            const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${app.jobId}`);
+            // Use id or _id for Sequelize/MongoDB compatibility
+            const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
+            if (!appJobId) {
+              console.log('⚠️ Application without jobId:', app);
+              return {
+                ...app,
+                jobTitle: 'Unknown Position',
+                company: 'Unknown Company',
+                appliedDate: app.createdAt || app.appliedDate
+              };
+            }
+            
+            console.log('🔍 Fetching job details for:', appJobId);
+            const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
             const jobData = jobResponse.ok ? await jobResponse.json() : null;
+            
+            console.log('✅ Job data:', jobData);
             
             return {
               ...app,

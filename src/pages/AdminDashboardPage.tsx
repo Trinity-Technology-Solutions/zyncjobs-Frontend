@@ -30,7 +30,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNavigate, use
 
   return (
     <RoleGuard userRole="admin" requiredPermission={PERMISSIONS.VIEW_ANALYTICS}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -42,7 +42,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNavigate, use
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             {adminStats.map((stat, index) => (
-              <div key={index} className="bg-white rounded-lg shadow p-6">
+              <div key={index} className="bg-gradient-to-br from-white to-blue-50 rounded-lg shadow p-6 card-hover">
                 <div className="flex items-center">
                   <div className={`${stat.color} p-3 rounded-lg`}>
                     <stat.icon className="w-6 h-6 text-white" />
@@ -57,7 +57,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNavigate, use
           </div>
 
           {/* Admin Actions */}
-          <div className="bg-white rounded-lg shadow">
+          <div className="bg-white/90 backdrop-blur-md rounded-lg shadow card-hover">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">Admin Actions</h2>
             </div>
@@ -66,7 +66,7 @@ const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNavigate, use
                 <button
                   key={index}
                   onClick={() => onNavigate(action.action)}
-                  className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left"
+                  className="w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left card-hover"
                 >
                   <div className="flex items-center mb-3">
                     <action.icon className="w-8 h-8 text-blue-600" />

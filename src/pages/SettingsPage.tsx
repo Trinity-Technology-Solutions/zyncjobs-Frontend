@@ -178,9 +178,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         isVisible={notification.isVisible}
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
         {/* Header */}
-        <div className="bg-white border-b">
+        <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-4">
@@ -196,7 +196,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white border-b">
+        <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex space-x-8">
               <button 
@@ -217,7 +217,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {activeTab === 'Account Information' && (
             <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm border">
+              <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border card-hover">
                 <div className="p-6 border-b">
                   <h2 className="text-xl font-semibold text-gray-900">Account Information</h2>
                   <p className="text-gray-600 mt-1">Manage your account information</p>
@@ -250,7 +250,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                             type="email"
                             value={emailForm.newEmail}
                             onChange={(e) => setEmailForm({...emailForm, newEmail: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Enter new email address"
                             aria-label="New email address"
                             required
@@ -264,7 +264,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                             type="email"
                             value={emailForm.confirmEmail}
                             onChange={(e) => setEmailForm({...emailForm, confirmEmail: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                             placeholder="Confirm new email address"
                             aria-label="Confirm new email address"
                             required
@@ -272,7 +272,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                         </div>
                         <button
                           type="submit"
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
+                          className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-4 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
                         >
                           Update Email
                         </button>
@@ -344,7 +344,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                         </div>
                         <button
                           type="submit"
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium"
+                          className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-4 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
                         >
                           Update Password
                         </button>
@@ -371,7 +371,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                   
                   {expandedSections.manage && (
                     <div className="px-6 pb-6">
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 card-hover">
                         <div className="flex items-start">
                           <Trash2 className="w-5 h-5 text-red-600 mt-0.5 mr-3" />
                           <div>

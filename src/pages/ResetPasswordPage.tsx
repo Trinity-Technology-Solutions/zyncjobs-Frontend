@@ -162,10 +162,10 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} />
       <div className="flex items-center justify-center py-16 px-4">
-        <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg w-full max-w-md p-8 card-hover">
           <div className="text-center mb-8">
             <Lock className="w-16 h-16 text-blue-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Reset Password</h2>
@@ -277,7 +277,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
             <button
               type="submit"
               disabled={loading || passwordStrength.score < 4}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
             >
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>

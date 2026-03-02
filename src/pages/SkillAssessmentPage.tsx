@@ -243,7 +243,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   return (
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="min-h-screen bg-gray-50 py-8">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 py-8">
         <div className="max-w-4xl mx-auto px-4">
           <div className="mb-6">
             <button 

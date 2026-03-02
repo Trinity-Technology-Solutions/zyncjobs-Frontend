@@ -10,7 +10,7 @@ interface AIResumeBuilderPageProps {
 
 const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, user, onLogout }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -18,14 +18,14 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
           
           {/* Left Content */}
           <div className="space-y-8">
-            <div className="flex items-center space-x-2 text-green-600 font-semibold">
+            <div className="flex items-center space-x-2 text-green-600 font-semibold animate-pulse">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span>48,801 resumes created today</span>
             </div>
             
             <div className="space-y-6">
               <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                Your <span className="text-blue-500">professional AI resume</span>, ready in minutes
+                Your <span className="bg-gradient-to-r from-blue-500 to-cyan-500 bg-clip-text text-transparent">professional AI resume</span>, ready in minutes
               </h1>
               
               <p className="text-xl text-gray-600 leading-relaxed">
@@ -37,13 +37,13 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
             <div className="flex flex-col sm:flex-row gap-4">
               <button
                 onClick={() => onNavigate && onNavigate('resume-templates')}
-                className="bg-blue-500 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-600 transition-colors"
+                className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:shadow-glow transition-all duration-300 btn-glow"
               >
                 Create AI Resume Now
               </button>
               <button
                 onClick={() => onNavigate && onNavigate('resume-editor')}
-                className="border-2 border-blue-500 text-blue-500 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-50 transition-colors"
+                className="border-2 border-blue-500 text-blue-500 px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-50 transition-colors card-hover"
               >
                 Improve My Resume
               </button>
@@ -63,9 +63,9 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
 
           {/* Right Content - Resume Preview */}
           <div className="relative">
-            <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md mx-auto">
+            <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-2xl p-8 max-w-md mx-auto card-hover shimmer-effect">
               <div className="text-center mb-6">
-                <div className="w-20 h-20 bg-gray-300 rounded-full mx-auto mb-4"></div>
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full mx-auto mb-4 shadow-lg"></div>
                 <h3 className="text-xl font-bold text-gray-900">Samantha Williams</h3>
                 <p className="text-gray-600">Senior Analyst</p>
                 <p className="text-sm text-gray-500">New York, 10001</p>
@@ -96,7 +96,7 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
                 </div>
               </div>
               
-              <button className="w-full bg-blue-500 text-white py-3 rounded-lg font-semibold mt-6 hover:bg-blue-600 transition-colors">
+              <button className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 rounded-lg font-semibold mt-6 hover:shadow-glow transition-all duration-300 btn-glow">
                 🎯 Generate with AI
               </button>
             </div>

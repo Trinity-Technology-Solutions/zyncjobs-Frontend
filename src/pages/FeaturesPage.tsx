@@ -40,9 +40,9 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       {/* Header */}
-      <div className="bg-white shadow-sm">
+      <div className="bg-white/90 backdrop-blur-md shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-6">
             <div>
@@ -63,7 +63,7 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-8">
           {features.map((feature, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow">
+            <div key={index} className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow card-hover">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center">
                   {feature.icon}
@@ -90,7 +90,7 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
         </div>
 
         {/* Implementation Summary */}
-        <div className="mt-12 bg-white rounded-lg shadow-lg p-8">
+        <div className="mt-12 bg-white/90 backdrop-blur-md rounded-lg shadow-lg p-8 card-hover">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Implementation Summary</h2>
           
           <div className="grid md:grid-cols-2 gap-8">

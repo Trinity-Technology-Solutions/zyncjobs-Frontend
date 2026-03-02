@@ -204,8 +204,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         }
         
         if (jobId) {
+          // Ensure jobId is a string, not an object
+          const jobIdString = typeof jobId === 'object' ? (jobId._id || jobId.id) : jobId;
+          
           // Fetch job details
-          const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+          const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
           if (jobResponse.ok) {
             const jobData = await jobResponse.json();
             setJob(jobData);
@@ -384,9 +387,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       {/* Job Header */}
-      <div className="bg-white shadow-sm border-b">
+      <div className="bg-white/90 backdrop-blur-md shadow-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <BackButton 
             onClick={() => {

@@ -132,7 +132,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       const allJobs = await jobsResponse.json();
       const employerJobs = allJobs.filter((job: any) => job.postedBy === user?.email);
-      const employerJobIds = employerJobs.map((job: any) => job._id);
+      const employerJobIds = employerJobs.map((job: any) => job.id || job._id);
       
       console.log('Employer jobs:', employerJobIds.length);
       
@@ -251,13 +251,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     fetchPostedJobs(nextPage, true);
   };
 
-  const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default') => (
-    <div key={job._id || job.id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+  const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default') => {
+    const jobKey = job._id || job.id || `job-${Math.random()}`;
+    return (
+    <div key={jobKey} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
         <div className="flex-1">
           <div className="flex items-start mb-4">
-            <div className="flex-shrink-0 w-12 h-12 mr-4">
-              <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center p-2">
+            <div className="flex-shrink-0 w-14 h-14 mr-4">
+              <div className="bg-white w-14 h-14 rounded-lg flex items-center justify-center p-2 border border-gray-200">
                 <img 
                   src={getCompanyLogo(job.company)}
                   alt={`${job.company} logo`}
@@ -272,52 +274,60 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             
             <div className="flex-1">
               <div className="flex items-start justify-between mb-2">
-                <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
+                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
                   {job.jobTitle || job.title}
                 </h3>
-                <span className="text-sm text-gray-500 ml-4">
+                <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
                   {formatDate(job.createdAt)}
                 </span>
               </div>
-              <p className="text-lg text-blue-600 font-medium mb-2">{job.company}</p>
+              <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-3">
+                <span>🏢</span>
+                {job.company}
+              </p>
             </div>
           </div>
           
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-            <div className="flex items-center space-x-1">
-              <MapPin className="w-4 h-4" />
-              <span>{job.location}</span>
+          <div className="flex flex-wrap items-center gap-3 mb-3">
+            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
+              <MapPin className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">{job.location}</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <DollarSign className="w-4 h-4" />
-              <span>{formatSalary(job.salary)}</span>
+            <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
+              <DollarSign className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
             </div>
-            <div className="flex items-center space-x-1">
-              <Briefcase className="w-4 h-4" />
-              <span>{job.type}</span>
+            <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
+              <Briefcase className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-blue-700">{job.type}</span>
             </div>
           </div>
 
-          <p className="text-gray-600 mb-4">
-            {job.description && job.description.length > 150 
-              ? `${formatJobDescription(job.description.substring(0, 150), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
-              : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
-          </p>
+          {job.description && (
+            <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500 mb-3">
+              <p className="text-sm text-gray-700 leading-relaxed font-medium">
+                <span className="font-semibold text-blue-900">Description: </span>
+                {job.description && job.description.length > 150 
+                  ? `${formatJobDescription(job.description.substring(0, 150), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
+                  : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
+              </p>
+            </div>
+          )}
         </div>
 
         {showActions && (
-          <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col lg:flex-row lg:items-center space-y-2 lg:space-y-0 lg:space-x-3">
+          <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
             {actionType === 'posted' && (
               <>
                 <button 
                   onClick={() => onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors min-w-[120px]"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
                 >
                   View Job
                 </button>
                 <button 
                   onClick={() => deleteJob(job._id || job.id)}
-                  className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors min-w-[120px]"
+                  className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors shadow-md min-w-[140px]"
                 >
                   Delete Job
                 </button>
@@ -327,7 +337,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <>
                 <button 
                   onClick={() => handleRemoveSavedJob(job._id || job.id)}
-                  className="flex items-center justify-center space-x-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors min-w-[100px]"
+                  className="flex items-center justify-center space-x-2 px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors shadow-sm min-w-[120px]"
                 >
                   <span>Remove</span>
                 </button>
@@ -336,7 +346,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     localStorage.setItem('selectedJob', JSON.stringify(job));
                     onNavigate('job-application');
                   }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors min-w-[120px]"
+                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
                 >
                   Apply Now
                 </button>
@@ -345,7 +355,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'default' && (
               <button 
                 onClick={() => onNavigate('job-detail', { jobId: job._id || job.id })}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors min-w-[120px]"
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
               >
                 View Job
               </button>
@@ -354,7 +364,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         )}
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -550,35 +561,43 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 <div className="space-y-4">
                   {employerApplications.length > 0 ? (
                     employerApplications.map((application) => (
-                      <div key={application._id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                      <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                           <div className="flex-1">
                             <div className="flex items-start mb-4">
                               <div className="flex-1">
                                 <div className="flex items-start justify-between mb-2">
-                                  <h3 className="text-xl font-semibold text-gray-900">
+                                  <h3 className="text-xl font-bold text-gray-900">
                                     {application.candidateName || application.candidateEmail || 'Candidate'}
                                   </h3>
                                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    application.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                    application.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                    application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                    application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                                    application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
                                     application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                    application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
-                                    {application.status || 'pending'}
+                                    {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
                                   </span>
                                 </div>
-                                <p className="text-lg text-blue-600 font-medium mb-2">{application.jobTitle || 'Job Position'}</p>
-                                <p className="text-sm text-gray-500">
-                                  Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
+                                  <span>💼</span>
+                                  {application.jobTitle || 'Job Position'}
                                 </p>
+                                <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex">
+                                  <span>📅</span>
+                                  <span className="text-sm font-medium text-gray-700">
+                                    Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
                           <div className="mt-4 lg:mt-0 lg:ml-6">
                             <button 
                               onClick={() => onNavigate('candidate-response-detail', { application })}
-                              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
                             >
                               View Details
                             </button>
@@ -607,16 +626,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {user?.type === 'candidate' && activeTab === 'Applied' && appliedJobs.length > 0 && (
                 <div className="space-y-4">
                   {appliedJobs.map((application) => (
-                    <div key={application._id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
-                      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+                    <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex-1">
                           <div className="flex items-start mb-4">
-                            <div className="flex-shrink-0 w-12 h-12 mr-4">
-                              <div className="w-12 h-12 rounded border border-gray-200 flex items-center justify-center bg-white">
+                            <div className="flex-shrink-0 w-14 h-14 mr-4">
+                              <div className="w-14 h-14 rounded-lg border-2 border-gray-200 flex items-center justify-center bg-white shadow-sm">
                                 <img 
                                   src={getCompanyLogo(application.jobId?.company || '')}
                                   alt={`${application.jobId?.company || 'Company'} logo`}
-                                  className="w-10 h-10 object-contain"
+                                  className="w-12 h-12 object-contain"
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
                                     target.src = '/images/zync-logo.svg';
@@ -627,44 +646,52 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                             
                             <div className="flex-1">
                               <div className="flex items-start justify-between mb-2">
-                                <h3 className="text-xl font-semibold text-gray-900 hover:text-blue-600 cursor-pointer">
+                                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
                                   {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
                                 </h3>
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                  application.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                                  application.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                                  application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                  application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                                  application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
                                   application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
                                   'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {application.status || 'pending'}
+                                  {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
                                 </span>
                               </div>
-                              <p className="text-lg text-blue-600 font-medium mb-2">{application.jobId?.company}</p>
-                              <p className="text-sm text-gray-500">
-                                Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                              <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
+                                <span>🏢</span>
+                                {application.jobId?.company}
                               </p>
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
+                                <span>📅</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                           
-                          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mb-3">
-                            <div className="flex items-center space-x-1">
-                              <MapPin className="w-4 h-4" />
-                              <span>{application.jobId?.location}</span>
+                          <div className="flex flex-wrap items-center gap-3 mb-3">
+                            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
+                              <MapPin className="w-4 h-4 text-gray-600" />
+                              <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <DollarSign className="w-4 h-4" />
-                              <span>{formatSalary(application.jobId?.salary)}</span>
+                            <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
+                              <DollarSign className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary) || 'Competitive'}</span>
                             </div>
-                            <div className="flex items-center space-x-1">
-                              <Briefcase className="w-4 h-4" />
-                              <span>{application.jobId?.type}</span>
+                            <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
+                              <Briefcase className="w-4 h-4 text-blue-600" />
+                              <span className="text-sm font-medium text-blue-700">{application.jobId?.type || 'Full-time'}</span>
                             </div>
                           </div>
 
-                          {application.coverLetter && (
-                            <div className="mb-4">
-                              <h4 className="font-medium text-gray-900 mb-2">Your Cover Letter:</h4>
-                              <p className="text-gray-600 text-sm bg-gray-50 p-3 rounded">
+                          {application.coverLetter && application.coverLetter !== 'No cover letter' && (
+                            <div className="mb-4 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                              <h4 className="font-semibold text-blue-900 mb-2 text-sm">Your Cover Letter:</h4>
+                              <p className="text-gray-700 text-sm leading-relaxed">
                                 {application.coverLetter.length > 150 
                                   ? `${application.coverLetter.substring(0, 150)}...` 
                                   : application.coverLetter}
@@ -673,10 +700,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                           )}
                         </div>
 
-                        <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col lg:flex-row lg:items-center space-y-2 lg:space-y-0 lg:space-x-3">
+                        <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
                           <button 
-                            onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id || application.jobId })}
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors min-w-[120px]"
+                            onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id || application.jobId?.id })}
+                            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
                           >
                             View Job
                           </button>

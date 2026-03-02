@@ -1,5 +1,9 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
 
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Reset all fonts and force IBM Plex Sans */
 * {
   font-family: 'IBM Plex Sans', sans-serif !important;
@@ -13,6 +17,103 @@ body {
   font-family: 'IBM Plex Sans', sans-serif !important;
   font-weight: 400 !important;
   line-height: 1.5 !important;
+}
+
+/* Aceternity-style Card Hover Effects */
+@layer components {
+  .card-hover {
+    @apply transition-all duration-300 ease-out;
+    @apply hover:scale-[1.02] hover:-translate-y-1;
+    @apply hover:shadow-2xl;
+  }
+
+  .card-glow {
+    @apply relative overflow-hidden;
+    @apply before:absolute before:inset-0 before:rounded-lg;
+    @apply before:bg-gradient-to-r before:from-blue-500/0 before:via-blue-500/10 before:to-blue-500/0;
+    @apply before:translate-x-[-100%] hover:before:translate-x-[100%];
+    @apply before:transition-transform before:duration-1000;
+  }
+
+  .gradient-border {
+    @apply relative bg-white rounded-xl;
+    @apply before:absolute before:inset-0 before:-z-10 before:rounded-xl;
+    @apply before:bg-gradient-to-r before:from-blue-500 before:via-cyan-500 before:to-purple-500;
+    @apply before:p-[2px] before:opacity-0 hover:before:opacity-100;
+    @apply before:transition-opacity before:duration-300;
+  }
+
+  .shimmer-effect {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer-effect::after {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-full;
+    @apply bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    @apply translate-x-[-100%];
+    animation: shimmer 3s infinite;
+  }
+
+  .glass-card {
+    @apply bg-white/80 backdrop-blur-lg border border-white/20;
+    @apply shadow-xl;
+  }
+
+  .neon-border {
+    @apply border-2 border-blue-500;
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5),
+                inset 0 0 10px rgba(59, 130, 246, 0.2);
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-600 via-cyan-500 to-purple-600;
+    @apply bg-clip-text text-transparent;
+  }
+
+  .btn-glow {
+    @apply relative overflow-hidden;
+    @apply transition-all duration-300;
+    @apply hover:shadow-glow hover:scale-105;
+  }
+
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-r from-blue-400 to-cyan-400;
+    @apply opacity-0 hover:opacity-20 transition-opacity duration-300;
+  }
+}
+
+/* Animated Gradient Background */
+.animated-gradient {
+  background: linear-gradient(
+    -45deg,
+    #3b82f6,
+    #06b6d4,
+    #8b5cf6,
+    #3b82f6
+  );
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+/* Floating Animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Shimmer Animation */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Gradient Animation */
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Import mobile styles */

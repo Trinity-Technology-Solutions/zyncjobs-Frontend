@@ -165,7 +165,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, user, onLogout })
               Frequently Asked Questions
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="bg-white/90 backdrop-blur-md p-6 rounded-lg shadow-sm card-hover">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   What happens after 10 free job postings?
                 </h3>
@@ -173,7 +173,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, user, onLogout })
                   You'll need to upgrade to a paid plan to post more jobs. Your existing jobs will remain active.
                 </p>
               </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="bg-white/90 backdrop-blur-md p-6 rounded-lg shadow-sm card-hover">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Can I search candidates for free?
                 </h3>
@@ -181,7 +181,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, user, onLogout })
                   Basic candidate viewing is free, but advanced search with 200+ skills requires a Professional plan.
                 </p>
               </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="bg-white/90 backdrop-blur-md p-6 rounded-lg shadow-sm card-hover">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Is there a contract commitment?
                 </h3>
@@ -189,7 +189,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, user, onLogout })
                   No, all plans are month-to-month. You can upgrade, downgrade, or cancel anytime.
                 </p>
               </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm">
+              <div className="bg-white/90 backdrop-blur-md p-6 rounded-lg shadow-sm card-hover">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
                   Do you offer custom enterprise solutions?
                 </h3>

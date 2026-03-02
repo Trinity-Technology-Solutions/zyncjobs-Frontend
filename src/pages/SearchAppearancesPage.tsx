@@ -63,7 +63,7 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <BackButton 
@@ -79,9 +79,9 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg shadow-sm border border-blue-200 p-6 card-hover">
             <div className="flex items-center">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg shadow-md">
                 <Search className="w-6 h-6 text-blue-600" />
               </div>
               <div className="ml-4">
@@ -91,9 +91,9 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg shadow-sm border border-green-200 p-6 card-hover">
             <div className="flex items-center">
-              <div className="p-2 bg-green-100 rounded-lg">
+              <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg shadow-md">
                 <TrendingUp className="w-6 h-6 text-green-600" />
               </div>
               <div className="ml-4">
@@ -103,9 +103,9 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
             </div>
           </div>
           
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-sm border border-purple-200 p-6 card-hover">
             <div className="flex items-center">
-              <div className="p-2 bg-purple-100 rounded-lg">
+              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md">
                 <Eye className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
@@ -117,14 +117,14 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
         </div>
 
         {/* Search Keywords */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border mb-6 card-hover">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-900">Top Search Keywords</h2>
           </div>
           <div className="p-6">
             <div className="flex flex-wrap gap-2">
               {['React Developer', 'JavaScript', 'Full Stack', 'Node.js', 'Python', 'Software Engineer', 'Frontend', 'Backend'].map((keyword, index) => (
-                <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                <span key={index} className="px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full text-sm shadow-md hover:shadow-lg transition-shadow">
                   {keyword}
                 </span>
               ))}
@@ -133,7 +133,7 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
         </div>
 
         {/* Appearances List */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border card-hover">
           {totalAppearances > 0 ? (
             <>
               <div className="px-6 py-4 border-b border-gray-200">
@@ -142,10 +142,10 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
               <div className="divide-y divide-gray-200">
                 {/* Sample search appearances */}
                 {Array.from({ length: Math.min(totalAppearances, 8) }, (_, index) => (
-                  <div key={index} className="px-6 py-4 hover:bg-gray-50">
+                  <div key={index} className="px-6 py-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300">
                     <div className="flex items-start space-x-3">
                       <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-md">
                           <Search className="w-5 h-5 text-green-600" />
                         </div>
                       </div>

@@ -88,10 +88,10 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} />
       <div className="flex items-center justify-center py-16 px-4">
-        <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg w-full max-w-md p-8 card-hover">
           <div className="text-center mb-8">
             <Mail className="w-16 h-16 text-blue-600 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-2">Forgot Password?</h2>
@@ -121,7 +121,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 btn-glow"
             >
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/api';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare } from 'lucide-react';
+import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import ApplicationTimeline from '../components/ApplicationTimeline';
 
@@ -26,6 +27,9 @@ interface Application {
     jobTitle: string;
     company: string;
     location?: string;
+    jobDescription?: string;
+    salary?: any;
+    skills?: string[];
   };
 }
 
@@ -35,7 +39,7 @@ interface MyApplicationsPageProps {
   onLogout: () => void;
 }
 
-const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, user }) => {
+const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -256,54 +260,8 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation Header */}
-      <div className="bg-gray-800 text-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-8">
-              <div className="bg-red-600 px-4 py-2 rounded font-bold text-lg">
-                ZyncJobs
-              </div>
-              <nav className="flex space-x-6">
-                <button onClick={() => onNavigate('job-listings')} className="hover:text-gray-300">Job Search</button>
-                <button onClick={() => onNavigate('companies')} className="hover:text-gray-300">Companies</button>
-                <button className="hover:text-gray-300">Career Resources</button>
-                <button className="hover:text-gray-300">My Jobs</button>
-              </nav>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button className="hover:text-gray-300">For Employers</button>
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center font-bold">
-                {user?.name ? user.name.charAt(0).toUpperCase() : 'M'}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex space-x-8">
-            <button 
-              onClick={() => onNavigate('dashboard')}
-              className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm"
-            >
-              Profile
-            </button>
-            <button 
-              className="py-4 px-1 border-b-2 border-red-500 text-gray-900 font-medium text-sm"
-            >
-              My Applications
-            </button>
-            <button 
-              className="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm"
-            >
-              Alerts
-            </button>
-          </div>
-        </div>
-      </div>
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+      
       {/* Page Header */}
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
@@ -402,7 +360,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               ) : (
                 filteredApplications.map((application) => (
                   application && application.jobId ? (
-                  <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                  <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
                     <div className="flex items-start justify-between">
                       {/* Left side - Job info */}
                       <div className="flex items-start space-x-4 flex-1">
@@ -426,42 +384,76 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             <h3 className="font-semibold text-lg text-gray-900">
                               {application.jobId?.jobTitle || 'Job Title Not Available'}
                             </h3>
-                            <div className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${
-                              application.status === 'applied' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                              application.status === 'reviewed' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                              application.status === 'shortlisted' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                              application.status === 'hired' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                              application.status === 'rejected' ? 'bg-gray-50 text-gray-700 border-gray-200' :
-                              'bg-gray-50 text-gray-700 border-gray-200'
+                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                              application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                              application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                              application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                              application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
+                              application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
                             }`}>
                               {getStatusIcon(application.status)}
                               <span className="ml-2">{application.status.charAt(0).toUpperCase() + application.status.slice(1)}</span>
                             </div>
                           </div>
                           
-                          <div className="grid grid-cols-2 gap-4 text-sm text-gray-600 mb-3">
-                            <div className="flex items-center space-x-2">
-                              <Briefcase className="w-4 h-4" />
-                              <span className="font-medium">{application.jobId?.company || 'Company Not Available'}</span>
+                          <div className="flex items-center space-x-2 mb-3">
+                            <div className="flex items-center space-x-1 bg-blue-50 px-3 py-1 rounded-lg">
+                              <Briefcase className="w-4 h-4 text-blue-600" />
+                              <span className="font-semibold text-blue-900">{application.jobId?.company || 'Company Not Available'}</span>
                             </div>
                             {application.jobId?.location && (
-                              <div className="flex items-center space-x-2">
-                                <MapPin className="w-4 h-4" />
-                                <span>{application.jobId.location}</span>
+                              <div className="flex items-center space-x-1 bg-gray-100 px-3 py-1 rounded-lg">
+                                <MapPin className="w-4 h-4 text-gray-600" />
+                                <span className="text-gray-700 font-medium">{application.jobId.location}</span>
                               </div>
                             )}
-                            <div className="flex items-center space-x-2">
-                              <Calendar className="w-4 h-4" />
-                              <span>Applied {new Date(application.createdAt).toLocaleDateString()}</span>
-                            </div>
                             {application.isQuickApply && (
-                              <div className="flex items-center space-x-2">
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                  Quick Apply
+                              <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-lg">
+                                ⚡ Quick Apply
+                              </span>
+                            )}
+                          </div>
+                          
+                          {application.jobId?.jobDescription && (
+                            <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                              <p className="text-sm text-gray-700 leading-relaxed font-medium">
+                                <span className="font-semibold text-blue-900">Job Description: </span>
+                                {application.jobId.jobDescription.substring(0, 200)}{application.jobId.jobDescription.length > 200 ? '...' : ''}
+                              </p>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center gap-3 mb-3 flex-wrap">
+                            {application.jobId?.salary && (
+                              <div className="flex items-center space-x-1 bg-green-50 px-3 py-1.5 rounded-lg">
+                                <span className="text-green-600 font-bold">💰</span>
+                                <span className="text-green-700 font-semibold text-sm">
+                                  {typeof application.jobId.salary === 'object' 
+                                    ? `${application.jobId.salary.currency || '₹'}${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
+                                    : application.jobId.salary
+                                  }
                                 </span>
                               </div>
                             )}
+                            <div className="flex items-center space-x-1 bg-gray-100 px-3 py-1 rounded-lg">
+                              <Calendar className="w-4 h-4 text-gray-600" />
+                              <span className="text-gray-700 text-sm font-medium">Applied {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                            </div>
                           </div>
+                          
+                          {application.jobId?.skills && application.jobId.skills.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {application.jobId.skills.slice(0, 5).map((skill: string, idx: number) => (
+                                <span key={idx} className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                  {skill}
+                                </span>
+                              ))}
+                              {application.jobId.skills.length > 5 && (
+                                <span className="text-xs text-gray-500 px-2 py-1 font-medium">+{application.jobId.skills.length - 5} more</span>
+                              )}
+                            </div>
+                          )}
                           
                           {/* Status message */}
                           <div className="mb-3">
@@ -536,7 +528,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                         <div className="flex flex-col space-y-2">
                           <div className="flex space-x-2">
                             <button 
-                              onClick={() => onNavigate(`job-detail/${application.jobId?._id}`)}
+                              onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id || application.jobId?.id, jobData: application.jobId })}
                               className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                             >
                               View Job

@@ -94,7 +94,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
     );
 
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
         <div className="max-w-2xl mx-auto p-6">
           {/* Header */}
           <div className="text-center mb-8">
@@ -117,7 +117,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
           </div>
 
           {/* Resume & Cover Letter Form */}
-          <div className="bg-white rounded-lg p-8">
+          <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-6">Resume & Cover Letter</h2>
             
             {/* Resume Section */}
@@ -279,7 +279,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
 
   // Step 2: Work Authorization
   const renderWorkAuthStep = () => (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <div className="max-w-2xl mx-auto p-6">
         {/* Header */}
         <div className="text-center mb-8">
@@ -302,7 +302,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
         </div>
 
         {/* Work Authorization Form */}
-        <div className="bg-white rounded-lg p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 shadow-lg">
           <h2 className="text-2xl font-bold mb-6">Work Authorization</h2>
           
           <div className="mb-8">
@@ -385,7 +385,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
     };
     
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
         <div className="max-w-2xl mx-auto p-6">
           {/* Header */}
           <div className="text-center mb-8">
@@ -408,7 +408,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
           </div>
 
           {/* Review Application */}
-          <div className="bg-white rounded-lg p-8">
+          <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 shadow-lg">
             <h2 className="text-2xl font-bold mb-4">Review your application</h2>
             <p className="text-gray-600 mb-8">
               Take a moment to review the documents you're submitting for this application. Once you submit, this action cannot be undone.

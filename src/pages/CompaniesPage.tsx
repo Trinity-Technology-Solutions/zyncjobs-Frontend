@@ -180,7 +180,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Hero Section */}
@@ -328,7 +328,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {companies.map((company) => (
-            <div key={company._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 hover:shadow-md transition-shadow cursor-pointer">
+            <div key={company._id} className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border border-gray-200 p-8 hover:shadow-md transition-shadow cursor-pointer card-hover">
               <div className="flex items-center justify-center mb-6">
                 <img 
                   src={getCompanyLogo(company)} 

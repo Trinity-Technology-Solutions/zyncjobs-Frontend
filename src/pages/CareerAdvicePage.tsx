@@ -118,7 +118,7 @@ const CareerAdvicePage: React.FC<CareerAdvicePageProps> = ({ onNavigate, topic, 
           <p className="text-xl text-gray-600">{content.description}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8 mb-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-8 mb-8 card-hover">
           <div className="flex items-center space-x-4 mb-6">
             <div className={`bg-${content.color}-100 p-4 rounded-lg`}>
               <content.icon className={`w-8 h-8 text-${content.color}-600`} />
@@ -138,7 +138,7 @@ const CareerAdvicePage: React.FC<CareerAdvicePageProps> = ({ onNavigate, topic, 
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-xl shadow-lg p-8 card-hover">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Get Started Today</h2>
           <p className="text-gray-600 mb-6">
             Ready to take the next step in your career journey? Explore our resources and connect with opportunities that align with your goals.
@@ -146,7 +146,7 @@ const CareerAdvicePage: React.FC<CareerAdvicePageProps> = ({ onNavigate, topic, 
           <div className="flex flex-col sm:flex-row gap-4">
             <button 
               onClick={() => onNavigate('job-listings')}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 btn-glow"
             >
               Browse Jobs
             </button>

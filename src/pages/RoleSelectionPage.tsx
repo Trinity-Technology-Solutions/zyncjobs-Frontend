@@ -39,7 +39,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
           {/* Role Selection Cards */}
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Tech Professionals Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow flex flex-col h-full">
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow flex flex-col h-full card-hover">
               <div className="text-center flex-1">
                 <h2 className="text-2xl font-bold text-teal-600 mb-4">Tech Professionals</h2>
                 <div className="flex justify-center mb-6">
@@ -63,7 +63,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
             </div>
 
             {/* Employers & Recruiters Card */}
-            <div className="bg-white rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow flex flex-col h-full">
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow flex flex-col h-full card-hover">
               <div className="text-center flex-1">
                 <h2 className="text-2xl font-bold text-red-600 mb-4">Employers & Recruiters</h2>
                 <div className="flex justify-center mb-6">

@@ -198,7 +198,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} />
       <div className="py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
@@ -210,9 +210,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
           Back to home
         </button>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 card-hover">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Building2 className="w-8 h-8 text-green-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Join ZyncJobs as Employer</h2>
@@ -361,7 +361,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
             >
               {loading ? 'Creating Account...' : 'Create Employer Account'}
             </button>

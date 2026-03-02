@@ -166,7 +166,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const response = await appsRes.json();
           const allApps = response.applications || response || [];
           console.log('Dashboard - All applications:', allApps.length);
-          employerApps = Array.isArray(allApps) ? allApps.filter((app: any) => {
+          
+          // Fetch job details for each application
+          const appsWithJobDetails = await Promise.all(
+            allApps.map(async (app: any) => {
+              try {
+                const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
+                if (appJobId && typeof appJobId === 'string') {
+                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
+                  if (jobRes.ok) {
+                    const jobData = await jobRes.json();
+                    return { ...app, jobTitle: jobData.jobTitle || jobData.title };
+                  }
+                }
+              } catch (e) {
+                console.log('Failed to fetch job for application:', app._id || app.id);
+              }
+              return app;
+            })
+          );
+          
+          employerApps = Array.isArray(appsWithJobDetails) ? appsWithJobDetails.filter((app: any) => {
             const matchesEmail = app.employerEmail === userEmail;
             console.log(`App: ${app.candidateName}, matchesEmail: ${matchesEmail}`);
             return matchesEmail;
@@ -329,7 +349,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       )}
       
       {/* Sidebar */}
-      <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-64 bg-white border-r border-gray-200 flex flex-col shadow-sm">
         {/* User Profile */}
         <div className="p-6 border-b border-gray-200">
           <BackButton 
@@ -498,7 +518,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         {/* Header */}
-        <div className="bg-white border-b border-gray-200 px-8 py-4">
+        <div className="bg-white border-b border-gray-200 px-8 py-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex-1 max-w-xl">
               <div className="relative">
@@ -735,38 +755,52 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ) : (
                 <div className="space-y-4">
                   {applications.map((application) => (
-                    <div key={application._id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div key={application._id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-glow hover:border-blue-400 hover:scale-[1.01] transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50 card-hover shimmer-effect">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
-                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">
+                          <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
+                            <span className="text-white font-bold text-xl">
                               {application.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
                           </div>
                           
                           <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-start justify-between mb-3">
                               <div>
-                                <h3 className="text-xl font-semibold text-gray-900">
+                                <h3 className="text-xl font-bold text-gray-900 mb-1">
                                   {application.candidateName || application.candidateEmail}
                                 </h3>
-                                <p className="text-lg text-gray-700 font-medium">
-                                  Applied for: {application.jobId?.jobTitle || application.jobId?.title}
+                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1">
+                                  <span>💼</span>
+                                  Applied for: {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
                                 </p>
                               </div>
-                              <span className="px-3 py-1 rounded-md text-sm font-medium bg-gray-100 text-gray-700 border border-gray-300">
+                              <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse ${
+                                application.status === 'applied' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
+                                application.status === 'reviewed' ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' :
+                                application.status === 'shortlisted' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
+                                application.status === 'hired' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
+                                application.status === 'rejected' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' :
+                                'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
+                              }`}>
                                 {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                              <span>📧 {application.candidateEmail}</span>
-                              <span>📅 Applied: {new Date(application.createdAt).toLocaleDateString()}</span>
+                            <div className="flex items-center gap-3 mb-3 flex-wrap">
+                              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
+                                <span>📧</span>
+                                <span className="text-sm font-medium text-blue-900">{application.candidateEmail}</span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
+                                <span>📅</span>
+                                <span className="text-sm font-medium text-gray-700">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </div>
                             </div>
 
                             {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg mb-3">
-                                <strong>Cover Letter:</strong> {application.coverLetter.length > 150 ? 
+                              <div className="text-sm text-gray-700 bg-gradient-to-r from-blue-50 to-cyan-50 p-3 rounded-lg mb-3 border-l-4 border-blue-500 shadow-sm">
+                                <strong className="text-blue-900">Cover Letter:</strong> {application.coverLetter.length > 150 ? 
                                   `${application.coverLetter.substring(0, 150)}...` : 
                                   application.coverLetter
                                 }
@@ -780,7 +814,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     try {
                                       let resumeUrl = application.resumeUrl;
                                       
-                                      // Handle different URL formats
                                       if (!resumeUrl.startsWith('http')) {
                                         resumeUrl = resumeUrl.startsWith('/') 
                                           ? `${API_ENDPOINTS.BASE_URL}${resumeUrl}`
@@ -789,7 +822,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                       
                                       console.log('Attempting to open resume:', resumeUrl);
                                       
-                                      // Test if file exists with better error handling
                                       try {
                                         const testResponse = await fetch(resumeUrl, { 
                                           method: 'HEAD',
@@ -797,10 +829,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                         });
                                         
                                         if (testResponse.ok) {
-                                          // Open in new tab with proper handling
                                           const newWindow = window.open(resumeUrl, '_blank', 'noopener,noreferrer');
                                           if (!newWindow) {
-                                            // Fallback if popup blocked
                                             window.location.href = resumeUrl;
                                           }
                                         } else {
@@ -808,7 +838,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                         }
                                       } catch (fetchError) {
                                         console.error('Resume fetch error:', fetchError);
-                                        // Try direct download as fallback
                                         const link = document.createElement('a');
                                         link.href = resumeUrl;
                                         link.download = `resume_${application.candidateName || 'candidate'}.pdf`;
@@ -822,7 +851,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                       alert('Unable to open resume. The file may have been moved or deleted. Please ask the candidate to re-upload their resume.');
                                     }
                                   }}
-                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center space-x-1 bg-blue-50 px-3 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                                  className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
                                 >
                                   <span>📄</span>
                                   <span>View Resume</span>
@@ -830,7 +859,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </div>
                             ) : (
                               <div className="mb-3">
-                                <span className="text-gray-500 text-sm">📄 Resume not available</span>
+                                <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded-lg">📄 Resume not available</span>
                               </div>
                             )}
                           </div>
@@ -849,14 +878,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 });
                                 
                                 if (response.ok) {
-                                  // Update local state immediately
                                   setApplications(prev => 
                                     prev.map(app => 
                                       app._id === application._id ? { ...app, status: newStatus } : app
                                     )
                                   );
                                   
-                                  // Show success message
                                   const statusMessage = {
                                     'pending': 'Application marked as pending',
                                     'reviewed': 'Application marked as reviewed',
@@ -872,11 +899,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               } catch (error) {
                                 console.error('Error updating status:', error);
                                 alert('Failed to update application status. Please try again.');
-                                // Reset select to original value
                                 e.target.value = application.status;
                               }
                             }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            className="px-4 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
                             title="Update application status"
                           >
                             <option value="pending">Pending</option>
@@ -890,13 +916,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               setSelectedApplication(application);
                               setShowScheduleModal(true);
                             }}
-                            className="bg-gray-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-700 transition-colors text-sm"
+                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-sm shadow-md"
                           >
                             Schedule Interview
                           </button>
                           <button 
                             onClick={() => onNavigate('candidate-profile')}
-                            className="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-800 transition-colors text-sm"
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
                             View Profile
                           </button>
@@ -924,39 +950,49 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ) : (
                 <div className="space-y-4">
                   {interviews.map((interview) => (
-                    <div key={interview._id} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                    <div key={interview._id} className="border-2 border-purple-200 rounded-xl p-6 hover:shadow-glow hover:border-purple-400 hover:scale-[1.01] transition-all duration-300 bg-gradient-to-br from-white via-purple-50 to-pink-50 card-hover shimmer-effect">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                            <span className="text-white font-bold text-lg">
+                          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
+                            <span className="text-white font-bold text-xl">
                               {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
                           </div>
                           
                           <div className="flex-1">
-                            <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-start justify-between mb-3">
                               <div>
-                                <h3 className="text-xl font-semibold text-gray-900">
+                                <h3 className="text-xl font-bold text-gray-900 mb-1">
                                   {interview.candidateName || 'Candidate'}
                                 </h3>
-                                <p className="text-lg text-blue-600 font-medium">
+                                <p className="text-base text-purple-700 font-semibold flex items-center gap-1">
+                                  <span>💼</span>
                                   {interview.jobTitle || 'Interview'}
                                 </p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                interview.status === 'scheduled' ? 'bg-blue-100 text-blue-800' :
-                                interview.status === 'completed' ? 'bg-green-100 text-green-800' :
-                                interview.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
+                              <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse ${
+                                interview.status === 'scheduled' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
+                                interview.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
+                                interview.status === 'cancelled' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' :
+                                'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
                               }`}>
                                 {interview.status?.charAt(0).toUpperCase() + interview.status?.slice(1) || 'Scheduled'}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-                              <span>📅 {new Date(interview.date).toLocaleDateString()}</span>
-                              <span>🕒 {interview.time}</span>
-                              <span>📧 {interview.candidateEmail}</span>
+                            <div className="flex items-center gap-3 mb-3 flex-wrap">
+                              <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-lg">
+                                <span>📅</span>
+                                <span className="text-sm font-semibold text-purple-900">{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
+                                <span>🕒</span>
+                                <span className="text-sm font-semibold text-blue-900">{interview.time}</span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
+                                <span>📧</span>
+                                <span className="text-sm font-medium text-gray-700">{interview.candidateEmail}</span>
+                              </div>
                             </div>
 
                             {interview.meetingLink && (
@@ -965,7 +1001,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   href={interview.meetingLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-sm font-medium inline-flex items-center space-x-1 bg-blue-50 px-3 py-1 rounded-lg hover:bg-blue-100 transition-colors"
+                                  className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
                                 >
                                   <span>🔗</span>
                                   <span>Join Meeting</span>
@@ -974,8 +1010,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             )}
 
                             {interview.notes && (
-                              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">
-                                <strong>Notes:</strong> {interview.notes}
+                              <div className="text-sm text-gray-700 bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg border-l-4 border-purple-500 shadow-sm">
+                                <strong className="text-purple-900">Notes:</strong> {interview.notes}
                               </div>
                             )}
                           </div>
@@ -1009,7 +1045,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 e.target.value = interview.status || 'scheduled';
                               }
                             }}
-                            className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="px-4 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
                             title="Update interview status"
                           >
                             <option value="scheduled">Scheduled</option>

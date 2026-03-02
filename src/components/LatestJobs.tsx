@@ -149,9 +149,8 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
-              {jobs.map((job) => {
-                return (
-                  <div key={job._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+              {jobs.map((job) => (
+                <div key={job._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center mb-4">
                       <div className="bg-blue-100 w-16 h-16 rounded-lg flex items-center justify-center p-2 mr-4">
                         <img 
@@ -175,7 +174,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                             }
                             
                             // Create letter avatar as fallback for other companies
-                            const initials = job.company.split(' ').map((n, i) => n[0]).join('').toUpperCase();
+                            const initials = job.company.split(' ').map(n => n[0]).join('').toUpperCase();
                             target.src = `data:image/svg+xml,${encodeURIComponent(`
                               <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
                                 <rect width="64" height="64" fill="#3B82F6" rx="8"/>
@@ -196,6 +195,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex space-x-2">
                         <button
+                          key="view-details"
                           onClick={() => onNavigate && onNavigate('job-detail', { 
                             jobTitle: job.jobTitle, 
                             jobId: job._id,
@@ -208,6 +208,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         </button>
                         {user?.email === job.postedBy && (
                           <button
+                            key="delete"
                             onClick={() => deleteJob(job._id)}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                           >
@@ -227,8 +228,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       <span className="bg-blue-100 text-blue-600 px-2 py-1 rounded">{job.jobType}</span>
                     </div>
                   </div>
-                );
-              })}
+                ))}
             </div>
             
             <div className="text-center">
