@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-// Note: This component doesn't use React Router since it's integrated into the main App
-// Instead, it gets data from URL search params directly
+import { useParams } from 'react-router-dom';
 
 class TemplateErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
   constructor(props: {children: React.ReactNode}) {
@@ -62,9 +61,10 @@ interface ResumeViewerPageProps {
 }
 
 const ResumeViewerPage: React.FC<ResumeViewerPageProps> = ({ template: propTemplate, resumeData: propResumeData }) => {
+  const { template: urlTemplate } = useParams<{ template: string }>();
   const [resumeData, setResumeData] = useState<ResumeData | null>(propResumeData || null);
   const [loading, setLoading] = useState(true);
-  const [template, setTemplate] = useState<string>(propTemplate || 'london');
+  const [template, setTemplate] = useState<string>(propTemplate || urlTemplate || 'london');
 
   useEffect(() => {
     try {

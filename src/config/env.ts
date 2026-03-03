@@ -3,7 +3,7 @@
 
 export const config = {
   // API Configuration - Use Trinity Jobs Render endpoint
-  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:5173/',
+  API_URL: import.meta.env.VITE_API_URL || 'http://localhost:5000',
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'ZyncJobs',
@@ -22,7 +22,7 @@ export const config = {
 // API Endpoints
 export const API_ENDPOINTS = {
   // Base URL
-  BASE_URL: config.API_URL,
+  BASE_URL: config.API_URL.replace(/\/$/, ''),
   
   // Auth
   LOGIN: `${config.API_URL}/api/users/login`,

@@ -702,7 +702,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
                         <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
                           <button 
-                            onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id || application.jobId?.id })}
+                            onClick={() => onNavigate('job-detail', { jobId: typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id) })}
                             className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
                           >
                             View Job

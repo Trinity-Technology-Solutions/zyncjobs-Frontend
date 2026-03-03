@@ -30,6 +30,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
+  const [colleges, setColleges] = useState<any[]>([]);
+  const [collegeSearch, setCollegeSearch] = useState('');
+  const [showCollegeDropdown, setShowCollegeDropdown] = useState(false);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [skills, setSkills] = useState<any[]>([]);
+  const [jobTitles, setJobTitles] = useState<any[]>([]);
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
 
   const fetchActivityInsights = async (userId: string) => {
     setLoadingActivity(true);
@@ -108,6 +116,61 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   };
 
   useEffect(() => {
+    const fetchColleges = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/colleges`);
+        console.log('Colleges API response:', response.status);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Colleges data:', data);
+          setColleges(data.colleges || []);
+        } else {
+          console.error('Failed to fetch colleges:', response.statusText);
+        }
+      } catch (error) {
+        console.error('Error fetching colleges:', error);
+      }
+    };
+    const fetchLocations = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/locations`);
+        if (response.ok) {
+          const data = await response.json();
+          setLocations(data.locations || []);
+        }
+      } catch (error) {
+        console.error('Error fetching locations:', error);
+      }
+    };
+    const fetchSkills = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/autocomplete/skills`);
+        if (response.ok) {
+          const data = await response.json();
+          setSkills(data.skills || []);
+        }
+      } catch (error) {
+        console.error('Error fetching skills:', error);
+      }
+    };
+    const fetchJobTitles = async () => {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/job-titles`);
+        if (response.ok) {
+          const data = await response.json();
+          setJobTitles(data.job_titles || []);
+        }
+      } catch (error) {
+        console.error('Error fetching job titles:', error);
+      }
+    };
+    fetchColleges();
+    fetchLocations();
+    fetchSkills();
+    fetchJobTitles();
+  }, []);
+
+  useEffect(() => {
     const loadUserProfile = async () => {
       const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
       if (userData) {
@@ -130,7 +193,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               const updatedUser = { 
                 ...parsedUser, 
                 ...profileData,
-                // Ensure all comprehensive fields are included
                 profilePhoto: profileData.profilePhoto || parsedUser.profilePhoto || '',
                 profileFrame: profileData.profileFrame || parsedUser.profileFrame || 'none',
                 profileSummary: profileData.profileSummary || parsedUser.profileSummary || '',
@@ -146,6 +208,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 roleTitle: profileData.roleTitle || parsedUser.roleTitle || '',
                 gender: profileData.gender || parsedUser.gender || '',
                 birthday: profileData.birthday || parsedUser.birthday || '',
+                location: profileData.location || parsedUser.location || '',
+                phone: profileData.phone || parsedUser.phone || '',
+                jobTitle: profileData.jobTitle || parsedUser.jobTitle || '',
+                education: profileData.education || parsedUser.education || '',
                 resume: profileData.resume || parsedUser.resume || null
               };
               setUser(updatedUser);
@@ -769,13 +835,53 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
-                              <span>{user?.location || 'Add location'}</span>
+                              {user?.location ? (
+                                <span>{user.location}</span>
+                              ) : (
+                                <button 
+                                  onClick={() => {
+                                    setActiveModal('personalDetails');
+                                    setModalData({
+                                      name: user?.name || '',
+                                      gender: user?.gender || '',
+                                      birthday: user?.birthday || '',
+                                      location: user?.location || '',
+                                      phone: user?.phone || '',
+                                      jobTitle: user?.jobTitle || '',
+                                      education: user?.education || ''
+                                    });
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  Add location
+                                </button>
+                              )}
                             </div>
                             <div className="flex items-center space-x-1">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                               </svg>
-                              <span>{user?.phone || 'Add phone'}</span>
+                              {user?.phone ? (
+                                <span>{user.phone}</span>
+                              ) : (
+                                <button 
+                                  onClick={() => {
+                                    setActiveModal('personalDetails');
+                                    setModalData({
+                                      name: user?.name || '',
+                                      gender: user?.gender || '',
+                                      birthday: user?.birthday || '',
+                                      location: user?.location || '',
+                                      phone: user?.phone || '',
+                                      jobTitle: user?.jobTitle || '',
+                                      education: user?.education || ''
+                                    });
+                                  }}
+                                  className="text-blue-600 hover:text-blue-800"
+                                >
+                                  Add phone
+                                </button>
+                              )}
                               {user?.phone && <span className="text-green-500">✓</span>}
                             </div>
                             <div className="flex items-center space-x-1">
@@ -797,7 +903,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   gender: user?.gender || '',
                                   birthday: user?.birthday || '',
                                   location: user?.location || '',
-                                  phone: user?.phone || ''
+                                  phone: user?.phone || '',
+                                  jobTitle: user?.jobTitle || '',
+                                  education: user?.education || ''
                                 });
                               }}
                               className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
@@ -815,7 +923,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   gender: user?.gender || '',
                                   birthday: user?.birthday || '',
                                   location: user?.location || '',
-                                  phone: user?.phone || ''
+                                  phone: user?.phone || '',
+                                  jobTitle: user?.jobTitle || '',
+                                  education: user?.education || ''
                                 });
                               }}
                               className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
@@ -879,22 +989,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         </button>
                       )}
                     </div>
-                    <div>
-                      <p className="text-gray-600 text-sm mb-1">Preferred location</p>
-                      {user?.careerPreferences?.locations && user.careerPreferences.locations.length > 0 ? (
-                        <p className="text-gray-900">{user.careerPreferences.locations.join(', ')}</p>
-                      ) : (
-                        <button 
-                          onClick={() => {
-                            setActiveModal('careerPreferences');
-                            setModalData(user?.careerPreferences || {});
-                          }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Add preferred work location
-                        </button>
-                      )}
-                    </div>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 text-sm mb-1">Preferred location</p>
+                    {user?.careerPreferences?.location ? (
+                      <p className="text-gray-900">{user.careerPreferences.location}</p>
+                    ) : (
+                      <button 
+                        onClick={() => {
+                          setActiveModal('careerPreferences');
+                          setModalData(user?.careerPreferences || {});
+                        }}
+                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        Add preferred location
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -909,36 +1019,33 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       }}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      Add
+                      {user?.educationCollege && typeof user.educationCollege === 'object' && user.educationCollege.degree ? 'Edit' : 'Add'}
                     </button>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          {user?.educationCollege && typeof user.educationCollege === 'object' ? (
-                            <>
-                              <h3 className="font-semibold text-gray-900">{user.educationCollege.degree || 'Degree'} from {user.educationCollege.college || 'College'}</h3>
-                              <p className="text-gray-500 text-sm">{user.educationCollege.courseType || 'Full Time'} • {user.educationCollege.percentage || 'N/A'} • Graduated in {user.educationCollege.passingYear || 'Year'}</p>
-                            </>
-                          ) : (
-                            <>
-                              <h3 className="font-semibold text-gray-900">{user?.degree || 'Bachelor of Technology / Bachelor of Engineering (B.Tech/B.E.)'} from {user?.college || 'Your College'}</h3>
-                              <p className="text-gray-500 text-sm">Graduated in {user?.graduationYear || '2025'}, {user?.courseType || 'Full Time'}</p>
-                            </>
-                          )}
+                    {user?.educationCollege && typeof user.educationCollege === 'object' && user.educationCollege.degree ? (
+                      <div className="border-b border-gray-100 pb-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-gray-900">{user.educationCollege.degree} from {user.educationCollege.college}</h3>
+                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType} • {user.educationCollege.percentage} • Graduated in {user.educationCollege.passingYear}</p>
+                          </div>
+                          <Edit 
+                            onClick={() => {
+                              setActiveModal('educationCollege');
+                              setModalData(user?.educationCollege || {});
+                            }}
+                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" 
+                          />
                         </div>
-                        <Edit 
-                          onClick={() => {
-                            setActiveModal('educationCollege');
-                            setModalData(user?.educationCollege || {});
-                          }}
-                          className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" 
-                        />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      {user?.educationClass12 && typeof user.educationClass12 === 'object' ? (
+                    ) : (
+                      <div className="text-center py-4 text-gray-500 text-sm">
+                        <p>No education details added yet</p>
+                      </div>
+                    )}
+                    {user?.educationClass12 && typeof user.educationClass12 === 'object' && user.educationClass12.board ? (
+                      <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class XII - {user.educationClass12.board}</p>
@@ -952,23 +1059,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" 
                           />
                         </div>
-                      ) : (
-                        <>
-                          <button 
-                            onClick={() => {
-                              setActiveModal('educationClass12');
-                              setModalData({});
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium block"
-                          >
-                            Add Class XII Details
-                          </button>
-                          <p className="text-gray-500 text-xs">Scored Percentage, Passed out in Passing Year</p>
-                        </>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      {user?.educationClass10 && typeof user.educationClass10 === 'object' ? (
+                      </div>
+                    ) : (
+                      <div className="border-b border-gray-100 pb-4">
+                        <button 
+                          onClick={() => {
+                            setActiveModal('educationClass12');
+                            setModalData({});
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Add Class XII Details
+                        </button>
+                      </div>
+                    )}
+                    {user?.educationClass10 && typeof user.educationClass10 === 'object' && user.educationClass10.board ? (
+                      <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class X - {user.educationClass10.board}</p>
@@ -982,21 +1088,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" 
                           />
                         </div>
-                      ) : (
-                        <>
-                          <button 
-                            onClick={() => {
-                              setActiveModal('educationClass10');
-                              setModalData({});
-                            }}
-                            className="text-blue-600 hover:text-blue-800 text-sm font-medium block"
-                          >
-                            Add Class X Details
-                          </button>
-                          <p className="text-gray-500 text-xs">Scored Percentage, Passed out in Passing Year</p>
-                        </>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <button 
+                          onClick={() => {
+                            setActiveModal('educationClass10');
+                            setModalData({});
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Add Class X Details
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1023,9 +1128,48 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       ))}
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2">
-                      <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Python</span>
-                      <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Python Software Developer</span>
+                    <div>
+                      {skills.length > 0 ? (
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder="Search and add skills..."
+                            onFocus={() => setShowCollegeDropdown(true)}
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                setShowCollegeDropdown(true);
+                              }
+                            }}
+                            className="w-full p-3 border rounded-lg"
+                          />
+                          {showCollegeDropdown && skills.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
+                              {skills
+                                .slice(0, 15)
+                                .map((skill: string, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() => {
+                                      const newSkills = [...(user?.skills || []), skill];
+                                      const updatedUser = { ...user, skills: newSkills };
+                                      setUser(updatedUser);
+                                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                                      setShowCollegeDropdown(false);
+                                    }}
+                                    className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
+                                  >
+                                    {skill}
+                                  </div>
+                                ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Python</span>
+                          <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Python Software Developer</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1621,13 +1765,50 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Current location</label>
-                  <input
-                    type="text"
-                    value={modalData.location || ''}
-                    onChange={(e) => setModalData({...modalData, location: e.target.value})}
-                    className="w-full p-3 border rounded-lg"
-                    placeholder="Enter your location"
-                  />
+                  {locations.length > 0 ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={modalData.location || ''}
+                        onChange={(e) => {
+                          setModalData({...modalData, location: e.target.value});
+                          setShowLocationDropdown(true);
+                        }}
+                        onFocus={() => setShowLocationDropdown(true)}
+                        className="w-full p-3 border rounded-lg"
+                        placeholder="Type location..."
+                      />
+                      {showLocationDropdown && locations.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
+                          {locations
+                            .filter((l: string) => 
+                              !modalData.location || l.toLowerCase().includes(modalData.location.toLowerCase())
+                            )
+                            .slice(0, 15)
+                            .map((location: string, idx: number) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setModalData({...modalData, location});
+                                  setShowLocationDropdown(false);
+                                }}
+                                className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
+                              >
+                                {location}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={modalData.location || ''}
+                      onChange={(e) => setModalData({...modalData, location: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                      placeholder="Enter your location"
+                    />
+                  )}
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Phone number</label>
@@ -1639,23 +1820,116 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     placeholder="Enter your phone number"
                   />
                 </div>
+                <div>
+                  <label className="block font-medium mb-2">Job title</label>
+                  {jobTitles.length > 0 ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={modalData.jobTitle || ''}
+                        onChange={(e) => {
+                          setModalData({...modalData, jobTitle: e.target.value});
+                          setShowJobTitleDropdown(true);
+                        }}
+                        onFocus={() => setShowJobTitleDropdown(true)}
+                        className="w-full p-3 border rounded-lg"
+                        placeholder="Type job title..."
+                      />
+                      {showJobTitleDropdown && jobTitles.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
+                          {jobTitles
+                            .filter((t: string) => 
+                              !modalData.jobTitle || t.toLowerCase().includes(modalData.jobTitle.toLowerCase())
+                            )
+                            .slice(0, 15)
+                            .map((title: string, idx: number) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setModalData({...modalData, jobTitle: title});
+                                  setShowJobTitleDropdown(false);
+                                }}
+                                className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
+                              >
+                                {title}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={modalData.jobTitle || ''}
+                      onChange={(e) => setModalData({...modalData, jobTitle: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                      placeholder="Enter your job title"
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block font-medium mb-2">Education</label>
+                  <input
+                    type="text"
+                    value={modalData.education || ''}
+                    onChange={(e) => setModalData({...modalData, education: e.target.value})}
+                    className="w-full p-3 border rounded-lg"
+                    placeholder="Enter your education"
+                  />
+                </div>
               </div>
               <div className="flex justify-end gap-3 mt-8">
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, ...modalData };
+                    const updatedUser = { 
+                      ...user, 
+                      name: modalData.name || user?.name,
+                      gender: modalData.gender || user?.gender,
+                      birthday: modalData.birthday || user?.birthday,
+                      location: modalData.location || user?.location,
+                      phone: modalData.phone || user?.phone,
+                      jobTitle: modalData.jobTitle || user?.jobTitle,
+                      education: modalData.education || user?.education
+                    };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/save`, {
+                      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, ...modalData })
+                        body: JSON.stringify({ 
+                          email: user?.email,
+                          name: modalData.name || user?.name,
+                          gender: modalData.gender || user?.gender,
+                          birthday: modalData.birthday || user?.birthday,
+                          location: modalData.location || user?.location,
+                          phone: modalData.phone || user?.phone,
+                          jobTitle: modalData.jobTitle || user?.jobTitle,
+                          education: modalData.education || user?.education
+                        })
                       });
+                      if (response.ok) {
+                        setNotification({
+                          type: 'success',
+                          message: 'Profile updated successfully!',
+                          isVisible: true
+                        });
+                      } else {
+                        setNotification({
+                          type: 'error',
+                          message: 'Failed to save profile',
+                          isVisible: true
+                        });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({
+                        type: 'error',
+                        message: 'Failed to save profile',
+                        isVisible: true
+                      });
                     }
                     setActiveModal(null);
                   }}
@@ -1716,32 +1990,51 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
                 <div>
-                  <label className="block font-medium mb-3">Preferred work location(s)</label>
-                  <select 
-                    className="w-full p-3 border rounded-lg mb-3"
-                    onChange={(e) => {
-                      if (e.target.value && !(modalData.locations || []).includes(e.target.value)) {
-                        setModalData({...modalData, locations: [...(modalData.locations || []), e.target.value]});
-                      }
-                    }}
-                  >
-                    <option>Select from the list</option>
-                    <option>Bengaluru</option>
-                    <option>Delhi / NCR</option>
-                    <option>Mumbai</option>
-                    <option>Hyderabad</option>
-                    <option>Pune</option>
-                  </select>
-                  <div className="flex gap-2 flex-wrap">
-                    {(modalData.locations || []).map((loc: string, idx: number) => (
-                      <span key={idx} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
-                        {loc}
-                        <button onClick={() => setModalData({...modalData, locations: modalData.locations.filter((_: string, i: number) => i !== idx)})}>
-                          <X className="w-3 h-3" />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+                  <label className="block font-medium mb-3">Preferred location</label>
+                  {locations.length > 0 ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={modalData.location || ''}
+                        onChange={(e) => {
+                          setModalData({...modalData, location: e.target.value});
+                          setShowLocationDropdown(true);
+                        }}
+                        onFocus={() => setShowLocationDropdown(true)}
+                        className="w-full p-3 border rounded-lg"
+                        placeholder="Type location..."
+                      />
+                      {showLocationDropdown && locations.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
+                          {locations
+                            .filter((l: string) => 
+                              !modalData.location || l.toLowerCase().includes(modalData.location.toLowerCase())
+                            )
+                            .slice(0, 15)
+                            .map((location: string, idx: number) => (
+                              <div
+                                key={idx}
+                                onClick={() => {
+                                  setModalData({...modalData, location});
+                                  setShowLocationDropdown(false);
+                                }}
+                                className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
+                              >
+                                {location}
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={modalData.location || ''}
+                      onChange={(e) => setModalData({...modalData, location: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                      placeholder="Enter preferred location"
+                    />
+                  )}
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-8">
@@ -2811,13 +3104,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </div>
                 <div>
                   <label className="block font-medium mb-2">College/University Name</label>
-                  <input
-                    type="text"
-                    value={modalData.college || ''}
-                    onChange={(e) => setModalData({...modalData, college: e.target.value})}
-                    className="w-full p-3 border rounded-lg"
-                    placeholder="e.g., ABC College of Engineering"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={modalData.college || ''}
+                      onChange={(e) => {
+                        setModalData({...modalData, college: e.target.value});
+                        setCollegeSearch(e.target.value);
+                        setShowCollegeDropdown(true);
+                      }}
+                      onFocus={() => setShowCollegeDropdown(true)}
+                      className="w-full p-3 border rounded-lg"
+                      placeholder="Type college name..."
+                    />
+                    {showCollegeDropdown && colleges.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
+                        {colleges
+                          .filter((c: any) => 
+                            !modalData.college || c.name.toLowerCase().includes(modalData.college.toLowerCase())
+                          )
+                          .slice(0, 15)
+                          .map((college: any) => (
+                            <div
+                              key={college.id}
+                              onClick={() => {
+                                setModalData({...modalData, college: college.name});
+                                setShowCollegeDropdown(false);
+                              }}
+                              className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
+                            >
+                              {college.name}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Course Type</label>
