@@ -1,12 +1,12 @@
 import { API_ENDPOINTS } from '../config/env';
 
-const API_BASE_URL = API_ENDPOINTS.BASE_URL || 'http://localhost:5000';
-const SUGGEST_API_URL = `${API_BASE_URL}/api/suggest`;
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const SUGGEST_API_URL = `${API_BASE_URL}/suggest`;
 
 class MistralAIService {
   private async callBackendAPI(endpoint: string, data: any): Promise<any> {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ai-suggestions/${endpoint}`, {
+      const response = await fetch(`${API_BASE_URL}/ai-suggestions/${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

@@ -19,7 +19,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
         const payload = JSON.parse(atob(token.split('.')[1]));
         
         // Fetch user details from API to get complete user data
-        fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/users/${payload.userId}`, {
+        fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${payload.userId}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

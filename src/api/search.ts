@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../config/env';
 
-const API_BASE_URL = API_ENDPOINTS.BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = API_ENDPOINTS.BASE_URL || import.meta.env.VITE_API_URL || '/api';
 
 // Types
 export interface Job {
