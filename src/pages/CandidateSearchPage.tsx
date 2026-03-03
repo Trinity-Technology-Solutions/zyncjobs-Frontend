@@ -48,18 +48,18 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   useEffect(() => {
     const loadSkillsAndLocations = async () => {
       try {
-        // Load skills from skills.json
-        const skillsResponse = await fetch('/backend/data/skills.json');
+        // Load skills from API
+        const skillsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills`);
         if (skillsResponse.ok) {
           const skillsData = await skillsResponse.json();
-          setAllSkills(skillsData.skills || []);
+          setAllSkills(Array.isArray(skillsData) ? skillsData : skillsData.skills || []);
         }
         
-        // Load locations from locations.json
-        const locationsResponse = await fetch('/backend/data/locations.json');
+        // Load locations from API
+        const locationsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`);
         if (locationsResponse.ok) {
           const locationsData = await locationsResponse.json();
-          setAllLocations(locationsData.locations || []);
+          setAllLocations(Array.isArray(locationsData) ? locationsData : locationsData.locations || []);
         }
       } catch (error) {
         console.error('Error loading skills and locations:', error);

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../config/apiConfig';
 import { Video, Phone, Calendar, Clock } from 'lucide-react';
 
 const MeetingTest = () => {
@@ -17,7 +18,7 @@ const MeetingTest = () => {
     setResult(null);
     
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
+      const response = await fetch(`${API_BASE_URL}/meetings/create`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
