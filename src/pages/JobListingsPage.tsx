@@ -78,7 +78,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
         
         console.log('🔍 Using advanced search with params:', searchParams);
         
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/search/advanced`, {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(searchParams)
@@ -167,7 +167,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   // Fetch filter options and trending jobs
   const fetchFilterOptions = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/search/filters`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/filters`);
       if (response.ok) {
         const data = await response.json();
         setFilterOptions(data);
@@ -179,7 +179,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
 
   const fetchTrending = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/search/trending?limit=5`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/trending?limit=5`);
       if (response.ok) {
         const data = await response.json();
         setTrending(data);
@@ -399,7 +399,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const handleLocationSearch = async (params: { latitude: number; longitude: number; radius: number; query?: string }) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/search/radius`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/radius`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
