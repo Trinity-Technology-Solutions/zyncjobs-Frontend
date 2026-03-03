@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, startTransition } from 'react';
+import { Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom';
 import APITest from './components/APITest';
 import Header from './components/Header';
 import NewHero from './components/NewHero';
@@ -95,10 +96,10 @@ const LoadingFallback = () => (
 
 
 function App() {
-  const [currentPage, setCurrentPage] = useState('home');
+  const navigate = useNavigate();
+  const location = useLocation();
   const [currentTopic, setCurrentTopic] = useState('');
   const [currentData, setCurrentData] = useState<any>(null);
-  const [navigationHistory, setNavigationHistory] = useState<string[]>(['home']);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showEmployerLoginModal, setShowEmployerLoginModal] = useState(false);
@@ -154,19 +155,7 @@ function App() {
       }
     }
     
-    // Handle URL-based navigation (for reset password links and resume viewer)
-    const path = window.location.pathname;
-    if (path.startsWith('/reset-password/')) {
-      const token = path.split('/')[2];
-      if (token) {
-        setCurrentPage(`reset-password/${token}`);
-      }
-    } else if (path.startsWith('/resume-view/')) {
-      const template = path.split('/')[2];
-      if (template) {
-        setCurrentPage(`resume-view/${template}`);
-      }
-    }
+    // URL-based navigation is now handled by React Router
   }, []);
 
   // Force update document title
@@ -175,15 +164,6 @@ function App() {
   }, []);
 
   const handleNavigation = (page: string, topic?: string) => {
-    
-    // Handle reset password with token
-    if (page.startsWith('reset-password/')) {
-      startTransition(() => {
-        setCurrentPage(page);
-      });
-      return;
-    }
-    
     startTransition(() => {
       // Close any open modals when navigating to actual pages
       setShowLoginModal(false);
@@ -193,18 +173,15 @@ function App() {
       setShowCandidateRegisterModal(false);
       setShowEmployerRegisterModal(false);
       
-      // Add to navigation history
-      if (page !== currentPage) {
-        setNavigationHistory(prev => [...prev, page]);
-      }
-      
-      setCurrentPage(page);
       if (topic) {
         setCurrentTopic(topic);
       }
       if (typeof topic === 'object') {
         setCurrentData(topic);
       }
+      
+      // Navigate using React Router
+      navigate(`/${page === 'home' ? '' : page}`);
     });
     
     // Scroll to top when navigating
@@ -244,38 +221,28 @@ function App() {
   }
 
   const handleLogout = () => {
-    
     setUser(null);
     localStorage.removeItem('user');
     localStorage.clear(); // Clear everything
-    setCurrentPage('home');
-    setNavigationHistory(['home']); // Reset navigation history
+    navigate('/');
   };
 
   const handleRoleSelection = (role: 'candidate' | 'employer') => {
-    // This function is now handled by the RoleSelectionPage component
-    // Keep for backward compatibility with any remaining modal usage
     setShowRoleSelectionModal(false);
     if (role === 'candidate') {
-      setCurrentPage('candidate-register');
+      navigate('/candidate-register');
     } else {
-      setCurrentPage('employer-register');
+      navigate('/employer-register');
     }
   };
 
   const handleBackNavigation = () => {
-    if (navigationHistory.length > 1) {
-      const newHistory = [...navigationHistory];
-      newHistory.pop(); // Remove current page
-      const previousPage = newHistory[newHistory.length - 1];
-      setNavigationHistory(newHistory);
-      setCurrentPage(previousPage);
-    } else {
-      setCurrentPage('home');
-    }
+    navigate(-1);
   };
 
 
+
+  const currentPage = location.pathname.slice(1) || 'home';
 
   if (currentPage === 'employers') {
     return <Suspense fallback={<LoadingFallback />}><EmployersPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
@@ -340,14 +307,15 @@ function App() {
 
 
   if (currentPage === 'job-detail') {
+    const jobId = typeof currentData?.jobId === 'string' ? currentData.jobId : (currentData?.jobId?._id || currentData?.jobId?.id);
     return (
       <Suspense fallback={<LoadingFallback />}>
         <div className="min-h-screen bg-white">
           <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
           <JobDetailPage 
             onNavigate={handleNavigation} 
-            jobTitle={currentData?.jobTitle || currentTopic}
-            jobId={currentData?.jobId}
+            jobTitle={typeof currentData?.jobTitle === 'string' ? currentData.jobTitle : currentTopic}
+            jobId={jobId}
             companyName={currentData?.companyName}
             jobData={currentData?.jobData}
             user={user as any}
@@ -590,7 +558,7 @@ function App() {
   if (currentPage === 'settings') {
     if (!user) {
       // Not logged in, redirect to role selection page
-      startTransition(() => setCurrentPage('role-selection'));
+      startTransition(() => navigate('/role-selection'));
       return null;
     }
     return (
@@ -605,7 +573,7 @@ function App() {
   if (currentPage === 'my-jobs') {
     if (!user) {
       // Not logged in, redirect to role selection page
-      startTransition(() => setCurrentPage('role-selection'));
+      startTransition(() => navigate('/role-selection'));
       return null;
     }
     return (
@@ -618,7 +586,7 @@ function App() {
 
   if (currentPage === 'my-applications') {
     if (!user) {
-      startTransition(() => setCurrentPage('role-selection'));
+      startTransition(() => navigate('/role-selection'));
       return null;
     }
     return <MyApplicationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />;
@@ -730,7 +698,7 @@ function App() {
 
   if (currentPage === 'interviews') {
     if (!user) {
-      startTransition(() => setCurrentPage('role-selection'));
+      startTransition(() => navigate('/role-selection'));
       return null;
     }
     return user.type === 'candidate' ? (
@@ -777,18 +745,39 @@ function App() {
         isVisible={notification.isVisible}
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
-      <div className="min-h-screen bg-white">
-        <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-        <NewHero onNavigate={handleNavigation} user={user as any} />
-        <LatestJobs onNavigate={handleNavigation} />
-        <HowItWorks onNavigate={handleNavigation} />
-        <JobCategories onNavigate={handleNavigation} />
-        <TalentedPeople onNavigate={handleNavigation} />
-        <CallToAction onNavigate={handleNavigation} />
-        <Footer onNavigate={handleNavigation} />
-      <ChatWidget />
-      <MobileNavigation onNavigate={handleNavigation} currentPage={currentPage} />
-      {/* <PWAInstallButton /> */}
+      <Routes>
+        <Route path="/" element={
+          <div className="min-h-screen bg-white">
+            <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+            <NewHero onNavigate={handleNavigation} user={user as any} />
+            <LatestJobs onNavigate={handleNavigation} />
+            <HowItWorks onNavigate={handleNavigation} />
+            <JobCategories onNavigate={handleNavigation} />
+            <TalentedPeople onNavigate={handleNavigation} />
+            <CallToAction onNavigate={handleNavigation} />
+            <Footer onNavigate={handleNavigation} />
+            <ChatWidget />
+            <MobileNavigation onNavigate={handleNavigation} currentPage="home" />
+          </div>
+        } />
+        
+        {/* Reset Password with URL param */}
+        <Route path="/reset-password/:token" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ResetPasswordPage onNavigate={handleNavigation} />
+          </Suspense>
+        } />
+        
+        {/* Resume Viewer with URL param */}
+        <Route path="/resume-view/:template" element={
+          <Suspense fallback={<LoadingFallback />}>
+            <ResumeViewerPage />
+          </Suspense>
+        } />
+        
+        {/* Catch all other routes - render based on currentPage */}
+        <Route path="*" element={<>{/* Existing page rendering logic */}</>} />
+      </Routes>
       
       {/* Modals */}
       <Suspense fallback={null}>
@@ -816,7 +805,6 @@ function App() {
           onSelectRole={handleRoleSelection} 
         />
       </Suspense>
-      </div>
     </>
   );
 }

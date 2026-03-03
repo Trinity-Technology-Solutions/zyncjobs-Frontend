@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
@@ -8,7 +9,9 @@ interface ResetPasswordPageProps {
   token?: string;
 }
 
-const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token }) => {
+const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token: propToken }) => {
+  const { token: urlToken } = useParams<{ token: string }>();
+  const token = propToken || urlToken; // Support both URL param and prop
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
