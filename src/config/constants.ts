@@ -1,5 +1,5 @@
 export const API_CONFIG = {
-  BASE_URL: import.meta.env.VITE_API_URL || 'http://localhost:5173/',
+  BASE_URL: import.meta.env.VITE_API_URL || '/api',
   TIMEOUT: 10000,
   RETRY_ATTEMPTS: 3
 };
@@ -7,11 +7,11 @@ export const API_CONFIG = {
 // API endpoints helper
 export const API_ENDPOINTS = {
   BASE_URL: API_CONFIG.BASE_URL,
-  JOBS: `${API_CONFIG.BASE_URL}/api/jobs`,
-  APPLICATIONS: `${API_CONFIG.BASE_URL}/api/applications`,
-  USERS: `${API_CONFIG.BASE_URL}/api/users`,
-  COMPANIES: `${API_CONFIG.BASE_URL}/api/companies`,
-  TEST: `${API_CONFIG.BASE_URL}/api/test`
+  JOBS: `${API_CONFIG.BASE_URL}/jobs`,
+  APPLICATIONS: `${API_CONFIG.BASE_URL}/applications`,
+  USERS: `${API_CONFIG.BASE_URL}/users`,
+  COMPANIES: `${API_CONFIG.BASE_URL}/companies`,
+  TEST: `${API_CONFIG.BASE_URL}/test`
 };
 
 export const APP_CONFIG = {
