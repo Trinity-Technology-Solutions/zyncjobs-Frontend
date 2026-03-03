@@ -16,7 +16,7 @@ React + TypeScript + Vite frontend for Zyncjobs job portal.
 2. **Configure environment variables:**
    Create a `.env` file in the root directory:
    ```env
-   VITE_API_URL=/api
+   VITE_API_URL=
    ```
 
 3. **Start development server:**
@@ -49,4 +49,4 @@ npm run build
 
 ## Backend Connection
 
-Make sure the backend API is running and accessible via the `/api` proxy or update `VITE_API_URL` in `.env` file.
+Make sure the backend API is running on the same server with `/api` proxy configured.
