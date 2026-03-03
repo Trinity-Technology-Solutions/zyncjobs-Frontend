@@ -81,7 +81,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       params.append('page', page.toString());
       params.append('limit', candidatesPerPage.toString());
       
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/candidates?${params}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/candidates?${params}`);
       if (response.ok) {
         const data = await response.json();
         
@@ -129,7 +129,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       return;
     }
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/autocomplete/skills?q=${encodeURIComponent(query)}`);
       if (response.ok) {
         const suggestions = await response.json();
         setSkillSuggestions(suggestions);
@@ -146,7 +146,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       return;
     }
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/autocomplete/locations?q=${encodeURIComponent(query)}`);
       if (response.ok) {
         const suggestions = await response.json();
         setLocationSuggestions(suggestions);

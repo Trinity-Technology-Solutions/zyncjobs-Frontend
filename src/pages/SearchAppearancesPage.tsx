@@ -30,7 +30,7 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
       if (!email) return;
 
       // Fetch analytics data
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${email}?userType=candidate`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/profile/${email}?userType=candidate`);
       if (response.ok) {
         const data = await response.json();
         setTotalAppearances(data.searchAppearances || 0);
@@ -38,7 +38,7 @@ const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigat
 
       // Fetch detailed search appearances
       try {
-        const appearancesResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/search-appearances/${email}`);
+        const appearancesResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/search-appearances/${email}`);
         if (appearancesResponse.ok) {
           const appearancesData = await appearancesResponse.json();
           setSearchAppearances(appearancesData || []);

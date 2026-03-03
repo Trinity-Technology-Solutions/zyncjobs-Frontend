@@ -25,38 +25,38 @@ export const API_ENDPOINTS = {
   BASE_URL: config.API_URL.replace(/\/$/, ''),
   
   // Auth
-  LOGIN: `${config.API_URL}/users/login`,
-  REGISTER: `${config.API_URL}/users/register`,
-  LOGOUT: `${config.API_URL}/logout`,
-  REFRESH_TOKEN: `${config.API_URL}/refresh-token`,
+  LOGIN: `${config.API_URL}/api/users/login`,
+  REGISTER: `${config.API_URL}/api/users/register`,
+  LOGOUT: `${config.API_URL}/api/logout`,
+  REFRESH_TOKEN: `${config.API_URL}/api/refresh-token`,
   
   // Jobs
-  JOBS: `${config.API_URL}/jobs`,
-  SEARCH: `${config.API_URL}/search`,
+  JOBS: `${config.API_URL}/api/jobs`,
+  SEARCH: `${config.API_URL}/api/search`,
   
   // Applications
-  APPLICATIONS: `${config.API_URL}/applications`,
+  APPLICATIONS: `${config.API_URL}/api/applications`,
   
   // Companies
-  COMPANIES: `${config.API_URL}/companies`,
+  COMPANIES: `${config.API_URL}/api/companies`,
   
   // Chat
-  CHAT: `${config.API_URL}/chat`,
+  CHAT: `${config.API_URL}/api/chat`,
   
   // AI Features
-  GENERATE_JOB_DESCRIPTION: `${config.API_URL}/generate-job-description`,
-  SUGGEST_JOB_TITLES: `${config.API_URL}/suggest-job-titles`,
-  SUGGEST_LOCATIONS: `${config.API_URL}/suggest-locations`,
+  GENERATE_JOB_DESCRIPTION: `${config.API_URL}/api/generate-job-description`,
+  SUGGEST_JOB_TITLES: `${config.API_URL}/api/suggest-job-titles`,
+  SUGGEST_LOCATIONS: `${config.API_URL}/api/suggest-locations`,
   
   // Meetings
-  MEETINGS: `${config.API_URL}/meetings`,
+  MEETINGS: `${config.API_URL}/api/meetings`,
   
   // Interviews
-  INTERVIEWS: `${config.API_URL}/interviews`,
+  INTERVIEWS: `${config.API_URL}/api/interviews`,
   
   // User
-  PROFILE: `${config.API_URL}/profile`,
-  USERS: `${config.API_URL}/users`,
+  PROFILE: `${config.API_URL}/api/profile`,
+  USERS: `${config.API_URL}/api/users`,
 };
 
 // Legacy exports for backward compatibility
