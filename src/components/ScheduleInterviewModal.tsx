@@ -67,7 +67,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       
       console.log('Sending payload:', payload);
 
-      const response = await fetch('http://localhost:5000/api/interviews/schedule', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/interviews/schedule`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -112,7 +112,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
   const generateGoogleMeetLink = async () => {
     setGeneratingLink(true);
     try {
-      const response = await fetch('http://localhost:5000/api/meetings/create', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/meetings/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -144,7 +144,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
   const generateZoomLink = async () => {
     setGeneratingLink(true);
     try {
-      const response = await fetch('http://localhost:5000/api/meetings/create', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/meetings/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

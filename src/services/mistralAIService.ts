@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../config/env';
 
-const API_BASE_URL = API_ENDPOINTS.BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 const SUGGEST_API_URL = `${API_BASE_URL}/api/suggest`;
 
 class MistralAIService {
