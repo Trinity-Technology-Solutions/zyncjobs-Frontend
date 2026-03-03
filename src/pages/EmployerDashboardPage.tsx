@@ -78,7 +78,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
   const fetchCompanyDomain = async (companyName: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
       if (response.ok) {
         const companies = await response.json();
         console.log('Companies loaded:', companies.length);
@@ -136,9 +136,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       const [jobsRes, appsRes, interviewsRes, statsRes, activityRes] = await Promise.all([
         fetch(API_ENDPOINTS.JOBS),
         fetch(API_ENDPOINTS.APPLICATIONS),
-        fetch(`${API_ENDPOINTS.BASE_URL}/api/interviews?employerId=${userId || ''}&employerEmail=${userEmail || ''}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/api/dashboard/stats?employerId=${userId || ''}&employerEmail=${userEmail || ''}&userName=${userName || ''}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/api/dashboard/recent-activity?employerId=${userId || ''}&employerEmail=${userEmail || ''}&userName=${userName || ''}`)
+        fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${userId || ''}&employerEmail=${userEmail || ''}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${userId || ''}&employerEmail=${userEmail || ''}&userName=${userName || ''}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${userId || ''}&employerEmail=${userEmail || ''}&userName=${userName || ''}`)
       ]);
 
       if (!jobsRes.ok) {
@@ -1023,7 +1023,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             onChange={async (e) => {
                               const newStatus = e.target.value;
                               try {
-                                const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/interviews/${interview._id}/status`, {
+                                const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ status: newStatus }),
