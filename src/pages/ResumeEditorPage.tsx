@@ -1,5 +1,5 @@
 import React, { useState, Suspense } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import aiService from '../services/aiService';

@@ -110,7 +110,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
             console.log('🌐 Calling delete API...');
             
             // Call delete API
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/users/${userId}`, {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${userId}`, {
               method: 'DELETE',
               headers: {
                 'Content-Type': 'application/json',

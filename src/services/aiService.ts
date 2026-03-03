@@ -10,7 +10,7 @@ interface AIGenerationRequest {
 }
 
 class AIService {
-  private baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+  private baseUrl = import.meta.env.VITE_API_URL || '/api';
 
   async generateContent(request: AIGenerationRequest): Promise<string> {
     try {
