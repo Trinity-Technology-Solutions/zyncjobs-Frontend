@@ -1,2 +1,2 @@
-// Centralized API configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+// Re-export from env.ts to avoid duplication
+export { config as API_CONFIG, API_BASE_URL } from '../config/env';
