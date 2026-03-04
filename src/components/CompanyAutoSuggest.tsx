@@ -64,7 +64,7 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
     ];
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies?search=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(searchQuery)}`);
       if (response.ok) {
         const data = await response.json();
         setResults(data);

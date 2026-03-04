@@ -110,7 +110,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             
             console.log('Fetching analytics for:', userEmail, 'type:', user.type);
             
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/profile/${encodeURIComponent(userEmail)}?userType=${user.type}`);
+            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(userEmail)}?userType=${user.type}`);
             
             if (response.ok) {
               const contentType = response.headers.get('content-type');

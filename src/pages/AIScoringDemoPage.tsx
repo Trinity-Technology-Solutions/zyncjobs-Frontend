@@ -72,7 +72,7 @@ Projects:
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/ai-flow/score-candidate`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/ai-flow/score-candidate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

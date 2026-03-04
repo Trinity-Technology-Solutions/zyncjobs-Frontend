@@ -43,8 +43,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     setLoadingActivity(true);
     try {
       // Fetch real analytics data from backend
-      const analyticsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/profile/${encodeURIComponent(user?.email || userId)}`);
-      const recentActivityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/recent-activity/${encodeURIComponent(user?.email || userId)}`);
+      const analyticsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(user?.email || userId)}`);
+      const recentActivityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/recent-activity/${encodeURIComponent(user?.email || userId)}`);
       
       let realData = {
         profileViews: 0,
@@ -118,7 +118,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   useEffect(() => {
     const fetchColleges = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/colleges`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/colleges`);
         console.log('Colleges API response:', response.status);
         if (response.ok) {
           const data = await response.json();
@@ -133,7 +133,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     const fetchLocations = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/locations`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations`);
         if (response.ok) {
           const data = await response.json();
           setLocations(data.locations || []);
@@ -144,7 +144,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     const fetchSkills = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/autocomplete/skills`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills`);
         if (response.ok) {
           const data = await response.json();
           setSkills(data.skills || []);
@@ -155,7 +155,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     const fetchJobTitles = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/job-titles`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/job-titles`);
         if (response.ok) {
           const data = await response.json();
           setJobTitles(data.job_titles || []);
@@ -179,7 +179,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           
           // Fetch fresh data from database
           try {
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${parsedUser.email}`);
+            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
             if (response.ok) {
               const profileData = await response.json();
               console.log('Dashboard - Fetched profile data:', {
@@ -250,7 +250,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const fetchNotifications = async (userId: string) => {
     try {
       // Fetch real applications for notifications
-      const appsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${userId}`);
+      const appsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userId}`);
       if (appsResponse.ok) {
         const apps = await appsResponse.json();
         const appNotifications = apps.slice(0, 5).map((app: any) => ({
@@ -320,7 +320,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchApplications = async (userEmail: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${userEmail}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userEmail}`);
       if (response.ok) {
         const data = await response.json();
         setApplications(data.slice(0, 5)); // Get latest 5 applications
