@@ -48,7 +48,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
     try {
       console.log('CandidateInterviews: Fetching interviews for:', user.email);
-      const url = `${API_ENDPOINTS.BASE_URL}/api/interviews/candidate/${encodeURIComponent(user.email)}`;
+      const url = `${API_ENDPOINTS.BASE_URL}/interviews/candidate/${encodeURIComponent(user.email)}`;
       console.log('CandidateInterviews: API URL:', url);
       
       const response = await fetch(url);

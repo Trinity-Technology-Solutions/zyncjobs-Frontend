@@ -24,7 +24,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   const fetchCandidateProfile = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/profile/${candidateId}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${candidateId}`);
       if (response.ok) {
         const data = await response.json();
         setCandidate(data);

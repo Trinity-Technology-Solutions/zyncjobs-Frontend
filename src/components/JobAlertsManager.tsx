@@ -184,7 +184,7 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
     
     if (value.length >= 2) {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/locations/search/${encodeURIComponent(value)}`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/search/${encodeURIComponent(value)}`);
         if (response.ok) {
           const data = await response.json();
           setLocationSuggestions(data.locations || []);
@@ -207,7 +207,7 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
     
     if (value.length >= 2) {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies/search?q=${encodeURIComponent(value)}`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/search?q=${encodeURIComponent(value)}`);
         if (response.ok) {
           const data = await response.json();
           setCompanySuggestions(data.map((c: any) => c.name) || []);
@@ -230,7 +230,7 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
     
     if (value.length >= 2) {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/suggest?q=${encodeURIComponent(value)}&type=job`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/suggest?q=${encodeURIComponent(value)}&type=job`);
         if (response.ok) {
           const data = await response.json();
           setJobTitleSuggestions(data.suggestions || []);
