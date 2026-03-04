@@ -48,7 +48,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const fetchEmployerJobs = async (userData: any) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/jobs`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
       if (response.ok) {
         const allJobs = await response.json();
         const employerJobs = allJobs.filter((job: any) => 
@@ -71,7 +71,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               }
               
               console.log('🔍 Fetching applications for job:', jobId, job.jobTitle);
-              const appResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/job/${jobId}`);
+              const appResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/job/${jobId}`);
               
               if (appResponse.ok) {
                 const applications = await appResponse.json();
@@ -102,7 +102,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const handleDeleteJob = async (jobId: string) => {
     if (window.confirm('Are you sure you want to delete this job posting?')) {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/jobs/${jobId}`, {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}`, {
           method: 'DELETE'
         });
         if (response.ok) {

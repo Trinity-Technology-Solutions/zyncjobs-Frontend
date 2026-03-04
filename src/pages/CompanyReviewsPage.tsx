@@ -36,7 +36,7 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
 
   const fetchCompanies = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
       if (response.ok) {
         const data = await response.json();
         setCompanies(data);
@@ -48,7 +48,7 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
 
   const fetchReviews = async (companyId: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/reviews/${companyId}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews/${companyId}`);
       if (response.ok) {
         const data = await response.json();
         setReviews(data);
@@ -66,7 +66,7 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
     }
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/reviews`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

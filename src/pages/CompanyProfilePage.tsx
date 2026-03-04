@@ -51,7 +51,7 @@ const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({ onNavigate }) =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/company-profile`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/company-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ const CompanyProfilePage: React.FC<CompanyProfilePageProps> = ({ onNavigate }) =
     };
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/jobs`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
