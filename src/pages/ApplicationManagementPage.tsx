@@ -359,17 +359,17 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
           setSelectedApplicationId(null);
         }}
       />
-        <ScheduleInterviewModal
-          application={selectedApplication}
-          onClose={() => {
-            setShowScheduleModal(false);
-            setSelectedApplication(null);
-          }}
-          onSuccess={() => {
-            fetchApplications();
-          }}
-        />
-      )}
+
+      <ScheduleInterviewModal
+        application={selectedApplication}
+        onClose={() => {
+          setShowScheduleModal(false);
+          setSelectedApplication(null);
+        }}
+        onSuccess={() => {
+          fetchApplications();
+        }}
+      />
 
       <Footer onNavigate={onNavigate} />
     </div>
