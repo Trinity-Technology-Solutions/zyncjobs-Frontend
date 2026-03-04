@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
+import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/api';
 
 interface ApplicationManagementPageProps {
@@ -21,6 +22,8 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -291,10 +294,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => onNavigate('candidate-response-detail', { application })}
-                            className="text-gray-700 hover:text-gray-900 border border-gray-300 px-3 py-1 rounded text-xs hover:bg-gray-50 transition-colors"
+                            onClick={() => {
+                              setSelectedApplicationId(application._id);
+                              setShowResumeModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1 rounded text-xs hover:bg-blue-50 transition-colors"
                           >
-                            View Details
+                            📄 Resume
                           </button>
                           <button
                             onClick={() => {
@@ -344,8 +350,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
         </div>
       </div>
 
-      {/* Schedule Interview Modal */}
-      {showScheduleModal && selectedApplication && (
+      {/* Resume Modal */}
+      <ResumeModal
+        applicationId={selectedApplicationId}
+        isOpen={showResumeModal}
+        onClose={() => {
+          setShowResumeModal(false);
+          setSelectedApplicationId(null);
+        }}
+      />
         <ScheduleInterviewModal
           application={selectedApplication}
           onClose={() => {

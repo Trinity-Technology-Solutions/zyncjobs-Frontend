@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from '../config/api';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare } from 'lucide-react';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
+import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
 
 interface Application {
@@ -339,24 +340,16 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
             
             <div className="space-y-4">
               {filteredApplications.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Briefcase className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    {filter === 'all' ? 'No applications yet' : `No ${filter} applications`}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {filter === 'all' 
-                      ? 'Start applying to jobs to see your applications here'
-                      : `You don't have any ${filter} applications at the moment`
-                    }
-                  </p>
-                  <button
-                    onClick={() => onNavigate('job-listings')}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Browse Jobs
-                  </button>
-                </div>
+                <EmptyState
+                  title={filter === 'all' ? 'No applications yet' : `No ${filter} applications`}
+                  description={filter === 'all' 
+                    ? 'Start applying to jobs to see your applications here'
+                    : `You don't have any ${filter} applications at the moment`
+                  }
+                  buttonText="Browse Jobs"
+                  onButtonClick={() => onNavigate('job-listings')}
+                  icon="applications"
+                />
               ) : (
                 filteredApplications.map((application) => (
                   application && application.jobId ? (

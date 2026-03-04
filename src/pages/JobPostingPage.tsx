@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
+import EmptyState from '../components/EmptyState';
 import mistralAIService from '../services/mistralAIService';
 import { API_ENDPOINTS } from '../config/constants';
 
