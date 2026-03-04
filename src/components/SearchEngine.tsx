@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { Search, MapPin, Users, Star, Building, Globe, Briefcase, Sparkles, Filter, TrendingUp, Clock } from 'lucide-react';
 import { searchAPI } from '../api/search';
 

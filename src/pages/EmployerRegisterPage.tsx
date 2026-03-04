@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building, Building2 } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
@@ -141,7 +141,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
     if (value.trim().length >= 1) {
       try {
         // Try API first
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies?search=${encodeURIComponent(value)}`);
+        const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);
         
         if (response.ok) {
           const data = await response.json();

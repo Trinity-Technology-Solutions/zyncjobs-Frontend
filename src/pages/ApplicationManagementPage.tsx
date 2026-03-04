@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;

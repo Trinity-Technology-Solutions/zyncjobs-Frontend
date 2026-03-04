@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { Upload, Building, MapPin, Users, Globe, Briefcase, Save, Plus } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';

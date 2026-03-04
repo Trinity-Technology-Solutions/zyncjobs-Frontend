@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, MapPin, Mail, Phone, Download, ExternalLink, Github, Globe, MessageCircle } from 'lucide-react';
 import ProfileHeadline from '../components/ProfileHeadline';
 import DirectMessage from '../components/DirectMessage';

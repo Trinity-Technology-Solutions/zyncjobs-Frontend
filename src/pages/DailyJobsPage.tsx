@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Calendar, MapPin, Briefcase, DollarSign, Clock, Search } from 'lucide-react';
 
 interface DailyJobsPageProps {

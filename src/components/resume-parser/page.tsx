@@ -624,3 +624,4 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     </div>
   );
 }
+

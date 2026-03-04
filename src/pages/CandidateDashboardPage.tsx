@@ -3393,3 +3393,4 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 };
 
 export default CandidateDashboardPage;
+

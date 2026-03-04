@@ -326,3 +326,4 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
 };
 
 export default ScheduleInterviewModal;
+

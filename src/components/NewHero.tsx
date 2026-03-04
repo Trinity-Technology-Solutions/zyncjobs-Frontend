@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, MapPin, ChevronDown } from "lucide-react";
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 
 interface NewHeroProps {
   onNavigate?: (page: string, data?: any) => void;

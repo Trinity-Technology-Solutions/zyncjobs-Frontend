@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, MapPin, Building, User, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
 
 interface Interview {
@@ -338,3 +338,4 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 };
 
 export default CandidateInterviewsPage;
+
