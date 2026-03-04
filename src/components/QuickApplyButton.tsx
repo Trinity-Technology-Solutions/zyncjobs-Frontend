@@ -67,7 +67,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       // Copy/attach the resume file for this application
       let attachedResumeUrl = userResume;
       try {
-        const attachResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/resume/attach`, {
+        const attachResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/attach`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -98,7 +98,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       
       console.log('Sending quick apply with resume:', payload);
       
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

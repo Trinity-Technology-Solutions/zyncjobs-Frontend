@@ -81,7 +81,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       params.append('page', page.toString());
       params.append('limit', companiesPerPage.toString());
       
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/companies?${params}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?${params}`);
       if (response.ok) {
         const data = await response.json();
         

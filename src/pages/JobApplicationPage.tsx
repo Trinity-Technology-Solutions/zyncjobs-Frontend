@@ -163,7 +163,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                           const formData = new FormData();
                           formData.append('resume', file);
                           
-                          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/upload/resume`, {
+                          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                             method: 'POST',
                             body: formData
                           });

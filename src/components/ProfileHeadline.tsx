@@ -18,7 +18,7 @@ const ProfileHeadline: React.FC<ProfileHeadlineProps> = ({ userId, fallbackHeadl
       }
       
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/headline/rotation/${userId}`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/headline/rotation/${userId}`);
         if (response.ok) {
           const data = await response.json();
           setDisplayHeadline(data.headline || fallbackHeadline || '');

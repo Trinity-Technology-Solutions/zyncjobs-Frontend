@@ -74,7 +74,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       params.append('page', page.toString());
       params.append('limit', applicationsPerPage.toString());
       
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/candidate/${user.email}?${params}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${user.email}?${params}`);
       if (response.ok) {
         const data = await response.json();
         
@@ -106,7 +106,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
   const handleSaveApplication = async (appId: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/${appId}`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/${appId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -145,7 +145,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
     }
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/${appId}/withdraw`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/${appId}/withdraw`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason: withdrawalReason })

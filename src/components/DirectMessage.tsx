@@ -31,7 +31,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
 
   const fetchMessages = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/messages/${conversationId}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/messages/${conversationId}`);
       if (response.ok) {
         const data = await response.json();
         setMessages(data);
@@ -46,7 +46,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/messages`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -24,7 +24,7 @@ const ApplicationTimeline: React.FC<ApplicationTimelineProps> = ({ applicationId
 
   const fetchTimeline = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/applications/${applicationId}/timeline`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/${applicationId}/timeline`);
       if (response.ok) {
         const data = await response.json();
         setTimeline(data);

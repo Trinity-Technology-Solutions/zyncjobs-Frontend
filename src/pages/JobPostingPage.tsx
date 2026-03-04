@@ -188,7 +188,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     const fetchCountries = async () => {
       try {
         console.log('Fetching countries...');
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/countries`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/countries`);
         const data = await response.json();
         console.log('Countries data:', data);
         setCountries(data.countries || []);
@@ -259,7 +259,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       setIsLoadingLocations(true);
       
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/locations/search/${encodeURIComponent(value)}`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/search/${encodeURIComponent(value)}`);
         const data = await response.json();
         console.log('Location API response:', data);
         
