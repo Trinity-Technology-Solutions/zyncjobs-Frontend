@@ -1,6 +1,6 @@
 import { API_ENDPOINTS } from '../config/env';
 
-import { API_BASE_URL } from '../config/apiConfig';
+import { API_BASE_URL } from '../config/env';
 const SUGGEST_API_URL = `${API_BASE_URL}/suggest`;
 
 class MistralAIService {

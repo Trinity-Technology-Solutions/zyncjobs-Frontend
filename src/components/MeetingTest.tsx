@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { API_BASE_URL } from '../config/apiConfig';
+import { API_BASE_URL } from '../config/env';
 import { Video, Phone, Calendar, Clock } from 'lucide-react';
 
 const MeetingTest = () => {

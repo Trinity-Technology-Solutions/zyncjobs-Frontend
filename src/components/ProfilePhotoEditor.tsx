@@ -236,3 +236,4 @@ const ProfilePhotoEditor: React.FC<ProfilePhotoEditorProps> = ({
 };
 
 export default ProfilePhotoEditor;
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, MoreVertical, CheckSquare, Mail, UserCheck } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';

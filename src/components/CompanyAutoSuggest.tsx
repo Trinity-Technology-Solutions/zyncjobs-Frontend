@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { Search, Building2 } from 'lucide-react';
 
 interface Company {

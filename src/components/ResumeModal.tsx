@@ -156,3 +156,4 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
 };
 
 export default ResumeModal;
+

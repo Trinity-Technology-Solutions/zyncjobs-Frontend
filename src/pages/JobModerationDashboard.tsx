@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_ENDPOINTS } from '../config/api';
+import { API_ENDPOINTS } from '../config/env';
 import { Eye, CheckCircle, XCircle, Flag, FileText, Calendar, Building, User } from 'lucide-react';
 
 interface Job {
