@@ -28,7 +28,7 @@ export const API_ENDPOINTS = {
   LOGIN: `${config.API_URL}/users/login`,
   REGISTER: `${config.API_URL}/users/register`,
   LOGOUT: `${config.API_URL}/users/logout`,
-  REFRESH_TOKEN: `${config.API_URL}/users/refresh-token`,
+  REFRESH_TOKEN: `${config.API_URL}/users/refresh`,
   
   // Jobs
   JOBS: `${config.API_URL}/jobs`,
@@ -57,6 +57,9 @@ export const API_ENDPOINTS = {
   // User
   PROFILE: `${config.API_URL}/profile`,
   USERS: `${config.API_URL}/users`,
+  
+  // Resume Viewer
+  RESUME_VIEWER: `${config.API_URL}/resume-viewer`,
 };
 
 // Legacy exports for backward compatibility
