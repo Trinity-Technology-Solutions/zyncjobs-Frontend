@@ -229,7 +229,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   const handleSave = async () => {
     try {
       // Try to save to API first
-      const response = await fetch(`${API_ENDPOINTS.BASE_UR/ai-rejection-settings${jobId ? `/${jobId}` : ''}`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(settings)
