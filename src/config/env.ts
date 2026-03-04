@@ -27,8 +27,8 @@ export const API_ENDPOINTS = {
   // Auth
   LOGIN: `${config.API_URL}/users/login`,
   REGISTER: `${config.API_URL}/users/register`,
-  LOGOUT: `${config.API_URL}/logout`,
-  REFRESH_TOKEN: `${config.API_URL}/refresh-token`,
+  LOGOUT: `${config.API_URL}/users/logout`,
+  REFRESH_TOKEN: `${config.API_URL}/users/refresh-token`,
   
   // Jobs
   JOBS: `${config.API_URL}/jobs`,
