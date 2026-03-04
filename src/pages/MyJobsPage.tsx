@@ -4,6 +4,7 @@ import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } fr
 import { getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
+import EmptyState from '../components/EmptyState';
 
 interface MyJobsPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -617,108 +618,121 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 </div>
               )}
 
-              {user?.type === 'candidate' && activeTab === 'Saved' && savedJobs.length > 0 && (
-                <div className="space-y-4">
-                  {savedJobs.map((job) => renderJobCard(job, true, 'saved'))}
-                </div>
+              {user?.type === 'candidate' && activeTab === 'Saved' && (
+                savedJobs.length > 0 ? (
+                  <div className="space-y-4">
+                    {savedJobs.map((job) => renderJobCard(job, true, 'saved'))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="Jobs saved by you"
+                    description="No saved jobs! Tap on save icon against a job to save it"
+                    buttonText="Search jobs"
+                    onButtonClick={() => onNavigate('job-listings')}
+                    icon="jobs"
+                  />
+                )
               )}
 
-              {user?.type === 'candidate' && activeTab === 'Applied' && appliedJobs.length > 0 && (
-                <div className="space-y-4">
-                  {appliedJobs.map((application) => (
-                    <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
-                      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-start mb-4">
-                            <div className="flex-shrink-0 w-14 h-14 mr-4">
-                              <div className="w-14 h-14 rounded-lg border-2 border-gray-200 flex items-center justify-center bg-white shadow-sm">
-                                <img 
-                                  src={getCompanyLogo(application.jobId?.company || '')}
-                                  alt={`${application.jobId?.company || 'Company'} logo`}
-                                  className="w-12 h-12 object-contain"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = '/images/zync-logo.svg';
-                                  }}
-                                />
+              {user?.type === 'candidate' && activeTab === 'Applied' && (
+                appliedJobs.length > 0 ? (
+                  <div className="space-y-4">
+                    {appliedJobs.map((application) => (
+                      <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+                        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-start mb-4">
+                              <div className="flex-shrink-0 w-14 h-14 mr-4">
+                                <div className="w-14 h-14 rounded-lg border-2 border-gray-200 flex items-center justify-center bg-white shadow-sm">
+                                  <img 
+                                    src={getCompanyLogo(application.jobId?.company || '')}
+                                    alt={`${application.jobId?.company || 'Company'} logo`}
+                                    className="w-12 h-12 object-contain"
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.src = '/images/zync-logo.svg';
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              
+                              <div className="flex-1">
+                                <div className="flex items-start justify-between mb-2">
+                                  <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
+                                    {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
+                                  </h3>
+                                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                    application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                    application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                                    application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                    application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                    application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
+                                  </span>
+                                </div>
+                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
+                                  <span>🏢</span>
+                                  {application.jobId?.company}
+                                </p>
+                                <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
+                                  <span>📅</span>
+                                  <span className="text-sm font-medium text-gray-700">
+                                    Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                             
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between mb-2">
-                                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
-                                  {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
-                                </h3>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                  application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
-                                  application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                                  application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                                  application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                  application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
-                                </span>
+                            <div className="flex flex-wrap items-center gap-3 mb-3">
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
+                                <MapPin className="w-4 h-4 text-gray-600" />
+                                <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
                               </div>
-                              <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
-                                <span>🏢</span>
-                                {application.jobId?.company}
-                              </p>
-                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
-                                <span>📅</span>
-                                <span className="text-sm font-medium text-gray-700">
-                                  Applied on: {formatDate(application.createdAt || application.appliedAt)}
-                                </span>
+                              <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
+                                <DollarSign className="w-4 h-4 text-green-600" />
+                                <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary) || 'Competitive'}</span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
+                                <Briefcase className="w-4 h-4 text-blue-600" />
+                                <span className="text-sm font-medium text-blue-700">{application.jobId?.type || 'Full-time'}</span>
                               </div>
                             </div>
-                          </div>
-                          
-                          <div className="flex flex-wrap items-center gap-3 mb-3">
-                            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
-                              <MapPin className="w-4 h-4 text-gray-600" />
-                              <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
-                            </div>
-                            <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                              <DollarSign className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary) || 'Competitive'}</span>
-                            </div>
-                            <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
-                              <Briefcase className="w-4 h-4 text-blue-600" />
-                              <span className="text-sm font-medium text-blue-700">{application.jobId?.type || 'Full-time'}</span>
-                            </div>
+
+                            {application.coverLetter && application.coverLetter !== 'No cover letter' && (
+                              <div className="mb-4 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
+                                <h4 className="font-semibold text-blue-900 mb-2 text-sm">Your Cover Letter:</h4>
+                                <p className="text-gray-700 text-sm leading-relaxed">
+                                  {application.coverLetter.length > 150 
+                                    ? `${application.coverLetter.substring(0, 150)}...` 
+                                    : application.coverLetter}
+                                </p>
+                              </div>
+                            )}
                           </div>
 
-                          {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                            <div className="mb-4 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
-                              <h4 className="font-semibold text-blue-900 mb-2 text-sm">Your Cover Letter:</h4>
-                              <p className="text-gray-700 text-sm leading-relaxed">
-                                {application.coverLetter.length > 150 
-                                  ? `${application.coverLetter.substring(0, 150)}...` 
-                                  : application.coverLetter}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
-                          <button 
-                            onClick={() => onNavigate('job-detail', { jobId: typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id) })}
-                            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
-                          >
-                            View Job
-                          </button>
+                          <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
+                            <button 
+                              onClick={() => onNavigate('job-detail', { jobId: typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id) })}
+                              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
+                            >
+                              View Job
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {((user?.type === 'candidate' && activeTab === 'Saved' && savedJobs.length === 0) ||
-                (user?.type === 'candidate' && activeTab === 'Applied' && appliedJobs.length === 0) ||
-                (user?.type === 'employer' && activeTab === 'Posted Jobs' && postedJobs.length === 0) ||
-                (user?.type === 'employer' && activeTab === 'Applications' && employerApplications.length === 0)) && (
-                <div></div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No applications yet"
+                    description="Start applying to jobs to see your applications here"
+                    buttonText="Search jobs"
+                    onButtonClick={() => onNavigate('job-listings')}
+                    icon="applications"
+                  />
+                )
               )}
             </>
           )}
