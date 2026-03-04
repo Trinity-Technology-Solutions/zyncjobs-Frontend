@@ -30,7 +30,7 @@ const RecruiterActionsPage: React.FC<RecruiterActionsPageProps> = ({ onNavigate,
       if (!email) return;
 
       // Fetch analytics data
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/profile/${email}?userType=candidate`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${email}?userType=candidate`);
       if (response.ok) {
         const data = await response.json();
         setTotalActions(data.recruiterActions || 0);
@@ -38,7 +38,7 @@ const RecruiterActionsPage: React.FC<RecruiterActionsPageProps> = ({ onNavigate,
 
       // Fetch detailed recruiter actions
       try {
-        const actionsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/api/analytics/recruiter-actions/${email}`);
+        const actionsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/recruiter-actions/${email}`);
         if (actionsResponse.ok) {
           const actionsData = await actionsResponse.json();
           setRecruiterActions(actionsData || []);

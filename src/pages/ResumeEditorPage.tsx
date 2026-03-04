@@ -316,7 +316,7 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
 
   const saveToProfile = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/save-resume`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/save-resume`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

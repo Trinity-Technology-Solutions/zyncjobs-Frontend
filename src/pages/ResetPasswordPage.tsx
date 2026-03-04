@@ -49,7 +49,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
       }
 
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/verify-reset-token/${token}`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/verify-reset-token/${token}`);
         if (response.ok) {
           setTokenValid(true);
         } else {
@@ -83,7 +83,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
     setError('');
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/reset-password`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
