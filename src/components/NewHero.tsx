@@ -24,8 +24,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
     // Fetch job titles from API
     const fetchJobTitles = async () => {
       try {
-        console.log('Fetching job titles from:', `${API_ENDPOINTS.BASE_URL}/api/jobs/titles`);
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/jobs/titles`);
+        console.log('Fetching job titles from:', `${API_ENDPOINTS.BASE_URL}/jobs/titles`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/titles`);
         const data = await response.json();
         console.log('Job titles response:', data);
         if (data.job_titles && data.job_titles.length > 0) {
@@ -40,8 +40,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
     // Fetch locations from API
     const fetchLocations = async () => {
       try {
-        console.log('Fetching locations from:', `${API_ENDPOINTS.BASE_URL}/api/locations`);
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/locations`);
+        console.log('Fetching locations from:', `${API_ENDPOINTS.BASE_URL}/locations`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations`);
         const data = await response.json();
         console.log('Locations response:', data);
         if (data.locations && data.locations.length > 0) {
@@ -56,7 +56,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
     // Fetch popular searches
     const fetchPopularSearches = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/api/search-analytics/popular`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search-analytics/popular`);
         const data = await response.json();
         if (data.searches) {
           setPopularSearches(data.searches);
@@ -137,7 +137,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
 
   const trackSearch = async (query: string) => {
     try {
-      await fetch(`${API_ENDPOINTS.BASE_URL}/api/search-analytics/track`, {
+      await fetch(`${API_ENDPOINTS.BASE_URL}/search-analytics/track`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query })
