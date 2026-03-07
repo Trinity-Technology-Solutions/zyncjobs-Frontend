@@ -6,6 +6,7 @@ interface ResumeModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClose }) => {
   const [resume, setResume] = useState<any>(null);
@@ -22,7 +23,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`/api/resume-viewer/${applicationId}`);
+      const response = await fetch(`${API_BASE_URL}/resume-viewer/${applicationId}`);
       if (!response.ok) throw new Error('Failed to load resume');
       const data = await response.json();
       setResume(data);
@@ -35,7 +36,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(`/api/resume-viewer/download/${applicationId}`);
+      const response = await fetch(`${API_BASE_URL}/resume-viewer/download/${applicationId}`);
       if (!response.ok) throw new Error('Failed to download');
       const data = await response.json();
       window.open(data.fileUrl, '_blank');

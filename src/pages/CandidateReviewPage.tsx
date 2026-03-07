@@ -25,6 +25,7 @@ interface Candidate {
     answers?: any;
   };
 }
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, jobId }) => {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -42,7 +43,7 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
 
   const fetchCandidates = async () => {
     try {
-      const response = await fetch(`/api/employer/jobs/${jobId}/applicants`);
+      const response = await fetch(`${API_BASE_URL}/employer/jobs/${jobId}/applicants`);
       const data = await response.json();
       setCandidates(data.applicants || []);
     } catch (error) {
@@ -54,7 +55,7 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
 
   const fetchShortlisted = async () => {
     try {
-      const response = await fetch(`/api/employer/jobs/${jobId}/shortlisted`);
+      const response = await fetch(`${API_BASE_URL}/employer/jobs/${jobId}/shortlisted`);
       const data = await response.json();
       setShortlisted(data.shortlisted || []);
     } catch (error) {
@@ -64,7 +65,7 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
 
   const shortlistCandidate = async (candidateId: string, notes = '') => {
     try {
-      await fetch('/api/employer/shortlist', {
+      await fetch(`${API_BASE_URL}/employer/shortlist`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ candidateId, jobId, notes })
@@ -80,7 +81,7 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
 
   const updateCandidateStatus = async (candidateId: string, status: string, notes = '') => {
     try {
-      await fetch(`/api/employer/candidate/${candidateId}/status`, {
+      await fetch(`${API_BASE_URL}/employer/candidate/${candidateId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId, status, notes })

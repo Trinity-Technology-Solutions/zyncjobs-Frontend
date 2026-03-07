@@ -18,7 +18,7 @@ class AIService {
 
   async generateContent(request: AIGenerationRequest): Promise<string> {
     try {
-      const response = await fetch(`${this.baseUrl}/api/generate-content`, {
+      const response = await fetch(`${this.baseUrl}/generate-content`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

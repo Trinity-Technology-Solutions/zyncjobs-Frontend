@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Search } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import BackButton from './BackButton';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const SkillAssessment = () => {
   const [skills, setSkills] = useState<string[]>([]);
@@ -38,7 +39,7 @@ const SkillAssessment = () => {
         setFilteredSkills(data.skills || []);
       } else {
         // Fallback to API endpoint
-        const apiResponse = await fetch('/api/skill-assessments/skills');
+        const apiResponse = await fetch(`${API_BASE_URL}/skill-assessments/skills`);
         const apiData = await apiResponse.json();
         setSkills(apiData);
         setFilteredSkills(apiData);
@@ -60,7 +61,7 @@ const SkillAssessment = () => {
   const fetchMyAssessments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/skill-assessments/my-assessments', {
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/my-assessments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -73,7 +74,7 @@ const SkillAssessment = () => {
   const startAssessment = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/skill-assessments/start', {
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +94,7 @@ const SkillAssessment = () => {
   const submitAssessment = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/skill-assessments/submit/${assessment.assessmentId}`, {
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/submit/${assessment.assessmentId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

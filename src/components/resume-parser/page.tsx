@@ -11,6 +11,7 @@ import { mistralResumeService } from "../../services/mistralResumeService";
 import MistralJobRecommendations from "../MistralJobRecommendations";
 import CandidateRanking from "../CandidateRanking";
 import CandidateComparison from "../CandidateComparison";
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const RESUME_EXAMPLES = [
   {
@@ -62,7 +63,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
 
   const fetchEmployerJobs = async () => {
     try {
-      const response = await fetch('/api/jobs');
+      const response = await fetch(`${API_BASE_URL}/jobs`);
       if (response.ok) {
         const jobs = await response.json();
         const employerJobs = jobs.filter((job: any) => job.postedBy === user?.email);

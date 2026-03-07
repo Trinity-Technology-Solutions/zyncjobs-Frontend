@@ -45,7 +45,7 @@ const ResumeReadyPage: React.FC<ResumeReadyPageProps> = ({ onNavigate, user, onL
   const generatePDF = async () => {
     setIsGeneratingPDF(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/pdf/generate-resume`, {
+      const response = await fetch(`${API_BASE_URL}/pdf/generate-resume`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
