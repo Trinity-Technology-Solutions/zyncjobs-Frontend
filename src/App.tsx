@@ -83,6 +83,13 @@ const InterviewScheduling = lazy(() => import('./components/InterviewScheduling'
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const CandidateInterviewsPage = lazy(() => import('./pages/CandidateInterviewsPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const WhyZyncJobsPage = lazy(() => import('./pages/WhyZyncJobsPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
+const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -733,6 +740,34 @@ function App() {
 
   if (currentPage === 'employer-register') {
     return <Suspense fallback={<LoadingFallback />}><EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} /></Suspense>;
+  }
+
+  if (currentPage === 'about') {
+    return <Suspense fallback={<LoadingFallback />}><AboutPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'why-zyncjobs') {
+    return <Suspense fallback={<LoadingFallback />}><WhyZyncJobsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'contact') {
+    return <Suspense fallback={<LoadingFallback />}><ContactPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'help') {
+    return <Suspense fallback={<LoadingFallback />}><HelpCenterPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'terms') {
+    return <Suspense fallback={<LoadingFallback />}><TermsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'privacy') {
+    return <Suspense fallback={<LoadingFallback />}><PrivacyPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'accessibility') {
+    return <Suspense fallback={<LoadingFallback />}><AccessibilityPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   return (
