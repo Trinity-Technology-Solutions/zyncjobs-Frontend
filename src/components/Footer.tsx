@@ -42,6 +42,12 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
     { name: "Help Center", action: () => onNavigate && onNavigate('help') }
   ];
 
+  const legalLinks = [
+    { name: "Terms & Conditions", href: '#', onClick: () => onNavigate && onNavigate('terms') },
+    { name: "Privacy Policy", href: '#', onClick: () => onNavigate && onNavigate('privacy') },
+    { name: "Accessibility", href: '#', onClick: () => onNavigate && onNavigate('accessibility') }
+  ];
+
   return (
     <footer className="bg-white text-gray-900 border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -142,15 +148,15 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
               © 2025 ZyncJobs. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm">
-              <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-                Terms & Conditions
-              </a>
-              <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-                Privacy Policy
-              </a>
-              <a href="#" className="text-gray-500 hover:text-gray-900 transition-colors">
-                Accessibility
-              </a>
+              {legalLinks.map((link, index) => (
+                <button
+                  key={index}
+                  onClick={link.onClick}
+                  className="text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
+                >
+                  {link.name}
+                </button>
+              ))}
             </div>
           </div>
         </div>
