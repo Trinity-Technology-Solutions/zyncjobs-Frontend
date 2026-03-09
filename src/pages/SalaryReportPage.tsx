@@ -10,30 +10,30 @@ interface SalaryReportPageProps {
 
 const SalaryReportPage: React.FC<SalaryReportPageProps> = ({ onNavigate, user, onLogout }) => {
   const jobRoles = [
-    { role: "AI Engineer", salary: "$165k", growth: "+15%", demand: "Very High" },
-    { role: "DevOps Engineer", salary: "$140k", growth: "+12%", demand: "High" },
-    { role: "Data Scientist", salary: "$135k", growth: "+10%", demand: "High" },
-    { role: "Full Stack Developer", salary: "$125k", growth: "+8%", demand: "Very High" },
-    { role: "Cybersecurity Analyst", salary: "$120k", growth: "+18%", demand: "Critical" },
-    { role: "Cloud Architect", salary: "$155k", growth: "+14%", demand: "High" }
+    { role: "AI Engineer", salary: "₹1.35L", growth: "+15%", demand: "Very High" },
+    { role: "DevOps Engineer", salary: "₹1.15L", growth: "+12%", demand: "High" },
+    { role: "Data Scientist", salary: "₹1.10L", growth: "+10%", demand: "High" },
+    { role: "Full Stack Developer", salary: "₹1.02L", growth: "+8%", demand: "Very High" },
+    { role: "Cybersecurity Analyst", salary: "₹98k", growth: "+18%", demand: "Critical" },
+    { role: "Cloud Architect", salary: "₹1.27L", growth: "+14%", demand: "High" }
   ];
 
   const demandSkills = [
-    { skill: "Python", avgSalary: "$142k", jobs: "12.5k" },
-    { skill: "React", avgSalary: "$128k", jobs: "18.2k" },
-    { skill: "AWS", avgSalary: "$145k", jobs: "15.8k" },
-    { skill: "Machine Learning", avgSalary: "$158k", jobs: "8.9k" },
-    { skill: "Docker", avgSalary: "$135k", jobs: "11.3k" },
-    { skill: "Kubernetes", avgSalary: "$148k", jobs: "7.6k" }
+    { skill: "Python", avgSalary: "₹1.16L", jobs: "12.5k" },
+    { skill: "React", avgSalary: "₹1.05L", jobs: "18.2k" },
+    { skill: "AWS", avgSalary: "₹1.19L", jobs: "15.8k" },
+    { skill: "Machine Learning", avgSalary: "₹1.29L", jobs: "8.9k" },
+    { skill: "Docker", avgSalary: "₹1.10L", jobs: "11.3k" },
+    { skill: "Kubernetes", avgSalary: "₹1.21L", jobs: "7.6k" }
   ];
 
   const locationData = [
-    { city: "San Francisco", avgSalary: "$175k", costIndex: "High" },
-    { city: "New York", avgSalary: "$165k", costIndex: "High" },
-    { city: "Seattle", avgSalary: "$155k", costIndex: "Medium" },
-    { city: "Austin", avgSalary: "$135k", costIndex: "Medium" },
-    { city: "Denver", avgSalary: "$125k", costIndex: "Low" },
-    { city: "Remote", avgSalary: "$140k", costIndex: "Variable" }
+    { city: "Bangalore", avgSalary: "₹1.32L", costIndex: "High" },
+    { city: "Mumbai", avgSalary: "₹1.28L", costIndex: "High" },
+    { city: "Hyderabad", avgSalary: "₹1.18L", costIndex: "Medium" },
+    { city: "Pune", avgSalary: "₹1.12L", costIndex: "Medium" },
+    { city: "Delhi", avgSalary: "₹1.15L", costIndex: "Medium" },
+    { city: "Remote", avgSalary: "₹1.25L", costIndex: "Variable" }
   ];
 
   return (
