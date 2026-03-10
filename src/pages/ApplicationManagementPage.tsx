@@ -147,6 +147,30 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
     }
   };
 
+  const deleteApplication = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this application?')) {
+      return;
+    }
+    try {
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete application');
+      }
+      
+      // Update local state
+      setApplications(prev => prev.filter(app => app._id !== id));
+    } catch (error) {
+      console.error('Error deleting application:', error);
+      setError('Failed to delete application');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     return 'bg-gray-100 text-gray-700 border border-gray-300';
   };
@@ -323,6 +347,12 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                             <option value="accepted">Accepted</option>
                             <option value="rejected">Rejected</option>
                           </select>
+                          <button
+                            onClick={() => deleteApplication(application._id)}
+                            className="text-red-600 hover:text-red-800 border border-red-300 px-3 py-1 rounded text-xs hover:bg-red-50 transition-colors"
+                          >
+                            🗑️ Delete
+                          </button>
                         </div>
                       </td>
                     </tr>

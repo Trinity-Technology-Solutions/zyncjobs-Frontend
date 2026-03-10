@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, User, Briefcase, MessageSquare, FileText, Bookmark, CreditCard, Settings, Trash2, LogOut, Search, Bell, Plus, MoreVertical, Users, Eye, Edit, UserPlus, FileSearch, Folder } from 'lucide-react';
+import { LayoutDashboard, User, Briefcase, MessageSquare, FileText, Bookmark, CreditCard, Settings, Trash2, LogOut, Search, Bell, Plus, MoreVertical, Users, Eye, Edit, UserPlus, FileSearch, Folder, MapPin, Mail } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
 import BackButton from '../components/BackButton';
@@ -30,6 +30,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
+  const [savedCandidates, setSavedCandidates] = useState<any[]>([]);
+
+  useEffect(() => {
+    const saved = JSON.parse(localStorage.getItem('savedCandidates') || '[]');
+    setSavedCandidates(saved);
+  }, []);
+
+  useEffect(() => {
+    if (activeMenu === 'saved-candidates') {
+      const saved = JSON.parse(localStorage.getItem('savedCandidates') || '[]');
+      setSavedCandidates(saved);
+    }
+  }, [activeMenu]);
 
   useEffect(() => {
     // Mock employer notifications
@@ -172,15 +185,22 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             allApps.map(async (app: any) => {
               try {
                 const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
-                if (appJobId && typeof appJobId === 'string') {
+                console.log('Processing application:', app.candidateName, 'jobId:', appJobId);
+                
+                if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined') {
                   const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
-                    return { ...app, jobTitle: jobData.jobTitle || jobData.title };
+                    console.log('Fetched job data for', appJobId, ':', jobData.jobTitle || jobData.title);
+                    return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Job Position' };
+                  } else {
+                    console.log('Job fetch failed for', appJobId, ':', jobRes.status);
                   }
+                } else {
+                  console.log('No valid jobId for application:', app.candidateName);
                 }
               } catch (e) {
-                console.log('Failed to fetch job for application:', app._id || app.id);
+                console.log('Failed to fetch job for application:', app._id || app.id, e);
               }
               return app;
             })
@@ -202,11 +222,41 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setApplications([]);
       }
 
-      // Fetch interviews
+      // Fetch interviews with job details
       if (interviewsRes.ok) {
         try {
           const interviewsData = await interviewsRes.json();
-          setInterviews(Array.isArray(interviewsData) ? interviewsData : []);
+          const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
+          const now = new Date();
+          
+          // Fetch job details for each interview
+          const interviewsWithJobDetails = await Promise.all(
+            interviewsArray.map(async (interview: any) => {
+              try {
+                const jobId = interview.jobId?.id || interview.jobId?._id || interview.jobId;
+                if (jobId && typeof jobId === 'string') {
+                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+                  if (jobRes.ok) {
+                    const jobData = await jobRes.json();
+                    return { ...interview, jobTitle: jobData.jobTitle || jobData.title || 'Interview' };
+                  }
+                }
+              } catch (e) {
+                console.log('Failed to fetch job for interview:', interview._id);
+              }
+              return interview;
+            })
+          );
+          
+          // Filter out past interviews and completed/cancelled status interviews
+          const filteredInterviews = interviewsWithJobDetails.filter((interview: any) => {
+            const interviewDate = new Date(interview.date);
+            const isPast = interviewDate < now;
+            const isCompletedOrCancelled = interview.status === 'completed' || interview.status === 'cancelled';
+            return !isPast && !isCompletedOrCancelled;
+          });
+          
+          setInterviews(filteredInterviews);
         } catch (e) {
           console.log('Interviews API failed');
           setInterviews([]);
@@ -469,8 +519,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             onClick={() => onNavigate('candidate-search')}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
+            <Search className="w-5 h-5" />
+            <span className="font-medium">Search Candidates</span>
+          </button>
+
+          <button
+            onClick={() => setActiveMenu('saved-candidates')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              activeMenu === 'saved-candidates' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
             <Bookmark className="w-5 h-5" />
-            <span className="font-medium">Save Candidate</span>
+            <span className="font-medium">Saved Candidates</span>
           </button>
 
           <button
@@ -755,7 +815,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ) : (
                 <div className="space-y-4">
                   {applications.map((application) => (
-                    <div key={application._id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-glow hover:border-blue-400 hover:scale-[1.01] transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50 card-hover shimmer-effect">
+                    <div key={application._id || application.id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-glow hover:border-blue-400 hover:scale-[1.01] transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50 card-hover shimmer-effect">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
                           <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
@@ -772,7 +832,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 </h3>
                                 <p className="text-base text-blue-700 font-semibold flex items-center gap-1">
                                   <span>💼</span>
-                                  Applied for: {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
+                                  Applied for: {application.jobTitle || 'Job Position'}
                                 </p>
                               </div>
                               <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse ${
@@ -870,8 +930,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             value={application.status}
                             onChange={async (e) => {
                               const newStatus = e.target.value;
+                              const appId = application._id || application.id;
                               try {
-                                const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${application._id}/status`, {
+                                const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ status: newStatus }),
@@ -880,7 +941,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 if (response.ok) {
                                   setApplications(prev => 
                                     prev.map(app => 
-                                      app._id === application._id ? { ...app, status: newStatus } : app
+                                      (app._id || app.id) === appId ? { ...app, status: newStatus } : app
                                     )
                                   );
                                   
@@ -925,6 +986,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
                             View Profile
+                          </button>
+                          <button 
+                            onClick={() => {
+                              const appId = application._id || application.id;
+                              if (!window.confirm('Are you sure you want to delete this application?')) {
+                                return;
+                              }
+                              fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                              }).then(res => {
+                                if (res.ok) {
+                                  setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
+                                  alert('Application deleted successfully!');
+                                } else {
+                                  alert('Failed to delete application');
+                                }
+                              }).catch(err => {
+                                console.error('Error deleting application:', err);
+                                alert('Failed to delete application');
+                              });
+                            }}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md"
+                          >
+                            🗑️ Delete
                           </button>
                         </div>
                       </div>
@@ -1052,6 +1138,84 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
                           </select>
+                          <button 
+                            onClick={() => {
+                              if (!window.confirm('Are you sure you want to delete this interview?')) {
+                                return;
+                              }
+                              fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
+                                method: 'DELETE',
+                                headers: { 'Content-Type': 'application/json' },
+                              }).then(res => {
+                                if (res.ok) {
+                                  setInterviews(prev => prev.filter(int => int._id !== interview._id));
+                                  alert('Interview deleted successfully!');
+                                } else {
+                                  alert('Failed to delete interview');
+                                }
+                              }).catch(err => {
+                                console.error('Error deleting interview:', err);
+                                alert('Failed to delete interview');
+                              });
+                            }}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md"
+                          >
+                            🗑️ Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : activeMenu === 'saved-candidates' ? (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900 mb-8">Saved Candidates</h1>
+              
+              {savedCandidates.length === 0 ? (
+                <div className="text-center py-16">
+                  <Bookmark className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No Saved Candidates</h3>
+                  <p className="text-gray-600 mb-6">Save candidates from the candidate search to view them here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {savedCandidates.map((candidate) => (
+                    <div key={candidate._id} className="border-2 border-green-200 rounded-xl p-6 hover:shadow-lg hover:border-green-400 transition-all duration-300 bg-gradient-to-br from-white via-green-50 to-emerald-50">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-4 flex-1">
+                          <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md text-white font-bold text-xl">
+                            {candidate.fullName?.charAt(0).toUpperCase() || candidate.name?.charAt(0).toUpperCase() || 'C'}
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-xl font-bold text-gray-900 mb-1">{candidate.fullName || candidate.name}</h3>
+                            <p className="text-base text-green-700 font-semibold mb-2">{candidate.title}</p>
+                            <div className="flex items-center gap-3 flex-wrap">
+                              <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
+                                <MapPin className="w-4 h-4" />
+                                <span className="text-sm font-medium text-green-900">{candidate.location}</span>
+                              </div>
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
+                                <span className="text-sm font-medium text-gray-700">{candidate.experience}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="ml-6 flex flex-col space-y-2">
+                          <button onClick={() => candidate.email && (window.location.href = `mailto:${candidate.email}`)} className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-6 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-colors text-sm">
+                            <Mail className="w-4 h-4 inline mr-1" />
+                            Contact
+                          </button>
+                          <button onClick={() => {
+                            setSavedCandidates(prev => prev.filter(c => c._id !== candidate._id));
+                            const saved = JSON.parse(localStorage.getItem('savedCandidates') || '[]');
+                            const updated = saved.filter((c: any) => c._id !== candidate._id);
+                            localStorage.setItem('savedCandidates', JSON.stringify(updated));
+                            alert('Candidate removed from saved list!');
+                          }} className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm">
+                            Remove
+                          </button>
                         </div>
                       </div>
                     </div>

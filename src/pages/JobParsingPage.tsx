@@ -271,7 +271,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       }
     }
 
-    return 'ZyncJobs';
+    return '';
   };
 
   const extractLocation = (text: string): string => {
@@ -377,21 +377,16 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
 
   const extractExperience = (text: string): string => {
     const expPatterns = [
-      // Range patterns
+      // Range patterns with "years" keyword
+      /(\d+)[\s-]+(\d+)\s*years?\s*(?:of\s*)?(?:experience|exp|working|in)/i,
       /(?:experience|exp)\s*(?:required|needed)?[:\s-]*(\d+)[\s-]+(\d+)\s*years?/i,
-      /(\d+)[\s-]+(\d+)\s*years?\s*(?:of\s*)?(?:experience|exp)/i,
-      /(\d+)\s*(?:to|-|–|—)\s*(\d+)\s*years?/i,
+      /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-–—to]\s*(\d+)\s*years?/i,
       // Single number patterns
-      /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*years?/i,
-      /(\d+)\+?\s*years?\s*(?:of\s*)?(?:experience|exp)/i,
+      /(\d+)\+?\s*years?\s+(?:of\s+)?(?:experience|exp|working|in)/i,
       /(?:experience|exp)\s*(?:required|needed)?[:\s-]*(\d+)\+?\s*years?/i,
-      // Level-based patterns
-      /(entry.level|junior|mid.level|senior|lead|principal|staff|chief)/i,
-      /(fresher|fresh\s+graduate|new\s+grad|recent\s+graduate)/i,
-      // Years of experience in context
+      /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*years?/i,
       /with\s+(\d+)[\s-]+(\d+)\s*years?/i,
       /having\s+(\d+)\s*years?/i,
-      // Plus patterns
       /(\d+)\+\s*years?/i
     ];
 
@@ -402,14 +397,14 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
         if (match[1] && match[2] && !isNaN(parseInt(match[1])) && !isNaN(parseInt(match[2]))) {
           const min = parseInt(match[1]);
           const max = parseInt(match[2]);
-          if (min <= max && min >= 0 && max <= 20) {
+          if (min <= max && min >= 0 && max <= 50) {
             return `${min}-${max} years`;
           }
         }
         // Handle single number patterns
         else if (match[1] && !isNaN(parseInt(match[1]))) {
           const years = parseInt(match[1]);
-          if (years >= 0 && years <= 20) {
+          if (years >= 0 && years <= 50) {
             if (years >= 15) return '15+ years';
             if (years >= 10) return '10-15 years';
             if (years >= 8) return '8-10 years';
@@ -420,31 +415,16 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
             return '0-1 years';
           }
         }
-        // Handle level-based patterns
-        else if (match[1]) {
-          const level = match[1].toLowerCase().replace(/[\s\.-]/g, '');
-          if (level.includes('entry') || level.includes('junior') || level.includes('fresher') || level.includes('fresh') || level.includes('new') || level.includes('recent')) {
-            return '0-2 years';
-          } else if (level.includes('mid') || level.includes('intermediate')) {
-            return '3-5 years';
-          } else if (level.includes('senior')) {
-            return '5-8 years';
-          } else if (level.includes('lead') || level.includes('principal') || level.includes('staff') || level.includes('chief')) {
-            return '8+ years';
-          }
-        }
       }
     }
 
     // Additional context-based detection
     const contextPatterns = [
-      { pattern: /no\s+experience\s+required/i, experience: '0-1 years' },
-      { pattern: /entry\s+level/i, experience: '0-2 years' },
-      { pattern: /beginner/i, experience: '0-1 years' },
-      { pattern: /intermediate/i, experience: '2-5 years' },
-      { pattern: /experienced/i, experience: '5+ years' },
-      { pattern: /expert/i, experience: '8+ years' },
-      { pattern: /seasoned/i, experience: '10+ years' }
+      { pattern: /no\s+experience\s+required|entry\s+level|fresher|fresh\s+graduate|beginner/i, experience: '0-1 years' },
+      { pattern: /junior|entry.level/i, experience: '0-2 years' },
+      { pattern: /mid.level|intermediate|3\s*[-–—]\s*5\s*years/i, experience: '3-5 years' },
+      { pattern: /senior|5\s*[-–—]\s*8\s*years|experienced/i, experience: '5-8 years' },
+      { pattern: /lead|principal|staff|10\s*[-–—]\s*15\s*years|expert|seasoned/i, experience: '10+ years' }
     ];
 
     for (const { pattern, experience } of contextPatterns) {
@@ -453,7 +433,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       }
     }
 
-    return '2-5 years';
+    return '';
   };
 
   const extractSkills = (text: string): string[] => {

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, MapPin, ChevronDown } from "lucide-react";
 import { API_ENDPOINTS } from '../config/env';
+import { useHeroSection } from '../store/useHeroSection';
+import { strapiAPI } from '../api/strapi';
 
 interface NewHeroProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -19,6 +21,11 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const jobInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
+  const { data: heroData, fetchHeroSection } = useHeroSection();
+
+  useEffect(() => {
+    fetchHeroSection();
+  }, []);
 
   useEffect(() => {
     // Fetch job titles from API
@@ -63,8 +70,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
         }
       } catch (error) {
         console.error('Error fetching popular searches:', error);
-        // Fallback to default searches
-        setPopularSearches(['React', 'Python', 'JavaScript', 'Node.js', 'Java', 'Angular']);
+        setPopularSearches(['Software developer', 'Software engineer', 'Devops engineer']);
       }
     };
     
@@ -116,7 +122,6 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Check if both fields are filled
     if (!searchTerm.trim()) {
       alert('Please enter a job title or keyword');
       return;
@@ -127,7 +132,6 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
       return;
     }
     
-    // Track the search query
     trackSearch(searchTerm);
     
     if (onNavigate) {
@@ -147,6 +151,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
     }
   };
 
+  const subtitle = heroData?.subtitle || 'We Have 208,000+ Live Jobs';
+  const title = heroData?.title || 'Your Dream Job Is Waiting For You';
+  const description = heroData?.description || 'Type your keyword, then click search to find your perfect job.';
+  const buttonText = heroData?.buttonText || 'Find Job';
+  const heroImage = heroData?.heroImage?.url ? strapiAPI.getImageUrl(heroData.heroImage.url) : '/images/women.png';
+
   return (
     <>
       {/* Main Banner Section */}
@@ -163,13 +173,15 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
             <div className="space-y-8 -mt-8">
               <div className="space-y-6">
                 <h5 className="text-blue-600 font-semibold text-lg">
-                  We Have 208,000+ Live Jobs
+                  {subtitle}
                 </h5>
                 <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
-                  Your <span className="text-blue-600">Dream</span> Job Is Waiting For You
+                  {title.split('Dream').map((part, i) => (
+                    i === 0 ? part : <><span key="dream" className="text-blue-600">Dream</span>{part}</>
+                  ))}
                 </h1>
                 <h6 className="text-lg text-gray-600 leading-relaxed">
-                  Type your keyword, then click search to find your perfect job.
+                  {description}
                 </h6>
               </div>
 
@@ -250,7 +262,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                         type="submit"
                         className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                       >
-                        Find Job
+                        {buttonText}
                       </button>
                     </div>
                   </div>
@@ -288,7 +300,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                 </div>
                 
                 <img
-                  src="/images/women.png"
+                  src={heroImage}
                   alt="Professional woman"
                   className="w-[26rem] h-[32rem] mx-auto object-contain relative z-10 -mt-12"
                 />

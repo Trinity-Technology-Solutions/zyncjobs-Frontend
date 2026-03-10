@@ -1,6 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
+import { useSiteSettings } from '../store/useSiteSettings';
+import { useNavigation } from '../store/useNavigation';
+import { strapiAPI } from '../api/strapi';
 
 interface HeaderProps {
   onNavigate?: (page: string) => void;
@@ -17,6 +20,17 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const megaMenuRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+  const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
+  const { items: navItems, fetchNavigation } = useNavigation();
+
+  useEffect(() => {
+    console.log('Header - siteSettings:', siteSettings);
+    console.log('Header - logo URL:', siteSettings?.siteLogo?.url);
+  }, [siteSettings]);
+
+  useEffect(() => {
+    fetchNavigation();
+  }, []);
 
   const handleLoginClick = () => {
     setIsDropdownOpen(false);
@@ -81,6 +95,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
 
 
+
+  useEffect(() => {
+    fetchSiteSettings();
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -148,8 +166,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               className="flex items-center cursor-pointer"
             >
               <img 
-                src="/images/zyncjobs-logo.png" 
-                alt="ZyncJobs" 
+                src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
+                alt={siteSettings?.siteTitle || 'ZyncJobs'} 
                 className="h-20 w-auto"
               />
             </button>
@@ -157,16 +175,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8 flex-1 justify-start ml-8">
-            <button onClick={handleFindJobsClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
-              {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
-            </button>
-            <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
-              Companies
-            </button>
-            {user?.type !== 'employer' && (
-              <button onClick={() => onNavigate && onNavigate('company-reviews')} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
-                Company Reviews
-              </button>
+            {navItems.length > 0 ? (
+              navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate && onNavigate(item.url)}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                >
+                  {item.label}
+                </button>
+              ))
+            ) : (
+              <>
+                <button onClick={handleFindJobsClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                  {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
+                </button>
+                <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                  Companies
+                </button>
+                {user?.type !== 'employer' && (
+                  <button onClick={() => onNavigate && onNavigate('company-reviews')} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                    Company Reviews
+                  </button>
+                )}
+              </>
             )}
 
             <div className="relative" ref={careerDropdownRef}>
