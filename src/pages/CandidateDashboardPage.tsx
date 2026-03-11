@@ -1128,49 +1128,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       ))}
                     </div>
                   ) : (
-                    <div>
-                      {skills.length > 0 ? (
-                        <div className="relative">
-                          <input
-                            type="text"
-                            placeholder="Search and add skills..."
-                            onFocus={() => setShowCollegeDropdown(true)}
-                            onChange={(e) => {
-                              if (e.target.value) {
-                                setShowCollegeDropdown(true);
-                              }
-                            }}
-                            className="w-full p-3 border rounded-lg"
-                          />
-                          {showCollegeDropdown && skills.length > 0 && (
-                            <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
-                              {skills
-                                .slice(0, 15)
-                                .map((skill: string, idx: number) => (
-                                  <div
-                                    key={idx}
-                                    onClick={() => {
-                                      const newSkills = [...(user?.skills || []), skill];
-                                      const updatedUser = { ...user, skills: newSkills };
-                                      setUser(updatedUser);
-                                      localStorage.setItem('user', JSON.stringify(updatedUser));
-                                      setShowCollegeDropdown(false);
-                                    }}
-                                    className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
-                                  >
-                                    {skill}
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap gap-2">
-                          <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Python</span>
-                          <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">Python Software Developer</span>
-                        </div>
-                      )}
-                    </div>
+                    <p className="text-gray-500">Add your key skills to help recruiters find you</p>
                   )}
                 </div>
 
@@ -1377,6 +1335,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             {user.clubsCommittees.associatedEducation && ` • ${user.clubsCommittees.associatedEducation}`}
                           </p>
                           <p className="text-gray-700 text-sm mt-1">{user.clubsCommittees.description}</p>
+                          {user.clubsCommittees.mediaFile && (
+                            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                              <p className="text-xs text-gray-600 mb-1">Attached media:</p>
+                              <p className="text-sm text-gray-900 font-medium">{user.clubsCommittees.mediaFile}</p>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <p className="text-gray-500 text-sm">Add details of position of responsibilities that you have held</p>
@@ -2085,7 +2049,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   {(Array.isArray(modalData) ? modalData : []).map((skill: string, idx: number) => (
                     <span key={idx} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
                       {skill}
-                      <button onClick={() => setModalData(modalData.filter((_: any, i: number) => i !== idx))}>
+                      <button onClick={() => setModalData((Array.isArray(modalData) ? modalData : []).filter((_: any, i: number) => i !== idx))}>
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                       </button>
                     </span>
@@ -2096,8 +2060,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   placeholder="Enter your key skills"
                   className="w-full p-2 border-0 focus:outline-none"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter' && e.currentTarget.value) {
-                      setModalData([...(Array.isArray(modalData) ? modalData : []), e.currentTarget.value]);
+                    if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                      const newSkills = [...(Array.isArray(modalData) ? modalData : []), e.currentTarget.value.trim()];
+                      setModalData(newSkills);
                       e.currentTarget.value = '';
                     }
                   }}
@@ -2107,18 +2072,31 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, skills: modalData };
+                    const skillsArray = Array.isArray(modalData) ? modalData : [];
+                    const updatedUser = { ...user, skills: skillsArray };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, skills: modalData })
+                        body: JSON.stringify({ email: user?.email, skills: skillsArray })
                       });
+                      if (response.ok) {
+                        setNotification({
+                          type: 'success',
+                          message: 'Skills saved successfully!',
+                          isVisible: true
+                        });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({
+                        type: 'error',
+                        message: 'Failed to save skills',
+                        isVisible: true
+                      });
                     }
                     setActiveModal(null);
                   }}
@@ -2374,7 +2352,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       onChange={(e) => setModalData({...modalData, startMonth: e.target.value})}
                       className="p-3 border rounded-lg"
                     >
-                      <option value="">Month</option>
+                      <option value=""></option>
                       {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => <option key={m}>{m}</option>)}
                     </select>
                     <input
@@ -2393,7 +2371,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       className="p-3 border rounded-lg"
                       disabled={modalData.currentlyWorking}
                     >
-                      <option value="">Month</option>
+                      <option value=""></option>
                       {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => <option key={m}>{m}</option>)}
                     </select>
                     <input
@@ -2482,14 +2460,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   />
                 </div>
                 <div>
-                  <label className="block font-medium mb-2">Describe what you did at internship</label>
+                  <label className="block font-medium mb-2">Describe what you did in project</label>
                   <textarea
                     value={modalData.description || ''}
                     onChange={(e) => setModalData({...modalData, description: e.target.value})}
                     className="w-full p-3 border rounded-lg"
                     rows={4}
                     maxLength={1000}
-                    placeholder="Enter the responsibilities you held, anything you accomplished or learned while serving in your internship"
+                    placeholder="Enter the responsibilities you held, anything you accomplished or learned while working on this project"
                   />
                   <p className="text-xs text-gray-500 text-right">{(modalData.description || '').length}/1000</p>
                 </div>
@@ -2606,7 +2584,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
                 <div>
-                  <label className="block font-medium mb-2">Describe what you did at internship</label>
+                  <label className="block font-medium mb-2">Describe what you did in project</label>
                   <textarea
                     value={modalData.description || ''}
                     onChange={(e) => setModalData({...modalData, description: e.target.value})}
@@ -2930,17 +2908,36 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <div>
                   <label className="block font-medium mb-2">Media (optional)</label>
                   <p className="text-xs text-gray-500 mb-2">Add media to support your work</p>
-                  <input
-                    type="file"
-                    accept=".doc,.docx,.pdf,.rtf,.png,.jpg,.jpeg"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file && file.size <= 2 * 1024 * 1024) {
-                        setModalData({...modalData, mediaFile: file.name});
-                      }
-                    }}
-                    className="w-full p-3 border rounded-lg"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      id="club-media-upload"
+                      accept=".doc,.docx,.pdf,.rtf,.png,.jpg,.jpeg"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file && file.size <= 2 * 1024 * 1024) {
+                          setModalData({...modalData, mediaFile: file.name, mediaFileObj: file});
+                        } else if (file && file.size > 2 * 1024 * 1024) {
+                          setNotification({
+                            type: 'error',
+                            message: 'File size must be less than 2MB',
+                            isVisible: true
+                          });
+                        }
+                      }}
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('club-media-upload')?.click()}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                    >
+                      Choose File
+                    </button>
+                    {modalData.mediaFile && (
+                      <span className="text-sm text-gray-600">{modalData.mediaFile}</span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">Supported format: DOC, DOCx, PDF, RTF, PNG, JPG | Maximum file size: 2 MB</p>
                 </div>
               </div>
@@ -2948,7 +2945,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, clubsCommittees: modalData };
+                    const { mediaFileObj, ...dataToSave } = modalData;
+                    const updatedUser = { ...user, clubsCommittees: dataToSave };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
@@ -2956,10 +2954,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, clubsCommittees: modalData })
+                        body: JSON.stringify({ email: user?.email, clubsCommittees: dataToSave })
+                      });
+                      setNotification({
+                        type: 'success',
+                        message: 'Club & committees details saved successfully!',
+                        isVisible: true
                       });
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({
+                        type: 'error',
+                        message: 'Failed to save club & committees details',
+                        isVisible: true
+                      });
                     }
                     setActiveModal(null);
                   }}
@@ -3139,6 +3147,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       </div>
                     )}
                   </div>
+                </div>
+                <div>
+                  <label className="block font-medium mb-2">Degree</label>
+                  <select
+                    value={modalData.degree || ''}
+                    onChange={(e) => setModalData({...modalData, degree: e.target.value})}
+                    className="w-full p-3 border rounded-lg"
+                  >
+                    <option value="">Select Degree</option>
+                    <option>High School Diploma</option>
+                    <option>Associate's Degree</option>
+                    <option>Bachelor's Degree</option>
+                    <option>Master's Degree</option>
+                    <option>PhD/Doctorate</option>
+                    <option>Professional Certification</option>
+                    <option>Diploma</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Course Type</label>

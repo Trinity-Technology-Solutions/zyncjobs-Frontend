@@ -28,6 +28,7 @@ const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage')
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
+const CompanyJobsPage = lazy(() => import('./pages/CompanyJobsPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
 const JobHuntingPage = lazy(() => import('./pages/JobHuntingPage'));
 const ResumeTemplatesPage = lazy(() => import('./pages/ResumeTemplatesPage'));
@@ -261,6 +262,10 @@ function App() {
 
   if (currentPage === 'companies') {
     return <Suspense fallback={<LoadingFallback />}><CompaniesPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'company-jobs') {
+    return <Suspense fallback={<LoadingFallback />}><CompanyJobsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} companyName={currentData?.companyName} /></Suspense>;
   }
 
   if (currentPage === 'company-reviews') {

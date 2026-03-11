@@ -622,13 +622,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const renderStep1 = () => (
     <div className="max-w-2xl mx-auto px-6 py-12">
       <div className="text-center mb-8">
-        <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 p-2">
-          <img 
-            src="/images/zync-logo.svg" 
-            alt="ZyncJobs" 
-            className="w-full h-full object-contain"
-          />
-        </div>
         <div className="flex justify-between items-center">
           <BackButton 
             onClick={() => mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}

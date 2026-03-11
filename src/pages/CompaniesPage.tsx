@@ -71,6 +71,85 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     }
   };
 
+  // Default companies
+  const defaultCompanies: Company[] = [
+    {
+      _id: '1',
+      name: 'Trinity Technology Solutions',
+      industry: 'Technology',
+      rating: 4.5,
+      description: 'Leading tech solutions provider',
+      location: 'India',
+      employees: '500-1000',
+      website: 'trinitetech.com',
+      openJobs: 0,
+      logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64'
+    },
+    {
+      _id: '2',
+      name: 'GrowthPulse Solutions',
+      industry: 'Business Services',
+      rating: 4.3,
+      description: 'Growth and business consulting',
+      location: 'India',
+      employees: '200-500',
+      website: 'growthpulss.com',
+      openJobs: 0,
+      logo: 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64'
+    },
+    {
+      _id: '3',
+      name: 'Nambikkai India',
+      industry: 'Non-Profit',
+      rating: 4.2,
+      description: 'Social impact organization',
+      location: 'India',
+      employees: '100-200',
+      website: 'nambikkai.com',
+      openJobs: 0,
+      logo: 'https://www.google.com/s2/favicons?domain=nambikkai.com&sz=64'
+    },
+    {
+      _id: '4',
+      name: 'Petrichor India',
+      industry: 'Technology',
+      rating: 4.4,
+      description: 'Innovation and tech development',
+      location: 'India',
+      employees: '300-600',
+      website: '',
+      openJobs: 0,
+      logo: 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64'
+    }
+  ];
+
+  // Fetch job counts for each company
+  const fetchJobCountsForCompanies = async (companyList: Company[]) => {
+    try {
+      const companiesWithJobCounts = await Promise.all(
+        companyList.map(async (company) => {
+          try {
+            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?company=${encodeURIComponent(company.name)}&limit=1000`);
+            if (response.ok) {
+              const jobs = await response.json();
+              return {
+                ...company,
+                openJobs: Array.isArray(jobs) ? jobs.length : 0
+              };
+            }
+          } catch (error) {
+            console.error(`Error fetching jobs for ${company.name}:`, error);
+          }
+          return company;
+        })
+      );
+      return companiesWithJobCounts;
+    } catch (error) {
+      console.error('Error fetching job counts:', error);
+      return companyList;
+    }
+  };
+
   // Fetch companies from API
   const fetchCompanies = async (page = 1, append = false) => {
     try {
@@ -93,12 +172,12 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
         
         setHasMoreCompanies(data.length === companiesPerPage);
       } else {
-        console.error('Failed to fetch companies');
-        if (!append) setCompanies([]);
+        console.error('Failed to fetch companies, using default companies');
+        if (!append) setCompanies(defaultCompanies);
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      if (!append) setCompanies([]);
+      if (!append) setCompanies(defaultCompanies);
     } finally {
       if (!append) setLoading(false);
     }
@@ -107,12 +186,24 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const handleLoadMoreCompanies = () => {
     const nextPage = currentPage + 1;
     setCurrentPage(nextPage);
-    fetchCompanies(nextPage, true);
+    if (searchTerm) {
+      fetchCompanies(nextPage, true);
+    }
   };
 
   useEffect(() => {
     loadFilterData();
-    fetchCompanies();
+    // Use default companies if no search term, otherwise fetch from API
+    if (!searchTerm) {
+      const loadCompaniesWithJobs = async () => {
+        const companiesWithJobs = await fetchJobCountsForCompanies(defaultCompanies);
+        setCompanies(companiesWithJobs);
+        setLoading(false);
+      };
+      loadCompaniesWithJobs();
+    } else {
+      fetchCompanies();
+    }
   }, [searchTerm]);
 
   // Filter functions
@@ -354,7 +445,15 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                   </a>
                 )}
                 {company.openJobs > 0 && (
-                  <p className="text-sm text-blue-600 font-medium">{company.openJobs} open jobs</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigate && onNavigate('company-jobs');
+                    }}
+                    className="text-sm text-blue-600 font-medium hover:text-blue-800 cursor-pointer"
+                  >
+                    {company.openJobs} open job{company.openJobs !== 1 ? 's' : ''}
+                  </button>
                 )}
               </div>
             </div>
