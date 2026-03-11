@@ -578,7 +578,7 @@ ${candidate.company}`;
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

@@ -58,13 +58,13 @@ const CareerAdvicePage: React.FC<CareerAdvicePageProps> = ({ onNavigate, topic, 
             'Build diverse and inclusive teams'
           ]
         };
-      case 'Trinitejob Daily':
+      case 'Zyncjobs Daily':
         return {
           icon: FileText,
           emoji: '📰',
           color: 'cyan',
           bgGradient: 'from-cyan-50 via-teal-50 to-emerald-50',
-          title: 'Trinitejob Daily',
+          title: 'Zyncjobs Daily',
           description: 'Stay informed with daily insights, news, and trends in the tech industry',
           tips: [
             'Get daily tech industry news and updates',

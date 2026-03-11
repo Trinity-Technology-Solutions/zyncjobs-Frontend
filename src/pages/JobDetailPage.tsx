@@ -25,8 +25,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   const [hasApplied, setHasApplied] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string>('');
 
-  const getCompanyLogo = (job: any) => {
-    const company = job.company || job.companyName || 'Company';
+  const getCompanyLogo = (app: any) => {
+    const company = app.company || app.companyName || 'Company';
     
     // For Trinity companies, use local logo
     if (company.toLowerCase().includes('trinity')) {
@@ -173,6 +173,40 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
+        // Check localStorage for selectedJob first (for refresh persistence)
+        const storedJob = localStorage.getItem('selectedJob');
+        if (storedJob) {
+          try {
+            const parsedJob = JSON.parse(storedJob);
+            console.log('📦 Retrieved job from localStorage:', parsedJob);
+            setJob(parsedJob.jobData || parsedJob);
+            
+            // Check if user has applied to this job
+            if (user?.email && (parsedJob._id || parsedJob.jobData?._id)) {
+              await checkApplicationStatus(parsedJob._id || parsedJob.jobData?._id, user.email);
+            }
+            
+            // Fetch job poster info
+            if (parsedJob.employerEmail || parsedJob.postedBy) {
+              const usersResponse = await fetch(API_ENDPOINTS.USERS);
+              if (usersResponse.ok) {
+                const users = await usersResponse.json();
+                const poster = users.find((user: any) => 
+                  user.email === (parsedJob.employerEmail || parsedJob.postedBy)
+                );
+                setJobPoster(poster);
+              }
+            }
+            
+            setLoading(false);
+            fetchSimilarJobs(parsedJob.jobData || parsedJob);
+            return;
+          } catch (parseError) {
+            console.error('Error parsing stored job:', parseError);
+            localStorage.removeItem('selectedJob');
+          }
+        }
+        
         // If jobData is passed from LatestJobs, use it directly
         if (jobData) {
           setJob(jobData);
@@ -205,7 +239,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         
         if (jobId) {
           // Ensure jobId is a string, not an object
-          const jobIdString = typeof jobId === 'object' ? (jobId._id || jobId.id) : jobId;
+          const jobIdString = typeof jobId === 'object' ? ((jobId as any)._id || (jobId as any).id) : jobId;
           
           // Fetch job details
           const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
@@ -290,6 +324,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         if (userApplication) {
           setHasApplied(true);
           setApplicationStatus(userApplication.status);
+        } else {
+          setHasApplied(false);
+          setApplicationStatus('');
         }
       }
     } catch (error) {
@@ -330,7 +367,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(user.email)}`);
       if (response.ok) {
         const applications = await response.json();
-        const withdrawnApp = applications.find(app => 
+        const withdrawnApp = applications.find((app: { jobId: { _id: any; }; status: string; }) => 
           app.jobId._id === (job._id || jobId) && app.status === 'withdrawn'
         );
         
@@ -502,10 +539,14 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                         jobTitle={job.jobTitle || job.title}
                         company={job.company}
                         user={user}
-                        onSuccess={() => {
+                        onSuccess={async () => {
                           setHasApplied(true);
                           setApplicationStatus('applied');
-                          alert('Quick application submitted!');
+                          setTimeout(() => {
+                            if (user?.email && (job._id || jobId)) {
+                              checkApplicationStatus(job._id || jobId, user.email);
+                            }
+                          }, 1000);
                         }}
                       />
                       
@@ -594,7 +635,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                 {(() => {
                   // Try to get responsibilities from separate field first
                   if (job.responsibilities && job.responsibilities.length > 0) {
-                    return Array.isArray(job.responsibilities) ? job.responsibilities.map((responsibility, index) => (
+                    return Array.isArray(job.responsibilities) ? job.responsibilities.map((responsibility: any, index: number) => (
                       <li key={index} className="flex items-start">
                         <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                         <span className="text-gray-600">{responsibility}</span>
@@ -616,7 +657,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     const bulletPoints = section.match(/•\s*(.+)/g);
                     
                     if (bulletPoints) {
-                      return bulletPoints.map((point, index) => {
+                      return bulletPoints.map((point: string, index: number) => {
                         const cleaned = point.replace(/^•\s*/, '').trim();
                         return (
                           <li key={index} className="flex items-start">
@@ -646,7 +687,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                 {(() => {
                   // Try to get requirements from separate field first
                   if (job.requirements && job.requirements.length > 0) {
-                    return Array.isArray(job.requirements) ? job.requirements.map((requirement, index) => (
+                    return Array.isArray(job.requirements) ? job.requirements.map((requirement: any, index: number) => (
                       <li key={index} className="flex items-start">
                         <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                         <span className="text-gray-600">{requirement}</span>
@@ -668,7 +709,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     const bulletPoints = section.match(/•\s*(.+)/g);
                     
                     if (bulletPoints) {
-                      return bulletPoints.map((point, index) => {
+                      return bulletPoints.map((point: string, index: number) => {
                         const cleaned = point.replace(/^•\s*/, '').trim();
                         return (
                           <li key={index} className="flex items-start">
@@ -682,7 +723,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                   
                   // Fallback to skills if available
                   if (job.skills && Array.isArray(job.skills) && job.skills.length > 0) {
-                    return job.skills.map((skill, index) => (
+                    return job.skills.map((skill: any, index: number) => (
                       <li key={index} className="flex items-start">
                         <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                         <span className="text-gray-600">Experience with {skill}</span>
@@ -752,7 +793,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Required Skills</h3>
               <div className="flex flex-wrap gap-2">
-                {Array.isArray(job.skills) ? job.skills.map((skill, index) => (
+                {Array.isArray(job.skills) ? job.skills.map((skill: string, index: number) => (
                   <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                     {skill}
                   </span>
@@ -769,7 +810,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
               <ul className="space-y-2">
                 {job.benefits && job.benefits.length > 0 ? (
-                  Array.isArray(job.benefits) ? job.benefits.map((benefit, index) => (
+                  Array.isArray(job.benefits) ? job.benefits.map((benefit: string, index: number) => (
                     <li key={index} className="flex items-start">
                       <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                       <span className="text-gray-600 text-sm">{benefit}</span>
@@ -849,10 +890,14 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                           jobTitle={job.jobTitle || job.title}
                           company={job.company}
                           user={user}
-                          onSuccess={() => {
+                          onSuccess={async () => {
                             setHasApplied(true);
                             setApplicationStatus('applied');
-                            alert('Quick application submitted!');
+                            setTimeout(() => {
+                              if (user?.email && (job._id || jobId)) {
+                                checkApplicationStatus(job._id || jobId, user.email);
+                              }
+                            }, 1000);
                           }}
                           className="w-full justify-center"
                         />
@@ -941,10 +986,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 ${job.description?.substring(0, 200)}...
 
 ${job.skills && Array.isArray(job.skills) ? `🔧 We're looking for:
-${job.skills.slice(0, 5).map(skill => `• ${skill}`).join('\n')}` : ''}
+${job.skills.slice(0, 5).map((skill: any) => `• ${skill}`).join('\n')}` : ''}
 
 ${job.benefits && Array.isArray(job.benefits) ? `✨ What we offer:
-${job.benefits.slice(0, 3).map(benefit => `• ${benefit}`).join('\n')}` : ''}
+${job.benefits.slice(0, 3).map((benefit: any) => `• ${benefit}`).join('\n')}` : ''}
 
 💼 Ready to join our team? Apply now!
 
@@ -964,10 +1009,10 @@ Apply here: ${window.location.href}` :
 ${job.description?.substring(0, 200)}...
 
 ${job.skills && Array.isArray(job.skills) ? `🔧 Looking for:
-${job.skills.slice(0, 5).map(skill => `• ${skill}`).join('\n')}` : ''}
+${job.skills.slice(0, 5).map((skill: any) => `• ${skill}`).join('\n')}` : ''}
 
 ${job.benefits && Array.isArray(job.benefits) ? `✨ What they offer:
-${job.benefits.slice(0, 3).map(benefit => `• ${benefit}`).join('\n')}` : ''}
+${job.benefits.slice(0, 3).map((benefit: any) => `• ${benefit}`).join('\n')}` : ''}
 
 🤝 Know someone who'd be a great fit? Feel free to share!
 

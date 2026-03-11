@@ -195,7 +195,7 @@ const EmployerLoginModal: React.FC<EmployerLoginModalProps> = ({ isOpen, onClose
 
           <div className="mt-6 text-center">
             <p className="text-gray-600">
-              New to hiring on Trinitejob?{' '}
+              New to hiring on Zyncjobs?{' '}
               <button
                 onClick={() => {
                   console.log('Sign up button clicked in EmployerLoginModal');

@@ -30,6 +30,7 @@ const EmployersPage = lazy(() => import('./pages/EmployersPage'));
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
 const CompanyJobsPage = lazy(() => import('./pages/CompanyJobsPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
+const CompanyDetailsPage = lazy(() => import('./pages/CompanyDetailsPage'));
 const JobHuntingPage = lazy(() => import('./pages/JobHuntingPage'));
 const ResumeTemplatesPage = lazy(() => import('./pages/ResumeTemplatesPage'));
 const ResumeEditorPage = lazy(() => import('./pages/ResumeEditorPage'));
@@ -51,7 +52,6 @@ const CandidateDashboardPage = lazy(() => import('./pages/CandidateDashboardPage
 const EmployerDashboardPage = lazy(() => import('./pages/EmployerDashboardPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const SearchEngine = lazy(() => import('./components/SearchEngine'));
-const CompanyReviewsPage = lazy(() => import('./pages/CompanyReviewsPage'));
 const CompanyProfilePage = lazy(() => import('./pages/CompanyProfilePage'));
 const CompanyViewPage = lazy(() => import('./pages/CompanyViewPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
@@ -80,6 +80,7 @@ const EmployerProfilePage = lazy(() => import('./pages/EmployerProfilePage'));
 const MeetingTest = lazy(() => import('./components/MeetingTest'));
 const SkillAssessment = lazy(() => import('./components/SkillAssessment'));
 const SkillAssessmentPage = lazy(() => import('./pages/SkillAssessmentPage'));
+const AssessmentReviewPage = lazy(() => import('./pages/AssessmentReviewPage'));
 const InterviewScheduling = lazy(() => import('./components/InterviewScheduling'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
@@ -91,6 +92,7 @@ const HelpCenterPage = lazy(() => import('./pages/HelpCenterPage'));
 const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
+const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -171,7 +173,7 @@ function App() {
     document.title = 'ZyncJobs - AI Skills. Bigger Chances. Better Jobs';
   }, []);
 
-  const handleNavigation = (page: string, topic?: string) => {
+  const handleNavigation = (page: string, params?: any) => {
     startTransition(() => {
       // Close any open modals when navigating to actual pages
       setShowLoginModal(false);
@@ -181,15 +183,33 @@ function App() {
       setShowCandidateRegisterModal(false);
       setShowEmployerRegisterModal(false);
       
-      if (topic) {
-        setCurrentTopic(topic);
-      }
-      if (typeof topic === 'object') {
-        setCurrentData(topic);
+      if (params) {
+        if (typeof params === 'string') {
+          setCurrentTopic(params);
+        } else {
+          setCurrentData(params);
+          if (page === 'job-detail' && params.jobData) {
+            localStorage.setItem('selectedJob', JSON.stringify({
+              _id: params.jobData._id,
+              jobTitle: params.jobData.jobTitle,
+              company: params.jobData.company,
+              location: params.jobData.location,
+              description: params.jobData.description,
+              salary: params.jobData.salary,
+              type: params.jobData.jobType,
+              jobData: params.jobData
+            }));
+          }
+        }
       }
       
-      // Navigate using React Router
-      navigate(`/${page === 'home' ? '' : page}`);
+      // Handle assessment review navigation
+      if (page === 'assessment-review' && params?.assessmentId) {
+        navigate(`/assessment-review/${params.assessmentId}`);
+      } else {
+        // Navigate using React Router
+        navigate(`/${page === 'home' ? '' : page}`);
+      }
     });
     
     // Scroll to top when navigating
@@ -260,22 +280,16 @@ function App() {
     return <Suspense fallback={<LoadingFallback />}><JobListingsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} searchParams={currentData} /></Suspense>;
   }
 
+  if (currentPage === 'company-details') {
+    return <Suspense fallback={<LoadingFallback />}><CompanyDetailsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
   if (currentPage === 'companies') {
     return <Suspense fallback={<LoadingFallback />}><CompaniesPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   if (currentPage === 'company-jobs') {
     return <Suspense fallback={<LoadingFallback />}><CompanyJobsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} companyName={currentData?.companyName} /></Suspense>;
-  }
-
-  if (currentPage === 'company-reviews') {
-    return (
-      <Suspense fallback={<LoadingFallback />}>
-        <div className="min-h-screen bg-white">
-          <CompanyReviewsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-        </div>
-      </Suspense>
-    );
   }
 
   if (currentPage === 'employer-profile') {
@@ -570,7 +584,7 @@ function App() {
   if (currentPage === 'settings') {
     if (!user) {
       // Not logged in, redirect to role selection page
-      startTransition(() => navigate('/role-selection'));
+      navigate('/role-selection');
       return null;
     }
     return (
@@ -585,7 +599,7 @@ function App() {
   if (currentPage === 'my-jobs') {
     if (!user) {
       // Not logged in, redirect to role selection page
-      startTransition(() => navigate('/role-selection'));
+      navigate('/role-selection');
       return null;
     }
     return (
@@ -598,7 +612,7 @@ function App() {
 
   if (currentPage === 'my-applications') {
     if (!user) {
-      startTransition(() => navigate('/role-selection'));
+      navigate('/role-selection');
       return null;
     }
     return <MyApplicationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />;
@@ -685,6 +699,19 @@ function App() {
     return <SkillAssessmentPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />;
   }
 
+  if (currentPage.startsWith('assessment-review/')) {
+    const assessmentId = currentPage.split('/')[1];
+    return (
+      <Suspense fallback={<LoadingFallback />}>
+        <AssessmentReviewPage 
+          assessmentId={assessmentId} 
+          onNavigate={handleNavigation} 
+          user={user as any}
+        />
+      </Suspense>
+    );
+  }
+
   if (currentPage === 'skill-assessments') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -710,7 +737,7 @@ function App() {
 
   if (currentPage === 'interviews') {
     if (!user) {
-      startTransition(() => navigate('/role-selection'));
+      navigate('/role-selection');
       return null;
     }
     return user.type === 'candidate' ? (
@@ -736,7 +763,7 @@ function App() {
   }
 
   if (currentPage === 'candidate-register') {
-    return <Suspense fallback={<LoadingFallback />}><CandidateRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} /></Suspense>;
+    return <Suspense fallback={<LoadingFallback />}><CandidateRegisterPage onNavigate={handleNavigation} /></Suspense>;
   }
 
   if (currentPage === 'role-selection') {
@@ -773,6 +800,10 @@ function App() {
 
   if (currentPage === 'accessibility') {
     return <Suspense fallback={<LoadingFallback />}><AccessibilityPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'resume-help') {
+    return <Suspense fallback={<LoadingFallback />}><ResumeHelpPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   return (

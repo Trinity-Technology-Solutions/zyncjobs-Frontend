@@ -3,9 +3,10 @@ import { Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
 
 interface FooterProps {
   onNavigate?: (page: string, topic?: string) => void;
+  user?: { name: string; type: 'candidate' | 'employer' } | null;
 }
 
-const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   const jobSeekerLinks = [
     { name: "Find Jobs", action: () => onNavigate && onNavigate('job-listings') },
     { name: "Browse Companies", action: () => onNavigate && onNavigate('companies') },
@@ -20,11 +21,29 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
   ];
 
   const employerLinks = [
-    { name: "Post a Job", action: () => onNavigate && onNavigate('job-posting-selection') },
-    { name: "Find Candidates", action: () => onNavigate && onNavigate('candidate-search') },
-    { name: "Employer Solutions", action: () => onNavigate && onNavigate('employers') },
-    { name: "Hiring Dashboard", action: () => onNavigate && onNavigate('employer-login') },
-    { name: "Pricing Plans", action: () => onNavigate && onNavigate('employers') }
+    { 
+      name: "Post a Job", 
+      action: () => {
+        alert('You are logged in as candidate profile. Please switch to employer account.');
+        return;
+      }
+    },
+    { name: "Find Candidates", action: () => {
+      alert('You are logged in as candidate profile. Please switch to employer account.');
+      return;
+    }},
+    { name: "Employer Solutions", action: () => {
+      alert('You are logged in as candidate profile. Please switch to employer account.');
+      return;
+    }},
+    { name: "Hiring Dashboard", action: () => {
+      alert('You are logged in as candidate profile. Please switch to employer account.');
+      return;
+    }},
+    { name: "Pricing Plans", action: () => {
+      alert('You are logged in as candidate profile. Please switch to employer account.');
+      return;
+    }}
   ];
 
   const resourceLinks = [
@@ -93,21 +112,28 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             </ul>
           </div>
           
-          <div>
-            <h4 className="text-lg font-semibold mb-6">For Employers</h4>
-            <ul className="space-y-3">
-              {employerLinks.map((link, index) => (
-                <li key={index}>
-                  <button 
-                    onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
-                  >
-                    {link.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {user?.type === 'candidate' ? (
+            <div>
+              <h4 className="text-lg font-semibold mb-6">For Employers</h4>
+              <p className="text-gray-500 text-sm italic">You are logged in as candidate profile</p>
+            </div>
+          ) : (
+            <div>
+              <h4 className="text-lg font-semibold mb-6">For Employers</h4>
+              <ul className="space-y-3">
+                {employerLinks.map((link, index) => (
+                  <li key={index}>
+                    <button 
+                      onClick={link.action}
+                      className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                    >
+                      {link.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           
           <div>
             <h4 className="text-lg font-semibold mb-6">Resources</h4>
@@ -145,7 +171,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="border-t border-gray-200 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-gray-500 text-sm mb-4 md:mb-0">
-              © 2025 ZyncJobs. All rights reserved.
+              © 2026 ZyncJobs. All rights reserved.
             </div>
             <div className="flex space-x-6 text-sm">
               {legalLinks.map((link, index) => (

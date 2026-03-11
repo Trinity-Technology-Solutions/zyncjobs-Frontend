@@ -149,7 +149,7 @@ const AccessibilityPage: React.FC<AccessibilityPageProps> = ({ onNavigate, user,
         </div>
       </main>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

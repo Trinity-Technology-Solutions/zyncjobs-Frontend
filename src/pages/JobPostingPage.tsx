@@ -1109,7 +1109,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           <h3 className="text-gray-700 font-medium mb-2">Pay</h3>
           <p className="text-gray-500 text-sm mb-6">Review the pay we estimated for your job and adjust as needed.</p>
           
-          <div className="grid grid-cols-6 gap-4 items-end">
+          <div className="grid grid-cols-5 gap-4 items-end">
             <div>
               <label className="block text-gray-600 text-sm mb-2">Show pay by</label>
               <select
@@ -1126,20 +1126,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             
             <div>
               <label className="block text-gray-600 text-sm mb-2">Currency</label>
-              <select
-                value={jobData.currency || 'USD'}
-                onChange={(e) => updateJobData('currency', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="USD">$ USD</option>
-                <option value="EUR">€ EUR</option>
-                <option value="GBP">£ GBP</option>
-                <option value="INR">₹ INR</option>
-                <option value="CAD">C$ CAD</option>
-                <option value="AUD">A$ AUD</option>
-                <option value="JPY">¥ JPY</option>
-                <option value="SGD">S$ SGD</option>
-              </select>
+              <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 font-medium">
+                ₹ INR
+              </div>
             </div>
             
             <div>
@@ -1165,19 +1154,19 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
-            
-            <div>
-              <label className="block text-gray-600 text-sm mb-2">Rate</label>
-              <select
-                value={jobData.payRate}
-                onChange={(e) => updateJobData('payRate', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="per year">per year</option>
-                <option value="per month">per month</option>
-                <option value="per hour">per hour</option>
-              </select>
-            </div>
+          </div>
+          
+          <div className="mt-4">
+            <label className="block text-gray-600 text-sm mb-2">Rate</label>
+            <select
+              value={jobData.payRate}
+              onChange={(e) => updateJobData('payRate', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="per year">per year</option>
+              <option value="per month">per month</option>
+              <option value="per hour">per hour</option>
+            </select>
           </div>
         </div>
         
@@ -1603,23 +1592,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <span className="text-gray-600">Pay</span>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-800">
-                  {jobData.currency === 'USD' && '$'}
-                  {jobData.currency === 'EUR' && '€'}
-                  {jobData.currency === 'GBP' && '£'}
-                  {jobData.currency === 'INR' && '₹'}
-                  {jobData.currency === 'CAD' && 'C$'}
-                  {jobData.currency === 'AUD' && 'A$'}
-                  {jobData.currency === 'JPY' && '¥'}
-                  {jobData.currency === 'SGD' && 'S$'}
-                  {jobData.minSalary} - {jobData.currency === 'USD' && '$'}
-                  {jobData.currency === 'EUR' && '€'}
-                  {jobData.currency === 'GBP' && '£'}
-                  {jobData.currency === 'INR' && '₹'}
-                  {jobData.currency === 'CAD' && 'C$'}
-                  {jobData.currency === 'AUD' && 'A$'}
-                  {jobData.currency === 'JPY' && '¥'}
-                  {jobData.currency === 'SGD' && 'S$'}
-                  {jobData.maxSalary} {jobData.payRate}
+                  ₹{jobData.minSalary} - ₹{jobData.maxSalary} {jobData.payRate}
                 </span>
                 <button className="text-blue-600 hover:text-blue-700">✏️</button>
               </div>
@@ -1714,7 +1687,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       salary: {
         min: parseInt(jobData.minSalary.replace(/,/g, '')) || 0,
         max: parseInt(jobData.maxSalary.replace(/,/g, '')) || 0,
-        currency: jobData.currency,
+        currency: 'INR',
         period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
       },
       benefits: jobData.benefits,
@@ -1740,13 +1713,20 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         const result = await response.json();
         setNotification({
           type: 'success',
-          message: `Job posted successfully by ${user.email}! 🎉`,
+          message: `Job posted successfully! 🎉`,
           isVisible: true
         });
         console.log('Job Posted by:', user.email, result);
         
         // Trigger event to refresh latest jobs
         window.dispatchEvent(new CustomEvent('jobPosted', { detail: result }));
+        
+        // Also dispatch a storage event for cross-tab communication
+        localStorage.setItem('lastJobPosted', JSON.stringify({
+          jobId: result._id || result.id,
+          timestamp: new Date().toISOString(),
+          postedBy: user.email
+        }));
         
         // Clear the form
         setJobData({
@@ -1784,9 +1764,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         });
         setCurrentStep(1);
         
-        // Navigate back to dashboard after 2 seconds
+        // Navigate to job-listings so candidate can see the new job
         setTimeout(() => {
-          onNavigate('dashboard');
+          onNavigate('job-listings');
         }, 2000);
       } else {
         const errorText = await response.text();

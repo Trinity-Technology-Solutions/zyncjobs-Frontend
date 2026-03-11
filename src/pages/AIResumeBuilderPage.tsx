@@ -108,7 +108,7 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
         </div>
       </div>
       
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

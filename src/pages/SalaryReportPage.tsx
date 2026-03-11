@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, TrendingUp, DollarSign, MapPin, Users, Star, BarChart3 } from 'lucide-react';
 import Header from '../components/Header';
+import BackButton from '../components/BackButton';
 
 interface SalaryReportPageProps {
   onNavigate: (page: string) => void;
@@ -41,6 +42,11 @@ const SalaryReportPage: React.FC<SalaryReportPageProps> = ({ onNavigate, user, o
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <BackButton 
+          onClick={() => onNavigate('home')}
+          text="Back to Home"
+          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-8"
+        />
         <div className="text-center mb-16">
           <div className="flex items-center justify-center space-x-2 mb-6">
             <div className="bg-orange-500 p-3 rounded-lg">

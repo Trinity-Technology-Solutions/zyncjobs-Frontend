@@ -16,6 +16,9 @@ interface Company {
   website: string;
   openJobs: number;
   logo?: string;
+  reviews?: number;
+  salaries?: number;
+  officeLocations?: number;
 }
 
 const CompaniesPage = ({ onNavigate, user, onLogout }: { 
@@ -77,77 +80,131 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       _id: '1',
       name: 'Trinity Technology Solutions',
       industry: 'Technology',
-      rating: 4.5,
+      rating: 0,
       description: 'Leading tech solutions provider',
       location: 'India',
       employees: '500-1000',
       website: 'trinitetech.com',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64'
+      logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 0
     },
     {
       _id: '2',
       name: 'GrowthPulse Solutions',
       industry: 'Business Services',
-      rating: 4.3,
+      rating: 0,
       description: 'Growth and business consulting',
       location: 'India',
       employees: '200-500',
       website: 'growthpulss.com',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64'
+      logo: 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 0
     },
     {
       _id: '3',
       name: 'Nambikkai India',
       industry: 'Non-Profit',
-      rating: 4.2,
+      rating: 0,
       description: 'Social impact organization',
       location: 'India',
       employees: '100-200',
       website: 'nambikkai.com',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=nambikkai.com&sz=64'
+      logo: 'https://www.google.com/s2/favicons?domain=nambikkai.com&sz=64',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 0
     },
     {
       _id: '4',
       name: 'Petrichor India',
       industry: 'Technology',
-      rating: 4.4,
+      rating: 0,
       description: 'Innovation and tech development',
       location: 'India',
       employees: '300-600',
       website: '',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64'
+      logo: 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 0
     }
   ];
 
-  // Fetch job counts for each company
-  const fetchJobCountsForCompanies = async (companyList: Company[]) => {
+  const fetchCompaniesFromJobs = async () => {
     try {
-      const companiesWithJobCounts = await Promise.all(
-        companyList.map(async (company) => {
-          try {
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?company=${encodeURIComponent(company.name)}&limit=1000`);
-            if (response.ok) {
-              const jobs = await response.json();
-              return {
-                ...company,
-                openJobs: Array.isArray(jobs) ? jobs.length : 0
-              };
-            }
-          } catch (error) {
-            console.error(`Error fetching jobs for ${company.name}:`, error);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`);
+      if (response.ok) {
+        const jobs = await response.json();
+        const jobsArray = Array.isArray(jobs) ? jobs : [];
+        
+        const companyMap = new Map<string, Company>();
+        
+        jobsArray.forEach((job: any) => {
+          const companyName = job.company || job.companyName;
+          if (companyName && !companyMap.has(companyName)) {
+            companyMap.set(companyName, {
+              _id: companyName.toLowerCase().replace(/\s+/g, '-'),
+              name: companyName,
+              industry: job.industry || 'Technology',
+              rating: (Math.random() * 1.5 + 3.5).toFixed(1) as any,
+              description: job.description || 'Company description',
+              location: job.location || 'India',
+              employees: '100-500',
+              website: job.website || '',
+              openJobs: 0,
+              logo: '',
+              reviews: Math.floor(Math.random() * 3000) + 100,
+              salaries: Math.floor(Math.random() * 50000000) + 4000000,
+              officeLocations: Math.floor(Math.random() * 5) + 1
+            });
           }
-          return company;
-        })
-      );
-      return companiesWithJobCounts;
+        });
+
+        const mergedCompanies = Array.from(companyMap.values());
+        const allCompanies = [...defaultCompanies, ...mergedCompanies];
+        
+        const uniqueCompanies = Array.from(
+          new Map(allCompanies.map(c => [c.name.toLowerCase(), c])).values()
+        );
+
+        const companiesWithJobCounts = uniqueCompanies.map(company => {
+          const jobCount = jobsArray.filter(
+            (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
+          ).length;
+          const avgRating = jobsArray
+            .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase())
+            .reduce((sum: number, job: any) => sum + (job.rating || 0), 0) / (jobCount || 1);
+          const avgSalary = jobsArray
+            .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase())
+            .reduce((sum: number, job: any) => sum + (job.salary || 0), 0) / (jobCount || 1);
+          const locations = new Set(jobsArray
+            .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase())
+            .map((job: any) => job.location));
+          
+          return { 
+            ...company, 
+            openJobs: jobCount,
+            rating: avgRating > 0 ? parseFloat(avgRating.toFixed(1)) : 0,
+            salaries: avgSalary > 0 ? avgSalary : 0,
+            officeLocations: locations.size,
+            reviews: 0
+          };
+        });
+
+        return companiesWithJobCounts;
+      }
     } catch (error) {
-      console.error('Error fetching job counts:', error);
-      return companyList;
+      console.error('Error fetching companies from jobs:', error);
     }
+    return defaultCompanies;
   };
 
   // Fetch companies from API
@@ -155,29 +212,56 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     try {
       if (!append) setLoading(true);
       
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      params.append('page', page.toString());
-      params.append('limit', companiesPerPage.toString());
-      
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?${params}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`);
       if (response.ok) {
-        const data = await response.json();
+        const jobs = await response.json();
+        const jobsArray = Array.isArray(jobs) ? jobs : [];
         
+        const filtered = jobsArray.filter((job: any) => {
+          const companyName = (job.company || job.companyName || '').toLowerCase();
+          return companyName.includes(searchTerm.toLowerCase());
+        });
+
+        const companyMap = new Map<string, Company>();
+        filtered.forEach((job: any) => {
+          const companyName = job.company || job.companyName;
+          if (companyName && !companyMap.has(companyName)) {
+            companyMap.set(companyName, {
+              _id: companyName.toLowerCase().replace(/\s+/g, '-'),
+              name: companyName,
+              industry: job.industry || 'Technology',
+              rating: (Math.random() * 1.5 + 3.5).toFixed(1) as any,
+              description: job.description || 'Company description',
+              location: job.location || 'India',
+              employees: '100-500',
+              website: job.website || '',
+              openJobs: 0,
+              logo: '',
+              reviews: Math.floor(Math.random() * 3000) + 100,
+              salaries: Math.floor(Math.random() * 50000) + 40000,
+              officeLocations: Math.floor(Math.random() * 5) + 1
+            });
+          }
+        });
+
+        const searchResults = Array.from(companyMap.values());
+        const companiesWithJobCounts = searchResults.map(company => {
+          const jobCount = filtered.filter(
+            (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
+          ).length;
+          return { ...company, openJobs: jobCount };
+        });
+
         if (append) {
-          setCompanies(prev => [...prev, ...data]);
+          setCompanies(prev => [...prev, ...companiesWithJobCounts]);
         } else {
-          setCompanies(data);
+          setCompanies(companiesWithJobCounts);
         }
         
-        setHasMoreCompanies(data.length === companiesPerPage);
-      } else {
-        console.error('Failed to fetch companies, using default companies');
-        if (!append) setCompanies(defaultCompanies);
+        setHasMoreCompanies(companiesWithJobCounts.length === companiesPerPage);
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      if (!append) setCompanies(defaultCompanies);
     } finally {
       if (!append) setLoading(false);
     }
@@ -186,27 +270,31 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const handleLoadMoreCompanies = () => {
     const nextPage = currentPage + 1;
     setCurrentPage(nextPage);
-    if (searchTerm) {
-      fetchCompanies(nextPage, true);
-    }
+    fetchCompanies(nextPage, true);
   };
 
   useEffect(() => {
-    loadFilterData();
-    // Use default companies if no search term, otherwise fetch from API
-    if (!searchTerm) {
-      const loadCompaniesWithJobs = async () => {
-        const companiesWithJobs = await fetchJobCountsForCompanies(defaultCompanies);
-        setCompanies(companiesWithJobs);
-        setLoading(false);
-      };
-      loadCompaniesWithJobs();
-    } else {
+    const loadCompanies = async () => {
+      const companiesFromJobs = await fetchCompaniesFromJobs();
+      setCompanies(companiesFromJobs);
+      setLoading(false);
+    };
+    loadCompanies();
+  }, []);
+
+  useEffect(() => {
+    if (searchTerm) {
       fetchCompanies();
     }
   }, [searchTerm]);
 
-  // Filter functions
+  const formatSalary = (salary: number) => {
+    if (salary >= 1000000) {
+      return `₹${(salary / 100000).toFixed(0)}L`;
+    }
+    return `₹${(salary / 1000).toFixed(0)}K`;
+  };
+
   const getFilteredIndustries = () => {
     return industries.filter(industry => 
       industry.toLowerCase().includes(industryInput.toLowerCase())
@@ -246,24 +334,15 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     setWorkSettingInput('');
   };
 
-  // Get company logo - use Google favicons like employer registration
   const getCompanyLogo = (company: Company) => {
-    // Use logo from API response if available
-    if (company.logo && !company.logo.includes('ui-avatars.com')) {
-      return company.logo;
-    }
-    
-    // Use Google favicons with website domain (same as employer registration)
     if (company.website) {
       const domain = company.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
     }
     
-    // Fallback to letter avatar
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=64&background=3b82f6&color=ffffff&bold=true`;
   };
 
-  // Handle logo error by showing letter avatar
   const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
     const companyName = target.getAttribute('data-company-name') || '';
@@ -271,209 +350,160 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+    <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Hero Section */}
-      <div className="bg-white py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <div className="bg-white py-12 border-b border-gray-200">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <BackButton 
             onClick={() => onNavigate && onNavigate('job-listings')}
             text="Back to Jobs"
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-4"
           />
-          <p className="text-gray-600 text-lg mb-4">Browse Companies</p>
-          <h1 className="text-5xl font-bold text-gray-900 mb-12">
-            {loading ? 'Loading...' : `${companies.length} Companies`}
-          </h1>
-          
-          {/* Search Bar */}
-          <div className="mb-8">
-            <div className="relative max-w-2xl mx-auto">
-              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search by cities"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-lg"
-              />
-            </div>
-          </div>
-
-          {/* Filter Inputs */}
-          <div className="flex flex-wrap justify-center gap-4 mb-4">
-            {/* Industry Filter */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Industry"
-                value={industryInput}
-                onChange={(e) => setIndustryInput(e.target.value)}
-                onFocus={() => setShowIndustryDropdown(true)}
-                onBlur={() => setTimeout(() => setShowIndustryDropdown(false), 200)}
-                className="px-6 py-3 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 w-48"
-              />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              {showIndustryDropdown && getFilteredIndustries().length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-                  {getFilteredIndustries().map((industry) => (
-                    <div
-                      key={`industry-${industry}`}
-                      onClick={() => handleIndustrySelect(industry)}
-                      className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      {industry}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Size Filter */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Size"
-                value={sizeInput}
-                onChange={(e) => setSizeInput(e.target.value)}
-                onFocus={() => setShowSizeDropdown(true)}
-                onBlur={() => setTimeout(() => setShowSizeDropdown(false), 200)}
-                className="px-6 py-3 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 w-48"
-              />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              {showSizeDropdown && getFilteredSizes().length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-                  {getFilteredSizes().map((size) => (
-                    <div
-                      key={`size-${size}`}
-                      onClick={() => handleSizeSelect(size)}
-                      className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      {size}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Work Setting Filter */}
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Work Setting"
-                value={workSettingInput}
-                onChange={(e) => setWorkSettingInput(e.target.value)}
-                onFocus={() => setShowWorkSettingDropdown(true)}
-                onBlur={() => setTimeout(() => setShowWorkSettingDropdown(false), 200)}
-                className="px-6 py-3 pr-10 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 w-48"
-              />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              {showWorkSettingDropdown && getFilteredWorkSettings().length > 0 && (
-                <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-                  {getFilteredWorkSettings().map((setting) => (
-                    <div
-                      key={`setting-${setting}`}
-                      onClick={() => handleWorkSettingSelect(setting)}
-                      className="px-4 py-2 hover:bg-gray-50 cursor-pointer text-sm"
-                    >
-                      {setting}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button className="px-6 py-3 bg-blue-50 text-blue-600 border border-blue-200 rounded-lg font-medium">
-              Hiring
-            </button>
-            <button 
-              onClick={clearFilters}
-              className="px-4 py-3 text-blue-600 font-medium hover:text-blue-800"
-            >
-              Clear filters
-            </button>
-          </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Explore Companies</h1>
+          <p className="text-gray-600 mb-6">Filter companies</p>
+          <p className="text-gray-700 font-medium">{loading ? 'Loading...' : `${companies.length} companies found`}</p>
         </div>
       </div>
 
-      {/* Company Listings */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <p className="text-gray-700 text-lg font-medium">
-            {loading ? 'Loading...' : `${companies.length} tech companies`}
-          </p>
-        </div>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="flex gap-8">
+          {/* Sidebar Filters */}
+          <div className="w-64 flex-shrink-0">
+            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-4">Company</h3>
+              <input
+                type="text"
+                placeholder="Select a company"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
+              />
 
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-500">Loading companies...</p>
-          </div>
-        ) : companies.length === 0 ? (
-          <div className="text-center py-12">
-            <Building className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No companies found</h3>
-            <p className="text-gray-500">Try adjusting your search terms or browse all companies.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {companies.map((company) => (
-            <div key={company._id} className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border border-gray-200 p-8 hover:shadow-md transition-shadow cursor-pointer card-hover">
-              <div className="flex items-center justify-center mb-6">
-                <img 
-                  src={getCompanyLogo(company)} 
-                  alt={company.name}
-                  data-company-name={company.name}
-                  onError={handleLogoError}
-                  className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+              <h3 className="font-semibold text-gray-900 mb-4">Location</h3>
+              <input
+                type="text"
+                placeholder="Select a location"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
+              />
+
+              <h3 className="font-semibold text-gray-900 mb-4">Industries</h3>
+              <div className="relative mb-6">
+                <input
+                  type="text"
+                  placeholder="E.g. healthcare, internet, education"
+                  value={industryInput}
+                  onChange={(e) => setIndustryInput(e.target.value)}
+                  onFocus={() => setShowIndustryDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowIndustryDropdown(false), 200)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
                 />
-              </div>
-              <div className="text-center">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{company.name}</h3>
-                <p className="text-gray-600 mb-1">{company.location}</p>
-                <p className="text-sm text-gray-500 mb-2">{company.industry}</p>
-                {company.website && (
-                  <a 
-                    href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 mb-2"
-                  >
-                    <Globe className="w-4 h-4 mr-1" />
-                    Visit Website
-                  </a>
-                )}
-                {company.openJobs > 0 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigate && onNavigate('company-jobs');
-                    }}
-                    className="text-sm text-blue-600 font-medium hover:text-blue-800 cursor-pointer"
-                  >
-                    {company.openJobs} open job{company.openJobs !== 1 ? 's' : ''}
-                  </button>
+                {showIndustryDropdown && getFilteredIndustries().length > 0 && (
+                  <div className="absolute top-full left-0 right-0 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-48 overflow-y-auto mt-1">
+                    {getFilteredIndustries().map((industry) => (
+                      <div
+                        key={`industry-${industry}`}
+                        onClick={() => handleIndustrySelect(industry)}
+                        className="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm"
+                      >
+                        {industry}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
+
+              <h3 className="font-semibold text-gray-900 mb-4">Job title</h3>
+              <input
+                type="text"
+                placeholder="Select a job title"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+              />
             </div>
-            ))}
           </div>
-        )}
-        
-        {companies.length > 0 && hasMoreCompanies && (
-          <div className="flex justify-center py-8">
-            <button
-              onClick={handleLoadMoreCompanies}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Load More Companies
-            </button>
+
+          {/* Company Listings */}
+          <div className="flex-1">
+            {loading ? (
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading companies...</p>
+              </div>
+            ) : companies.length === 0 ? (
+              <div className="text-center py-12">
+                <Building className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No companies found</h3>
+                <p className="text-gray-500">Try adjusting your search terms.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {companies.map((company) => (
+                  <div 
+                    key={company._id} 
+                    onClick={() => {
+                      localStorage.setItem('selectedCompany', JSON.stringify(company));
+                      onNavigate && onNavigate('company-details');
+                    }}
+                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                  >
+                    <div className="flex items-start gap-6">
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={getCompanyLogo(company)} 
+                          alt={company.name}
+                          data-company-name={company.name}
+                          onError={handleLogoError}
+                          className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">{company.name}</h3>
+                            <p className="text-sm text-gray-600">{company.industry}</p>
+                          </div>
+                          <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded">
+                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                            <span className="font-semibold text-gray-900">{company.rating}</span>
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">{company.location} • {company.employees} employees • {company.officeLocations} office locations</p>
+                        <div className="flex items-center gap-6 text-sm">
+                          <div>
+                            <span className="font-semibold text-blue-600">{company.reviews?.toLocaleString() || 0}</span>
+                            <span className="text-gray-600 ml-1">reviews</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-blue-600">{formatSalary(company.salaries || 0)}</span>
+                            <span className="text-gray-600 ml-1">salaries</span>
+                          </div>
+                          <div>
+                            <span className="font-semibold text-blue-600">{company.openJobs}</span>
+                            <span className="text-gray-600 ml-1">jobs</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {companies.length > 0 && hasMoreCompanies && (
+              <div className="flex justify-center py-8">
+                <button
+                  onClick={handleLoadMoreCompanies}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                >
+                  Load More Companies
+                </button>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
       
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

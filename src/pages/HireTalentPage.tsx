@@ -5,9 +5,10 @@ import Footer from '../components/Footer';
 
 interface HireTalentPageProps {
   onNavigate?: (page: string) => void;
+  user?: any;
 }
 
-const HireTalentPage: React.FC<HireTalentPageProps> = ({ onNavigate }) => {
+const HireTalentPage: React.FC<HireTalentPageProps> = ({ onNavigate, user }) => {
 
   return (
     <div className="bg-gray-50">
@@ -25,7 +26,7 @@ const HireTalentPage: React.FC<HireTalentPageProps> = ({ onNavigate }) => {
           </button>
           
           <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-            Hire the best talent with Trinitejob
+            Hire the best talent with Zyncjobs
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Post jobs, manage your listings, and view applications from top tech professionals. 
@@ -40,7 +41,7 @@ const HireTalentPage: React.FC<HireTalentPageProps> = ({ onNavigate }) => {
         </div>
       </main>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

@@ -63,12 +63,12 @@ const CareerInsightsHubPage: React.FC<CareerInsightsHubPageProps> = ({ onNavigat
     },
     {
       icon: FileText,
-      title: "Trinitejob Daily",
+      title: "zyncjobs Daily",
       emoji: "📰",
       description: "Stay informed with daily tech industry insights, trends, and opportunities.",
       example: "Get exclusive access to startup funding news 24 hours before it goes public.",
       color: "cyan",
-      action: () => onNavigate('career-advice', 'Trinitejob Daily')
+      action: () => onNavigate('career-advice', 'Zyncjobs Daily')
     },
     {
       icon: Radio,
@@ -143,7 +143,7 @@ const CareerInsightsHubPage: React.FC<CareerInsightsHubPageProps> = ({ onNavigat
         <div className="text-center bg-white/70 backdrop-blur-sm rounded-2xl p-8 border border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Ready to Accelerate Your Career?</h2>
           <p className="text-gray-600 mb-6">
-            Join thousands of tech professionals who are already advancing their careers with Trinitejob
+            Join thousands of tech professionals who are already advancing their careers with Zyncjobs
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
@@ -156,7 +156,7 @@ const CareerInsightsHubPage: React.FC<CareerInsightsHubPageProps> = ({ onNavigat
               onClick={() => onNavigate('register')}
               className="border border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
             >
-              Join Trinitejob
+              Join Zyncjobs
             </button>
           </div>
         </div>

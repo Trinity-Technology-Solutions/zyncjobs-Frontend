@@ -194,7 +194,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
             </div>
           </div>
         </div>
-        <Footer onNavigate={onNavigate} />
+        <Footer onNavigate={onNavigate} user={user} />
       </div>
     );
   }

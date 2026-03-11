@@ -98,7 +98,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
         </div>
       </section>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };
