@@ -143,7 +143,7 @@ const HelpCenterPage: React.FC<HelpCenterPageProps> = ({ onNavigate, user, onLog
         </div>
       </main>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

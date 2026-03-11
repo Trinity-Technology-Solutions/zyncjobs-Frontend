@@ -21,8 +21,6 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
       </div>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
           <div className="bg-blue-50 rounded-lg p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">For Job Seekers</h2>
@@ -65,46 +63,48 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
             </ul>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">For Employers</h2>
-            <ul className="space-y-4">
-              <li className="flex items-start">
-                <span className="text-green-600 font-bold mr-3">→</span>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Smart Candidate Matching</h3>
-                  <p className="text-sm text-gray-600">Find the right talent using AI-powered filtering</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-600 font-bold mr-3">→</span>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Resume Parser</h3>
-                  <p className="text-sm text-gray-600">Automatically extract and analyze candidate information</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-600 font-bold mr-3">→</span>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Hiring Dashboard</h3>
-                  <p className="text-sm text-gray-600">Manage applications and track hiring progress</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-600 font-bold mr-3">→</span>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Salary Benchmarking</h3>
-                  <p className="text-sm text-gray-600">Set competitive salaries based on market data</p>
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-green-600 font-bold mr-3">→</span>
-                <div>
-                  <h3 className="font-semibold text-gray-900">Dedicated Support</h3>
-                  <p className="text-sm text-gray-600">Get expert assistance with your hiring needs</p>
-                </div>
-              </li>
-            </ul>
-          </div>
+          {user?.role !== 'candidate' && (
+            <div className="bg-green-50 rounded-lg p-8">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">For Employers</h2>
+              <ul className="space-y-4">
+                <li className="flex items-start">
+                  <span className="text-green-600 font-bold mr-3">→</span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Smart Candidate Matching</h3>
+                    <p className="text-sm text-gray-600">Find the right talent using AI-powered filtering</p>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-600 font-bold mr-3">→</span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Resume Parser</h3>
+                    <p className="text-sm text-gray-600">Automatically extract and analyze candidate information</p>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-600 font-bold mr-3">→</span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Hiring Dashboard</h3>
+                    <p className="text-sm text-gray-600">Manage applications and track hiring progress</p>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-600 font-bold mr-3">→</span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Salary Benchmarking</h3>
+                    <p className="text-sm text-gray-600">Set competitive salaries based on market data</p>
+                  </div>
+                </li>
+                <li className="flex items-start">
+                  <span className="text-green-600 font-bold mr-3">→</span>
+                  <div>
+                    <h3 className="font-semibold text-gray-900">Dedicated Support</h3>
+                    <p className="text-sm text-gray-600">Get expert assistance with your hiring needs</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
 
         <div className="mb-16">

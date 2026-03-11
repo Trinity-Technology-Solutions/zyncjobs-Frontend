@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, ThumbsUp, ThumbsDown, Building, Users, TrendingUp, MessageSquare } from 'lucide-react';
+import { Star, Building, MessageSquare } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -11,10 +11,25 @@ interface CompanyReviewsPageProps {
   onLogout?: () => void;
 }
 
+interface CompanyMetrics {
+  openJobs: number;
+  avgSalary: number;
+  reviewCount: number;
+  avgRating: number;
+  recommendPercentage: number;
+}
+
 const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [companies, setCompanies] = useState<any[]>([]);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [companyMetrics, setCompanyMetrics] = useState<CompanyMetrics>({
+    openJobs: 0,
+    avgSalary: 0,
+    reviewCount: 0,
+    avgRating: 0,
+    recommendPercentage: 0
+  });
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [newReview, setNewReview] = useState({
     rating: 5,
@@ -36,14 +51,43 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
 
   const fetchCompanies = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
+      const response = await fetch(`${API_ENDPOINTS.JOBS}`);
       if (response.ok) {
-        const data = await response.json();
-        setCompanies(data);
+        const jobs = await response.json();
+        const uniqueCompanies = Array.from(
+          new Map(
+            jobs.map((job: any) => [job.companyId, job])
+          ).values()
+        ).map((job: any) => ({
+          _id: job.companyId,
+          name: job.companyName,
+          domain: job.domain || 'Technology'
+        }));
+        setCompanies(uniqueCompanies);
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
     }
+  };
+
+  const calculateMetrics = async (companyId: string, jobs: any[]) => {
+    const companyJobs = jobs.filter((job: any) => job.companyId === companyId);
+    const openJobs = companyJobs.length;
+    const avgSalary = companyJobs.length > 0
+      ? Math.round(companyJobs.reduce((sum: number, job: any) => sum + (job.salary || 0), 0) / companyJobs.length)
+      : 0;
+
+    setCompanyMetrics({
+      openJobs,
+      avgSalary,
+      reviewCount: reviews.length,
+      avgRating: reviews.length > 0
+        ? parseFloat((reviews.reduce((sum: number, r: any) => sum + r.rating, 0) / reviews.length).toFixed(1))
+        : 0,
+      recommendPercentage: reviews.length > 0
+        ? Math.round((reviews.filter((r: any) => r.rating >= 4).length / reviews.length) * 100)
+        : 0
+    });
   };
 
   const fetchReviews = async (companyId: string) => {
@@ -52,6 +96,13 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
       if (response.ok) {
         const data = await response.json();
         setReviews(data);
+        const jobsResponse = await fetch(`${API_ENDPOINTS.JOBS}`);
+        if (jobsResponse.ok) {
+          const jobs = await jobsResponse.json();
+          await calculateMetrics(companyId, jobs);
+        }
+      } else {
+        setReviews([]);
       }
     } catch (error) {
       console.error('Error fetching reviews:', error);
@@ -87,6 +138,8 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
           rating: 5, title: '', pros: '', cons: '', advice: '', jobTitle: '',
           workLifeBalance: 5, compensation: 5, careerGrowth: 5, management: 5, culture: 5
         });
+      } else if (response.status === 403) {
+        alert('Company must post jobs before accepting reviews');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
@@ -104,12 +157,6 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
         ))}
       </div>
     );
-  };
-
-  const getAverageRating = (reviews: any[]) => {
-    if (reviews.length === 0) return '0';
-    const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
-    return (sum / reviews.length).toFixed(1);
   };
 
   return (
@@ -150,14 +197,6 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
                       <p className="text-sm text-gray-600">{company.domain}</p>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      {renderStars(4.2)}
-                      <span className="text-sm text-gray-600">4.2</span>
-                    </div>
-                    <span className="text-sm text-gray-500">25 reviews</span>
-                  </div>
                 </div>
               ))}
             </div>
@@ -188,172 +227,157 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-gray-900">{getAverageRating(reviews)}</div>
-                  <div className="flex justify-center mb-2">{renderStars(parseFloat(getAverageRating(reviews)) || 0, 'w-5 h-5')}</div>
-                  <div className="text-sm text-gray-600">{reviews.length} reviews</div>
+                  <div className="text-3xl font-bold text-gray-900">{companyMetrics.avgRating}</div>
+                  <div className="flex justify-center mb-2">{renderStars(companyMetrics.avgRating, 'w-5 h-5')}</div>
+                  <div className="text-sm text-gray-600">{companyMetrics.reviewCount} reviews</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">85%</div>
+                  <div className="text-2xl font-bold text-green-600">{companyMetrics.recommendPercentage}%</div>
                   <div className="text-sm text-gray-600">Recommend to friend</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">4.1</div>
-                  <div className="text-sm text-gray-600">Work-Life Balance</div>
+                  <div className="text-2xl font-bold text-blue-600">₹{(companyMetrics.avgSalary / 100000).toFixed(1)}L</div>
+                  <div className="text-sm text-gray-600">Avg Salary</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">4.3</div>
-                  <div className="text-sm text-gray-600">Career Growth</div>
+                  <div className="text-2xl font-bold text-purple-600">{companyMetrics.openJobs}</div>
+                  <div className="text-sm text-gray-600">Open Positions</div>
                 </div>
               </div>
             </div>
 
             {/* Reviews */}
             <div className="space-y-6">
-              {reviews.map((review) => (
-                <div key={review._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <div className="flex items-center space-x-2 mb-2">
-                        {renderStars(review.rating)}
-                        <span className="font-semibold">{review.title}</span>
-                      </div>
-                      <div className="text-sm text-gray-600">
-                        {review.jobTitle} • {new Date(review.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <h4 className="font-medium text-green-600 mb-2">Pros</h4>
-                      <p className="text-gray-700">{review.pros}</p>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-red-600 mb-2">Cons</h4>
-                      <p className="text-gray-700">{review.cons}</p>
-                    </div>
-                    {review.advice && (
-                      <div>
-                        <h4 className="font-medium text-blue-600 mb-2">Advice to Management</h4>
-                        <p className="text-gray-700">{review.advice}</p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-4 mt-4 pt-4 border-t">
-                    <button className="flex items-center space-x-1 text-gray-600 hover:text-green-600">
-                      <ThumbsUp className="w-4 h-4" />
-                      <span className="text-sm">Helpful (12)</span>
-                    </button>
-                    <button className="flex items-center space-x-1 text-gray-600 hover:text-red-600">
-                      <ThumbsDown className="w-4 h-4" />
-                      <span className="text-sm">Not Helpful (2)</span>
-                    </button>
-                  </div>
+              {reviews.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600">No reviews yet. Be the first to review this company!</p>
                 </div>
-              ))}
-            </div>
-
-            {/* Review Form Modal */}
-            {showReviewForm && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-xl font-semibold">Write a Review for {selectedCompany.name}</h2>
-                      <button
-                        onClick={() => setShowReviewForm(false)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        ✕
-                      </button>
+              ) : (
+                reviews.map((review) => (
+                  <div key={review._id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <div className="flex items-center space-x-2 mb-2">
+                          {renderStars(review.rating)}
+                          <span className="font-semibold">{review.title}</span>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                          {review.reviewerName} • {new Date(review.createdAt).toLocaleDateString()}
+                        </div>
+                      </div>
                     </div>
 
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Overall Rating</label>
-                        <div className="flex space-x-1">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              onClick={() => setNewReview({...newReview, rating: star})}
-                              className={`w-8 h-8 ${star <= newReview.rating ? 'text-yellow-400' : 'text-gray-300'}`}
-                            >
-                              <Star className="w-full h-full fill-current" />
-                            </button>
-                          ))}
+                        <h4 className="font-medium text-green-600 mb-2">Pros</h4>
+                        <p className="text-gray-700">{review.pros}</p>
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-red-600 mb-2">Cons</h4>
+                        <p className="text-gray-700">{review.cons}</p>
+                      </div>
+                      {review.advice && (
+                        <div>
+                          <h4 className="font-medium text-blue-600 mb-2">Advice to Management</h4>
+                          <p className="text-gray-700">{review.advice}</p>
                         </div>
-                      </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Review Title</label>
-                        <input
-                          type="text"
-                          value={newReview.title}
-                          onChange={(e) => setNewReview({...newReview, title: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          placeholder="Great place to work!"
-                        />
-                      </div>
+            {/* Review Form Modal */}
+            {showReviewForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                  <div className="p-6 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
+                    <h2 className="text-2xl font-bold">Write a Review</h2>
+                    <button
+                      onClick={() => setShowReviewForm(false)}
+                      className="text-gray-500 hover:text-gray-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Your Job Title</label>
-                        <input
-                          type="text"
-                          value={newReview.jobTitle}
-                          onChange={(e) => setNewReview({...newReview, jobTitle: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          placeholder="Software Engineer"
-                        />
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                      <div className="flex space-x-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            onClick={() => setNewReview({ ...newReview, rating: star })}
+                            className="focus:outline-none"
+                          >
+                            <Star
+                              className={`w-8 h-8 ${star <= newReview.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'}`}
+                            />
+                          </button>
+                        ))}
                       </div>
+                    </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Pros</label>
-                        <textarea
-                          value={newReview.pros}
-                          onChange={(e) => setNewReview({...newReview, pros: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          rows={3}
-                          placeholder="What did you like about working here?"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Review Title</label>
+                      <input
+                        type="text"
+                        value={newReview.title}
+                        onChange={(e) => setNewReview({ ...newReview, title: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., Great company culture"
+                      />
+                    </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Cons</label>
-                        <textarea
-                          value={newReview.cons}
-                          onChange={(e) => setNewReview({...newReview, cons: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          rows={3}
-                          placeholder="What could be improved?"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Pros</label>
+                      <textarea
+                        value={newReview.pros}
+                        onChange={(e) => setNewReview({ ...newReview, pros: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                        placeholder="What did you like about working here?"
+                      />
+                    </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Advice to Management</label>
-                        <textarea
-                          value={newReview.advice}
-                          onChange={(e) => setNewReview({...newReview, advice: e.target.value})}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          rows={2}
-                          placeholder="Optional advice for management"
-                        />
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Cons</label>
+                      <textarea
+                        value={newReview.cons}
+                        onChange={(e) => setNewReview({ ...newReview, cons: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                        placeholder="What could be improved?"
+                      />
+                    </div>
 
-                      <div className="flex space-x-4">
-                        <button
-                          onClick={() => setShowReviewForm(false)}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={submitReview}
-                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          Submit Review
-                        </button>
-                      </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Advice to Management</label>
+                      <textarea
+                        value={newReview.advice}
+                        onChange={(e) => setNewReview({ ...newReview, advice: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={3}
+                        placeholder="Any suggestions for the company?"
+                      />
+                    </div>
+
+                    <div className="flex space-x-4 pt-4">
+                      <button
+                        onClick={submitReview}
+                        className="flex-1 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+                      >
+                        Submit Review
+                      </button>
+                      <button
+                        onClick={() => setShowReviewForm(false)}
+                        className="flex-1 bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -362,7 +386,7 @@ const CompanyReviewsPage: React.FC<CompanyReviewsPageProps> = ({ onNavigate, use
           </>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </>
   );
 };

@@ -268,16 +268,24 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
     fetchFilterOptions();
     fetchTrending();
     
-    // Listen for job posting events to refresh the list
     const handleJobPosted = () => {
       console.log('New job posted, refreshing job listings...');
       fetchJobs();
     };
     
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'lastJobPosted') {
+        console.log('Job posted detected, refreshing...');
+        setTimeout(() => fetchJobs(), 500);
+      }
+    };
+    
     window.addEventListener('jobPosted', handleJobPosted);
+    window.addEventListener('storage', handleStorageChange);
     
     return () => {
       window.removeEventListener('jobPosted', handleJobPosted);
+      window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
   

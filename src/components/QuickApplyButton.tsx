@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Zap, Check } from 'lucide-react';
 
@@ -20,15 +20,55 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
   className = ''
 }) => {
   const [isApplying, setIsApplying] = useState(false);
-  const [applied, setApplied] = useState(false);
+  const [hasApplied, setHasApplied] = useState(false);
+
+  useEffect(() => {
+    checkIfAlreadyApplied();
+  }, [jobId, user]);
+
+  const checkIfAlreadyApplied = async () => {
+    if (!user?.email || !jobId) {
+      console.log('Skipping check - user email:', user?.email, 'jobId:', jobId);
+      return;
+    }
+    
+    try {
+      console.log('Checking if applied - Email:', user.email, 'JobId:', jobId);
+      const url = `${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${user.email}&jobId=${jobId}`;
+      console.log('Fetch URL:', url);
+      
+      const response = await fetch(url);
+      console.log('Response status:', response.status);
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Raw response data:', data);
+        
+        const applications = Array.isArray(data) ? data : (data.applications || []);
+        console.log('Parsed applications:', applications);
+        
+        const alreadyApplied = applications.some((app: any) => {
+          const jobMatch = app.jobId?._id === jobId || app.jobId === jobId;
+          const emailMatch = app.candidateEmail === user.email;
+          const statusMatch = app.status !== 'withdrawn';
+          console.log('App check:', { jobId: app.jobId, jobMatch, emailMatch, statusMatch, status: app.status });
+          return jobMatch && emailMatch && statusMatch;
+        });
+        
+        console.log('Final result - Already applied:', alreadyApplied);
+        setHasApplied(alreadyApplied);
+      } else {
+        console.log('Response not ok:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error checking application status:', error);
+    }
+  };
 
   const handleQuickApply = async () => {
-    // Get user from localStorage if not passed as prop
     const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
     
     console.log('Quick Apply clicked, user:', currentUser);
-    console.log('User resume data:', currentUser.resume);
-    console.log('User profile resume:', currentUser.profile?.resume);
     
     if (!currentUser || !currentUser.email || (!currentUser.name && !currentUser.fullName)) {
       console.log('No user found, redirecting to login');
@@ -38,11 +78,9 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
 
     setIsApplying(true);
     try {
-      // First, get the user's full profile including resume
       let userResume = '';
       let userPhone = currentUser.phone || '';
       
-      // Get resume from user profile
       if (currentUser.resume) {
         const resume = currentUser.resume;
         if (resume.filename) {
@@ -64,7 +102,6 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       
       console.log('Using resume for quick apply:', userResume);
 
-      // Copy/attach the resume file for this application
       let attachedResumeUrl = userResume;
       try {
         const attachResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/attach`, {
@@ -98,7 +135,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       
       console.log('Sending quick apply with resume:', payload);
       
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications`, {
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -108,10 +145,9 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       console.log('Quick apply response:', result);
       
       if (response.ok) {
-        setApplied(true);
+        setHasApplied(true);
         onSuccess?.();
         alert('✅ Quick Apply successful! Your resume has been sent to the employer.');
-        setTimeout(() => setApplied(false), 3000);
       } else {
         alert(result.error || 'Application failed');
       }
@@ -123,14 +159,14 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
     }
   };
 
-  if (applied) {
+  if (hasApplied) {
     return (
       <button
         disabled
         className={`flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg font-medium ${className}`}
       >
         <Check className="w-4 h-4" />
-        <span>Applied!</span>
+        <span>Applied</span>
       </button>
     );
   }

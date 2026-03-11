@@ -335,18 +335,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=10`);
       if (response.ok) {
         const allJobs = await response.json();
-        // Filter jobs based on user skills if available
         let filtered = allJobs;
-        if (userData.skills && userData.skills.length > 0) {
-          filtered = allJobs.filter((job: any) => {
-            const jobSkills = job.skills || job.requiredSkills || [];
+        if (userData.skills && Array.isArray(userData.skills) && userData.skills.length > 0) {
+          const matchedJobs = allJobs.filter((job: any) => {
+            const jobSkills = (job.skills || job.requiredSkills || []).map((s: string) => s.toLowerCase());
             return userData.skills.some((skill: string) => 
               jobSkills.some((jSkill: string) => 
-                jSkill.toLowerCase().includes(skill.toLowerCase()) ||
-                skill.toLowerCase().includes(jSkill.toLowerCase())
+                jSkill.includes(skill.toLowerCase()) || skill.toLowerCase().includes(jSkill)
               )
             );
           });
+          filtered = matchedJobs.length > 0 ? matchedJobs : allJobs;
         }
         setRecommendedJobs(filtered.slice(0, 3));
       }
@@ -539,7 +538,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <Search className="w-5 h-5 text-blue-600" />
                       <span className="text-gray-700">Browse All Jobs</span>
                     </button>
-                    <button className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors">
+                    <button 
+                      onClick={() => onNavigate('companies')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
                       <Star className="w-5 h-5 text-blue-600" />
                       <span className="text-gray-700">Company Reviews</span>
                     </button>
@@ -565,13 +567,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       <span className="text-gray-700">My Interviews</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('candidate-profile')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <Edit className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">Update Profile</span>
                     </button>
                     <button 
                       onClick={() => onNavigate('settings')}
@@ -752,6 +747,75 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
               {/* Main Content Area */}
               <div className="lg:col-span-3">
+                {/* Save All Button */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+                  <div>
+                    <h3 className="font-semibold text-blue-900 mb-1">Save Your Profile</h3>
+                    <p className="text-sm text-blue-700">Click the button below to save all your profile changes permanently</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ 
+                            email: user?.email,
+                            name: user?.name,
+                            gender: user?.gender,
+                            birthday: user?.birthday,
+                            location: user?.location,
+                            phone: user?.phone,
+                            jobTitle: user?.jobTitle,
+                            education: user?.education,
+                            profilePhoto: user?.profilePhoto,
+                            profileFrame: user?.profileFrame,
+                            profileSummary: user?.profileSummary,
+                            skills: user?.skills,
+                            languages: user?.languages,
+                            employment: user?.employment,
+                            projects: user?.projects,
+                            internships: user?.internships,
+                            certifications: user?.certifications,
+                            awards: user?.awards,
+                            clubsCommittees: user?.clubsCommittees,
+                            competitiveExams: user?.competitiveExams,
+                            academicAchievements: user?.academicAchievements,
+                            educationCollege: user?.educationCollege,
+                            educationClass12: user?.educationClass12,
+                            educationClass10: user?.educationClass10,
+                            careerPreferences: user?.careerPreferences,
+                            resume: user?.resume
+                          })
+                        });
+                        if (response.ok) {
+                          setNotification({
+                            type: 'success',
+                            message: 'All profile details saved successfully!',
+                            isVisible: true
+                          });
+                        } else {
+                          setNotification({
+                            type: 'error',
+                            message: 'Failed to save profile',
+                            isVisible: true
+                          });
+                        }
+                      } catch (error) {
+                        console.error('Error saving profile:', error);
+                        setNotification({
+                          type: 'error',
+                          message: 'Failed to save profile',
+                          isVisible: true
+                        });
+                      }
+                    }}
+                    className="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
+                  >
+                    Save All Changes
+                  </button>
+                </div>
+
                 {/* Profile Header Card */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <div className="flex items-start space-x-6">
@@ -2047,20 +2111,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               <div className="border rounded-lg p-4 mb-6">
                 <div className="flex flex-wrap gap-2 mb-3">
                   {(Array.isArray(modalData) ? modalData : []).map((skill: string, idx: number) => (
-                    <span key={idx} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center gap-2">
+                    <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
                       {skill}
-                      <button onClick={() => setModalData((Array.isArray(modalData) ? modalData : []).filter((_: any, i: number) => i !== idx))}>
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                      <button type="button" onClick={() => setModalData((Array.isArray(modalData) ? modalData : []).filter((_: any, i: number) => i !== idx))} className="hover:text-blue-600">
+                        <X className="w-3 h-3" />
                       </button>
                     </span>
                   ))}
                 </div>
                 <input
                   type="text"
-                  placeholder="Enter your key skills"
+                  placeholder="Enter your key skills and press Enter"
                   className="w-full p-2 border-0 focus:outline-none"
-                  onKeyPress={(e) => {
+                  onKeyDown={(e) => {
                     if (e.key === 'Enter' && e.currentTarget.value.trim()) {
+                      e.preventDefault();
                       const newSkills = [...(Array.isArray(modalData) ? modalData : []), e.currentTarget.value.trim()];
                       setModalData(newSkills);
                       e.currentTarget.value = '';
@@ -2553,7 +2618,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       onChange={(e) => setModalData({...modalData, startMonth: e.target.value})}
                       className="p-3 border rounded-lg"
                     >
-                      <option value="">Month</option>
+                      <option value=""></option>
                       {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => <option key={m}>{m}</option>)}
                     </select>
                     <input
@@ -2571,7 +2636,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       onChange={(e) => setModalData({...modalData, endMonth: e.target.value})}
                       className="p-3 border rounded-lg"
                     >
-                      <option value="">Month</option>
+                      <option value=""></option>
                       {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => <option key={m}>{m}</option>)}
                     </select>
                     <input
@@ -2584,7 +2649,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
                 <div>
-                  <label className="block font-medium mb-2">Describe what you did in project</label>
+                  <label className="block font-medium mb-2">Describe what you did during internship</label>
                   <textarea
                     value={modalData.description || ''}
                     onChange={(e) => setModalData({...modalData, description: e.target.value})}
@@ -2852,7 +2917,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       onChange={(e) => setModalData({...modalData, startMonth: e.target.value})}
                       className="p-3 border rounded-lg"
                     >
-                      <option value="">Month</option>
+                      <option value=""></option>
                       {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => <option key={m}>{m}</option>)}
                     </select>
                     <input
@@ -2871,7 +2936,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       className="p-3 border rounded-lg"
                       disabled={modalData.currentlyWorking}
                     >
-                      <option value="">Month</option>
+                      <option value=""></option>
                       {['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].map(m => <option key={m}>{m}</option>)}
                     </select>
                     <input
@@ -3159,10 +3224,15 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     <option>High School Diploma</option>
                     <option>Associate's Degree</option>
                     <option>Bachelor's Degree</option>
+                    <option>Bachelor</option>
                     <option>Master's Degree</option>
-                    <option>PhD/Doctorate</option>
+                    <option>Post Graduate</option>
+                    <option>PhD</option>
+                    <option>Doctorate</option>
                     <option>Professional Certification</option>
                     <option>Diploma</option>
+                    <option>Certificate</option>
+                    <option>Vocational Training</option>
                   </select>
                 </div>
                 <div>

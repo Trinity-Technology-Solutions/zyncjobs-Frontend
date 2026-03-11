@@ -170,7 +170,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
         </div>
       </div>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

@@ -193,11 +193,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
                   Companies
                 </button>
-                {user?.type !== 'employer' && (
-                  <button onClick={() => onNavigate && onNavigate('company-reviews')} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
-                    Company Reviews
-                  </button>
-                )}
               </>
             )}
 
@@ -244,6 +239,15 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
                         Resume Builder
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsCareerDropdownOpen(false);
+                          onNavigate && onNavigate('resume-help');
+                        }}
+                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        Resume Help & Guide
                       </button>
                       <button 
                         onClick={() => {
@@ -599,11 +603,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-white hover:text-gray-300 font-medium">
                 Skill Assessments
               </button>
-              {user?.type !== 'employer' && (
-                <button onClick={() => onNavigate && onNavigate('company-reviews')} className="block text-left text-white hover:text-gray-300 font-medium">
-                  Company Reviews
-                </button>
-              )}
               <div className="space-y-2">
                 <p className="text-white font-medium">Career Resources</p>
                 <div className="pl-4 space-y-2">

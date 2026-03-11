@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, XCircle, Search } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import BackButton from './BackButton';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-const SkillAssessment = () => {
+interface SkillAssessmentProps {
+  onNavigate?: (page: string, params?: any) => void;
+}
+
+const SkillAssessment: React.FC<SkillAssessmentProps> = ({ onNavigate }) => {
   const [skills, setSkills] = useState<string[]>([]);
   const [filteredSkills, setFilteredSkills] = useState<string[]>([]);
   const [skillSearch, setSkillSearch] = useState('');
@@ -16,6 +21,7 @@ const SkillAssessment = () => {
   const [timeLeft, setTimeLeft] = useState(1800);
   const [result, setResult] = useState<any>(null);
   const [myAssessments, setMyAssessments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchSkills();
@@ -31,27 +37,17 @@ const SkillAssessment = () => {
 
   const fetchSkills = async () => {
     try {
-      // First try to fetch from skills.json
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/backend/data/skills.json`);
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/skills`);
       if (response.ok) {
         const data = await response.json();
-        setSkills(data.skills || []);
-        setFilteredSkills(data.skills || []);
-      } else {
-        // Fallback to API endpoint
-        const apiResponse = await fetch(`${API_BASE_URL}/skill-assessments/skills`);
-        const apiData = await apiResponse.json();
-        setSkills(apiData);
-        setFilteredSkills(apiData);
+        setSkills(data);
+        setFilteredSkills(data);
       }
     } catch (error) {
       console.error('Error fetching skills:', error);
-      // Fallback skills if both fail
       const fallbackSkills = [
         'JavaScript', 'Python', 'React', 'Node.js', 'Java', 'C++', 'SQL', 'AWS', 'Docker', 'Git',
-        'HTML', 'CSS', 'TypeScript', 'Angular', 'Vue.js', 'PHP', 'C#', 'Ruby', 'Go', 'Kotlin',
-        'Swift', 'Flutter', 'React Native', 'MongoDB', 'PostgreSQL', 'Redis', 'Kubernetes',
-        'Machine Learning', 'Data Science', 'Cybersecurity', 'DevOps', 'UI/UX Design'
+        'HTML', 'CSS', 'TypeScript', 'Angular', 'Vue.js', 'PHP', 'C#', 'Ruby', 'Go', 'Kotlin'
       ];
       setSkills(fallbackSkills);
       setFilteredSkills(fallbackSkills);
@@ -64,8 +60,10 @@ const SkillAssessment = () => {
       const response = await fetch(`${API_BASE_URL}/skill-assessments/my-assessments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const data = await response.json();
-      setMyAssessments(data);
+      if (response.ok) {
+        const data = await response.json();
+        setMyAssessments(data);
+      }
     } catch (error) {
       console.error('Error fetching assessments:', error);
     }
@@ -73,6 +71,7 @@ const SkillAssessment = () => {
 
   const startAssessment = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
         method: 'POST',
@@ -82,17 +81,27 @@ const SkillAssessment = () => {
         },
         body: JSON.stringify({ skill: selectedSkill })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to start assessment');
+      }
+      
       const data = await response.json();
       setAssessment(data);
       setAnswers(new Array(data.totalQuestions).fill(-1));
       setTimeLeft(data.timeLimit * 60);
+      setCurrentQuestion(0);
     } catch (error) {
       console.error('Error starting assessment:', error);
+      alert('Failed to start assessment. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const submitAssessment = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/skill-assessments/submit/${assessment.assessmentId}`, {
         method: 'POST',
@@ -102,12 +111,27 @@ const SkillAssessment = () => {
         },
         body: JSON.stringify({ answers, timeSpent: 1800 - timeLeft })
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to submit assessment');
+      }
+      
       const data = await response.json();
       setResult(data);
       setAssessment(null);
       fetchMyAssessments();
+      
+      // Navigate to review page after 2 seconds
+      setTimeout(() => {
+        if (onNavigate) {
+          onNavigate('assessment-review', { assessmentId: data.assessmentId });
+        }
+      }, 2000);
     } catch (error) {
       console.error('Error submitting assessment:', error);
+      alert('Failed to submit assessment. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -145,21 +169,17 @@ const SkillAssessment = () => {
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="text-center">
           <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-            result.score >= 70 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+            result.score >= 70 ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'
           }`}>
-            {result.score >= 70 ? <CheckCircle size={32} /> : <XCircle size={32} />}
+            {result.score >= 70 ? <CheckCircle size={32} /> : <CheckCircle size={32} />}
           </div>
           <h2 className="text-2xl font-bold mb-2">Assessment Complete!</h2>
           <div className="text-4xl font-bold mb-4 text-blue-600">{result.score}%</div>
           <p className="text-gray-600 mb-6">
             You got {result.correctAnswers} out of {result.totalQuestions} questions correct
           </p>
-          <button
-            onClick={() => { setResult(null); setSelectedSkill(''); }}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-          >
-            Take Another Assessment
-          </button>
+          <p className="text-sm text-gray-500 mb-6">Redirecting to your review page...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
         </div>
       </div>
     );
@@ -171,7 +191,7 @@ const SkillAssessment = () => {
       <div className="max-w-2xl mx-auto p-6 bg-white rounded-lg shadow-lg">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-bold">{assessment.skill} Assessment</h2>
-          <div className="flex items-center text-red-600">
+          <div className={`flex items-center ${timeLeft < 300 ? 'text-red-600' : 'text-gray-600'}`}>
             <Clock size={20} className="mr-2" />
             {formatTime(timeLeft)}
           </div>
@@ -225,9 +245,10 @@ const SkillAssessment = () => {
           {currentQuestion === assessment.totalQuestions - 1 ? (
             <button
               onClick={submitAssessment}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700"
+              disabled={loading}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
             >
-              Submit Assessment
+              {loading ? 'Submitting...' : 'Submit Assessment'}
             </button>
           ) : (
             <button
@@ -256,6 +277,9 @@ const SkillAssessment = () => {
       <div className="grid md:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-lg shadow-lg">
           <h2 className="text-xl font-bold mb-4">Take New Assessment</h2>
+          <p className="text-gray-600 mb-4 text-sm">
+            Select a skill and take a 10-question assessment powered by AI. Get instant feedback and personalized recommendations.
+          </p>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Select Skill</label>
             <div className="relative">
@@ -289,10 +313,10 @@ const SkillAssessment = () => {
           </div>
           <button
             onClick={startAssessment}
-            disabled={!selectedSkill}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            disabled={!selectedSkill || loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium"
           >
-            Start Assessment
+            {loading ? 'Starting...' : 'Start Assessment'}
           </button>
         </div>
 
@@ -303,7 +327,7 @@ const SkillAssessment = () => {
           ) : (
             <div className="space-y-3">
               {myAssessments.map((assessment, index) => (
-                <div key={index} className="flex justify-between items-center p-3 border rounded-lg">
+                <div key={index} className="flex justify-between items-center p-3 border rounded-lg hover:bg-gray-50">
                   <div>
                     <div className="font-medium">{assessment.skill}</div>
                     <div className="text-sm text-gray-600">
@@ -311,7 +335,7 @@ const SkillAssessment = () => {
                     </div>
                   </div>
                   <div className={`text-lg font-bold ${
-                    assessment.score >= 70 ? 'text-green-600' : 'text-red-600'
+                    assessment.score >= 70 ? 'text-green-600' : 'text-orange-600'
                   }`}>
                     {assessment.score}%
                   </div>

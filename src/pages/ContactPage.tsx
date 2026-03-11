@@ -55,15 +55,15 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
           <div className="bg-blue-50 rounded-lg p-8">
             <Phone className="w-8 h-8 text-blue-600 mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Phone</h3>
-            <p className="text-gray-600">+1 (555) 123-4567</p>
-            <p className="text-gray-600">Mon-Fri, 9AM-6PM EST</p>
+            <p className="text-gray-600">+91 (044) 1234-5678</p>
+            <p className="text-gray-600">Mon-Fri, 9AM-6PM IST</p>
           </div>
 
           <div className="bg-blue-50 rounded-lg p-8">
             <MapPin className="w-8 h-8 text-blue-600 mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Address</h3>
-            <p className="text-gray-600">123 Tech Street</p>
-            <p className="text-gray-600">San Francisco, CA 94105</p>
+            <p className="text-gray-600">#2, Avvaiyar Street</p>
+            <p className="text-gray-600">Ekkatuthangal, Chennai-32, India</p>
           </div>
         </div>
 
@@ -158,7 +158,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
         </div>
       </main>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };
