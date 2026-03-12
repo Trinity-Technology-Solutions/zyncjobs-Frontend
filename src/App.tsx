@@ -14,9 +14,8 @@ import ChatWidget from './components/ChatWidget';
 import Notification from './components/Notification';
 import MobileNavigation from './components/MobileNavigation';
 import BackButton from './components/BackButton';
-import TokenHandler from './components/TokenHandler';
-
-// Lazy load all pages
+import JobAlertsManager from './components/JobAlertsManager';
+import localStorageMigration from './services/localStorageMigration';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
@@ -238,6 +237,18 @@ function App() {
     localStorage.setItem('user', JSON.stringify(userToStore));
     setUser(userData);
     closeModals();
+    
+    // Run localStorage migration for logged-in user
+    if (userData.email) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        localStorageMigration.setToken(token);
+        // Run migration in background
+        setTimeout(() => {
+          localStorageMigration.runFullMigration().catch(console.error);
+        }, 1000);
+      }
+    }
   };
 
   // Check for OAuth callback token
@@ -616,6 +627,27 @@ function App() {
       return null;
     }
     return <MyApplicationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />;
+  }
+
+  if (currentPage === 'alerts') {
+    if (!user) {
+      navigate('/role-selection');
+      return null;
+    }
+    return (
+      <>
+        <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+        <div className="min-h-screen bg-gray-50 py-8">
+          <div className="max-w-4xl mx-auto px-4">
+            <h1 className="text-3xl font-bold text-gray-900 mb-8">Job Alerts</h1>
+            <Suspense fallback={<LoadingFallback />}>
+              <JobAlertsManager user={user as any} />
+            </Suspense>
+          </div>
+        </div>
+        <Footer onNavigate={handleNavigation} />
+      </>
+    );
   }
 
   if (currentPage === 'resume-parser') {

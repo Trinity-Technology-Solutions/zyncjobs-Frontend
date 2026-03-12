@@ -33,14 +33,44 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [savedCandidates, setSavedCandidates] = useState<any[]>([]);
 
   useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('savedCandidates') || '[]');
-    setSavedCandidates(saved);
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(res => res.ok ? res.json() : [])
+      .then(data => {
+        const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
+        setSavedCandidates(candidates);
+      })
+      .catch(err => {
+        console.error('Error fetching saved candidates:', err);
+        setSavedCandidates([]);
+      });
+    }
   }, []);
 
   useEffect(() => {
     if (activeMenu === 'saved-candidates') {
-      const saved = JSON.parse(localStorage.getItem('savedCandidates') || '[]');
-      setSavedCandidates(saved);
+      const token = localStorage.getItem('token');
+      if (token) {
+        fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(res => res.ok ? res.json() : [])
+        .then(data => {
+          const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
+          setSavedCandidates(candidates);
+        })
+        .catch(err => {
+          console.error('Error fetching saved candidates:', err);
+          setSavedCandidates([]);
+        });
+      }
     }
   }, [activeMenu]);
 
@@ -425,6 +455,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <div className="flex-1">
               <p className="font-semibold text-gray-900 text-sm">{employerName}</p>
               <p className="text-xs text-gray-500">{companyName}</p>
+              {/* Display Employer ID */}
+              {user?.employerId && (
+                <p className="text-xs text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded mt-1">
+                  EID: {user.employerId}
+                </p>
+              )}
               {companyDomain && (
                 <a 
                   href={`https://${companyDomain}`}
@@ -982,7 +1018,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             Schedule Interview
                           </button>
                           <button 
-                            onClick={() => onNavigate('candidate-profile')}
+                            onClick={() => onNavigate(`candidate-profile-view`, { candidateId: application.candidateId || application._id })}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
                             View Profile
@@ -1189,6 +1225,22 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {candidate.fullName?.charAt(0).toUpperCase() || candidate.name?.charAt(0).toUpperCase() || 'C'}
                           </div>
                           <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              {candidate.companyLogo && (
+                                <img
+                                  src={candidate.companyLogo}
+                                  alt={candidate.companyName}
+                                  className="w-6 h-6 rounded-full object-cover"
+                                  onError={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(candidate.companyName || 'Company')}&size=24&background=6366f1&color=ffffff&bold=true`;
+                                  }}
+                                />
+                              )}
+                              <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                {candidate.companyName || 'Company'}
+                              </span>
+                            </div>
                             <h3 className="text-xl font-bold text-gray-900 mb-1">{candidate.fullName || candidate.name}</h3>
                             <p className="text-base text-green-700 font-semibold mb-2">{candidate.title}</p>
                             <div className="flex items-center gap-3 flex-wrap">
@@ -1208,11 +1260,25 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             Contact
                           </button>
                           <button onClick={() => {
-                            setSavedCandidates(prev => prev.filter(c => c._id !== candidate._id));
-                            const saved = JSON.parse(localStorage.getItem('savedCandidates') || '[]');
-                            const updated = saved.filter((c: any) => c._id !== candidate._id);
-                            localStorage.setItem('savedCandidates', JSON.stringify(updated));
-                            alert('Candidate removed from saved list!');
+                            const token = localStorage.getItem('token');
+                            fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidate._id}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${token}`
+                              }
+                            })
+                            .then(res => {
+                              if (res.ok) {
+                                setSavedCandidates(prev => prev.filter(c => c._id !== candidate._id));
+                                alert('Candidate removed from saved list!');
+                              } else {
+                                throw new Error('Failed to remove candidate');
+                              }
+                            })
+                            .catch(err => {
+                              console.error('Error removing candidate:', err);
+                              alert('Failed to remove candidate. Please try again.');
+                            });
                           }} className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm">
                             Remove
                           </button>

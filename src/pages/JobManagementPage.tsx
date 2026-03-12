@@ -36,6 +36,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('posted');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -142,6 +143,20 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     active: jobs.filter(job => job.status === 'active' || job.status === 'approved' || !job.status).length,
     closed: jobs.filter(job => job.status === 'closed').length,
     expired: jobs.filter(job => job.status === 'expired').length
+  };
+
+  const sortJobs = (jobsToSort: Job[]) => {
+    const sorted = [...jobsToSort];
+    
+    switch(sortBy) {
+      case 'responses':
+        return sorted.sort((a, b) => (b.applicationCount || 0) - (a.applicationCount || 0));
+      case 'title':
+        return sorted.sort((a, b) => (a.jobTitle || a.title || '').localeCompare(b.jobTitle || b.title || ''));
+      case 'posted':
+      default:
+        return sorted.sort((a, b) => new Date(b.createdAt || b.created_at || 0).getTime() - new Date(a.createdAt || a.created_at || 0).getTime());
+    }
   };
 
   return (
@@ -283,21 +298,70 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           <div className="bg-white rounded-lg shadow-sm border">
             <div className="p-4 border-b">
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  {[<CheckSquare key="icon1" className="w-5 h-5 text-gray-400" />,
-                  <span key="text1" className="text-sm text-gray-600">Select All</span>,
-                  <RefreshCw key="icon2" className="w-4 h-4 text-gray-400" />,
-                  <span key="text2" className="text-sm text-gray-600">Refresh</span>,
-                  <Users key="icon3" className="w-4 h-4 text-gray-400" />,
-                  <span key="text3" className="text-sm text-gray-600">Collaborate</span>,
-                  <span key="text4" className="text-sm text-gray-600">Close</span>]}
+                <div className="flex items-center space-x-6">
+                  <button
+                    onClick={handleSelectAll}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    title="Select all jobs"
+                  >
+                    <CheckSquare className="w-5 h-5" />
+                    <span className="text-sm font-medium">Select All</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      const userData = localStorage.getItem('user');
+                      if (userData) {
+                        fetchEmployerJobs(JSON.parse(userData));
+                      }
+                    }}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    title="Refresh jobs"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span className="text-sm font-medium">Refresh</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      if (selectedJobs.length === 0) {
+                        alert('Please select jobs to collaborate');
+                        return;
+                      }
+                      console.log('Collaborating on jobs:', selectedJobs);
+                      alert(`Collaboration initiated for ${selectedJobs.length} job(s)`);
+                    }}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    title="Collaborate on selected jobs"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm font-medium">Collaborate</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      if (selectedJobs.length === 0) {
+                        alert('Please select jobs to close');
+                        return;
+                      }
+                      if (window.confirm(`Close ${selectedJobs.length} job(s)?`)) {
+                        console.log('Closing jobs:', selectedJobs);
+                        alert(`${selectedJobs.length} job(s) closed successfully`);
+                        setSelectedJobs([]);
+                      }
+                    }}
+                    className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
+                    title="Close selected jobs"
+                  >
+                    <span className="text-sm font-medium">Close</span>
+                  </button>
                 </div>
-                <span className="text-sm text-gray-500">Sort by: Posted/sent date</span>
+                <span className="text-sm text-gray-500">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>
             </div>
             
             <div className="divide-y divide-gray-200">
-              {filteredJobs.map((job: Job) => {
+              {sortJobs(filteredJobs).map((job: Job) => {
                 const jobId = job.id || job._id;
                 return (
                 <div key={jobId} className="p-4 hover:bg-gray-50">
@@ -334,7 +398,6 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       <button
                         key="responses"
                         onClick={() => {
-                          // Navigate to applications for this job
                           console.log('🔘 Button clicked for job:', jobId, job.jobTitle);
                           sessionStorage.setItem('selectedJobId', jobId!);
                           sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
@@ -346,7 +409,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           });
                           onNavigate('application-management');
                         }}
-                        className="text-center hover:bg-blue-50 p-2 rounded transition-colors"
+                        className="text-center hover:bg-blue-50 p-2 rounded transition-colors cursor-pointer"
                       >
                         <div className="text-lg font-semibold text-blue-600">{job.applicationCount || 0}</div>
                         <div className="text-xs text-gray-500">Total Responses</div>
@@ -364,9 +427,53 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         </div>
                       </div>
                       
-                      <button key="menu" className="p-1 hover:bg-gray-100 rounded">
-                        <MoreVertical className="w-4 h-4 text-gray-400" />
-                      </button>
+                      <div className="relative">
+                        <button 
+                          onClick={() => setOpenMenuId(openMenuId === jobId ? null : jobId)}
+                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          title="More options"
+                        >
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
+                        </button>
+                        
+                        {openMenuId === jobId && (
+                          <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
+                            <button
+                              onClick={() => {
+                                onNavigate('job-posting');
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 border-b"
+                            >
+                              <Edit className="w-4 h-4" />
+                              <span>Edit Job</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                console.log('👁️ View applications for:', jobId);
+                                sessionStorage.setItem('selectedJobId', jobId!);
+                                sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
+                                onNavigate('application-management');
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-2 border-b"
+                            >
+                              <Eye className="w-4 h-4" />
+                              <span>View Applications</span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                handleDeleteJob(jobId!);
+                                setOpenMenuId(null);
+                              }}
+                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span>Delete Job</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

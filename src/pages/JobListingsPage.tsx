@@ -4,10 +4,12 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import LocationRadiusSearch from '../components/LocationRadiusSearch';
+import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
-import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
+import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
+import localStorageMigration from '../services/localStorageMigration';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: { 
   onNavigate?: (page: string) => void;
@@ -41,18 +43,78 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const [filterOptions, setFilterOptions] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreJobs, setHasMoreJobs] = useState(true);
+  const [activeTab, setActiveTab] = useState<'search' | 'recommended'>('search');
+  const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
   const jobsPerPage = 10;
 
-  // Load saved jobs from localStorage
+  // Load saved jobs from backend if user is logged in
   useEffect(() => {
     if (user?.name) {
-      const userKey = `savedJobs_${user.name}`;
+      loadSavedJobsFromBackend();
+    } else {
+      // Load from localStorage for non-logged users
+      const userKey = `savedJobs_${user?.name || 'guest'}`;
       const saved = localStorage.getItem(userKey);
       if (saved) {
         setSavedJobs(JSON.parse(saved));
       }
     }
   }, [user]);
+
+  // Load resume skills from backend if user is logged in
+  useEffect(() => {
+    if (user?.email) {
+      loadResumeSkillsFromBackend();
+    } else {
+      // Load from localStorage for non-logged users
+      try {
+        const resumeData = localStorage.getItem('resumeData');
+        if (resumeData) {
+          const parsed = JSON.parse(resumeData);
+          if (parsed.skills && Array.isArray(parsed.skills)) {
+            setResumeSkills(parsed.skills);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading resume skills:', error);
+      }
+    }
+  }, [user]);
+
+  const loadSavedJobsFromBackend = async () => {
+    try {
+      // This would need to be implemented for regular saved jobs (not just recommended)
+      // For now, fallback to localStorage
+      const userKey = `savedJobs_${user?.name}`;
+      const saved = localStorage.getItem(userKey);
+      if (saved) {
+        setSavedJobs(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.error('Error loading saved jobs from backend:', error);
+    }
+  };
+
+  const loadResumeSkillsFromBackend = async () => {
+    try {
+      const skills = await localStorageMigration.getResumeSkills();
+      setResumeSkills(skills);
+    } catch (error) {
+      console.error('Error loading resume skills from backend:', error);
+      // Fallback to localStorage
+      try {
+        const resumeData = localStorage.getItem('resumeData');
+        if (resumeData) {
+          const parsed = JSON.parse(resumeData);
+          if (parsed.skills && Array.isArray(parsed.skills)) {
+            setResumeSkills(parsed.skills);
+          }
+        }
+      } catch (fallbackError) {
+        console.error('Error loading resume skills from localStorage:', fallbackError);
+      }
+    }
+  };
 
   // Fetch jobs from MongoDB with advanced search
   const fetchJobs = async (page = 1, append = false) => {
@@ -479,16 +541,31 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Tab Navigation */}
           <div className="flex space-x-1 mb-8">
-            <button className="bg-white text-gray-900 px-6 py-2 rounded-full font-medium flex items-center space-x-2">
+            <button 
+              onClick={() => setActiveTab('search')}
+              className={`px-6 py-2 rounded-full font-medium flex items-center space-x-2 transition-colors ${
+                activeTab === 'search' 
+                  ? 'bg-white text-gray-900' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
               <Search className="w-4 h-4" />
               <span>Search Jobs</span>
             </button>
-            <button className="text-gray-300 hover:text-white px-6 py-2 rounded-full font-medium">
+            <button 
+              onClick={() => setActiveTab('recommended')}
+              className={`px-6 py-2 rounded-full font-medium transition-colors ${
+                activeTab === 'recommended' 
+                  ? 'bg-white text-gray-900' 
+                  : 'text-gray-300 hover:text-white'
+              }`}
+            >
               Recommended Jobs
             </button>
           </div>
 
-          {/* Search Bar */}
+          {/* Search Bar - Only show in search tab */}
+          {activeTab === 'search' && (
           <div className="flex gap-4 mb-6">
             <div className="flex-1 relative">
               <input
@@ -552,8 +629,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               <Search className="w-5 h-5" />
             </button>
           </div>
+          )}
 
-          {/* Quick Filters */}
+          {/* Quick Filters - Only show in search tab */}
+          {activeTab === 'search' && (
           <div className="flex gap-2 mb-4">
             <button
               onClick={() => setFilters(prev => ({ ...prev, freshness: '24h' }))}
@@ -586,14 +665,21 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               Remote Jobs
             </button>
           </div>
-
+          )}
 
         </div>
       </div>
 
       {/* Job Listings */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <LocationRadiusSearch onSearch={handleLocationSearch} />
+        {activeTab === 'search' && <LocationRadiusSearch onSearch={handleLocationSearch} />}
+        
+        {activeTab === 'recommended' ? (
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Recommended Jobs for You</h2>
+            <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} />
+          </div>
+        ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Sidebar - Filters */}
           <div className="lg:col-span-1">
@@ -883,30 +969,23 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                   <div className="flex items-start mb-3">
                     <div className="flex-shrink-0 w-14 h-14 mr-4">
                       <div className="w-14 h-14 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                        {job.companyLogo || job.company?.toLowerCase().includes('trinity') ? (
+                        {job.companyLogo ? (
                           <img 
-                            src={job.company?.toLowerCase().includes('trinity') ? '/images/company-logos/trinity-logo.png' : job.companyLogo}
+                            src={job.companyLogo}
                             alt={`${job.company} logo`}
                             className="w-12 h-12 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              if (job.company?.toLowerCase().includes('trinity')) {
-                                img.src = `data:image/svg+xml,${encodeURIComponent(`
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-                                    <rect width="32" height="32" fill="#4F46E5" rx="4"/>
-                                    <text x="16" y="14" text-anchor="middle" fill="white" font-family="Arial" font-size="8" font-weight="bold">Trinity</text>
-                                    <text x="16" y="22" text-anchor="middle" fill="white" font-family="Arial" font-size="6">Tech</text>
-                                  </svg>
-                                `)}`;
-                              } else {
-                                img.src = '/images/zync-logo.svg';
-                              }
+                              const company = job.company || 'Company';
+                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company)}&size=48&background=6366f1&color=ffffff&bold=true`;
                             }}
                           />
                         ) : (
-                          <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                            <Briefcase className="w-6 h-6 text-gray-400" />
-                          </div>
+                          <img 
+                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'Company')}&size=48&background=6366f1&color=ffffff&bold=true`}
+                            alt={`${job.company} logo`}
+                            className="w-12 h-12 object-contain rounded"
+                          />
                         )}
                       </div>
                     </div>
@@ -940,8 +1019,26 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                         )}
                         <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-lg">
                           <Clock className="w-3 h-3 text-purple-500" />
-                          <span className="text-xs font-medium text-purple-600">{formatDate(job.createdAt)}</span>
+                          <span className="text-xs font-medium text-purple-600">
+                            {formatDate(job.createdAt)}
+                          </span>
+                          {getPostingFreshness(job.createdAt) === 'new' && (
+                            <span className="ml-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
+                              NEW
+                            </span>
+                          )}
                         </div>
+                        {/* Employer ID and Position ID */}
+                        {job.employerId && (
+                          <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg">
+                            <span className="text-xs font-medium text-blue-600">EID: {job.employerId}</span>
+                          </div>
+                        )}
+                        {job.positionId && (
+                          <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
+                            <span className="text-xs font-medium text-green-600">PID: {job.positionId}</span>
+                          </div>
+                        )}
                       </div>
 
                       {job.description && (
@@ -1000,6 +1097,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
         )}
           </div>
         </div>
+        )}
       </div>
       
       <Footer onNavigate={onNavigate} />

@@ -302,6 +302,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <Briefcase className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-700">{job.type}</span>
             </div>
+            {/* Position ID for posted jobs */}
+            {job.positionId && actionType === 'posted' && (
+              <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
+                <span className="text-xs font-medium text-green-600">PID: {job.positionId}</span>
+              </div>
+            )}
           </div>
 
           {job.description && (

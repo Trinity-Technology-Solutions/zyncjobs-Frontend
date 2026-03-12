@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare } from 'lucide-react';
+import { getCompanyLogo } from '../utils/logoUtils';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -357,16 +358,18 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                     <div className="flex items-start justify-between">
                       {/* Left side - Job info */}
                       <div className="flex items-start space-x-4 flex-1">
-                        {/* Trinity Logo */}
+                        {/* Company Logo */}
                         <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden bg-white border border-gray-200">
                           <img 
-                            src="/images/trinity-logo.webp" 
-                            alt="Trinity Logo" 
+                            src={getCompanyLogo(application.jobId?.company || '')} 
+                            alt={`${application.jobId?.company || 'Company'} Logo`} 
                             className="w-10 h-10 object-contain"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
+                              const company = application.jobId?.company || 'Company';
+                              const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase();
                               target.style.display = 'none';
-                              target.parentElement!.innerHTML = '<div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">T</div>';
+                              target.parentElement!.innerHTML = `<div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">${initials}</div>`;
                             }}
                           />
                         </div>
