@@ -60,6 +60,9 @@ export const API_ENDPOINTS = {
   
   // Resume Viewer
   RESUME_VIEWER: `${config.API_URL}/resume-viewer`,
+  
+  // Saved Candidates
+  SAVED_CANDIDATES: `${config.API_URL}/saved-candidates`,
 };
 
 // Legacy exports for backward compatibility

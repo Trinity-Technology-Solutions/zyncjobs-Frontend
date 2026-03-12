@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Users, Star, Building, Globe, ChevronDown } from 'lucide-react';
+import { Star, Building } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -47,32 +47,6 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const [workSettings, setWorkSettings] = useState<string[]>([]);
 
   // Load filter data
-  const loadFilterData = async () => {
-    try {
-      const [industriesRes, sizesRes, workSettingsRes] = await Promise.all([
-        fetch('/backend/data/industries.json'),
-        fetch('/backend/data/company-sizes.json'),
-        fetch('/backend/data/work-settings.json')
-      ]);
-      
-      if (industriesRes.ok) {
-        const industriesData = await industriesRes.json();
-        setIndustries(industriesData);
-      }
-      
-      if (sizesRes.ok) {
-        const sizesData = await sizesRes.json();
-        setCompanySizes(sizesData);
-      }
-      
-      if (workSettingsRes.ok) {
-        const workSettingsData = await workSettingsRes.json();
-        setWorkSettings(workSettingsData);
-      }
-    } catch (error) {
-      console.error('Error loading filter data:', error);
-    }
-  };
 
   // Default companies
   const defaultCompanies: Company[] = [
@@ -80,61 +54,61 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       _id: '1',
       name: 'Trinity Technology Solutions',
       industry: 'Technology',
-      rating: 0,
+      rating: 4.2,
       description: 'Leading tech solutions provider',
       location: 'India',
       employees: '500-1000',
       website: 'trinitetech.com',
       openJobs: 0,
       logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
+      reviews: 245,
+      salaries: 8500000,
+      officeLocations: 3
     },
     {
       _id: '2',
-      name: 'GrowthPulse Solutions',
+      name: 'GrowthPulss Private Solutions',
       industry: 'Business Services',
-      rating: 0,
+      rating: 3.8,
       description: 'Growth and business consulting',
       location: 'India',
       employees: '200-500',
       website: 'growthpulss.com',
       openJobs: 0,
       logo: 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
+      reviews: 156,
+      salaries: 6200000,
+      officeLocations: 2
     },
     {
       _id: '3',
       name: 'Nambikkai India',
       industry: 'Non-Profit',
-      rating: 0,
+      rating: 4.0,
       description: 'Social impact organization',
       location: 'India',
       employees: '100-200',
-      website: 'nambikkai.com',
+      website: 'nambikai.com',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=nambikkai.com&sz=64',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
+      logo: 'https://www.google.com/s2/favicons?domain=nambikai.com&sz=64',
+      reviews: 89,
+      salaries: 4500000,
+      officeLocations: 1
     },
     {
       _id: '4',
-      name: 'Petrichor India',
+      name: 'Petrichor',
       industry: 'Technology',
-      rating: 0,
+      rating: 4.1,
       description: 'Innovation and tech development',
       location: 'India',
       employees: '300-600',
-      website: '',
+      website: 'petrichor.com',
       openJobs: 0,
       logo: 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
+      reviews: 178,
+      salaries: 7800000,
+      officeLocations: 2
     }
   ];
 
@@ -301,45 +275,37 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     ).slice(0, 10);
   };
 
-  const getFilteredSizes = () => {
-    return companySizes.filter(size => 
-      size.toLowerCase().includes(sizeInput.toLowerCase())
-    ).slice(0, 10);
-  };
 
-  const getFilteredWorkSettings = () => {
-    return workSettings.filter(setting => 
-      setting.toLowerCase().includes(workSettingInput.toLowerCase())
-    ).slice(0, 10);
-  };
 
   const handleIndustrySelect = (industry: string) => {
     setIndustryInput(industry);
     setShowIndustryDropdown(false);
   };
 
-  const handleSizeSelect = (size: string) => {
-    setSizeInput(size);
-    setShowSizeDropdown(false);
-  };
 
-  const handleWorkSettingSelect = (setting: string) => {
-    setWorkSettingInput(setting);
-    setShowWorkSettingDropdown(false);
-  };
 
-  const clearFilters = () => {
-    setIndustryInput('');
-    setSizeInput('');
-    setWorkSettingInput('');
-  };
 
   const getCompanyLogo = (company: Company) => {
+    // Custom logo URLs for companies
+    const customLogos: { [key: string]: string } = {
+      'Nambikkai India': 'https://ui-avatars.com/api/?name=Nambikkai&size=64&background=10b981&color=ffffff&bold=true',
+      'Trinity Technology Solutions': 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64',
+      'GrowthPulss Private Solutions': 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64',
+      'Petrichor': 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64'
+    };
+
+    // Check if company has custom logo
+    if (customLogos[company.name]) {
+      return customLogos[company.name];
+    }
+
+    // Fallback to website favicon
     if (company.website) {
       const domain = company.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
       return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
     }
     
+    // Final fallback to avatar
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=64&background=3b82f6&color=ffffff&bold=true`;
   };
 

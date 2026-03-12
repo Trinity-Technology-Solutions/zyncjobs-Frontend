@@ -747,14 +747,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         
         <div className="relative">
           <label className="block text-gray-700 font-medium mb-2">What is the job location? *</label>
-          <p className="text-gray-500 text-sm mb-3">Enter a street address or ZIP code</p>
+          <p className="text-gray-500 text-sm mb-3">Enter city, region, or select Remote</p>
           <div className="relative">
             <input
               type="text"
               value={jobData.jobLocation}
               onChange={handleLocationChange}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="e.g. Chennai, Remote"
+              placeholder="e.g. Chennai, Remote, Bangalore"
             />
             {isLoadingLocations && (
               <div className="absolute right-3 top-1/2 transform -translate-y-1/2">

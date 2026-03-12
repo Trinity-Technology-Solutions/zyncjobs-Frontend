@@ -79,20 +79,33 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       params.append('page', page.toString());
       params.append('limit', candidatesPerPage.toString());
       
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/candidates?${params}`);
+      // Try to fetch from profiles endpoint first (has complete data)
+      let response = await fetch(`${API_ENDPOINTS.BASE_URL}/profiles?${params}`);
+      
+      // Fallback to candidates endpoint if profiles not available
+      if (!response.ok) {
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/candidates?${params}`);
+      }
+      
       if (response.ok) {
         const data = await response.json();
+        const candidatesArray = Array.isArray(data) ? data : data.candidates || data.profiles || [];
+        
+        // Filter out employer/admin accounts - only show candidates
+        const filteredCandidates = candidatesArray.filter((c: any) => 
+          c.userType !== 'employer' && c.userType !== 'admin' && c.type !== 'employer'
+        );
         
         if (append) {
-          setCandidates(prev => [...prev, ...data]);
+          setCandidates(prev => [...prev, ...filteredCandidates]);
         } else {
-          setCandidates(data);
+          setCandidates(filteredCandidates);
           if (!searchTerm && !selectedSkill && !selectedLocation) {
-            setTotalCandidates(data.length);
+            setTotalCandidates(filteredCandidates.length);
           }
         }
         
-        setHasMoreCandidates(data.length === candidatesPerPage);
+        setHasMoreCandidates(filteredCandidates.length === candidatesPerPage);
       } else {
         console.error('Failed to fetch candidates');
         if (!append) setCandidates([]);
@@ -171,18 +184,31 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
               Browse our pool of verified tech professionals and find the perfect candidates for your team
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-gray-500">
-              <div className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full">
+              <button 
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedSkill('');
+                  setSelectedLocation('');
+                }}
+                className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full hover:bg-white hover:shadow-md transition-all cursor-pointer"
+              >
                 <Users className="w-4 h-4" />
-                <span>{totalCandidates || 0} Active Candidate{totalCandidates !== 1 ? 's' : ''}</span>
-              </div>
-              <div className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full">
+                <span>{totalCandidates || candidates.length || 0} Active Candidate{(totalCandidates || candidates.length) !== 1 ? 's' : ''}</span>
+              </button>
+              <button 
+                onClick={() => alert('All candidates in our pool are verified professionals with verified profiles and credentials.')}
+                className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full hover:bg-white hover:shadow-md transition-all cursor-pointer"
+              >
                 <Star className="w-4 h-4 text-yellow-500" />
                 <span>Verified Profiles</span>
-              </div>
-              <div className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full">
+              </button>
+              <button 
+                onClick={() => alert('Candidate profiles are updated in real-time as they update their information and apply for jobs.')}
+                className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full hover:bg-white hover:shadow-md transition-all cursor-pointer"
+              >
                 <Code className="w-4 h-4" />
                 <span>Real-time Updates</span>
-              </div>
+              </button>
             </div>
           </div>
         </div>
@@ -293,7 +319,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                 </div>
               )}
             </div>
-            <button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl">
+            <button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl" onClick={() => {
+              // Apply filters is already functional through the search inputs
+              alert('Filters applied! Results are updated based on your search criteria.');
+            }}>
               <Filter className="w-5 h-5" />
               <span>Apply Filters</span>
             </button>
@@ -402,27 +431,23 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                   <h4 className="font-bold text-gray-900 mb-2 text-sm">About me</h4>
                   <div className="space-y-2 text-xs">
                     <div>
-                      <span className="font-semibold text-gray-900">Education:</span>
-                      <p className="text-gray-700">{candidate.title || 'Professional'}</p>
+                      <span className="font-semibold text-gray-900">Title:</span>
+                      <p className="text-gray-700">{candidate.jobTitle || candidate.title || 'Professional'}</p>
                     </div>
                     <div>
                       <span className="font-semibold text-gray-900">Experience:</span>
                       <p className="text-gray-700">{candidate.experience || '2+ years'}</p>
                     </div>
                     <div>
-                      <span className="font-semibold text-gray-900">Languages:</span>
-                      <p className="text-gray-700">English, German, French</p>
-                    </div>
-                    <div>
-                      <span className="font-semibold text-gray-900">Trainings:</span>
+                      <span className="font-semibold text-gray-900">Skills:</span>
                       <div className="flex flex-wrap gap-1 mt-1">
                         {getCandidateSkills(candidate).slice(0, 6).map((skill, index) => (
-                          <a key={index} href="#" className="text-blue-600 hover:text-blue-700 text-xs font-medium underline">
+                          <span key={index} className="text-blue-600 text-xs font-medium bg-blue-50 px-2 py-1 rounded">
                             {skill}
-                          </a>
+                          </span>
                         ))}
                         {getCandidateSkills(candidate).length > 6 && (
-                          <a href="#" className="text-blue-600 hover:text-blue-700 text-xs font-medium underline">View more</a>
+                          <span className="text-blue-600 text-xs font-medium">+{getCandidateSkills(candidate).length - 6} more</span>
                         )}
                       </div>
                     </div>
@@ -461,7 +486,51 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                         <span>Copy Email</span>
                       </button>
                       <button onClick={() => {
-                        alert('Candidate saved to favorites!');
+                        const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                        const candidateData = {
+                          candidateId: candidate._id,
+                          candidateName: getCandidateName(candidate),
+                          candidateTitle: candidate.title || 'Professional',
+                          candidateLocation: getCandidateLocation(candidate),
+                          candidateExperience: candidate.experience || '2+ years',
+                          candidateEmail: candidate.email,
+                          candidateSkills: getCandidateSkills(candidate),
+                          candidatePhoto: candidate.profilePhoto,
+                          companyName: userData.company || userData.companyName || 'Company',
+                          companyLogo: userData.companyLogo || ''
+                        };
+                        
+                        const token = localStorage.getItem('token');
+                        
+                        fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                          },
+                          body: JSON.stringify(candidateData)
+                        })
+                        .then(res => {
+                          if (res.status === 409) {
+                            // Already saved, remove it
+                            return fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidate._id}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${token}`
+                              }
+                            }).then(() => {
+                              alert('Candidate removed from saved list!');
+                            });
+                          } else if (res.ok) {
+                            alert('Candidate saved successfully! View in Employer Dashboard > Saved Candidates');
+                          } else {
+                            throw new Error('Failed to save candidate');
+                          }
+                        })
+                        .catch(err => {
+                          console.error('Error saving candidate:', err);
+                          alert('Failed to save candidate. Please try again.');
+                        });
                         setOpenContactMenu(null);
                       }} className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm transition-colors flex items-center space-x-2">
                         <Star className="w-4 h-4" />

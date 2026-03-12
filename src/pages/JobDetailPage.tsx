@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, DollarSign, Building, Share2, X, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getCompanyLogo } from '../utils/logoUtils';
-import { formatJobDescription } from '../utils/textUtils';
+import { formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
+import localStorageMigration from '../services/localStorageMigration';
 
 interface JobDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -28,7 +29,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   const getCompanyLogo = (app: any) => {
     const company = app.company || app.companyName || 'Company';
     
-    // For Trinity companies, use local logo
+    // For Trinity companies, use specific Trinity logo
     if (company.toLowerCase().includes('trinity')) {
       return '/images/trinity-logo.webp';
     }
@@ -43,7 +44,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
       return 'https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RE1Mu3b?ver=5c31';
     }
     
-    // Always fallback to ZyncJobs logo
+    // Default fallback to ZyncJobs logo (NOT for Trinity)
     return '/images/zync-logo.svg';
   };
 
@@ -245,6 +246,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
           const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
           if (jobResponse.ok) {
             const jobData = await jobResponse.json();
+            console.log('🔍 Job data received from API:', jobData);
+            console.log('📸 Job header image:', jobData.jobHeaderImage);
+            console.log('🆔 Employer ID:', jobData.employerId);
+            console.log('🏷️ Position ID:', jobData.positionId);
             setJob(jobData);
             
             // Check if user has applied to this job
@@ -470,7 +475,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                   className="w-full h-full object-contain rounded"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    img.src = '/images/zync-logo.svg';
+                    // Don't change Trinity logo on error - keep trying Trinity logo
+                    if (!job.company?.toLowerCase().includes('trinity')) {
+                      img.src = '/images/zync-logo.svg';
+                    }
                   }}
                 />
               </div>
@@ -552,10 +560,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                       
                       {/* Regular Apply Button */}
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (user && (user.name || user.fullName)) {
-                            // User is logged in - go directly to application page
-                            localStorage.setItem('selectedJob', JSON.stringify({
+                            // User is logged in - use session-based storage
+                            const sessionId = await localStorageMigration.storeJobSession({
                               _id: job._id || jobId,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
@@ -564,8 +572,25 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                               salary: job.salary,
                               type: job.type,
                               jobData: job
-                            }));
-                            onNavigate('job-application');
+                            });
+                            
+                            if (sessionId) {
+                              // Navigate with session ID
+                              onNavigate('job-application', { sessionId });
+                            } else {
+                              // Fallback to localStorage
+                              localStorage.setItem('selectedJob', JSON.stringify({
+                                _id: job._id || jobId,
+                                jobTitle: job.jobTitle || job.title,
+                                company: job.company,
+                                location: job.location,
+                                description: job.description,
+                                salary: job.salary,
+                                type: job.type,
+                                jobData: job
+                              }));
+                              onNavigate('job-application');
+                            }
                           } else {
                             // User is not logged in - store job data and go to login
                             localStorage.setItem('pendingJobApplication', JSON.stringify({
@@ -585,6 +610,47 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Job Header Image - Like Dice - Following same grid as content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left side - Banner Image (matches Job Description width) */}
+          <div className="lg:col-span-2">
+            <div className="relative h-64 bg-gray-900 overflow-hidden rounded-lg">
+              <img
+                src={job.jobHeaderImage || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop'}
+                alt={`${job.jobTitle || job.title} at ${job.company}`}
+                className="w-full h-full object-cover opacity-80"
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg"></div>
+            </div>
+          </div>
+          
+          {/* Right side - Company Logo Card (matches sidebar width) */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center h-64 flex flex-col justify-center">
+              <img
+                src={getCompanyLogo(job)}
+                alt={job.company}
+                className="w-20 h-20 object-contain mx-auto mb-3 rounded"
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  // Don't change Trinity logo on error - keep trying Trinity logo
+                  if (!job.company?.toLowerCase().includes('trinity')) {
+                    img.src = '/images/zync-logo.svg';
+                  }
+                }}
+              />
+              <p className="text-lg font-semibold text-gray-900">{job.company}</p>
+              <p className="text-sm text-gray-600 mt-1">Company</p>
             </div>
           </div>
         </div>
@@ -613,17 +679,31 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     <span>{job.postedBy || jobPoster?.name || jobPoster?.fullName || 'System'}</span>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <span className="font-medium">On:</span>
-                    <span>{job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-US', { 
-                      year: 'numeric', 
-                      month: '2-digit', 
-                      day: '2-digit' 
-                    }) : '01/16/26'}</span>
+                    <span className="font-medium">Posted:</span>
+                    <span className="text-blue-600 font-medium">{formatDetailedTime(job.createdAt)}</span>
+                    {getPostingFreshness(job.createdAt) === 'new' && (
+                      <span className="ml-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                        NEW
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center space-x-1">
                     <span className="font-medium">Company:</span>
                     <span>{job.employerCompany || jobPoster?.company || job.company}</span>
                   </div>
+                  {/* Employer ID and Position ID - Enhanced Display */}
+                  {job.employerId && (
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium text-gray-700">Employer ID:</span>
+                      <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">{job.employerId}</span>
+                    </div>
+                  )}
+                  {job.positionId && (
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium text-gray-700">Position ID:</span>
+                      <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full border border-green-200">{job.positionId}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -755,7 +835,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                   className="w-12 h-12 rounded-full object-contain border border-gray-200 bg-white p-1"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    img.src = '/images/zync-logo.svg';
+                    // Don't change Trinity logo on error - keep trying Trinity logo
+                    if (!job.company?.toLowerCase().includes('trinity')) {
+                      img.src = '/images/zync-logo.svg';
+                    }
                   }}
                 />
                 <div>
@@ -905,10 +988,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                       
                       {/* Regular Apply Button */}
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           if (user && user.name) {
-                            // User is logged in - go directly to application page
-                            localStorage.setItem('selectedJob', JSON.stringify({
+                            // User is logged in - use session-based storage
+                            const sessionId = await localStorageMigration.storeJobSession({
                               _id: job._id || jobId,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
@@ -917,8 +1000,25 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                               salary: job.salary,
                               type: job.type,
                               jobData: job
-                            }));
-                            onNavigate('job-application');
+                            });
+                            
+                            if (sessionId) {
+                              // Navigate with session ID
+                              onNavigate('job-application', { sessionId });
+                            } else {
+                              // Fallback to localStorage
+                              localStorage.setItem('selectedJob', JSON.stringify({
+                                _id: job._id || jobId,
+                                jobTitle: job.jobTitle || job.title,
+                                company: job.company,
+                                location: job.location,
+                                description: job.description,
+                                salary: job.salary,
+                                type: job.type,
+                                jobData: job
+                              }));
+                              onNavigate('job-application');
+                            }
                           } else {
                             // User is not logged in - store job data and go to login
                             localStorage.setItem('pendingJobApplication', JSON.stringify({
@@ -937,7 +1037,14 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     </>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 text-center mt-2">Posted {job.posted}</p>
+                <p className="text-xs text-gray-500 text-center mt-2">
+                  Posted {formatDetailedTime(job.createdAt || job.posted)}
+                  {getPostingFreshness(job.createdAt) === 'new' && (
+                    <span className="ml-2 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
+                      NEW
+                    </span>
+                  )}
+                </p>
               </div>
             )}
           </div>

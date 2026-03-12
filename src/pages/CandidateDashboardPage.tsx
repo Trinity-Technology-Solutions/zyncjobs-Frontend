@@ -473,11 +473,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             {notification.actionText && (
                               <button 
                                 onClick={() => {
-                                  if (notification.actionText === 'View Jobs' || notification.actionText === 'View Job') {
-                                    setShowNotifications(false);
-                                    onNavigate('job-listings');
-                                  } else if (notification.jobId) {
-                                    setShowNotifications(false);
+                                  setShowNotifications(false);
+                                  if (notification.jobId) {
+                                    onNavigate(`job-detail/${notification.jobId}`);
+                                  } else if (notification.applicationId) {
+                                    onNavigate('my-applications');
+                                  } else {
                                     onNavigate('job-listings');
                                   }
                                 }}
