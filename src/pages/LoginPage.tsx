@@ -87,7 +87,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} />
 
-      <div className="flex items-center justify-center py-16 px-4">
+      <div className="flex items-center justify-center py-12 px-4">
         <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg w-full max-w-md p-8">
           <div className="text-center mb-8">
             <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white w-16 h-16 rounded flex items-center justify-center mx-auto mb-6 font-bold text-2xl shadow-lg">

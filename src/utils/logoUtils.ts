@@ -3,7 +3,7 @@ export const getCompanyLogo = (companyName: string): string => {
   
   // Check if company name contains 'trinity' (case insensitive)
   if (companyName.toLowerCase().includes('trinity')) {
-    return '/images/trinity-logo.png';
+    return '/images/company-logos/trinity-logo.png';
   }
   
   // Check if company name contains 'zync' (case insensitive)
@@ -115,7 +115,7 @@ export const getSafeCompanyLogo = (job: any): string => {
   
   // Special handling for Trinity Technology - use Trinity logo
   if (companyName.toLowerCase().includes('trinity')) {
-    return '/images/trinity-logo.png';
+    return '/images/company-logos/trinity-logo.png';
   }
   
   // Special handling for ZyncJobs - use ZyncJobs logo

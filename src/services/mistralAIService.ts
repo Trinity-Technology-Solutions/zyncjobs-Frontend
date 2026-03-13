@@ -126,16 +126,20 @@ class MistralAIService {
   private getFallbackJobDescription(jobTitle: string, context?: any): string {
     const title = jobTitle.toLowerCase();
     const skills = context?.skills?.length > 0 ? context.skills.join(', ') : 'relevant skills';
-    const salary = context?.salary || 'competitive salary';
+    const salary = context?.salary; // Don't provide fallback - let it be undefined
     const jobType = context?.jobType || 'full-time';
     const education = context?.educationLevel || 'Bachelor\'s degree';
+    
+    // Create salary text only if salary is provided
+    const salaryText = salary ? ` offering ${salary}` : '';
+    const salarySection = salary ? `• ${salary} based on experience` : '• Competitive salary based on experience';
     
     // Accounting/Finance roles
     if (title.includes('accountant') || title.includes('accounting') || title.includes('finance')) {
       return `We are seeking a detail-oriented ${jobTitle} to join our finance team.
 
 Position Overview:
-This is a ${jobType} position offering ${salary} with excellent career growth opportunities.
+This is a ${jobType} position${salaryText} with excellent career growth opportunities.
 
 Key Responsibilities:
 • Prepare and maintain accurate financial records and statements
@@ -154,7 +158,7 @@ Required Qualifications:
 • Excellent organizational and time management skills
 
 What We Offer:
-• ${salary} based on experience
+${salarySection}
 • Comprehensive health, dental, and vision insurance
 • Professional development and certification support
 • Stable work environment with growth opportunities
@@ -169,7 +173,7 @@ Join our team and contribute to our financial success!`;
       return `We are seeking a talented ${jobTitle} to join our dynamic team.
 
 Position Overview:
-This is a ${jobType} position offering ${salary} and excellent growth opportunities.
+This is a ${jobType} position${salaryText} and excellent growth opportunities.
 
 Key Responsibilities:
 • Design, develop, and maintain high-quality software solutions
@@ -188,7 +192,7 @@ Required Qualifications:
 • Experience with version control systems (Git)
 
 What We Offer:
-• ${salary} based on experience
+${salarySection}
 • Comprehensive health, dental, and vision insurance
 • Flexible working arrangements and remote work options
 • Professional development opportunities and training budget
@@ -202,7 +206,7 @@ Join our team and help us build the future of technology!`;
     return `We are seeking a qualified ${jobTitle} to join our team.
 
 Position Overview:
-This is a ${jobType} position offering ${salary} with opportunities for professional growth.
+This is a ${jobType} position${salaryText} with opportunities for professional growth.
 
 Key Responsibilities:
 • Execute core responsibilities related to ${jobTitle}
@@ -221,7 +225,7 @@ Required Qualifications:
 • Ability to work independently and as part of a team
 
 What We Offer:
-• ${salary} based on experience
+${salarySection}
 • Comprehensive benefits package
 • Professional growth opportunities
 • Supportive and collaborative work environment

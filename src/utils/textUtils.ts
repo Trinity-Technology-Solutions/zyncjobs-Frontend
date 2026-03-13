@@ -175,11 +175,16 @@ export const getPostingFreshness = (dateString: string | Date): 'new' | 'recent'
 };
 
 export const formatSalary = (salary: any): string => {
-  if (!salary) return 'Competitive';
+  if (!salary) return '';
   
   // Handle new object format with currency
   if (typeof salary === 'object' && salary.min !== undefined && salary.max !== undefined) {
     const { min, max, currency = 'USD', period = 'yearly' } = salary;
+    
+    // If both min and max are 0 or empty, don't show salary
+    if (!min && !max) return '';
+    if (min === 0 && max === 0) return '';
+    
     const currencySymbol = currency === 'INR' ? '₹' : 
                           currency === 'USD' ? '$' : 
                           currency === 'EUR' ? '€' : 
@@ -201,6 +206,9 @@ export const formatSalary = (salary: any): string => {
   
   // Handle old string format - detect INR amounts and replace $ with ₹
   if (typeof salary === 'string') {
+    // If salary is empty string or just whitespace, return empty
+    if (!salary.trim()) return '';
+    
     // Check if salary contains large numbers (likely INR)
     const salaryStr = salary.toString();
     const numbers = salaryStr.match(/\d+,?\d*/g);

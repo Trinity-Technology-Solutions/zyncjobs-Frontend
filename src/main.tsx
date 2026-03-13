@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
 
+
 // Suppress browser extension errors
 window.addEventListener('error', (e) => {
   if (e.message.includes('message channel closed') || 

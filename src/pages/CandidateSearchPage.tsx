@@ -168,166 +168,171 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <BackButton 
-          onClick={() => onNavigate && onNavigate('dashboard')}
-          text="Back to Dashboard"
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-6"
-        />
-        <div className="text-center mb-16">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 mb-8 leading-tight">
-              Find Top Tech Talent 
-              <span className="inline-block ml-2">🎯</span>
+      {/* Hero Header Section */}
+      <div className="relative bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 text-white overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='50' height='50' viewBox='0 0 50 50' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M25 25m-20 0a20 20 0 1 1 40 0a20 20 0 1 1 -40 0'/%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: '50px 50px'
+          }}></div>
+        </div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <BackButton 
+            onClick={() => onNavigate && onNavigate('dashboard')}
+            text="Back to Dashboard"
+            className="inline-flex items-center text-sm text-white/80 hover:text-white transition-colors mb-6 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-sm"
+          />
+          
+          <div className="text-center">
+            {/* Talent Icons */}
+            <div className="flex justify-center items-center mb-6">
+              <div className="flex -space-x-2">
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Star className="w-6 h-6 text-white" />
+                </div>
+                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Code className="w-6 h-6 text-white" />
+                </div>
+              </div>
+            </div>
+            
+            <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
+              Find Top Tech Talent 🎯
             </h1>
-            <p className="text-xl lg:text-2xl text-gray-600 leading-relaxed">
+            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
               Browse our pool of verified tech professionals and find the perfect candidates for your team
             </p>
-            <div className="mt-8 flex flex-wrap justify-center gap-4 text-sm text-gray-500">
-              <button 
-                onClick={() => {
-                  setSearchTerm('');
-                  setSelectedSkill('');
-                  setSelectedLocation('');
-                }}
-                className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full hover:bg-white hover:shadow-md transition-all cursor-pointer"
-              >
-                <Users className="w-4 h-4" />
-                <span>{totalCandidates || candidates.length || 0} Active Candidate{(totalCandidates || candidates.length) !== 1 ? 's' : ''}</span>
-              </button>
-              <button 
-                onClick={() => alert('All candidates in our pool are verified professionals with verified profiles and credentials.')}
-                className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full hover:bg-white hover:shadow-md transition-all cursor-pointer"
-              >
-                <Star className="w-4 h-4 text-yellow-500" />
-                <span>Verified Profiles</span>
-              </button>
-              <button 
-                onClick={() => alert('Candidate profiles are updated in real-time as they update their information and apply for jobs.')}
-                className="flex items-center space-x-2 bg-white/60 px-4 py-2 rounded-full hover:bg-white hover:shadow-md transition-all cursor-pointer"
-              >
-                <Code className="w-4 h-4" />
-                <span>Real-time Updates</span>
-              </button>
+            
+            {/* Stats */}
+            <div className="flex justify-center items-center gap-8 mb-8">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{totalCandidates || candidates.length || 0}+</div>
+                <div className="text-white/80 text-sm">Active Candidates</div>
+              </div>
+              <div className="w-px h-8 bg-white/30"></div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">100%</div>
+                <div className="text-white/80 text-sm">Verified Profiles</div>
+              </div>
+              <div className="w-px h-8 bg-white/30"></div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">24/7</div>
+                <div className="text-white/80 text-sm">Real-time Updates</div>
+              </div>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-lg">
+                <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-4">
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Search candidates..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 font-medium"
+                    />
+                  </div>
+                  <div className="relative">
+                    <Code className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Skills (e.g., Python, React)..."
+                      value={selectedSkill}
+                      onChange={(e) => {
+                        setSelectedSkill(e.target.value);
+                        if (e.target.value.length >= 1) {
+                          const filtered = allSkills.filter(skill => 
+                            skill.toLowerCase().includes(e.target.value.toLowerCase())
+                          ).slice(0, 10);
+                          setSkillSuggestions(filtered);
+                          setShowSkillSuggestions(true);
+                        } else {
+                          setShowSkillSuggestions(false);
+                        }
+                      }}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                    />
+                    {showSkillSuggestions && skillSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {skillSuggestions.map((skill, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onMouseDown={() => {
+                              setSelectedSkill(skill);
+                              setShowSkillSuggestions(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
+                          >
+                            {skill}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                    <input
+                      type="text"
+                      placeholder="Location (e.g., Mumbai, Remote)..."
+                      value={selectedLocation}
+                      onChange={(e) => {
+                        setSelectedLocation(e.target.value);
+                        if (e.target.value.length >= 1) {
+                          const filtered = allLocations.filter(location => 
+                            location.toLowerCase().includes(e.target.value.toLowerCase())
+                          ).slice(0, 10);
+                          setLocationSuggestions(filtered);
+                          setShowLocationSuggestions(true);
+                        } else {
+                          setShowLocationSuggestions(false);
+                        }
+                      }}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                    />
+                    {showLocationSuggestions && locationSuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {locationSuggestions.map((location, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onMouseDown={() => {
+                              setSelectedLocation(location);
+                              setShowLocationSuggestions(false);
+                            }}
+                            className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
+                          >
+                            {location}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
+                    <Filter className="w-5 h-5" />
+                    <span>Search Talent</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-
-        <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 mb-8 border border-gray-200 shadow-lg">
-          <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-6">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search candidates..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 font-medium"
-              />
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search skills (e.g., Python, React, AWS)..."
-                value={selectedSkill}
-                onChange={(e) => {
-                  setSelectedSkill(e.target.value);
-                  if (e.target.value.length >= 1) {
-                    const filtered = allSkills.filter(skill => 
-                      skill.toLowerCase().includes(e.target.value.toLowerCase())
-                    ).slice(0, 10);
-                    setSkillSuggestions(filtered);
-                    setShowSkillSuggestions(true);
-                  } else {
-                    setShowSkillSuggestions(false);
-                  }
-                }}
-                onFocus={() => {
-                  if (selectedSkill.length >= 1) {
-                    const filtered = allSkills.filter(skill => 
-                      skill.toLowerCase().includes(selectedSkill.toLowerCase())
-                    ).slice(0, 10);
-                    setSkillSuggestions(filtered);
-                    setShowSkillSuggestions(true);
-                  }
-                }}
-                onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 200)}
-                className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
-              />
-              {showSkillSuggestions && skillSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {skillSuggestions.map((skill, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onMouseDown={() => {
-                        setSelectedSkill(skill);
-                        setShowSkillSuggestions(false);
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
-                    >
-                      {skill}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search locations (e.g., Mumbai, Remote, Bangalore)..."
-                value={selectedLocation}
-                onChange={(e) => {
-                  setSelectedLocation(e.target.value);
-                  if (e.target.value.length >= 1) {
-                    const filtered = allLocations.filter(location => 
-                      location.toLowerCase().includes(e.target.value.toLowerCase())
-                    ).slice(0, 10);
-                    setLocationSuggestions(filtered);
-                    setShowLocationSuggestions(true);
-                  } else {
-                    setShowLocationSuggestions(false);
-                  }
-                }}
-                onFocus={() => {
-                  if (selectedLocation.length >= 1) {
-                    const filtered = allLocations.filter(location => 
-                      location.toLowerCase().includes(selectedLocation.toLowerCase())
-                    ).slice(0, 10);
-                    setLocationSuggestions(filtered);
-                    setShowLocationSuggestions(true);
-                  }
-                }}
-                onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
-                className="w-full px-4 py-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
-              />
-              {showLocationSuggestions && locationSuggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {locationSuggestions.map((location, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onMouseDown={() => {
-                        setSelectedLocation(location);
-                        setShowLocationSuggestions(false);
-                      }}
-                      className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
-                    >
-                      {location}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl" onClick={() => {
-              // Apply filters is already functional through the search inputs
-              alert('Filters applied! Results are updated based on your search criteria.');
-            }}>
-              <Filter className="w-5 h-5" />
-              <span>Apply Filters</span>
-            </button>
-          </div>
-        </div>
+      </div>
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <div className="mb-8">
           <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
