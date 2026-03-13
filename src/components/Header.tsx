@@ -153,7 +153,27 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         }
       }
     };
+    
     fetchProfileMetrics();
+    
+    // Listen for job deletion events to refresh metrics
+    const handleJobDeleted = () => {
+      console.log('Job deleted event received in Header, refreshing metrics...');
+      fetchProfileMetrics();
+    };
+    
+    const handleWindowFocus = () => {
+      console.log('Window focused, refreshing profile metrics...');
+      fetchProfileMetrics();
+    };
+    
+    window.addEventListener('jobDeleted', handleJobDeleted);
+    window.addEventListener('focus', handleWindowFocus);
+    
+    return () => {
+      window.removeEventListener('jobDeleted', handleJobDeleted);
+      window.removeEventListener('focus', handleWindowFocus);
+    };
   }, [user]);
 
   return (
