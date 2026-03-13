@@ -71,7 +71,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       if (response.ok) {
         const allJobs = await response.json();
         const employerJobs = allJobs.filter((job: any) => 
-          job.postedBy === user?.email
+          job.postedBy === user?.email || job.employerEmail === user?.email
         ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         
         console.log('Filtering jobs for user:', user?.email, 'Found:', employerJobs.length);
@@ -132,7 +132,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       }
       
       const allJobs = await jobsResponse.json();
-      const employerJobs = allJobs.filter((job: any) => job.postedBy === user?.email);
+      const employerJobs = allJobs.filter((job: any) => 
+        job.postedBy === user?.email || job.employerEmail === user?.email
+      );
       const employerJobIds = employerJobs.map((job: any) => job.id || job._id);
       
       console.log('Employer jobs:', employerJobIds.length);
