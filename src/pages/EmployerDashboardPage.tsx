@@ -166,6 +166,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
 
+  // Add effect to refresh data when returning to dashboard
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user) {
+        console.log('Window focused, refreshing dashboard data...');
+        fetchDashboardData(user);
+      }
+    };
+    
+    const handleJobDeleted = () => {
+      if (user) {
+        console.log('Job deleted event received, refreshing dashboard data...');
+        fetchDashboardData(user);
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('jobDeleted', handleJobDeleted);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('jobDeleted', handleJobDeleted);
+    };
+  }, [user]);
+
   const fetchDashboardData = async (userData: any) => {
     try {
       setError(null);
@@ -554,6 +579,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           >
             <Briefcase className="w-5 h-5" />
             <span className="font-medium">Posted Jobs</span>
+            {jobs.length > 0 && (
+              <span className="ml-auto bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                {jobs.length}
+              </span>
+            )}
           </button>
 
           <button

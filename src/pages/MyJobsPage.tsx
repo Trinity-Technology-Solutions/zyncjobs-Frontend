@@ -199,6 +199,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       if (response.ok) {
         setPostedJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
         alert('Job deleted successfully!');
+        
+        // Trigger a storage event to notify other components
+        window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
       } else {
         alert('Failed to delete job. Please try again.');
       }
