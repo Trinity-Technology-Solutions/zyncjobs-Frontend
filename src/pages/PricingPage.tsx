@@ -79,7 +79,7 @@ const PricingPage: React.FC<PricingPageProps> = ({ onNavigate, user, onLogout })
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="py-16">
+      <div className="py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <BackButton 
             onClick={() => onNavigate && onNavigate('dashboard')}

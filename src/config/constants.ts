@@ -11,6 +11,11 @@ export const API_ENDPOINTS = {
   APPLICATIONS: `${API_CONFIG.BASE_URL}/applications`,
   USERS: `${API_CONFIG.BASE_URL}/users`,
   COMPANIES: `${API_CONFIG.BASE_URL}/companies`,
+  SAVED_CANDIDATES: `${API_CONFIG.BASE_URL}/saved-candidates`,
+  INTERVIEWS: `${API_CONFIG.BASE_URL}/interviews`,
+  DASHBOARD_STATS: `${API_CONFIG.BASE_URL}/dashboard/stats`,
+  DASHBOARD_ACTIVITY: `${API_CONFIG.BASE_URL}/dashboard/recent-activity`,
+  SKILLS: `${API_CONFIG.BASE_URL}/skills`,
   TEST: `${API_CONFIG.BASE_URL}/test`
 };
 

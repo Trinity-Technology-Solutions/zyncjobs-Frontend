@@ -145,6 +145,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         } else {
           console.log('Company not found in database:', companyName);
         }
+      } else {
+        console.warn('Companies API returned error:', response.status);
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
@@ -176,36 +178,39 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       console.log('Using userId:', userId, 'userEmail:', userEmail, 'userName:', userName);
       
-      const [jobsRes, appsRes, interviewsRes, statsRes, activityRes] = await Promise.all([
-        fetch(API_ENDPOINTS.JOBS),
-        fetch(API_ENDPOINTS.APPLICATIONS),
-        fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${userId || ''}&employerEmail=${userEmail || ''}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${userId || ''}&employerEmail=${userEmail || ''}&userName=${userName || ''}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${userId || ''}&employerEmail=${userEmail || ''}&userName=${userName || ''}`)
-      ]);
-
-      if (!jobsRes.ok) {
-        throw new Error(`Jobs API error: ${jobsRes.status}`);
-      }
-
+      // Fetch data with individual error handling for each endpoint
       let employerJobs = [];
       let employerApps = [];
-
-      if (jobsRes.ok) {
-        const allJobs = await jobsRes.json();
-        console.log('Dashboard - All jobs:', allJobs.length);
-        console.log('Dashboard - User data for filtering:', userData);
-        employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
-          const matchesEmail = job.postedBy === userEmail;
-          console.log(`Job: ${job.jobTitle} at ${job.company}, matchesEmail: ${matchesEmail}`);
-          return matchesEmail;
-        }) : [];
-        console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
-        setJobs(employerJobs);
+      let dashboardStats = { activeJobs: 0, applications: 0, interviews: 0, hired: 0 };
+      let recentActivity = [];
+      
+      // Fetch Jobs
+      try {
+        const jobsRes = await fetch(API_ENDPOINTS.JOBS);
+        if (jobsRes.ok) {
+          const allJobs = await jobsRes.json();
+          console.log('Dashboard - All jobs:', allJobs.length);
+          employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
+            const matchesEmail = job.postedBy === userEmail;
+            console.log(`Job: ${job.jobTitle} at ${job.company}, matchesEmail: ${matchesEmail}`);
+            return matchesEmail;
+          }) : [];
+          console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
+          setJobs(employerJobs);
+          dashboardStats.activeJobs = employerJobs.length;
+        } else {
+          console.warn('Jobs API returned error:', jobsRes.status);
+          setJobs([]);
+        }
+      } catch (error) {
+        console.error('Error fetching jobs:', error);
+        setJobs([]);
       }
 
-      if (appsRes.ok) {
-        try {
+      // Fetch Applications
+      try {
+        const appsRes = await fetch(API_ENDPOINTS.APPLICATIONS);
+        if (appsRes.ok) {
           const response = await appsRes.json();
           const allApps = response.applications || response || [];
           console.log('Dashboard - All applications:', allApps.length);
@@ -243,18 +248,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           }) : [];
           console.log('Dashboard - Filtered employer applications:', employerApps.length);
           setApplications(employerApps);
-        } catch (jsonError) {
-          console.error('Error parsing applications JSON:', jsonError);
+          dashboardStats.applications = employerApps.length;
+        } else {
+          console.warn('Applications API returned error:', appsRes.status);
           setApplications([]);
         }
-      } else {
-        console.log('Applications API not available or returned error');
+      } catch (error) {
+        console.error('Error fetching applications:', error);
         setApplications([]);
       }
 
-      // Fetch interviews with job details
-      if (interviewsRes.ok) {
-        try {
+      // Fetch Interviews (with error handling)
+      try {
+        const interviewsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`);
+        if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
           const now = new Date();
@@ -287,35 +294,41 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           });
           
           setInterviews(filteredInterviews);
-        } catch (e) {
-          console.log('Interviews API failed');
+          dashboardStats.interviews = filteredInterviews.length;
+        } else {
+          console.warn('Interviews API returned error:', interviewsRes.status);
           setInterviews([]);
         }
-      } else {
+      } catch (error) {
+        console.error('Error fetching interviews:', error);
         setInterviews([]);
       }
 
-      // Fetch dashboard stats - use local job count if API fails
-      let dashboardStats = { activeJobs: employerJobs.length, applications: employerApps.length, interviews: 0, hired: 0 };
-      if (statsRes.ok) {
-        try {
+      // Fetch Dashboard Stats (with error handling)
+      try {
+        const statsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        if (statsRes.ok) {
           const stats = await statsRes.json();
           dashboardStats = { ...dashboardStats, ...stats };
-        } catch (e) {
-          console.log('Stats API failed, using local count');
+        } else {
+          console.warn('Stats API returned error:', statsRes.status);
         }
+      } catch (error) {
+        console.error('Error fetching stats:', error);
       }
       setDashboardStats(dashboardStats);
 
-      // Fetch recent activity - use local job data if API fails
-      let recentActivity = [];
-      if (activityRes.ok) {
-        try {
+      // Fetch Recent Activity (with error handling)
+      try {
+        const activityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        if (activityRes.ok) {
           const activity = await activityRes.json();
           recentActivity = activity;
-        } catch (e) {
-          console.log('Activity API failed, using local data');
+        } else {
+          console.warn('Activity API returned error:', activityRes.status);
         }
+      } catch (error) {
+        console.error('Error fetching activity:', error);
       }
       
       // If no activity from API, create from local jobs
@@ -328,11 +341,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         }));
       }
       setRecentActivity(recentActivity);
+      
     } catch (error) {
-      console.error('Error fetching data:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load dashboard data');
+      console.error('Error in fetchDashboardData:', error);
+      setError('Some dashboard data could not be loaded. Please refresh the page.');
+      // Set fallback empty states
       setApplications([]);
       setJobs([]);
+      setInterviews([]);
+      setDashboardStats({ activeJobs: 0, applications: 0, interviews: 0, hired: 0 });
+      setRecentActivity([]);
     } finally {
       setLoading(false);
     }
@@ -414,13 +432,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       <div className="max-w-7xl mx-auto flex min-h-screen bg-gray-50">
       {/* Error Display */}
       {error && (
-        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50">
-          <div className="flex items-center">
-            <span className="mr-2">⚠️</span>
-            <span>{error}</span>
+        <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50 max-w-md">
+          <div className="flex items-start">
+            <span className="mr-2 mt-0.5">⚠️</span>
+            <div className="flex-1">
+              <div className="font-medium">Dashboard Loading Issue</div>
+              <div className="text-sm mt-1">{error}</div>
+              <div className="text-xs mt-2 text-red-600">Some features may not work properly. Please refresh the page or contact support if the issue persists.</div>
+            </div>
             <button 
               onClick={() => setError(null)}
-              className="ml-4 text-red-500 hover:text-red-700"
+              className="ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none"
+              title="Close error message"
             >
               ×
             </button>
@@ -1018,7 +1041,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             Schedule Interview
                           </button>
                           <button 
-                            onClick={() => onNavigate(`candidate-profile-view`, { candidateId: application.candidateId || application._id })}
+                            onClick={() => onNavigate('candidate-profile-view')}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
                             View Profile

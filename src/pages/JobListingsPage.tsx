@@ -63,7 +63,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
 
   // Load resume skills from backend if user is logged in
   useEffect(() => {
-    if (user?.email) {
+    if (user?.name) {
       loadResumeSkillsFromBackend();
     } else {
       // Load from localStorage for non-logged users
@@ -537,16 +537,71 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Search Section */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.3'%3E%3Cpath d='M20 20c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10zm10 0c0-5.5-4.5-10-10-10s-10 4.5-10 10 4.5 10 10 10 10-4.5 10-10z'/%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundSize: '40px 40px'
+          }}></div>
+        </div>
+        
+        {/* Floating Elements */}
+        <div className="absolute top-8 left-8 w-16 h-16 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute top-16 right-16 w-24 h-24 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-8 left-1/3 w-12 h-12 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header Content */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center items-center mb-4">
+              <div className="flex -space-x-2">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Briefcase className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Search className="w-5 h-5 text-white" />
+                </div>
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <MapPin className="w-5 h-5 text-white" />
+                </div>
+              </div>
+            </div>
+            
+            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
+              Find Your Dream Job
+            </h1>
+            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
+              Discover thousands of opportunities from top companies worldwide
+            </p>
+            
+            {/* Quick Stats */}
+            <div className="flex justify-center items-center gap-8 mb-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{loading ? '...' : filteredJobs.length}+</div>
+                <div className="text-white/80 text-sm">Active Jobs</div>
+              </div>
+              <div className="w-px h-8 bg-white/30"></div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">500+</div>
+                <div className="text-white/80 text-sm">Companies</div>
+              </div>
+              <div className="w-px h-8 bg-white/30"></div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">50K+</div>
+                <div className="text-white/80 text-sm">Job Seekers</div>
+              </div>
+            </div>
+          </div>
+          
           {/* Tab Navigation */}
-          <div className="flex space-x-1 mb-8">
+          <div className="flex justify-center space-x-1 mb-6">
             <button 
               onClick={() => setActiveTab('search')}
-              className={`px-6 py-2 rounded-full font-medium flex items-center space-x-2 transition-colors ${
+              className={`px-6 py-3 rounded-full font-medium flex items-center space-x-2 transition-all ${
                 activeTab === 'search' 
-                  ? 'bg-white text-gray-900' 
-                  : 'text-gray-300 hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-lg' 
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
               }`}
             >
               <Search className="w-4 h-4" />
@@ -554,13 +609,14 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
             </button>
             <button 
               onClick={() => setActiveTab('recommended')}
-              className={`px-6 py-2 rounded-full font-medium transition-colors ${
+              className={`px-6 py-3 rounded-full font-medium flex items-center space-x-2 transition-all ${
                 activeTab === 'recommended' 
-                  ? 'bg-white text-gray-900' 
-                  : 'text-gray-300 hover:text-white'
+                  ? 'bg-white text-gray-900 shadow-lg' 
+                  : 'text-white/80 hover:text-white hover:bg-white/10'
               }`}
             >
-              Recommended Jobs
+              <TrendingUp className="w-4 h-4" />
+              <span>Recommended Jobs</span>
             </button>
           </div>
 
@@ -993,7 +1049,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                     <div className="flex-1">
                       <h3 
                         className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}
+                        onClick={() => onNavigate && onNavigate('job-detail')}
                       >
                         {decodeHtmlEntities(job.title || job.jobTitle)}
                       </h3>
@@ -1044,8 +1100,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                       {job.description && (
                         <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                           <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                            {job.description && job.description.length > 150 
-                              ? `${formatJobDescription(decodeHtmlEntities(job.description).substring(0, 150), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
+                            {job.description && job.description.length > 300 
+                              ? `${formatJobDescription(decodeHtmlEntities(job.description).substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
                               : formatJobDescription(decodeHtmlEntities(job.description || ''), typeof job.salary === 'object' ? job.salary.currency : undefined)}
                           </p>
                         </div>
@@ -1073,7 +1129,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                     </button>
                   )}
                   <button 
-                    onClick={() => onNavigate && onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}
+                    onClick={() => onNavigate && onNavigate('job-detail')}
                     className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
                   >
                     View Details
@@ -1104,8 +1160,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       
       {/* Floating Back Button */}
       <BackButton 
-        fallbackPage="home"
-        onNavigate={onNavigate}
+        onClick={() => onNavigate ? onNavigate('home') : window.history.back()}
       />
     </div>
   );

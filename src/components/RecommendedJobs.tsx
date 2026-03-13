@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Bookmark, BookmarkCheck } from 'lucide-react';
 import localStorageMigration from '../services/localStorageMigration';
+import { formatSalary } from '../utils/textUtils';
 
 interface Job {
   _id: string;
   title: string;
   company: string;
   location: string;
-  salary?: string;
+  salary?: string | { min: number; max: number; currency: string; period?: string };
   skills: string[];
   description: string;
   requirements: string[];
@@ -31,6 +32,20 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     jobType: ''
   });
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+  // Helper function to get numeric salary for filtering
+  const getNumericSalary = (salary: string | { min: number; max: number; currency: string; period?: string } | undefined): number => {
+    if (!salary) return 0;
+    
+    if (typeof salary === 'string') {
+      return parseInt(salary.replace(/[^0-9]/g, '') || '0');
+    }
+    
+    if (typeof salary === 'object' && salary.min) {
+      return salary.min;
+    }
+    
+    return 0;
+  };
 
   useEffect(() => {
     fetchMatchingJobs();
@@ -54,7 +69,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     if (filters.salaryRange) {
       filtered = filtered.filter(job => {
         if (!job.salary) return false;
-        const salary = parseInt(job.salary.replace(/[^0-9]/g, '') || '0');
+        const salary = getNumericSalary(job.salary);
         
         if (filters.salaryRange === '0-50k') return salary <= 50000;
         if (filters.salaryRange === '50k-100k') return salary >= 50000 && salary <= 100000;
@@ -330,8 +345,8 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                       {job.matchPercentage}% Match
                     </span>
                   )}
-                  {job.salary && (
-                    <p className="text-sm text-gray-600 mt-2 font-semibold">{job.salary}</p>
+                  {formatSalary(job.salary) && (
+                    <p className="text-sm text-gray-600 mt-2 font-semibold">{formatSalary(job.salary)}</p>
                   )}
                 </div>
               </div>
@@ -344,7 +359,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                 </div>
               )}
               
-              <p className="text-sm text-gray-600 mb-3 line-clamp-2">{job.description}</p>
+              <p className="text-sm text-gray-600 mb-3 line-clamp-3">{job.description}</p>
               
               {job.skills && job.skills.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3 mb-4">

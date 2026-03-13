@@ -81,8 +81,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     workAuth: parsedData?.workAuth || [],
     jobType: parsedData?.jobType || [],
     payType: 'Range',
-    minSalary: parsedData?.minSalary || '50,000',
-    maxSalary: parsedData?.maxSalary || '80,000',
+    minSalary: parsedData?.minSalary || '',
+    maxSalary: parsedData?.maxSalary || '',
     payRate: parsedData?.payRate || 'per year',
     currency: parsedData?.currency || 'INR',
     benefits: parsedData?.benefits || [],
@@ -122,6 +122,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [jobPostingCount, setJobPostingCount] = useState(0);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [salaryModified, setSalaryModified] = useState(false);
 
   // Check job posting limit on component mount
   useEffect(() => {
@@ -180,6 +181,33 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         updateJobData('companyLogo', matchedCompany.logo);
         updateJobData('companyId', matchedCompany.id);
       }
+    }
+  }, [parsedData]);
+
+  // Auto-parse skills from job description when parsedData is available
+  useEffect(() => {
+    if (parsedData?.jobDescription && mode === 'parse') {
+      const parsedSkills = parseSkillsFromJobDescription(
+        parsedData.jobDescription, 
+        parsedData.jobTitle || ''
+      );
+      
+      // If no skills were parsed initially or only basic skills, update with parsed skills
+      if (!parsedData.skills || parsedData.skills.length === 0 || 
+          parsedData.skills.every((skill: string) => ['AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux', 'Python', 'SQL', 'Version control'].includes(skill))) {
+        updateJobData('skills', parsedSkills);
+      } else {
+        // Merge existing skills with parsed skills
+        const mergedSkills = [...new Set([...parsedData.skills, ...parsedSkills])].slice(0, 15);
+        updateJobData('skills', mergedSkills);
+      }
+    }
+  }, [parsedData, mode]);
+
+  // Set salaryModified flag if parsedData contains salary info
+  useEffect(() => {
+    if (parsedData?.minSalary && parsedData?.maxSalary) {
+      setSalaryModified(true);
     }
   }, [parsedData]);
 
@@ -336,19 +364,26 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       setIsLoadingSkills(true);
       
       try {
-        const response = await fetch(`${API_ENDPOINTS.JOBS.replace('/jobs', '/suggest')}?q=${encodeURIComponent(value)}&type=skill`);
+        // First try to get skills from backend skills.json
+        const response = await fetch(`${API_ENDPOINTS.SKILLS}?q=${encodeURIComponent(value)}`);
         const data = await response.json();
         console.log('Skills API response:', data);
         
-        if (data.suggestions && data.suggestions.length > 0) {
-          setSkillSuggestions(data.suggestions);
+        if (data.skills && data.skills.length > 0) {
+          setSkillSuggestions(data.skills);
           setShowSkillSuggestions(true);
         } else {
-          setShowSkillSuggestions(false);
+          // Use fallback skills if API doesn't return results
+          const fallbackSkills = getFallbackSkills(value);
+          setSkillSuggestions(fallbackSkills);
+          setShowSkillSuggestions(fallbackSkills.length > 0);
         }
       } catch (error) {
         console.error('Skill suggestions failed:', error);
-        setShowSkillSuggestions(false);
+        // Use fallback skills if API fails
+        const fallbackSkills = getFallbackSkills(value);
+        setSkillSuggestions(fallbackSkills);
+        setShowSkillSuggestions(fallbackSkills.length > 0);
       } finally {
         setIsLoadingSkills(false);
       }
@@ -365,14 +400,43 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       'java': ['JavaScript', 'Java', 'jQuery', 'JSON', 'JavaFX', 'Jakarta EE', 'Jackson', 'JUnit'],
       'react': ['React', 'React Native', 'Redux', 'React Router', 'React Hooks', 'React Testing Library', 'Next.js', 'Gatsby'],
       'node': ['Node.js', 'Express.js', 'npm', 'Nodemon', 'NestJS', 'Socket.io', 'Mongoose', 'Passport.js'],
-      'aws': ['AWS', 'AWS Lambda', 'AWS S3', 'AWS EC2', 'AWS RDS', 'AWS CloudFormation', 'AWS ECS', 'AWS API Gateway']
+      'aws': ['AWS', 'AWS Lambda', 'AWS S3', 'AWS EC2', 'AWS RDS', 'AWS CloudFormation', 'AWS ECS', 'AWS API Gateway'],
+      'azure': ['Azure', 'Azure Functions', 'Azure DevOps', 'Azure SQL', 'Azure Storage', 'Azure Active Directory'],
+      'sql': ['SQL', 'MySQL', 'PostgreSQL', 'SQLite', 'SQL Server', 'Oracle SQL', 'MongoDB', 'NoSQL'],
+      'git': ['Git', 'GitHub', 'GitLab', 'Bitbucket', 'Version Control', 'Git Flow'],
+      'docker': ['Docker', 'Docker Compose', 'Kubernetes', 'Container Orchestration', 'Docker Swarm'],
+      'angular': ['Angular', 'AngularJS', 'TypeScript', 'RxJS', 'Angular CLI', 'Angular Material'],
+      'vue': ['Vue.js', 'Vuex', 'Vue Router', 'Nuxt.js', 'Vue CLI', 'Vuetify'],
+      'css': ['CSS', 'CSS3', 'Sass', 'SCSS', 'Less', 'Tailwind CSS', 'Bootstrap', 'Material-UI'],
+      'html': ['HTML', 'HTML5', 'Semantic HTML', 'Web Standards', 'Accessibility'],
+      'test': ['Testing', 'Unit Testing', 'Integration Testing', 'Jest', 'Cypress', 'Selenium', 'Test Automation'],
+      'api': ['REST API', 'GraphQL', 'API Development', 'API Testing', 'Postman', 'Swagger'],
+      'data': ['Data Analysis', 'Data Science', 'Machine Learning', 'Data Visualization', 'Tableau', 'Power BI'],
+      'mobile': ['Mobile Development', 'iOS', 'Android', 'React Native', 'Flutter', 'Swift', 'Kotlin'],
+      'design': ['UI/UX Design', 'Figma', 'Adobe XD', 'Sketch', 'Photoshop', 'Illustrator', 'Wireframing'],
+      'project': ['Project Management', 'Agile', 'Scrum', 'Kanban', 'Jira', 'Trello', 'Asana'],
+      'communication': ['Communication', 'Presentation', 'Public Speaking', 'Writing', 'Documentation'],
+      'leadership': ['Leadership', 'Team Management', 'Mentoring', 'Strategic Planning', 'Decision Making']
     };
     
+    // Check for exact matches first
     for (const [prefix, suggestions] of Object.entries(fallbacks)) {
       if (key.startsWith(prefix) || prefix.startsWith(key)) {
-        return suggestions;
+        return suggestions.filter(skill => skill.toLowerCase().includes(key));
       }
     }
+    
+    // Check for partial matches in skill names
+    const allSkills = Object.values(fallbacks).flat();
+    const matchingSkills = allSkills.filter(skill => 
+      skill.toLowerCase().includes(key)
+    );
+    
+    if (matchingSkills.length > 0) {
+      return matchingSkills.slice(0, 8);
+    }
+    
+    // Default popular skills if no matches
     return ['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'Git', 'AWS', 'Docker'];
   };
 
@@ -391,6 +455,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
                             jobData.currency === 'JPY' ? '¥' : 
                             jobData.currency === 'SGD' ? 'S$' : '$';
       
+      // Only include salary if user has actually modified salary values
+      const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
+      
       const description = await mistralAIService.generateJobDescription(
         jobTitle,
         jobData.companyName || 'ZyncJobs',
@@ -398,22 +465,44 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         {
           jobType: jobData.jobType.join(', ') || 'full-time',
           skills: jobData.skills,
-          salary: `${currencySymbol}${jobData.minSalary} - ${currencySymbol}${jobData.maxSalary} ${jobData.payRate}`,
+          salary: shouldIncludeSalary ? `${currencySymbol}${jobData.minSalary} - ${currencySymbol}${jobData.maxSalary} ${jobData.payRate}` : undefined,
           benefits: jobData.benefits,
           educationLevel: jobData.educationLevel
         }
       );
       updateJobData('jobDescription', description);
       
+      // Auto-populate skills from the generated description and job title
+      const parsedSkills = parseSkillsFromJobDescription(description, jobTitle);
+      
       // Auto-populate skills and education based on job title (only on first generation)
       if (!forceUpdate) {
-        const { skills, education } = getJobTitleDefaults(jobTitle);
+        const { skills: titleSkills, education } = getJobTitleDefaults(jobTitle);
+        const { responsibilities: titleResponsibilities, requirements: titleRequirements } = getJobTitleResponsibilitiesAndRequirements(jobTitle);
+        
+        // Combine parsed skills with title-based skills, prioritizing parsed skills
+        const combinedSkills = [...new Set([...parsedSkills, ...titleSkills])].slice(0, 12);
+        
         if (jobData.skills.length === 0 || jobData.skills.every(skill => ['AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux', 'Python', 'SQL', 'Version control'].includes(skill))) {
-          updateJobData('skills', skills);
+          updateJobData('skills', combinedSkills);
         }
         if (jobData.educationLevel === "Bachelor's degree") {
           updateJobData('educationLevel', education);
         }
+        
+        // Auto-populate responsibilities and requirements if they're empty
+        if (jobData.responsibilities.length === 0) {
+          updateJobData('responsibilities', titleResponsibilities);
+        }
+        if (jobData.requirements.length === 0) {
+          updateJobData('requirements', titleRequirements);
+        }
+      } else {
+        // For force updates, also update skills from the new description
+        const currentSkills = jobData.skills;
+        const newParsedSkills = parseSkillsFromJobDescription(description, jobTitle);
+        const mergedSkills = [...new Set([...currentSkills, ...newParsedSkills])].slice(0, 15);
+        updateJobData('skills', mergedSkills);
       }
       
       setNotification({
@@ -431,6 +520,365 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     } finally {
       setIsGeneratingDescription(false);
     }
+  };
+
+  // Enhanced skill parsing from job description
+  const parseSkillsFromJobDescription = (jobDescription: string, jobTitle: string = ''): string[] => {
+    if (!jobDescription) return [];
+    
+    const text = (jobDescription + ' ' + jobTitle).toLowerCase();
+    const extractedSkills = new Set<string>();
+    
+    // Comprehensive skill database with variations
+    const skillDatabase = {
+      // Programming Languages
+      'javascript': ['javascript', 'js', 'node.js', 'nodejs', 'react', 'vue', 'angular'],
+      'python': ['python', 'django', 'flask', 'fastapi', 'pandas', 'numpy', 'scipy'],
+      'java': ['java', 'spring', 'hibernate', 'maven', 'gradle'],
+      'typescript': ['typescript', 'ts'],
+      'c#': ['c#', 'csharp', '.net', 'dotnet', 'asp.net'],
+      'php': ['php', 'laravel', 'symfony', 'codeigniter'],
+      'ruby': ['ruby', 'rails', 'ruby on rails'],
+      'go': ['golang', 'go'],
+      'rust': ['rust'],
+      'kotlin': ['kotlin'],
+      'swift': ['swift', 'ios'],
+      'scala': ['scala'],
+      'r': [' r ', 'r programming'],
+      'matlab': ['matlab'],
+      'perl': ['perl'],
+      'shell': ['bash', 'shell', 'powershell', 'zsh'],
+      
+      // Frontend Technologies
+      'react': ['react', 'reactjs', 'react.js', 'jsx'],
+      'angular': ['angular', 'angularjs'],
+      'vue.js': ['vue', 'vuejs', 'vue.js'],
+      'html': ['html', 'html5'],
+      'css': ['css', 'css3', 'scss', 'sass', 'less'],
+      'bootstrap': ['bootstrap'],
+      'tailwind css': ['tailwind', 'tailwindcss'],
+      'material-ui': ['material-ui', 'mui'],
+      'jquery': ['jquery'],
+      
+      // Backend Technologies
+      'node.js': ['node', 'nodejs', 'node.js', 'express'],
+      'express.js': ['express', 'expressjs'],
+      'django': ['django'],
+      'flask': ['flask'],
+      'spring boot': ['spring boot', 'springboot'],
+      'laravel': ['laravel'],
+      'rails': ['rails', 'ruby on rails'],
+      
+      // Databases
+      'mysql': ['mysql'],
+      'postgresql': ['postgresql', 'postgres'],
+      'mongodb': ['mongodb', 'mongo'],
+      'redis': ['redis'],
+      'elasticsearch': ['elasticsearch', 'elastic search'],
+      'oracle': ['oracle db', 'oracle database'],
+      'sql server': ['sql server', 'mssql'],
+      'sqlite': ['sqlite'],
+      'cassandra': ['cassandra'],
+      'dynamodb': ['dynamodb'],
+      
+      // Cloud Platforms
+      'aws': ['aws', 'amazon web services', 'ec2', 's3', 'lambda', 'rds', 'cloudformation'],
+      'azure': ['azure', 'microsoft azure'],
+      'gcp': ['gcp', 'google cloud', 'google cloud platform'],
+      'docker': ['docker', 'containerization'],
+      'kubernetes': ['kubernetes', 'k8s'],
+      
+      // DevOps & Tools
+      'git': ['git', 'github', 'gitlab', 'bitbucket'],
+      'jenkins': ['jenkins'],
+      'ci/cd': ['ci/cd', 'continuous integration', 'continuous deployment'],
+      'terraform': ['terraform'],
+      'ansible': ['ansible'],
+      'puppet': ['puppet'],
+      'chef': ['chef'],
+      
+      // Testing
+      'jest': ['jest'],
+      'cypress': ['cypress'],
+      'selenium': ['selenium'],
+      'junit': ['junit'],
+      'pytest': ['pytest'],
+      'mocha': ['mocha'],
+      'jasmine': ['jasmine'],
+      
+      // Data Science & Analytics
+      'machine learning': ['machine learning', 'ml', 'artificial intelligence', 'ai'],
+      'deep learning': ['deep learning', 'neural networks'],
+      'tensorflow': ['tensorflow'],
+      'pytorch': ['pytorch'],
+      'pandas': ['pandas'],
+      'numpy': ['numpy'],
+      'scikit-learn': ['scikit-learn', 'sklearn'],
+      'tableau': ['tableau'],
+      'power bi': ['power bi', 'powerbi'],
+      'spark': ['apache spark', 'spark'],
+      'hadoop': ['hadoop'],
+      
+      // Mobile Development
+      'react native': ['react native'],
+      'flutter': ['flutter'],
+      'android': ['android'],
+      'ios': ['ios', 'swift'],
+      'xamarin': ['xamarin'],
+      
+      // Design
+      'figma': ['figma'],
+      'sketch': ['sketch'],
+      'adobe xd': ['adobe xd', 'xd'],
+      'photoshop': ['photoshop'],
+      'illustrator': ['illustrator'],
+      'ui/ux': ['ui/ux', 'ui', 'ux', 'user experience', 'user interface'],
+      
+      // Project Management
+      'agile': ['agile', 'scrum', 'kanban'],
+      'jira': ['jira'],
+      'trello': ['trello'],
+      'asana': ['asana'],
+      'confluence': ['confluence'],
+      
+      // Business Skills
+      'excel': ['excel', 'microsoft excel'],
+      'powerpoint': ['powerpoint', 'ppt'],
+      'word': ['microsoft word', 'ms word'],
+      'salesforce': ['salesforce', 'crm'],
+      'sap': ['sap'],
+      'erp': ['erp'],
+      
+      // Soft Skills
+      'communication': ['communication', 'verbal communication', 'written communication'],
+      'leadership': ['leadership', 'team lead', 'team management'],
+      'problem solving': ['problem solving', 'analytical thinking'],
+      'teamwork': ['teamwork', 'collaboration', 'team player'],
+      'project management': ['project management', 'pmp']
+    };
+    
+    // Extract skills using pattern matching
+    Object.entries(skillDatabase).forEach(([skill, variations]) => {
+      variations.forEach(variation => {
+        const pattern = new RegExp(`\\b${variation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+        if (pattern.test(text)) {
+          extractedSkills.add(skill);
+        }
+      });
+    });
+    
+    // Additional pattern-based extraction for common skill formats
+    const skillPatterns = [
+      /\b([A-Z][a-z]+(?:\.[a-z]+)+)\b/g, // Framework patterns like React.js, Vue.js
+      /\b([A-Z]{2,})\b/g, // Acronyms like AWS, API, SQL
+      /\b(\w+(?:-\w+)+)\b/g, // Hyphenated skills like machine-learning
+    ];
+    
+    skillPatterns.forEach(pattern => {
+      const matches = text.match(pattern);
+      if (matches) {
+        matches.forEach(match => {
+          const cleanMatch = match.toLowerCase().trim();
+          if (cleanMatch.length > 2 && cleanMatch.length < 30) {
+            // Check if it's a known skill or technology
+            const knownTechTerms = ['api', 'sql', 'xml', 'json', 'rest', 'soap', 'mvc', 'orm', 'ide', 'sdk', 'cli'];
+            if (knownTechTerms.includes(cleanMatch) || 
+                Object.values(skillDatabase).flat().includes(cleanMatch)) {
+              extractedSkills.add(cleanMatch.toUpperCase());
+            }
+          }
+        });
+      }
+    });
+    
+    // Convert to proper case and filter
+    const finalSkills = Array.from(extractedSkills)
+      .map(skill => {
+        // Proper case conversion
+        if (skill === 'javascript') return 'JavaScript';
+        if (skill === 'typescript') return 'TypeScript';
+        if (skill === 'node.js') return 'Node.js';
+        if (skill === 'react') return 'React';
+        if (skill === 'angular') return 'Angular';
+        if (skill === 'vue.js') return 'Vue.js';
+        if (skill === 'python') return 'Python';
+        if (skill === 'java') return 'Java';
+        if (skill === 'c#') return 'C#';
+        if (skill === 'aws') return 'AWS';
+        if (skill === 'azure') return 'Azure';
+        if (skill === 'docker') return 'Docker';
+        if (skill === 'kubernetes') return 'Kubernetes';
+        if (skill === 'git') return 'Git';
+        if (skill === 'mysql') return 'MySQL';
+        if (skill === 'postgresql') return 'PostgreSQL';
+        if (skill === 'mongodb') return 'MongoDB';
+        if (skill === 'machine learning') return 'Machine Learning';
+        if (skill === 'ui/ux') return 'UI/UX Design';
+        
+        // Default: capitalize first letter
+        return skill.charAt(0).toUpperCase() + skill.slice(1);
+      })
+      .filter(skill => skill.length > 1)
+      .slice(0, 15); // Limit to top 15 skills
+    
+    return finalSkills;
+  };
+
+  // Get default responsibilities and requirements based on job title
+  const getJobTitleResponsibilitiesAndRequirements = (jobTitle: string) => {
+    const title = jobTitle.toLowerCase();
+    
+    if (title.includes('software') && (title.includes('developer') || title.includes('engineer'))) {
+      return {
+        responsibilities: [
+          'Design, develop, and maintain high-quality software applications',
+          'Collaborate with cross-functional teams to define and implement new features',
+          'Write clean, maintainable, and efficient code following best practices',
+          'Participate in code reviews and provide constructive feedback to team members'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Computer Science, Engineering, or related field',
+          'Proficiency in programming languages such as Java, Python, or JavaScript',
+          'Experience with software development methodologies and version control systems',
+          'Strong problem-solving skills and attention to detail'
+        ]
+      };
+    }
+    
+    if (title.includes('data') && (title.includes('scientist') || title.includes('analyst'))) {
+      return {
+        responsibilities: [
+          'Analyze large datasets to identify trends, patterns, and business insights',
+          'Develop and implement statistical models and machine learning algorithms',
+          'Create data visualizations and reports to communicate findings to stakeholders',
+          'Collaborate with business teams to understand requirements and provide data-driven solutions'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Statistics, Mathematics, Computer Science, or related field',
+          'Proficiency in data analysis tools such as Python, R, SQL, or similar',
+          'Experience with data visualization tools like Tableau, Power BI, or similar',
+          'Strong analytical and problem-solving skills with attention to detail'
+        ]
+      };
+    }
+    
+    if (title.includes('marketing')) {
+      return {
+        responsibilities: [
+          'Develop and execute comprehensive marketing strategies and campaigns',
+          'Analyze market trends and customer behavior to identify opportunities',
+          'Manage social media presence and create engaging content across platforms',
+          'Collaborate with sales teams to generate leads and support business growth'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Marketing, Communications, or related field',
+          'Experience with digital marketing tools and platforms (Google Analytics, social media)',
+          'Strong written and verbal communication skills',
+          'Creative thinking and ability to work in a fast-paced environment'
+        ]
+      };
+    }
+    
+    if (title.includes('sales')) {
+      return {
+        responsibilities: [
+          'Identify and pursue new business opportunities and potential clients',
+          'Build and maintain strong relationships with existing and prospective customers',
+          'Present products and services to clients and negotiate contracts',
+          'Meet and exceed sales targets while providing excellent customer service'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Business, Sales, or related field',
+          'Proven track record in sales with strong negotiation skills',
+          'Excellent communication and interpersonal skills',
+          'Self-motivated with ability to work independently and as part of a team'
+        ]
+      };
+    }
+    
+    if (title.includes('project manager') || title.includes('program manager')) {
+      return {
+        responsibilities: [
+          'Plan, execute, and deliver projects on time and within budget',
+          'Coordinate cross-functional teams and manage project resources effectively',
+          'Monitor project progress and communicate status updates to stakeholders',
+          'Identify and mitigate project risks while ensuring quality deliverables'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Business, Engineering, or related field',
+          'PMP certification or equivalent project management experience',
+          'Strong organizational and leadership skills',
+          'Proficiency in project management tools and methodologies'
+        ]
+      };
+    }
+    
+    if (title.includes('hr') || title.includes('human resources')) {
+      return {
+        responsibilities: [
+          'Manage recruitment and selection processes for various positions',
+          'Develop and implement HR policies and procedures',
+          'Handle employee relations, performance management, and conflict resolution',
+          'Ensure compliance with employment laws and company policies'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Human Resources, Psychology, or related field',
+          'Knowledge of employment laws and HR best practices',
+          'Strong interpersonal and communication skills',
+          'Experience with HRIS systems and HR analytics'
+        ]
+      };
+    }
+    
+    if (title.includes('accountant') || title.includes('accounting')) {
+      return {
+        responsibilities: [
+          'Prepare and maintain accurate financial records and statements',
+          'Process accounts payable and receivable transactions',
+          'Assist with budget preparation and financial analysis',
+          'Ensure compliance with accounting standards and tax regulations'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Accounting, Finance, or related field',
+          'Knowledge of accounting principles and financial reporting standards',
+          'Proficiency in accounting software and Microsoft Excel',
+          'Strong attention to detail and analytical skills'
+        ]
+      };
+    }
+    
+    if (title.includes('designer') || title.includes('ui') || title.includes('ux')) {
+      return {
+        responsibilities: [
+          'Create user-centered designs for web and mobile applications',
+          'Conduct user research and usability testing to inform design decisions',
+          'Develop wireframes, prototypes, and high-fidelity mockups',
+          'Collaborate with developers and product managers to implement designs'
+        ],
+        requirements: [
+          'Bachelor\'s degree in Design, HCI, or related field',
+          'Proficiency in design tools such as Figma, Sketch, or Adobe Creative Suite',
+          'Strong portfolio demonstrating UI/UX design skills',
+          'Understanding of user-centered design principles and methodologies'
+        ]
+      };
+    }
+    
+    // Default for other roles
+    return {
+      responsibilities: [
+        'Execute daily tasks and responsibilities according to company standards',
+        'Collaborate effectively with team members and stakeholders',
+        'Contribute to process improvements and operational efficiency',
+        'Maintain professional development and stay current with industry trends'
+      ],
+      requirements: [
+        'Bachelor\'s degree or equivalent experience in relevant field',
+        'Strong communication and interpersonal skills',
+        'Ability to work independently and manage multiple priorities',
+        'Proficiency in relevant tools and technologies for the role'
+      ]
+    };
   };
 
   // Get default skills and education based on job title
@@ -522,6 +970,155 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     setShowSkillSuggestions(false);
   };
 
+  // Smart skill search in job description
+  const findSkillInJobDescription = (searchSkill: string): string[] => {
+    if (!jobData.jobDescription) return [];
+    
+    const jdText = jobData.jobDescription.toLowerCase();
+    const searchTerm = searchSkill.toLowerCase();
+    const foundSkills = new Set<string>();
+    
+    // Skill mapping for better detection
+    const skillMappings: { [key: string]: string[] } = {
+      'react': ['react', 'reactjs', 'react.js', 'jsx', 'react native'],
+      'angular': ['angular', 'angularjs', 'angular 2+', 'typescript'],
+      'vue': ['vue', 'vuejs', 'vue.js', 'nuxt'],
+      'node': ['node', 'nodejs', 'node.js', 'express', 'npm'],
+      'python': ['python', 'django', 'flask', 'fastapi', 'pandas', 'numpy'],
+      'java': ['java', 'spring', 'spring boot', 'hibernate', 'maven'],
+      'javascript': ['javascript', 'js', 'es6', 'es2015', 'jquery'],
+      'typescript': ['typescript', 'ts'],
+      'aws': ['aws', 'amazon web services', 'ec2', 's3', 'lambda', 'cloudformation'],
+      'azure': ['azure', 'microsoft azure', 'azure functions'],
+      'docker': ['docker', 'containerization', 'containers'],
+      'kubernetes': ['kubernetes', 'k8s', 'container orchestration'],
+      'git': ['git', 'github', 'gitlab', 'version control'],
+      'sql': ['sql', 'mysql', 'postgresql', 'database'],
+      'mongodb': ['mongodb', 'mongo', 'nosql'],
+      'redis': ['redis', 'caching'],
+      'graphql': ['graphql', 'apollo'],
+      'rest': ['rest', 'restful', 'api'],
+      'microservices': ['microservices', 'microservice architecture'],
+      'agile': ['agile', 'scrum', 'kanban'],
+      'ci/cd': ['ci/cd', 'continuous integration', 'continuous deployment', 'jenkins'],
+      'testing': ['testing', 'unit testing', 'integration testing', 'jest', 'cypress'],
+      'machine learning': ['machine learning', 'ml', 'ai', 'artificial intelligence'],
+      'data science': ['data science', 'data analysis', 'analytics'],
+      'devops': ['devops', 'infrastructure', 'deployment'],
+      'linux': ['linux', 'unix', 'bash', 'shell'],
+      'windows': ['windows', 'powershell'],
+      'mobile': ['mobile', 'ios', 'android', 'react native', 'flutter'],
+      'frontend': ['frontend', 'front-end', 'ui', 'user interface'],
+      'backend': ['backend', 'back-end', 'server-side'],
+      'fullstack': ['fullstack', 'full-stack', 'full stack']
+    };
+    
+    // Check if the search term or its variations exist in JD
+    const variations = skillMappings[searchTerm] || [searchTerm];
+    
+    variations.forEach(variation => {
+      const regex = new RegExp(`\\b${variation.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'gi');
+      if (regex.test(jdText)) {
+        // Add the properly formatted skill name
+        const properSkillName = formatSkillName(variation);
+        foundSkills.add(properSkillName);
+      }
+    });
+    
+    // Also run the comprehensive parsing to find related skills
+    const allParsedSkills = parseSkillsFromJobDescription(jobData.jobDescription, jobData.jobTitle);
+    
+    // Filter parsed skills that are related to the search term
+    allParsedSkills.forEach(skill => {
+      const skillLower = skill.toLowerCase();
+      if (skillLower.includes(searchTerm) || searchTerm.includes(skillLower)) {
+        foundSkills.add(skill);
+      }
+    });
+    
+    return Array.from(foundSkills);
+  };
+  
+  // Format skill names properly
+  const formatSkillName = (skill: string): string => {
+    const skillFormatting: { [key: string]: string } = {
+      'javascript': 'JavaScript',
+      'typescript': 'TypeScript',
+      'nodejs': 'Node.js',
+      'node.js': 'Node.js',
+      'reactjs': 'React',
+      'react.js': 'React',
+      'vuejs': 'Vue.js',
+      'vue.js': 'Vue.js',
+      'angularjs': 'Angular',
+      'mysql': 'MySQL',
+      'postgresql': 'PostgreSQL',
+      'mongodb': 'MongoDB',
+      'aws': 'AWS',
+      'gcp': 'GCP',
+      'ui/ux': 'UI/UX Design',
+      'ci/cd': 'CI/CD',
+      'api': 'API',
+      'rest': 'REST API',
+      'graphql': 'GraphQL',
+      'html': 'HTML',
+      'css': 'CSS',
+      'sql': 'SQL'
+    };
+    
+    const lowerSkill = skill.toLowerCase();
+    return skillFormatting[lowerSkill] || skill.charAt(0).toUpperCase() + skill.slice(1);
+  };
+  
+  // Enhanced skill addition with JD parsing
+  const addSkillWithParsing = (inputSkill: string) => {
+    const trimmedSkill = inputSkill.trim();
+    if (!trimmedSkill) return;
+    
+    // First, add the manually entered skill if it's not already there
+    const formattedSkill = formatSkillName(trimmedSkill);
+    const currentSkills = [...jobData.skills];
+    
+    // Check if skill already exists to prevent duplicates
+    if (currentSkills.includes(formattedSkill)) {
+      setSkillInput('');
+      setShowSkillSuggestions(false);
+      return;
+    }
+    
+    currentSkills.push(formattedSkill);
+    
+    // Then, search for related skills in the job description
+    const foundSkills = findSkillInJobDescription(trimmedSkill);
+    
+    // Add found skills that aren't already in the list
+    const newSkills = foundSkills.filter(skill => !currentSkills.includes(skill));
+    
+    if (newSkills.length > 0) {
+      const updatedSkills = [...currentSkills, ...newSkills].slice(0, 15); // Limit to 15 skills
+      updateJobData('skills', updatedSkills);
+      
+      setNotification({
+        type: 'success',
+        message: `Added "${formattedSkill}" and found ${newSkills.length} related skills from JD: ${newSkills.join(', ')} 🎯`,
+        isVisible: true
+      });
+    } else {
+      updateJobData('skills', currentSkills);
+      
+      if (jobData.jobDescription) {
+        setNotification({
+          type: 'info',
+          message: `Added "${formattedSkill}" - no additional related skills found in JD`,
+          isVisible: true
+        });
+      }
+    }
+    
+    setSkillInput('');
+    setShowSkillSuggestions(false);
+  };
+
   const searchCompanies = (query: string) => {
     if (query.length < 2) {
       setCompanySearchResults([]);
@@ -574,15 +1171,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         if (languages.length === 0) return { isValid: false, message: 'At least one language is required' };
         break;
       case 2:
-        if (!jobData.hiringTimeline.trim()) return { isValid: false, message: 'Hiring timeline is required' };
-        if (!jobData.numberOfPeople || jobData.numberOfPeople <= 0) return { isValid: false, message: 'Number of people to hire is required' };
+        // Step 2 is removed - no validation needed
         break;
       case 3:
         if (jobData.jobType.length === 0) return { isValid: false, message: 'At least one job type is required' };
         break;
       case 4:
-        if (!jobData.minSalary.trim()) return { isValid: false, message: 'Minimum salary is required' };
-        if (!jobData.maxSalary.trim()) return { isValid: false, message: 'Maximum salary is required' };
+        // Salary section is now optional
         break;
       case 5:
         if (jobData.skills.length === 0) return { isValid: false, message: 'At least one skill is required' };
@@ -607,32 +1202,38 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       return;
     }
     
-    if (currentStep < 7) {
+    // Skip step 2 - go directly from step 1 to step 3
+    if (currentStep === 1) {
+      setCurrentStep(3);
+    } else if (currentStep < 7) {
       setCurrentStep(currentStep + 1);
     }
+    
+    // Scroll to top smoothly when moving to next step
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const prevStep = () => {
-    if (currentStep > 1) {
+    // Skip step 2 - go directly from step 3 to step 1
+    if (currentStep === 3) {
+      setCurrentStep(1);
+    } else if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     }
+    
+    // Scroll to top smoothly when moving to previous step
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
 
   const renderStep1 = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <div className="text-center mb-8">
-        <div className="flex justify-between items-center">
-          <BackButton 
-            onClick={() => mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}
-            text={mode === 'parse' ? 'Back to Parser' : 'Back to Selection'}
-          />
-          <h1 className="text-3xl font-bold text-gray-800">
-            {mode === 'parse' ? 'Review Parsed Job' : 'Add job basics'}
-            {parsedData && <span className="text-sm text-green-600 ml-2">✨ AI Parsed</span>}
-          </h1>
-          <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">×</button>
-        </div>
+    <div className="px-6 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <BackButton 
+          onClick={() => mode === 'parse' ? onNavigate('job-parsing') : onNavigate('job-posting-selection')}
+          text={mode === 'parse' ? 'Back to Parser' : 'Back to Selection'}
+        />
+        <button onClick={() => onNavigate('dashboard')} className="text-gray-500 text-2xl hover:text-gray-700">×</button>
       </div>
       
       <div className="space-y-8">
@@ -1051,9 +1652,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   );
 
   const renderStep3 = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Add job details</h1>
-      
+    <div className="px-6 py-8">
       <div className="space-y-8">
         <div>
           <label className="block text-gray-700 font-medium mb-6">Job type *</label>
@@ -1101,13 +1700,31 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   );
 
   const renderStep4 = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Add pay and benefits</h1>
-      
+    <div className="px-6 py-8">
       <div className="space-y-8">
         <div>
-          <h3 className="text-gray-700 font-medium mb-2">Pay</h3>
-          <p className="text-gray-500 text-sm mb-6">Review the pay we estimated for your job and adjust as needed.</p>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-gray-700 font-medium">Pay (optional)</h3>
+            {salaryModified && (
+              <button
+                onClick={() => {
+                  updateJobData('minSalary', '');
+                  updateJobData('maxSalary', '');
+                  setSalaryModified(false);
+                  setNotification({
+                    type: 'info',
+                    message: 'Salary information cleared - job description will not include salary',
+                    isVisible: true
+                  });
+                }}
+                className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center space-x-1"
+              >
+                <span>×</span>
+                <span>Clear Salary</span>
+              </button>
+            )}
+          </div>
+          <p className="text-gray-500 text-sm mb-6">You can skip this section or add pay information to attract more candidates.</p>
           
           <div className="grid grid-cols-5 gap-4 items-end">
             <div>
@@ -1136,7 +1753,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <input
                 type="text"
                 value={jobData.minSalary}
-                onChange={(e) => updateJobData('minSalary', e.target.value)}
+                onChange={(e) => {
+                  updateJobData('minSalary', e.target.value);
+                  setSalaryModified(true);
+                }}
+                placeholder="e.g. 50,000"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -1150,7 +1771,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <input
                 type="text"
                 value={jobData.maxSalary}
-                onChange={(e) => updateJobData('maxSalary', e.target.value)}
+                onChange={(e) => {
+                  updateJobData('maxSalary', e.target.value);
+                  setSalaryModified(true);
+                }}
+                placeholder="e.g. 80,000"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -1167,6 +1792,23 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <option value="per month">per month</option>
               <option value="per hour">per hour</option>
             </select>
+          </div>
+          
+          {/* Salary Status Indicator */}
+          <div className="mt-4 p-3 rounded-lg border">
+            <div className="flex items-center space-x-2">
+              {salaryModified ? (
+                <>
+                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                  <span className="text-sm text-green-700 font-medium">Salary will be included in job description</span>
+                </>
+              ) : (
+                <>
+                  <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
+                  <span className="text-sm text-gray-600">Salary is optional - will show "Competitive salary" if not specified</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
         
@@ -1197,6 +1839,38 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             ))}
           </div>
         </div>
+        
+        <div>
+          <h3 className="text-gray-700 font-medium mb-3">Work Authorization Required</h3>
+          <div className="space-y-2">
+            {[
+              'US Citizen',
+              'Green Card Holder',
+              'H1B Visa',
+              'L1 Visa',
+              'OPT/CPT',
+              'TN Visa',
+              'No Sponsorship Required',
+              'Will Sponsor'
+            ].map((auth) => (
+              <label key={auth} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={(jobData.workAuth || []).includes(auth)}
+                  onChange={(e) => {
+                    const currentAuth = jobData.workAuth || [];
+                    const newAuth = e.target.checked
+                      ? [...currentAuth, auth]
+                      : currentAuth.filter(a => a !== auth);
+                    updateJobData('workAuth', newAuth);
+                  }}
+                  className="rounded"
+                />
+                <span className="text-gray-700">{auth}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
       
       <div className="flex justify-between items-center mt-12">
@@ -1219,13 +1893,31 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   );
 
   const renderQualifications = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Qualifications</h1>
-      
+    <div className="px-6 py-8">
       <div className="space-y-8">
         
         <div>
-          <h3 className="text-gray-700 font-medium mb-4">What skills should candidates have?</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-gray-700 font-medium">What skills should candidates have?</h3>
+            {jobData.jobDescription && (
+              <button
+                onClick={() => {
+                  const parsedSkills = parseSkillsFromJobDescription(jobData.jobDescription, jobData.jobTitle);
+                  const mergedSkills = [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15);
+                  updateJobData('skills', mergedSkills);
+                  setNotification({
+                    type: 'success',
+                    message: `Extracted ${parsedSkills.length} skills from job description! 🎯`,
+                    isVisible: true
+                  });
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-1 transition-colors"
+              >
+                <span>🎯</span>
+                <span>Extract from JD</span>
+              </button>
+            )}
+          </div>
           
           {/* Selected Skills */}
           <div className="flex flex-wrap gap-2 mb-4">
@@ -1252,7 +1944,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               onKeyPress={(e) => {
                 if (e.key === 'Enter' && skillInput.trim()) {
                   e.preventDefault();
-                  addSkill(skillInput.trim());
+                  addSkillWithParsing(skillInput.trim());
                 }
               }}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -1269,7 +1961,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
                   <button
                     key={index}
                     type="button"
-                    onClick={() => addSkill(skill)}
+                    onClick={() => addSkillWithParsing(skill)}
                     className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group"
                   >
                     <span>{skill}</span>
@@ -1372,9 +2064,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   );
 
   const renderJobDescription = () => (
-    <div className="max-w-4xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Describe the job</h1>
-      
+    <div className="px-6 py-8">
       <div className="space-y-6">
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -1529,9 +2219,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   );
 
   const renderStep7 = () => (
-    <div className="max-w-2xl mx-auto px-6 py-12">
-      <h1 className="text-3xl font-bold text-gray-800 mb-8">Review</h1>
-      
+    <div className="px-6 py-8">
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-800 mb-6">Job details</h2>
@@ -1553,20 +2241,23 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               </div>
             </div>
             
-            <div className="flex justify-between items-center py-3 border-b border-gray-200">
-              <span className="text-gray-600">Number of openings</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-800">{jobData.numberOfPeople}</span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+            {/* Only show number of openings if it's actually set and not 0 */}
+            {jobData.numberOfPeople > 0 && (
+              <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                <span className="text-gray-600">Number of openings</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800">{jobData.numberOfPeople}</span>
+                  <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                </div>
               </div>
-            </div>
+            )}
             
             <div className="flex justify-between items-center py-3 border-b border-gray-200">
               <span className="text-gray-600">Country and language</span>
               <div className="flex items-center space-x-2">
                 <div>
                   <div className="text-gray-800">{jobData.country}</div>
-                  <div className="text-gray-800">{jobData.language}</div>
+                  <div className="text-gray-800">{Array.isArray(jobData.language) ? jobData.language.join(', ') : jobData.language}</div>
                 </div>
                 <button className="text-blue-600 hover:text-blue-700">✏️</button>
               </div>
@@ -1588,23 +2279,29 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               </div>
             </div>
             
-            <div className="flex justify-between items-center py-3 border-b border-gray-200">
-              <span className="text-gray-600">Pay</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-800">
-                  ₹{jobData.minSalary} - ₹{jobData.maxSalary} {jobData.payRate}
-                </span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+            {/* Only show pay if user actually modified salary values */}
+            {salaryModified && jobData.minSalary && jobData.maxSalary && (
+              <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                <span className="text-gray-600">Pay</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800">
+                    ₹{jobData.minSalary} - ₹{jobData.maxSalary} {jobData.payRate}
+                  </span>
+                  <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                </div>
               </div>
-            </div>
+            )}
             
-            <div className="flex justify-between items-center py-3 border-b border-gray-200">
-              <span className="text-gray-600">Benefits</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-800">{jobData.benefits.join(', ')}</span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+            {/* Only show benefits if any are selected */}
+            {jobData.benefits.length > 0 && (
+              <div className="flex justify-between items-center py-3 border-b border-gray-200">
+                <span className="text-gray-600">Benefits</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-gray-800">{jobData.benefits.join(', ')}</span>
+                  <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                </div>
               </div>
-            </div>
+            )}
             
             <div className="flex justify-between items-start py-3">
               <span className="text-gray-600">Job description</span>
@@ -1673,6 +2370,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     // Get proper company logo
     const logoUrl = jobData.companyLogo || '/images/trinity-logo.webp';
     
+    // Check if salary should be included (only if user actually modified it)
+    const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
+    
     const jobPostData = {
       jobTitle: jobData.jobTitle,
       company: user?.companyName || jobData.companyName || 'Your Company',
@@ -1684,12 +2384,15 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,
       skills: jobData.skills,
       experienceLevel: mapExperienceLevel(jobData.experienceRange),
-      salary: {
-        min: parseInt(jobData.minSalary.replace(/,/g, '')) || 0,
-        max: parseInt(jobData.maxSalary.replace(/,/g, '')) || 0,
-        currency: 'INR',
-        period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
-      },
+      // Only include salary if user actually set custom values
+      ...(shouldIncludeSalary && {
+        salary: {
+          min: parseInt(jobData.minSalary.replace(/,/g, '')) || 0,
+          max: parseInt(jobData.maxSalary.replace(/,/g, '')) || 0,
+          currency: 'INR',
+          period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
+        }
+      }),
       benefits: jobData.benefits,
       // Use the currently logged-in user's email
       postedBy: user.email,
@@ -1740,15 +2443,15 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           jobCategory: '',
           priority: 'Medium',
           clientName: '',
-          jobCode: `JOB-${Date.now()}`,
+          jobCode: '', // Backend will generate this
           reportingManager: '',
           hiringTimeline: '',
           numberOfPeople: 0,
           workAuth: [],
           jobType: [],
           payType: 'Range',
-          minSalary: '50,000',
-          maxSalary: '80,000',
+          minSalary: '',
+          maxSalary: '',
           payRate: 'per year',
           currency: 'INR',
           benefits: [],
@@ -1795,8 +2498,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       });
     }
   };
-
-
 
   return (
     <>
@@ -1845,33 +2546,130 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       )}
       
       <div className="min-h-screen bg-white">
-        {/* Job Posting Limit Warning */}
-        {jobPostingCount >= 8 && jobPostingCount < 10 && (
-          <div className="bg-yellow-50 border-b border-yellow-200 px-6 py-4">
-            <div className="max-w-2xl mx-auto flex items-center justify-between">
-              <div className="flex items-center">
-                <span className="text-yellow-600 mr-2">⚠️</span>
-                <span className="text-yellow-800">
-                  You have {10 - jobPostingCount} free job posting{10 - jobPostingCount !== 1 ? 's' : ''} remaining.
-                </span>
+        {/* Fixed Header Section */}
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            {/* Progress Bar */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+                <span>Step {currentStep === 1 ? 1 : currentStep === 3 ? 2 : currentStep === 4 ? 3 : currentStep === 5 ? 4 : currentStep === 6 ? 5 : 6} of 6</span>
+                <span>{Math.round(((currentStep === 1 ? 1 : currentStep === 3 ? 2 : currentStep === 4 ? 3 : currentStep === 5 ? 4 : currentStep === 6 ? 5 : 6) / 6) * 100)}% Complete</span>
               </div>
-              <button
-                onClick={() => onNavigate('pricing')}
-                className="text-yellow-800 underline hover:text-yellow-900"
-              >
-                View Plans
-              </button>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div 
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${((currentStep === 1 ? 1 : currentStep === 3 ? 2 : currentStep === 4 ? 3 : currentStep === 5 ? 4 : currentStep === 6 ? 5 : 6) / 6) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <h1 className="text-3xl font-bold text-gray-800">
+                {currentStep === 1 && (mode === 'parse' ? 'Review Parsed Job' : 'Add job basics')}
+                {currentStep === 3 && 'Add job details'}
+                {currentStep === 4 && 'Add pay and benefits'}
+                {currentStep === 5 && 'Qualifications'}
+                {currentStep === 6 && 'Describe the job'}
+                {currentStep === 7 && 'Review'}
+              </h1>
+              {currentStep === 1 && parsedData && (
+                <span className="text-sm text-green-600 ml-2">✨ AI Parsed</span>
+              )}
             </div>
           </div>
-        )}
+        </div>
         
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
-        {currentStep === 5 && renderQualifications()}
-        {currentStep === 6 && renderJobDescription()}
-        {currentStep === 7 && renderStep7()}
+        {/* Step Content */}
+        <div className="flex max-w-6xl mx-auto">
+          {/* Main Content */}
+          <div className="flex-1">
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 3 && renderStep3()}
+            {currentStep === 4 && renderStep4()}
+            {currentStep === 5 && renderQualifications()}
+            {currentStep === 6 && renderJobDescription()}
+            {currentStep === 7 && renderStep7()}
+          </div>
+          
+          {/* Sidebar with Tips */}
+          <div className="w-80 bg-gray-50 border-l border-gray-200 p-6">
+            <div className="sticky top-32">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">💡 Tips & Help</h3>
+              
+              {currentStep === 1 && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Job Title Tips</h4>
+                    <p className="text-sm text-gray-600">Use specific, clear job titles. Avoid internal jargon or abbreviations.</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Location Best Practices</h4>
+                    <p className="text-sm text-gray-600">Be specific about location requirements. Remote work attracts 3x more candidates.</p>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 3 && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Job Type Impact</h4>
+                    <p className="text-sm text-gray-600">Full-time positions get 40% more applications than part-time roles.</p>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 4 && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Salary Transparency</h4>
+                    <p className="text-sm text-gray-600">Jobs with salary ranges get 30% more applications and higher quality candidates.</p>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Benefits Matter</h4>
+                    <p className="text-sm text-gray-600">Health insurance and visa sponsorship are top priorities for candidates.</p>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 5 && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Skills Selection</h4>
+                    <p className="text-sm text-gray-600">List 5-8 key skills. Too many requirements can discourage qualified candidates.</p>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 6 && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Description Length</h4>
+                    <p className="text-sm text-gray-600">Optimal job descriptions are 300-600 words. Too long descriptions reduce applications by 25%.</p>
+                  </div>
+                </div>
+              )}
+              
+              {currentStep === 7 && (
+                <div className="space-y-4">
+                  <div className="bg-white p-4 rounded-lg border">
+                    <h4 className="font-medium text-gray-800 mb-2">Final Check</h4>
+                    <p className="text-sm text-gray-600">Review all details carefully. You can edit the job after posting.</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Quick Stats */}
+              <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-800 mb-2">📊 Quick Stats</h4>
+                <div className="space-y-2 text-sm text-blue-700">
+                  <div>• Average time to hire: 23 days</div>
+                  <div>• Jobs with salary: +30% applications</div>
+                  <div>• Remote jobs: +200% reach</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </>
   );

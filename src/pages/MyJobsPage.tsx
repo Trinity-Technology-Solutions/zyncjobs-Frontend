@@ -294,10 +294,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <MapPin className="w-4 h-4 text-gray-600" />
               <span className="text-sm font-medium text-gray-700">{job.location}</span>
             </div>
-            <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-              <DollarSign className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
-            </div>
+            {formatSalary(job.salary) && (
+              <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
+                <DollarSign className="w-4 h-4 text-green-600" />
+                <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+              </div>
+            )}
             <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
               <Briefcase className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-700">{job.type}</span>
@@ -314,8 +316,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500 mb-3">
               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                 <span className="font-semibold text-blue-900">Description: </span>
-                {job.description && job.description.length > 150 
-                  ? `${formatJobDescription(job.description.substring(0, 150), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
+                {job.description && job.description.length > 300 
+                  ? `${formatJobDescription(job.description.substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
                   : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
               </p>
             </div>
@@ -696,10 +698,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 <MapPin className="w-4 h-4 text-gray-600" />
                                 <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
                               </div>
-                              <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                                <DollarSign className="w-4 h-4 text-green-600" />
-                                <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary) || 'Competitive'}</span>
-                              </div>
+                              {formatSalary(application.jobId?.salary) && (
+                                <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
+                                  <DollarSign className="w-4 h-4 text-green-600" />
+                                  <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary)}</span>
+                                </div>
+                              )}
                               <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
                                 <Briefcase className="w-4 h-4 text-blue-600" />
                                 <span className="text-sm font-medium text-blue-700">{application.jobId?.type || 'Full-time'}</span>
