@@ -130,7 +130,14 @@ export const accountAPI = {
       'token',
       'accessToken',
       'refreshToken',
-      'authToken'
+      'authToken',
+      'selectedJob',
+      'companyLogo',
+      'companyName',
+      'employerName',
+      'userType',
+      'dashboardStats',
+      'recentActivity'
     ];
     
     itemsToRemove.forEach(item => {
@@ -139,6 +146,9 @@ export const accountAPI = {
     
     // Clear everything as fallback
     localStorage.clear();
+    
+    // Clear session storage as well
+    sessionStorage.clear();
     
     console.log('✅ User data cleared');
   }

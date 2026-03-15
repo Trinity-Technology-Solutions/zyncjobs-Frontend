@@ -19,7 +19,11 @@ export const PERMISSIONS = {
   // Candidate permissions
   APPLY_JOBS: 'apply_jobs',
   VIEW_JOBS: 'view_jobs',
-  MANAGE_PROFILE: 'manage_profile'
+  MANAGE_PROFILE: 'manage_profile',
+  USE_RESUME_BUILDER: 'use_resume_builder',
+  TAKE_SKILL_ASSESSMENT: 'take_skill_assessment',
+  USE_RESUME_PARSER: 'use_resume_parser',
+  ACCESS_CAREER_COACH: 'access_career_coach'
 } as const;
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
@@ -34,7 +38,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     PERMISSIONS.VIEW_APPLICANTS,
     PERMISSIONS.APPLY_JOBS,
     PERMISSIONS.VIEW_JOBS,
-    PERMISSIONS.MANAGE_PROFILE
+    PERMISSIONS.MANAGE_PROFILE,
+    PERMISSIONS.USE_RESUME_BUILDER,
+    PERMISSIONS.TAKE_SKILL_ASSESSMENT,
+    PERMISSIONS.USE_RESUME_PARSER,
+    PERMISSIONS.ACCESS_CAREER_COACH
   ],
   employer: [
     PERMISSIONS.POST_JOBS,
@@ -46,7 +54,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   candidate: [
     PERMISSIONS.APPLY_JOBS,
     PERMISSIONS.VIEW_JOBS,
-    PERMISSIONS.MANAGE_PROFILE
+    PERMISSIONS.MANAGE_PROFILE,
+    PERMISSIONS.USE_RESUME_BUILDER,
+    PERMISSIONS.TAKE_SKILL_ASSESSMENT,
+    PERMISSIONS.USE_RESUME_PARSER,
+    PERMISSIONS.ACCESS_CAREER_COACH
   ],
   moderator: [
     PERMISSIONS.MODERATE_CONTENT,
@@ -74,7 +86,11 @@ export const canAccess = (userRole: UserRole, feature: string): boolean => {
     'company-management': [PERMISSIONS.MANAGE_COMPANIES],
     'analytics': [PERMISSIONS.VIEW_ANALYTICS],
     'ai-scoring-demo': [PERMISSIONS.VIEW_ANALYTICS],
-    'settings': [PERMISSIONS.MANAGE_USERS]
+    'settings': [PERMISSIONS.MANAGE_USERS],
+    'resume-builder': [PERMISSIONS.USE_RESUME_BUILDER],
+    'skill-assessment': [PERMISSIONS.TAKE_SKILL_ASSESSMENT],
+    'resume-parser': [PERMISSIONS.USE_RESUME_PARSER],
+    'career-coach': [PERMISSIONS.ACCESS_CAREER_COACH]
   };
   
   const requiredPermissions = accessMap[feature] || [];
@@ -114,6 +130,10 @@ export const getAvailableActions = (userRole: UserRole) => {
     canApplyJobs: permissions.includes(PERMISSIONS.APPLY_JOBS),
     canModerateContent: permissions.includes(PERMISSIONS.MODERATE_CONTENT),
     canViewAnalytics: permissions.includes(PERMISSIONS.VIEW_ANALYTICS),
-    canManageUserStatus: permissions.includes(PERMISSIONS.MANAGE_USER_STATUS)
+    canManageUserStatus: permissions.includes(PERMISSIONS.MANAGE_USER_STATUS),
+    canUseResumeBuilder: permissions.includes(PERMISSIONS.USE_RESUME_BUILDER),
+    canTakeSkillAssessment: permissions.includes(PERMISSIONS.TAKE_SKILL_ASSESSMENT),
+    canUseResumeParser: permissions.includes(PERMISSIONS.USE_RESUME_PARSER),
+    canAccessCareerCoach: permissions.includes(PERMISSIONS.ACCESS_CAREER_COACH)
   };
 };

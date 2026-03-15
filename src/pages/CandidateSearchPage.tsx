@@ -492,20 +492,39 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                       </button>
                       <button onClick={() => {
                         const userData = JSON.parse(localStorage.getItem('user') || '{}');
-                        const candidateData = {
+                        const token = localStorage.getItem('token');
+                        
+                        console.log('Save candidate clicked:', {
                           candidateId: candidate._id,
                           candidateName: getCandidateName(candidate),
-                          candidateTitle: candidate.title || 'Professional',
-                          candidateLocation: getCandidateLocation(candidate),
-                          candidateExperience: candidate.experience || '2+ years',
-                          candidateEmail: candidate.email,
-                          candidateSkills: getCandidateSkills(candidate),
-                          candidatePhoto: candidate.profilePhoto,
+                          hasToken: !!token,
+                          userData: userData
+                        });
+                        
+                        if (!token) {
+                          alert('Please login to save candidates');
+                          setOpenContactMenu(null);
+                          return;
+                        }
+                        
+                        const candidateData = {
+                          _id: candidate._id,
+                          candidateId: candidate._id,
+                          fullName: getCandidateName(candidate),
+                          name: getCandidateName(candidate),
+                          title: candidate.title || candidate.jobTitle || 'Professional',
+                          location: getCandidateLocation(candidate),
+                          experience: candidate.experience || '2+ years',
+                          email: candidate.email,
+                          skills: getCandidateSkills(candidate),
+                          profilePhoto: candidate.profilePhoto,
                           companyName: userData.company || userData.companyName || 'Company',
-                          companyLogo: userData.companyLogo || ''
+                          companyLogo: userData.companyLogo || '',
+                          savedAt: new Date().toISOString()
                         };
                         
-                        const token = localStorage.getItem('token');
+                        console.log('Sending candidate data:', candidateData);
+                        console.log('API endpoint:', API_ENDPOINTS.SAVED_CANDIDATES);
                         
                         fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
                           method: 'POST',
@@ -516,6 +535,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                           body: JSON.stringify(candidateData)
                         })
                         .then(res => {
+                          console.log('Save candidate response:', res.status, res.statusText);
                           if (res.status === 409) {
                             // Already saved, remove it
                             return fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidate._id}`, {
@@ -528,13 +548,18 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                             });
                           } else if (res.ok) {
                             alert('Candidate saved successfully! View in Employer Dashboard > Saved Candidates');
+                            // Trigger a custom event to refresh dashboard
+                            window.dispatchEvent(new CustomEvent('candidateSaved', { detail: candidateData }));
                           } else {
-                            throw new Error('Failed to save candidate');
+                            return res.text().then(text => {
+                              console.error('Save candidate error response:', text);
+                              throw new Error(`Failed to save candidate: ${res.status} ${text}`);
+                            });
                           }
                         })
                         .catch(err => {
                           console.error('Error saving candidate:', err);
-                          alert('Failed to save candidate. Please try again.');
+                          alert(`Failed to save candidate: ${err.message}. Please try again.`);
                         });
                         setOpenContactMenu(null);
                       }} className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm transition-colors flex items-center space-x-2">

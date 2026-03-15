@@ -1,6 +1,7 @@
 import React from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import RoleGuard from '../components/RoleGuard';
 
 interface AIResumeBuilderPageProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -10,7 +11,22 @@ interface AIResumeBuilderPageProps {
 
 const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, user, onLogout }) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+    <RoleGuard 
+      userRole={user?.type || 'candidate'} 
+      requiredFeature="resume-builder"
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Restricted</h1>
+            <p className="text-gray-600 mb-6">This feature is only available to job seekers.</p>
+            <button onClick={() => onNavigate && onNavigate('home')} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+              Go Home
+            </button>
+          </div>
+        </div>
+      }
+    >
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -108,8 +124,9 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
         </div>
       </div>
       
-      <Footer onNavigate={onNavigate} user={user} />
-    </div>
+        <Footer onNavigate={onNavigate} user={user} />
+      </div>
+    </RoleGuard>
   );
 };
 
