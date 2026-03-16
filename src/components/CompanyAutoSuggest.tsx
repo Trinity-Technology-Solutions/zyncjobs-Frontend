@@ -56,7 +56,7 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       { id: '3', name: 'Microsoft', logo: 'https://logo.clearbit.com/microsoft.com', followers: 900000 },
       { id: '4', name: 'Apple', logo: 'https://logo.clearbit.com/apple.com', followers: 1200000 },
       { id: '5', name: 'Meta', logo: 'https://logo.clearbit.com/meta.com', followers: 700000 },
-      { id: '6', name: 'Trinity Technology Solutions', logo: '/images/zync-logo.svg', followers: 5000 },
+      { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png', followers: 5000 },
       { id: '7', name: 'TCS', logo: 'https://logo.clearbit.com/tcs.com', followers: 600000 },
       { id: '8', name: 'Infosys', logo: 'https://logo.clearbit.com/infosys.com', followers: 550000 },
       { id: '9', name: 'Wipro', logo: 'https://logo.clearbit.com/wipro.com', followers: 400000 },
@@ -108,6 +108,11 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
   };
 
   const getCompanyLogo = (company: Company) => {
+    // Special handling for Trinity Technology Solutions
+    if (company.name.toLowerCase().includes('trinity')) {
+      return '/images/company-logos/trinity-logo.png';
+    }
+    
     // Try multiple logo sources
     const logoSources = [
       company.logo,
@@ -177,7 +182,14 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
                       }}
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
-                        // Try next logo source
+                        
+                        // Special handling for Trinity - don't fallback, keep trying Trinity logo
+                        if (company.name.toLowerCase().includes('trinity')) {
+                          img.src = '/images/company-logos/trinity-logo.png';
+                          return;
+                        }
+                        
+                        // Try next logo source for other companies
                         const currentSrc = img.src;
                         const logoSources = [
                           `https://logo.clearbit.com/${company.name.toLowerCase().replace(/\s+/g, '')}.com`,
@@ -189,8 +201,14 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
                         if (currentIndex < logoSources.length - 1) {
                           img.src = logoSources[currentIndex + 1];
                         } else {
-                          // All sources failed, hide image
-                          img.style.display = 'none';
+                          // All sources failed, create letter avatar
+                          const initials = company.name.split(' ').map(n => n[0]).join('').toUpperCase();
+                          img.src = `data:image/svg+xml,${encodeURIComponent(`
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+                              <rect width="32" height="32" fill="#3B82F6" rx="4"/>
+                              <text x="16" y="20" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text>
+                            </svg>
+                          `)}`;
                         }
                       }}
                     />

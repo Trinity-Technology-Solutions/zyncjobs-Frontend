@@ -3,8 +3,10 @@ import { MapPin, Briefcase, Clock, DollarSign, Building, Share2, X, CheckCircle 
 import { API_ENDPOINTS } from '../config/constants';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
+import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
+import JobShareModal from '../components/JobShareModal';
 import localStorageMigration from '../services/localStorageMigration';
 
 interface JobDetailPageProps {
@@ -172,45 +174,47 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   };
 
   useEffect(() => {
-    const fetchJobDetails = async () => {
-      try {
-        // Check localStorage for selectedJob first (for refresh persistence)
-        const storedJob = localStorage.getItem('selectedJob');
-        if (storedJob) {
-          try {
-            const parsedJob = JSON.parse(storedJob);
-            console.log('📦 Retrieved job from localStorage:', parsedJob);
-            setJob(parsedJob.jobData || parsedJob);
-            
-            // Check if user has applied to this job
-            if (user?.email && (parsedJob._id || parsedJob.jobData?._id)) {
-              await checkApplicationStatus(parsedJob._id || parsedJob.jobData?._id, user.email);
-            }
-            
-            // Fetch job poster info
-            if (parsedJob.employerEmail || parsedJob.postedBy) {
-              const usersResponse = await fetch(API_ENDPOINTS.USERS);
-              if (usersResponse.ok) {
-                const users = await usersResponse.json();
-                const poster = users.find((user: any) => 
-                  user.email === (parsedJob.employerEmail || parsedJob.postedBy)
-                );
-                setJobPoster(poster);
-              }
-            }
-            
-            setLoading(false);
-            fetchSimilarJobs(parsedJob.jobData || parsedJob);
-            return;
-          } catch (parseError) {
-            console.error('Error parsing stored job:', parseError);
+    // Clear any localStorage jobs that don't have database IDs on component mount
+    const clearInvalidLocalStorageJobs = () => {
+      const storedJob = localStorage.getItem('selectedJob');
+      if (storedJob) {
+        try {
+          const parsedJob = JSON.parse(storedJob);
+          const hasValidId = parsedJob._id || parsedJob.jobData?._id;
+          if (!hasValidId) {
+            console.log('🧽 Clearing invalid localStorage job without database ID');
             localStorage.removeItem('selectedJob');
           }
+        } catch (error) {
+          console.log('🧽 Clearing corrupted localStorage job');
+          localStorage.removeItem('selectedJob');
         }
-        
-        // If jobData is passed from LatestJobs, use it directly
-        if (jobData) {
-          setJob(jobData);
+      }
+    };
+    
+    clearInvalidLocalStorageJobs();
+    
+    const fetchJobDetails = async () => {
+      try {
+        // Priority 1: If jobData is passed from LatestJobs or other components, use it directly
+        if (jobData && jobData._id) {
+          console.log('🎯 Using passed jobData:', jobData);
+          
+          // Try to fetch fresh data from API, but fallback to passed data if API fails
+          try {
+            const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobData._id}`);
+            if (jobResponse.ok) {
+              const freshJobData = await jobResponse.json();
+              console.log('✅ Fresh job data from API:', freshJobData);
+              setJob(freshJobData);
+            } else {
+              console.warn('⚠️ API fetch failed, using passed jobData as fallback');
+              setJob(jobData);
+            }
+          } catch (error) {
+            console.warn('⚠️ API error, using passed jobData as fallback:', error);
+            setJob(jobData);
+          }
           
           // Check if user has applied to this job
           if (user?.email && jobData._id) {
@@ -219,96 +223,170 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
           
           // Fetch job poster info based on employerEmail
           if (jobData.employerEmail || jobData.postedBy) {
-            const usersResponse = await fetch(API_ENDPOINTS.USERS);
-            if (usersResponse.ok) {
-              const users = await usersResponse.json();
-              const poster = users.find((user: any) => 
-                user.email === (jobData.employerEmail || jobData.postedBy)
-              );
-              console.log('Looking for employer with email:', jobData.employerEmail || jobData.postedBy);
-              console.log('Found job poster:', poster);
-              setJobPoster(poster);
+            try {
+              const usersResponse = await fetch(API_ENDPOINTS.USERS);
+              if (usersResponse.ok) {
+                const users = await usersResponse.json();
+                const poster = users.find((user: any) => 
+                  user.email === (jobData.employerEmail || jobData.postedBy)
+                );
+                setJobPoster(poster);
+              }
+            } catch (error) {
+              console.warn('⚠️ Failed to fetch job poster:', error);
             }
           }
           
           setLoading(false);
-          
-          // Fetch similar jobs
           fetchSimilarJobs(jobData);
           return;
         }
         
+        // Priority 2: If jobId is provided (from URL or navigation), fetch from API
         if (jobId) {
+          console.log('🔍 Fetching job by ID from API:', jobId);
           // Ensure jobId is a string, not an object
           const jobIdString = typeof jobId === 'object' ? ((jobId as any)._id || (jobId as any).id) : jobId;
           
-          // Fetch job details
-          const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
+          try {
+            // Always fetch from API for original job details
+            const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
+            console.log('🌐 API Response status:', jobResponse.status);
+            
+            if (jobResponse.ok) {
+              const apiJobData = await jobResponse.json();
+              console.log('✅ Original job data received from API:', apiJobData);
+              setJob(apiJobData);
+              
+              // Check if user has applied to this job
+              if (user?.email && apiJobData._id) {
+                await checkApplicationStatus(apiJobData._id, user.email);
+              }
+              
+              // Fetch job poster
+              const usersResponse = await fetch(API_ENDPOINTS.USERS);
+              if (usersResponse.ok) {
+                const users = await usersResponse.json();
+                const poster = users.find((user: any) => 
+                  user.email === apiJobData.employerEmail || user.email === apiJobData.postedBy
+                );
+                setJobPoster(poster);
+              }
+              
+              fetchSimilarJobs(apiJobData);
+            } else {
+              const errorText = await jobResponse.text();
+              console.error('❌ Failed to fetch job from API:', jobResponse.status, errorText);
+              console.error('🔗 API URL attempted:', `${API_ENDPOINTS.JOBS}/${jobIdString}`);
+              // Job not found in API, show error
+              setJob(null);
+            }
+          } catch (fetchError) {
+            console.error('❌ Network error fetching job:', fetchError);
+            setJob(null);
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Priority 3: Check URL parameters for job ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlJobId = urlParams.get('id');
+        
+        if (urlJobId) {
+          console.log('🔗 Found job ID in URL, fetching from API:', urlJobId);
+          
+          // Always fetch from API for original job details
+          const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${urlJobId}`);
           if (jobResponse.ok) {
-            const jobData = await jobResponse.json();
-            console.log('🔍 Job data received from API:', jobData);
-            console.log('📸 Job header image:', jobData.jobHeaderImage);
-            console.log('🆔 Employer ID:', jobData.employerId);
-            console.log('🏷️ Position ID:', jobData.positionId);
-            setJob(jobData);
+            const apiJobData = await jobResponse.json();
+            console.log('✅ Original job data from URL received from API:', apiJobData);
+            setJob(apiJobData);
             
             // Check if user has applied to this job
-            if (user?.email && jobData._id) {
-              await checkApplicationStatus(jobData._id, user.email);
+            if (user?.email && apiJobData._id) {
+              await checkApplicationStatus(apiJobData._id, user.email);
             }
             
-            // Fetch job poster (employer who posted this job)
+            // Fetch job poster
             const usersResponse = await fetch(API_ENDPOINTS.USERS);
             if (usersResponse.ok) {
               const users = await usersResponse.json();
               const poster = users.find((user: any) => 
-                user.email === jobData.employerEmail || user.email === jobData.postedBy
+                user.email === apiJobData.employerEmail || user.email === apiJobData.postedBy
               );
-              console.log('Looking for employer with email:', jobData.employerEmail || jobData.postedBy);
-              console.log('Found job poster:', poster);
               setJobPoster(poster);
             }
+            
+            fetchSimilarJobs(apiJobData);
+          } else {
+            console.error('❌ Failed to fetch job from API using URL ID:', jobResponse.status);
+            setJob(null);
+          }
+          setLoading(false);
+          return;
+        }
+        
+        // Priority 4: Only as last resort, check localStorage (but validate it's a real job)
+        const storedJob = localStorage.getItem('selectedJob');
+        if (storedJob) {
+          try {
+            const parsedJob = JSON.parse(storedJob);
+            console.log('📦 Found job in localStorage:', parsedJob);
+            
+            // CRITICAL: Only proceed if the job has a valid database ID
+            const jobIdToVerify = parsedJob._id || parsedJob.jobData?._id || parsedJob.id || parsedJob.jobData?.id;
+            if (!jobIdToVerify) {
+              console.warn('⚠️ Job in localStorage has no database ID - this is test data, clearing it');
+              localStorage.removeItem('selectedJob');
+              setJob(null);
+              setLoading(false);
+              return;
+            }
+            
+            console.log('🔍 Verifying localStorage job exists in database:', jobIdToVerify);
+            
+            // Always verify against database - no exceptions
+            const verifyResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdToVerify}`);
+            if (verifyResponse.ok) {
+              const verifiedJobData = await verifyResponse.json();
+              console.log('✅ Verified job data from database:', verifiedJobData);
+              setJob(verifiedJobData);
+              
+              if (user?.email && verifiedJobData._id) {
+                await checkApplicationStatus(verifiedJobData._id, user.email);
+              }
+              
+              if (verifiedJobData.employerEmail || verifiedJobData.postedBy) {
+                const usersResponse = await fetch(API_ENDPOINTS.USERS);
+                if (usersResponse.ok) {
+                  const users = await usersResponse.json();
+                  const poster = users.find((user: any) => 
+                    user.email === (verifiedJobData.employerEmail || verifiedJobData.postedBy)
+                  );
+                  setJobPoster(poster);
+                }
+              }
+              
+              fetchSimilarJobs(verifiedJobData);
+            } else {
+              console.warn('⚠️ Job in localStorage not found in database - clearing localStorage');
+              localStorage.removeItem('selectedJob');
+              setJob(null);
+            }
+          } catch (parseError) {
+            console.error('❌ Error parsing stored job:', parseError);
+            localStorage.removeItem('selectedJob');
+            setJob(null);
           }
         } else {
-          // Fallback to default job data
-          const defaultJob = {
-            id: 1,
-            title: jobTitle || "Senior Frontend Developer",
-            company: companyName || "TechCorp Inc.",
-            location: "San Francisco, CA",
-            type: "Full-time",
-            salary: "$120,000 - $180,000",
-            experience: "3-5 years",
-            posted: "2 days ago",
-            description: "We are looking for a talented Senior Frontend Developer to join our dynamic team.",
-            responsibilities: [
-              "Develop and maintain responsive web applications using React and TypeScript",
-              "Collaborate with designers and backend developers to implement new features",
-              "Optimize applications for maximum speed and scalability"
-            ],
-            requirements: [
-              "Bachelor's degree in Computer Science or related field",
-              "3+ years of experience with React and JavaScript/TypeScript",
-              "Strong understanding of HTML5, CSS3, and responsive design"
-            ],
-            skills: ["React", "TypeScript", "JavaScript", "HTML5", "CSS3", "Redux", "Git"],
-            benefits: [
-              "Competitive salary and equity package",
-              "Comprehensive health, dental, and vision insurance",
-              "Flexible work arrangements and remote work options"
-            ]
-          };
-          
-          // Ensure all required arrays exist with defaults
-          defaultJob.responsibilities = defaultJob.responsibilities || [];
-          defaultJob.requirements = defaultJob.requirements || [];
-          defaultJob.skills = defaultJob.skills || [];
-          defaultJob.benefits = defaultJob.benefits || [];
-          
-          setJob(defaultJob);
+          console.log('❌ No job data found anywhere');
+          setJob(null);
         }
+        
       } catch (error) {
-        console.error('Error fetching job details:', error);
+        console.error('❌ Error fetching job details:', error);
+        setJob(null);
       } finally {
         setLoading(false);
       }
@@ -316,6 +394,52 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
     fetchJobDetails();
   }, [jobId, jobTitle, companyName, jobData]);
+
+  // Set Open Graph meta tags for LinkedIn share preview
+  useEffect(() => {
+    if (!job) return;
+    
+    const companyName = job.company || '';
+    const jobTitle = job.jobTitle || job.title || '';
+    const description = job.jobDescription || job.description || 'Job opportunity';
+    
+    // Use backend OG tags route for social sharing
+    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const ogUrl = `${backendUrl}/job-detail?id=${job._id}`;
+    
+    const setMeta = (property: string, content: string) => {
+      let el = document.querySelector(`meta[property='${property}']`) as HTMLMetaElement;
+      if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    
+    // Set canonical URL to backend route for social crawlers
+    let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonicalEl) {
+      canonicalEl = document.createElement('link');
+      canonicalEl.rel = 'canonical';
+      document.head.appendChild(canonicalEl);
+    }
+    canonicalEl.href = ogUrl;
+    
+    setMeta('og:title', `${jobTitle} at ${companyName}`);
+    setMeta('og:description', description.substring(0, 160) + '...');
+    setMeta('og:url', ogUrl);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'ZyncJobs');
+    
+    // Set Twitter meta tags
+    const setTwitterMeta = (name: string, content: string) => {
+      let el = document.querySelector(`meta[name='${name}']`) as HTMLMetaElement;
+      if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    
+    setTwitterMeta('twitter:card', 'summary_large_image');
+    setTwitterMeta('twitter:title', `${jobTitle} at ${companyName}`);
+    setTwitterMeta('twitter:description', description.substring(0, 160) + '...');
+    setTwitterMeta('twitter:url', ogUrl);
+  }, [job]);
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
     try {
@@ -692,12 +816,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     <span>{job.employerCompany || jobPoster?.company || job.company}</span>
                   </div>
                   {/* Employer ID and Position ID - Enhanced Display */}
-                  {job.employerId && (
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium text-gray-700">Employer ID:</span>
-                      <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">{job.employerId}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const displayEmployerId = getDisplayEmployerId(job, jobPoster);
+                    return displayEmployerId ? (
+                      <div className="flex items-center space-x-1">
+                        <span className="font-medium text-gray-700">Employer ID:</span>
+                        <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                          {displayEmployerId}
+                        </span>
+                      </div>
+                    ) : null;
+                  })()} 
                   {job.positionId && (
                     <div className="flex items-center space-x-1">
                       <span className="font-medium text-gray-700">Position ID:</span>
@@ -1051,289 +1180,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         </div>
       </div>
 
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Share this job</h3>
-              <button 
-                onClick={() => setShowShareModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {/* LinkedIn */}
-              <button
-                onClick={() => {
-                  const url = encodeURIComponent(window.location.href);
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  const experience = job.experience;
-                  const jobType = job.type;
-                  
-                  // Different content based on user type
-                  const postContent = user?.type === 'employer' || user?.userType === 'employer' ? 
-                    // Employer sharing their job posting
-                    `🚀 We're Hiring! Join Our Team!
-
-🎯 ${jobTitle}
-🏢 ${company}
-📍 ${location}
-💰 ${salary}
-⏰ ${jobType}
-🎯 Experience: ${experience}
-
-📋 What you'll do:
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `🔧 We're looking for:
-${job.skills.slice(0, 5).map((skill: any) => `• ${skill}`).join('\n')}` : ''}
-
-${job.benefits && Array.isArray(job.benefits) ? `✨ What we offer:
-${job.benefits.slice(0, 3).map((benefit: any) => `• ${benefit}`).join('\n')}` : ''}
-
-💼 Ready to join our team? Apply now!
-
-#WeAreHiring #JoinOurTeam #${company.replace(/\s+/g, '')} #${jobTitle.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '')} #CareerOpportunity #NowHiring
-
-Apply here: ${window.location.href}` :
-                    // Candidate sharing job opportunity
-                    `💼 Found an interesting job opportunity that might be perfect for someone in my network!
-
-🎯 ${jobTitle} at ${company}
-📍 ${location}
-💰 ${salary}
-⏰ ${jobType}
-🎯 Experience: ${experience}
-
-📝 About the role:
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `🔧 Looking for:
-${job.skills.slice(0, 5).map((skill: any) => `• ${skill}`).join('\n')}` : ''}
-
-${job.benefits && Array.isArray(job.benefits) ? `✨ What they offer:
-${job.benefits.slice(0, 3).map((benefit: any) => `• ${benefit}`).join('\n')}` : ''}
-
-🤝 Know someone who'd be a great fit? Feel free to share!
-
-#JobOpportunity #Hiring #${company.replace(/\s+/g, '')} #${jobTitle.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '')} #CareerOpportunity #JobAlert
-
-Apply here: ${window.location.href}`;
-                  
-                  const encodedContent = encodeURIComponent(postContent);
-                  window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}&text=${encodedContent}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">in</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on LinkedIn</span>
-              </button>
-
-              {/* Facebook */}
-              <button
-                onClick={() => {
-                  const url = encodeURIComponent(window.location.href);
-                  window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">f</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on Facebook</span>
-              </button>
-
-              {/* Twitter */}
-              <button
-                onClick={() => {
-                  const url = encodeURIComponent(window.location.href);
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max}` : (job.salary || 'Competitive');
-                  
-                  const tweetText = `💼 Spotted a great opportunity!
-
-${jobTitle} at ${company}
-📍 ${location}
-💰 ${salary}
-
-${job.skills && Array.isArray(job.skills) ? `Skills: ${job.skills.slice(0, 3).join(', ')}` : ''}
-
-Might be perfect for someone in my network! 🤝
-
-#JobAlert #Hiring #${company.replace(/\s+/g, '')} #Opportunity`;
-                  
-                  const encodedText = encodeURIComponent(tweetText);
-                  window.open(`https://twitter.com/intent/tweet?url=${url}&text=${encodedText}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-black rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">X</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on X (Twitter)</span>
-              </button>
-
-              {/* WhatsApp */}
-              <button
-                onClick={() => {
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  const experience = job.experience;
-                  
-                  const whatsappMessage = user?.type === 'employer' || user?.userType === 'employer' ?
-                    // Employer sharing their job posting
-                    `🚀 *We're Hiring!*
-
-*Position:* ${jobTitle}
-*Company:* ${company}
-*Location:* ${location}
-*Salary:* ${salary}
-*Experience:* ${experience}
-
-*About the role:*
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `*We're looking for:* ${job.skills.slice(0, 5).join(', ')}` : ''}
-
-Interested? Apply now! 💼
-
-${window.location.href}` :
-                    // Candidate sharing job opportunity
-                    `💼 *Found an interesting job opportunity!*
-
-*Position:* ${jobTitle}
-*Company:* ${company}
-*Location:* ${location}
-*Salary:* ${salary}
-*Experience:* ${experience}
-
-*About the role:*
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `*Skills they're looking for:* ${job.skills.slice(0, 5).join(', ')}` : ''}
-
-Thought this might be perfect for someone in our group! 🤝
-
-Check it out: ${window.location.href}`;
-                  
-                  const encodedMessage = encodeURIComponent(whatsappMessage);
-                  window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">W</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on WhatsApp</span>
-              </button>
-
-              {/* Telegram */}
-              <button
-                onClick={() => {
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  
-                  const telegramMessage = `💼 Found a great job opportunity!
-
-🎯 ${jobTitle} at ${company}
-📍 Location: ${location}
-💰 Salary: ${salary}
-
-${job.description?.substring(0, 150)}...
-
-Might be perfect for someone here! 🤝
-
-Check it out: ${window.location.href}`;
-                  
-                  const encodedMessage = encodeURIComponent(telegramMessage);
-                  window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodedMessage}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-400 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">T</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on Telegram</span>
-              </button>
-
-              {/* Email */}
-              <button
-                onClick={() => {
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  
-                  const subject = `Thought you might be interested: ${jobTitle} at ${company}`;
-                  const body = `Hi,
-
-I came across this job opportunity and thought it might be a great fit for you or someone you know:
-
-💼 Position: ${jobTitle}
-🏢 Company: ${company}
-📍 Location: ${location}
-💰 Salary: ${salary}
-
-About the role:
-${job.description?.substring(0, 300)}...
-
-${job.skills && Array.isArray(job.skills) ? `They're looking for skills in: ${job.skills.join(', ')}` : ''}
-
-If you're interested or know someone who might be, you can check out the full details and apply here: ${window.location.href}
-
-Hope this helps!
-
-Best regards`;
-                  
-                  window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">@</span>
-                </div>
-                <span className="font-medium text-gray-900">Share via Email</span>
-              </button>
-
-              {/* Copy Link */}
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert('Link copied to clipboard!');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-gray-600 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">🔗</span>
-                </div>
-                <span className="font-medium text-gray-900">Copy Link</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Job Share Modal */}
+      <JobShareModal 
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        job={job}
+        user={user}
+      />
     </div>
   );
 };

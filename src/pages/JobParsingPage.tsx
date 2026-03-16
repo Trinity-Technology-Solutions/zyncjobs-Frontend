@@ -59,63 +59,96 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
   };
 
   const parseJobDescription = async (description: string) => {
-    // Use AI to extract job details from the description
     try {
-      const prompt = `
-        Parse the following job description and extract the key information in JSON format:
-        
-        Job Description:
-        ${description}
-        
-        Please extract and return a JSON object with the following fields:
-        {
-          "jobTitle": "extracted job title",
-          "companyName": "extracted company name",
-          "jobLocation": "extracted location",
-          "jobType": ["Full-time", "Part-time", etc.],
-          "experienceRange": "extracted experience requirement",
-          "skills": ["skill1", "skill2", "skill3"],
-          "minSalary": "extracted minimum salary",
-          "maxSalary": "extracted maximum salary",
-          "currency": "USD/INR/EUR etc.",
-          "payRate": "per year/per month/per hour",
-          "benefits": ["benefit1", "benefit2"],
-          "educationLevel": "extracted education requirement",
-          "jobDescription": "cleaned and formatted job description"
-        }
-        
-        If any field cannot be extracted, use reasonable defaults or empty values.
-      `;
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/api/parse-job-post`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: description })
+      });
 
-      // For now, we'll use a simple parsing logic
-      // In production, you'd use the Mistral AI service
-      const parsedData = {
-        jobTitle: extractJobTitle(description),
-        companyName: extractCompanyName(description),
-        jobLocation: extractLocation(description),
-        jobType: extractJobType(description),
-        experienceRange: extractExperience(description),
-        skills: extractSkills(description),
-        minSalary: extractSalary(description).min,
-        maxSalary: extractSalary(description).max,
-        currency: extractSalary(description).currency,
-        payRate: extractSalary(description).payRate,
-        benefits: extractBenefits(description),
-        educationLevel: extractEducation(description),
-        jobDescription: extractJobDescription(description),
-        responsibilities: extractResponsibilities(description),
-        requirements: extractRequirements(description),
-        jobCategory: extractJobCategory(description),
-        priority: extractPriority(description),
-        clientName: extractClientName(description),
+      if (!response.ok) throw new Error('Backend parse failed');
+
+      const result = await response.json();
+      const d = result.data;
+
+      return {
+        jobTitle:        d.jobTitle        || extractJobTitle(description),
+        companyName:     d.company         || '',
+        jobLocation:     d.location        || extractLocation(description),
+        jobType:         d.jobType         ? [d.jobType] : extractJobType(description),
+        experienceRange: normalizeExperienceRange(d.experienceRange) || extractExperience(description),
+        skills:          d.skills?.length  ? d.skills   : extractSkills(description),
+        minSalary:       d.salaryMin       ? String(d.salaryMin) : extractSalary(description).min,
+        maxSalary:       d.salaryMax       ? String(d.salaryMax) : extractSalary(description).max,
+        currency:        d.currency        || extractSalary(description).currency,
+        payRate:         extractSalary(description).payRate,
+        benefits:        extractBenefits(description),
+        educationLevel:  d.educationLevel  || extractEducation(description),
+        jobDescription:  d.description     || description,
+        responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
+        requirements:    d.requirements?.length    ? d.requirements    : extractRequirements(description),
+        jobCategory:     d.jobCategory     || extractJobCategory(description),
+        priority:        d.priority        || extractPriority(description),
+        clientName:      extractClientName(description),
         reportingManager: extractReportingManager(description),
-        workAuth: extractWorkAuth(description)
+        workAuth:        extractWorkAuth(description)
       };
-
-      return parsedData;
     } catch (error) {
-      throw new Error('Failed to parse job description');
+      console.warn('Backend parse failed, using regex fallback:', error);
+      const salaryInfo = extractSalary(description);
+      return {
+        jobTitle:        extractJobTitle(description),
+        companyName:     extractCompanyName(description),
+        jobLocation:     extractLocation(description),
+        jobType:         extractJobType(description),
+        experienceRange: extractExperience(description),
+        skills:          extractSkills(description),
+        minSalary:       salaryInfo.min,
+        maxSalary:       salaryInfo.max,
+        currency:        salaryInfo.currency,
+        payRate:         salaryInfo.payRate,
+        benefits:        extractBenefits(description),
+        educationLevel:  extractEducation(description),
+        jobDescription:  extractJobDescription(description),
+        responsibilities: extractResponsibilities(description),
+        requirements:    extractRequirements(description),
+        jobCategory:     extractJobCategory(description),
+        priority:        extractPriority(description),
+        clientName:      extractClientName(description),
+        reportingManager: extractReportingManager(description),
+        workAuth:        extractWorkAuth(description)
+      };
     }
+  };
+
+  // Normalize any experience string to match the dropdown options exactly
+  const normalizeExperienceRange = (raw: string): string => {
+    if (!raw) return '';
+    const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
+
+    // Extract the first number mentioned
+    const nums = text.match(/(\d+)/g)?.map(Number) || [];
+    if (nums.length === 0) {
+      if (/fresher|entry|no experience|0/i.test(text)) return '0-1 years';
+      if (/junior/i.test(text)) return '1-2 years';
+      if (/mid|intermediate/i.test(text)) return '3-5 years';
+      if (/senior/i.test(text)) return '5-7 years';
+      if (/lead|principal|expert/i.test(text)) return '10+ years';
+      return '';
+    }
+
+    const min = Math.min(...nums);
+    const max = nums.length > 1 ? Math.max(...nums) : min;
+
+    // Map to the exact dropdown values
+    if (max <= 1)  return '0-1 years';
+    if (max <= 2)  return '1-2 years';
+    if (max <= 3)  return '2-3 years';
+    if (max <= 5)  return '3-5 years';
+    if (max <= 7)  return '5-7 years';
+    if (max <= 10) return '7-10 years';
+    return '10+ years';
   };
 
   // Helper functions to extract information
@@ -1112,55 +1145,10 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
             </div>
 
             <div className="p-6">
-              {/* Rich Text Editor Toolbar */}
-              <div className="border border-gray-300 rounded-lg">
-                <div className="border-b border-gray-200 p-3 bg-gray-50 flex items-center space-x-2">
-                  <button className="p-2 hover:bg-gray-200 rounded text-sm font-bold">B</button>
-                  <button className="p-2 hover:bg-gray-200 rounded text-sm italic">I</button>
-                  <button className="p-2 hover:bg-gray-200 rounded text-sm underline">U</button>
-                  <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                  <button className="p-2 hover:bg-gray-200 rounded text-sm">•</button>
-                  <button className="p-2 hover:bg-gray-200 rounded text-sm">1.</button>
-                  <div className="w-px h-6 bg-gray-300 mx-2"></div>
-                  
-                  {/* Styles Dropdown */}
-                  <select className="px-3 py-1 border border-gray-300 rounded text-sm bg-white" title="Text styles">
-                    <option>Styles</option>
-                    <option>Normal</option>
-                    <option>Heading 1</option>
-                    <option>Heading 2</option>
-                  </select>
-                  
-                  {/* Format Dropdown */}
-                  <select className="px-3 py-1 border border-gray-300 rounded text-sm bg-white" title="Text format">
-                    <option>Format</option>
-                    <option>Paragraph</option>
-                    <option>Heading</option>
-                  </select>
-                  
-                  {/* Font Dropdown */}
-                  <select className="px-3 py-1 border border-gray-300 rounded text-sm bg-white" title="Font family">
-                    <option>Font</option>
-                    <option>Arial</option>
-                    <option>Times New Roman</option>
-                    <option>Helvetica</option>
-                  </select>
-                  
-                  {/* Size Dropdown */}
-                  <select className="px-3 py-1 border border-gray-300 rounded text-sm bg-white" title="Font size">
-                    <option>Size</option>
-                    <option>12px</option>
-                    <option>14px</option>
-                    <option>16px</option>
-                    <option>18px</option>
-                  </select>
-                </div>
-
-                {/* Text Area */}
-                <textarea
-                  value={jobDescription}
-                  onChange={(e) => setJobDescription(e.target.value)}
-                  placeholder="Paste your job description here...
+              <textarea
+                value={jobDescription}
+                onChange={(e) => setJobDescription(e.target.value)}
+                placeholder="Paste your job description here...
 
 Example:
 Software Engineer - Full Stack Developer
@@ -1178,10 +1166,9 @@ Benefits:
 - Health insurance
 - Remote work options
 - Flexible hours"
-                  className="w-full p-4 min-h-[400px] resize-none border-none outline-none focus:ring-0 text-gray-800"
-                  style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: '1.5' }}
-                />
-              </div>
+                className="w-full p-4 min-h-[400px] border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
+                style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: '1.5' }}
+              />
 
               {/* Action Buttons */}
               <div className="flex justify-end mt-6 space-x-4">

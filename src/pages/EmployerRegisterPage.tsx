@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building, Building2 } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
+import { generateEmployerId } from '../utils/employerIdUtils';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -80,18 +81,31 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
     }
 
     try {
+      // Generate sequential employer ID
+      const employerId = generateEmployerId();
+      
       const response = await authAPI.register({
         email: formData.email,
         password: formData.password,
         name: formData.name,
         companyName: formData.companyName,
         companyLogo: companyLogo,
-        userType: 'employer'
+        userType: 'employer',
+        employerId: employerId
       });
       
       const successMsg = 'Employer account created successfully! You can now sign in.';
       setSuccess(successMsg);
       showToast(successMsg, 'success');
+      
+      // Store user data with employer ID if registration returns user data
+      if (response.user) {
+        // Ensure employer ID is included
+        if (!response.user.employerId) {
+          response.user.employerId = employerId;
+        }
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
       
       // Clear form
       setFormData({

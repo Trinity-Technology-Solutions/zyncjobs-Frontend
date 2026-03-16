@@ -21,7 +21,7 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
               readable content of a page when looking at its layout.
             </p>
             <button
-              onClick={() => onNavigate && onNavigate('register')}
+              onClick={() => onNavigate && onNavigate('role-selection')}
               className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               Join Now

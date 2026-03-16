@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin, Filter, Briefcase, Clock, DollarSign, X, Bookmark, BookmarkCheck, TrendingUp } from 'lucide-react';
+import { Search, MapPin, Filter, Briefcase, Clock, DollarSign, X, Bookmark, BookmarkCheck, TrendingUp, Share2 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import LocationRadiusSearch from '../components/LocationRadiusSearch';
 import RecommendedJobs from '../components/RecommendedJobs';
+import JobShareModal from '../components/JobShareModal';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
+import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 
@@ -15,10 +17,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   onNavigate?: (page: string) => void;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
   onLogout?: () => void;
-  searchParams?: { searchTerm?: string; location?: string; experience?: string };
+  searchParams?: { searchTerm?: string; location?: string; experience?: string; category?: string; categoryTerms?: string[] };
 }) => {
   const [searchTerm, setSearchTerm] = useState(searchParams?.searchTerm || '');
   const [location, setLocation] = useState(searchParams?.location || '');
+  const [selectedCategory, setSelectedCategory] = useState(searchParams?.category || '');
+  const [categoryTerms, setCategoryTerms] = useState<string[]>(searchParams?.categoryTerms || []);
   const [jobs, setJobs] = useState<any[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -45,6 +49,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const [hasMoreJobs, setHasMoreJobs] = useState(true);
   const [activeTab, setActiveTab] = useState<'search' | 'recommended'>('search');
   const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
+  const [shareModalJob, setShareModalJob] = useState<any>(null);
   const jobsPerPage = 10;
 
   // Load saved jobs from backend if user is logged in
@@ -125,10 +130,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       console.log('🔍 API_ENDPOINTS.JOBS:', API_ENDPOINTS.JOBS);
       console.log('🔍 API_ENDPOINTS.BASE_URL:', API_ENDPOINTS.BASE_URL);
       
-      // Use advanced search if filters are applied
-      if (searchTerm || location || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness) {
+      // Use advanced search if filters are applied or category is selected
+      if (searchTerm || location || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness || categoryTerms.length > 0) {
+        const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : searchTerm;
         const searchParams = {
-          query: searchTerm,
+          query: searchQuery,
           location: location,
           jobType: filters.jobType ? [filters.jobType] : [],
           industry: filters.industry,
@@ -255,13 +261,26 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const performSearch = useCallback(() => {
     let filtered = [...jobs];
     
-    // Search by term
-    if (searchTerm) {
-      filtered = filtered.filter(job => 
-        job.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.company?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+    // Search by term or category
+    if (searchTerm || categoryTerms.length > 0) {
+      filtered = filtered.filter(job => {
+        const jobText = `${job.title} ${job.description} ${job.company}`.toLowerCase();
+        
+        // If we have category terms, check if job matches any of them
+        if (categoryTerms.length > 0) {
+          const matchesCategory = categoryTerms.some(term => 
+            jobText.includes(term.toLowerCase())
+          );
+          if (matchesCategory) return true;
+        }
+        
+        // Also check regular search term
+        if (searchTerm) {
+          return jobText.includes(searchTerm.toLowerCase());
+        }
+        
+        return categoryTerms.length > 0; // If only category filtering, return category matches
+      });
     }
     
     // Filter by location
@@ -323,7 +342,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
     setFilteredJobs(filtered);
-  }, [searchTerm, location, jobs, filters]);
+  }, [searchTerm, location, jobs, filters, categoryTerms]);
 
   useEffect(() => {
     fetchJobs();
@@ -352,9 +371,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   }, []);
   
   useEffect(() => {
-    if (searchParams?.searchTerm || searchParams?.location) {
+    if (searchParams?.searchTerm || searchParams?.location || searchParams?.category) {
       setSearchTerm(searchParams.searchTerm || '');
       setLocation(searchParams.location || '');
+      setSelectedCategory(searchParams.category || '');
+      setCategoryTerms(searchParams.categoryTerms || []);
       console.log('Search params received:', searchParams);
       fetchJobs();
     } else {
@@ -569,10 +590,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
             </div>
             
             <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
-              Find Your Dream Job
+              {selectedCategory ? `${selectedCategory} Jobs` : 'Find Your Dream Job'}
             </h1>
             <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
-              Discover thousands of opportunities from top companies worldwide
+              {selectedCategory 
+                ? `Discover ${selectedCategory.toLowerCase()} opportunities from top companies` 
+                : 'Discover thousands of opportunities from top companies worldwide'
+              }
             </p>
             
             {/* Quick Stats */}
@@ -690,6 +714,23 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
           {/* Quick Filters - Only show in search tab */}
           {activeTab === 'search' && (
           <div className="flex gap-2 mb-4">
+            {selectedCategory && (
+              <div className="flex items-center gap-2 bg-blue-100 border border-blue-300 text-blue-700 px-3 py-1 rounded-full text-sm">
+                <span>Category: {selectedCategory}</span>
+                <button 
+                  onClick={() => {
+                    setSelectedCategory('');
+                    setCategoryTerms([]);
+                    setSearchTerm('');
+                    fetchJobs();
+                  }}
+                  className="ml-1 hover:bg-blue-200 rounded-full p-1"
+                  title="Clear category filter"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
             <button
               onClick={() => setFilters(prev => ({ ...prev, freshness: '24h' }))}
               className={`px-3 py-1 rounded-full text-sm border ${
@@ -1025,31 +1066,42 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                   <div className="flex items-start mb-3">
                     <div className="flex-shrink-0 w-14 h-14 mr-4">
                       <div className="w-14 h-14 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                        {job.companyLogo ? (
-                          <img 
-                            src={job.companyLogo}
-                            alt={`${job.company} logo`}
-                            className="w-12 h-12 object-contain"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              const company = job.company || 'Company';
-                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company)}&size=48&background=6366f1&color=ffffff&bold=true`;
-                            }}
-                          />
-                        ) : (
-                          <img 
-                            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'Company')}&size=48&background=6366f1&color=ffffff&bold=true`}
-                            alt={`${job.company} logo`}
-                            className="w-12 h-12 object-contain rounded"
-                          />
-                        )}
+                        <img 
+                          src={getSafeCompanyLogo(job)}
+                          alt={`${job.company} logo`}
+                          className="w-12 h-12 object-contain"
+                          onError={(e) => {
+                            const img = e.target as HTMLImageElement;
+                            const company = job.company || 'Company';
+                            
+                            // Special handling for Trinity Technology Solutions
+                            if (company.toLowerCase().includes('trinity')) {
+                              img.src = '/images/company-logos/trinity-logo.png';
+                              return;
+                            }
+                            
+                            // Fallback to letter avatar
+                            const initials = company.split(' ').map(n => n[0]).join('').toUpperCase();
+                            img.src = `data:image/svg+xml,${encodeURIComponent(`
+                              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+                                <rect width="48" height="48" fill="#3B82F6" rx="8"/>
+                                <text x="24" y="30" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">${initials}</text>
+                              </svg>
+                            `)}`;
+                          }}
+                        />
                       </div>
                     </div>
                     
                     <div className="flex-1">
                       <h3 
                         className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail')}
+                        onClick={() => onNavigate && onNavigate('job-detail', { 
+                          jobTitle: job.title || job.jobTitle, 
+                          jobId: job._id || job.id,
+                          companyName: job.company,
+                          jobData: job
+                        })}
                       >
                         {decodeHtmlEntities(job.title || job.jobTitle)}
                       </h3>
@@ -1128,12 +1180,29 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                       <span className="text-sm font-semibold">{savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}</span>
                     </button>
                   )}
-                  <button 
-                    onClick={() => onNavigate && onNavigate('job-detail')}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
-                  >
-                    View Details
-                  </button>
+                  <div className="flex space-x-2">
+                    <button 
+                      onClick={() => {
+                        console.log('🔗 Share button clicked for job:', job);
+                        setShareModalJob(job);
+                      }}
+                      className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-1 shadow-sm"
+                    >
+                      <Share2 className="w-4 h-4" />
+                      <span>Share</span>
+                    </button>
+                    <button 
+                      onClick={() => onNavigate && onNavigate('job-detail', { 
+                        jobTitle: job.title || job.jobTitle, 
+                        jobId: job._id || job.id,
+                        companyName: job.company,
+                        jobData: job
+                      })}
+                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
+                    >
+                      View Details
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1157,6 +1226,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       </div>
       
       <Footer onNavigate={onNavigate} />
+      
+      {/* Job Share Modal */}
+      <JobShareModal 
+        isOpen={!!shareModalJob}
+        onClose={() => {
+          console.log('🔗 Closing share modal');
+          setShareModalJob(null);
+        }}
+        job={shareModalJob}
+        user={user}
+      />
       
       {/* Floating Back Button */}
       <BackButton 

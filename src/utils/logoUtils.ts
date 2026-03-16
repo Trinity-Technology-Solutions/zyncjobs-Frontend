@@ -1,7 +1,7 @@
 export const getCompanyLogo = (companyName: string): string => {
   if (!companyName) return '/images/zyncjobs-logo.png';
   
-  // Check if company name contains 'trinity' (case insensitive)
+  // Check if company name contains 'trinity' (case insensitive) - prioritize local logo
   if (companyName.toLowerCase().includes('trinity')) {
     return '/images/company-logos/trinity-logo.png';
   }
@@ -17,9 +17,13 @@ export const getCompanyLogo = (companyName: string): string => {
     .replace(/[^a-z0-9-]/g, '');
   
   // For specific companies, use letter avatars as fallback
-  const localLogos: { [key: string]: string } = {};
+  const localLogos: { [key: string]: string } = {
+    'trinity-technology-solutions': '/images/company-logos/trinity-logo.png',
+    'trinity-tech': '/images/company-logos/trinity-logo.png',
+    'trinitytech': '/images/company-logos/trinity-logo.png'
+  };
   
-  // Check if we have a local logo (currently none defined)
+  // Check if we have a local logo
   if (localLogos[cleanName]) {
     return localLogos[cleanName];
   }
@@ -27,7 +31,7 @@ export const getCompanyLogo = (companyName: string): string => {
   // Try to get domain from company name for Clearbit (for non-Trinity companies)
   const domain = getCompanyDomain(companyName);
   
-  if (domain) {
+  if (domain && !companyName.toLowerCase().includes('trinity')) {
     return `https://logo.clearbit.com/${domain}`;
   }
   
@@ -113,7 +117,7 @@ const getCompanyDomain = (companyName: string): string => {
 export const getSafeCompanyLogo = (job: any): string => {
   const companyName = job.company || job.companyName || 'ZyncJobs';
   
-  // Special handling for Trinity Technology - use Trinity logo
+  // Special handling for Trinity Technology - ALWAYS use Trinity logo, never Clearbit
   if (companyName.toLowerCase().includes('trinity')) {
     return '/images/company-logos/trinity-logo.png';
   }

@@ -14,7 +14,7 @@ const CallToAction: React.FC<CallToActionProps> = ({ onNavigate }) => {
             Finding Your Dream Job
           </h3>
           <button
-            onClick={() => onNavigate && onNavigate('register')}
+            onClick={() => onNavigate && onNavigate('role-selection')}
             className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
           >
             Click Here

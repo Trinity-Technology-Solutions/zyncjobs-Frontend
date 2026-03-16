@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Eye, EyeOff, Building } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
+import { generateEmployerId } from '../utils/employerIdUtils';
 
 interface EmployerLoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -28,6 +29,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         setError('This is a candidate account. Please use regular "Login" instead.');
         setLoading(false);
         return;
+      }
+      
+      // Assign employer ID if not present
+      if (!response.user.employerId) {
+        response.user.employerId = generateEmployerId();
       }
       
       localStorage.setItem('user', JSON.stringify(response.user));

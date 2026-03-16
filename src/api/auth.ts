@@ -18,6 +18,7 @@ export interface RegisterData {
   companyLogo?: string;
   companyWebsite?: string;
   location?: string;
+  employerId?: string;
 }
 
 export interface User {
@@ -36,6 +37,7 @@ export interface User {
   skills?: string[];
   experience?: string;
   location?: string;
+  employerId?: string;
 }
 
 export const authAPI = {
