@@ -38,6 +38,7 @@ const AIResumeBuilderPage = lazy(() => import('./pages/AIResumeBuilderPage'));
 const ResumeViewerPage = lazy(() => import('./pages/ResumeViewerPage'));
 const InterviewTipsPage = lazy(() => import('./pages/InterviewTipsPage'));
 const CareerAdvicePage = lazy(() => import('./pages/CareerAdvicePage'));
+const CareerCoachPage = lazy(() => import('./pages/CareerCoachPage'));
 const CareerInsightsHubPage = lazy(() => import('./pages/CareerInsightsHubPage'));
 const SalaryReportPage = lazy(() => import('./pages/SalaryReportPage'));
 const CandidateSearchPage = lazy(() => import('./pages/CandidateSearchPage'));
@@ -331,6 +332,10 @@ function App() {
 
   if (currentPage === 'career-advice') {
     return <Suspense fallback={<LoadingFallback />}><CareerAdvicePage onNavigate={handleNavigation} topic={currentTopic} /></Suspense>;
+  }
+
+  if (currentPage === 'career-coach') {
+    return <Suspense fallback={<LoadingFallback />}><CareerCoachPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   if (currentPage === 'career-insights-hub') {

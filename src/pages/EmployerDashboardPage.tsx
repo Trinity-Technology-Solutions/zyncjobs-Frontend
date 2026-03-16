@@ -50,11 +50,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setSavedCandidates([]);
       });
     }
-  }, []);
-
-  useEffect(() => {
-    if (activeMenu === 'saved-candidates') {
-      const token = localStorage.getItem('token');
+    
+    // Listen for candidate saved events
+    const handleCandidateSaved = (event: CustomEvent) => {
+      console.log('Candidate saved event received:', event.detail);
+      // Refresh saved candidates list
       if (token) {
         fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
           headers: {
@@ -67,6 +67,38 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           setSavedCandidates(candidates);
         })
         .catch(err => {
+          console.error('Error refreshing saved candidates:', err);
+        });
+      }
+    };
+    
+    window.addEventListener('candidateSaved', handleCandidateSaved as EventListener);
+    
+    return () => {
+      window.removeEventListener('candidateSaved', handleCandidateSaved as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeMenu === 'saved-candidates') {
+      const token = localStorage.getItem('token');
+      if (token) {
+        console.log('Fetching saved candidates for active menu...');
+        fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        .then(res => {
+          console.log('Saved candidates response:', res.status);
+          return res.ok ? res.json() : [];
+        })
+        .then(data => {
+          console.log('Saved candidates data:', data);
+          const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
+          setSavedCandidates(candidates);
+        })
+        .catch(err => {
           console.error('Error fetching saved candidates:', err);
           setSavedCandidates([]);
         });
@@ -75,37 +107,114 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [activeMenu]);
 
   useEffect(() => {
-    // Mock employer notifications
-    setNotifications([
-      {
-        id: 1,
-        type: 'application',
-        title: 'New application received',
-        message: 'John Doe applied for Software Engineer position',
-        time: '2h ago'
-      },
-      {
-        id: 2,
-        type: 'interview',
-        title: 'Interview scheduled',
-        message: 'Interview with Sarah Smith scheduled for tomorrow',
-        time: '1d ago'
-      },
-      {
-        id: 3,
-        type: 'job',
-        title: 'Job posting approved',
-        message: 'Your React Developer job posting is now live',
-        time: '2d ago'
+    // Fetch real notifications instead of mock data
+    const fetchNotifications = async () => {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          const userEmail = parsedUser.email;
+          
+          // Fetch real notifications from API
+          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/notifications?employerEmail=${encodeURIComponent(userEmail)}`);
+          if (response.ok) {
+            const data = await response.json();
+            const realNotifications = Array.isArray(data) ? data : data.notifications || [];
+            setNotifications(realNotifications);
+          } else {
+            console.warn('Notifications API returned error:', response.status);
+            // If API fails, create notifications from recent activity
+            createNotificationsFromActivity();
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        // If API fails, create notifications from recent activity
+        createNotificationsFromActivity();
       }
-    ]);
-  }, []);
+    };
+    
+    const createNotificationsFromActivity = () => {
+      // Create real notifications based on actual data
+      const realNotifications = [];
+      
+      // Add notifications for recent applications
+      if (applications.length > 0) {
+        const recentApps = applications.slice(0, 3);
+        recentApps.forEach((app, index) => {
+          realNotifications.push({
+            id: `app_${app._id || app.id}`,
+            type: 'application',
+            title: 'New application received',
+            message: `${app.candidateName || app.candidateEmail} applied for ${app.jobTitle || 'a position'}`,
+            time: new Date(app.createdAt).toLocaleDateString() || `${index + 1}d ago`,
+            data: app
+          });
+        });
+      }
+      
+      // Add notifications for upcoming interviews
+      if (interviews.length > 0) {
+        const upcomingInterviews = interviews.slice(0, 2);
+        upcomingInterviews.forEach((interview, index) => {
+          realNotifications.push({
+            id: `interview_${interview._id}`,
+            type: 'interview',
+            title: 'Interview scheduled',
+            message: `Interview with ${interview.candidateName || 'candidate'} scheduled for ${new Date(interview.date).toLocaleDateString()}`,
+            time: new Date(interview.createdAt || interview.date).toLocaleDateString() || `${index + 1}d ago`,
+            data: interview
+          });
+        });
+      }
+      
+      // Add notifications for recent job postings
+      if (jobs.length > 0) {
+        const recentJobs = jobs.slice(0, 2);
+        recentJobs.forEach((job, index) => {
+          realNotifications.push({
+            id: `job_${job._id || job.id}`,
+            type: 'job',
+            title: 'Job posting active',
+            message: `Your ${job.jobTitle || job.title} position is receiving applications`,
+            time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || `${index + 2}d ago`,
+            data: job
+          });
+        });
+      }
+      
+      // If no real data, show empty state
+      if (realNotifications.length === 0) {
+        setNotifications([]);
+      } else {
+        setNotifications(realNotifications);
+      }
+    };
+    
+    // Initial fetch
+    fetchNotifications();
+    
+    // Set up real-time updates
+    const notificationInterval = setInterval(fetchNotifications, 30000); // Refresh every 30 seconds
+    
+    return () => {
+      clearInterval(notificationInterval);
+    };
+  }, [applications, interviews, jobs]); // Depend on real data
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
       const parsedUser = JSON.parse(userData);
       console.log('Dashboard - User data:', parsedUser);
+      
+      // Force clear any cached state that might interfere
+      setJobs([]);
+      setApplications([]);
+      setInterviews([]);
+      setDashboardStats(null);
+      setRecentActivity([]);
+      
       setUser(parsedUser);
       setEmployerName(parsedUser.name || 'Employer');
       setCompanyName(parsedUser.company || parsedUser.companyName || 'Company');
@@ -117,6 +226,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       fetchDashboardData(parsedUser);
     }
+    
+    // Listen for alerts navigation event from header
+    const handleShowAlerts = () => {
+      console.log('Show alerts event received');
+      setActiveMenu('alerts');
+    };
+    
+    // Listen for applications navigation event from header
+    const handleShowApplications = () => {
+      console.log('Show applications event received');
+      setActiveMenu('applications');
+    };
+    
+    window.addEventListener('showAlerts', handleShowAlerts);
+    window.addEventListener('showApplications', handleShowApplications);
+    
+    return () => {
+      window.removeEventListener('showAlerts', handleShowAlerts);
+      window.removeEventListener('showApplications', handleShowApplications);
+    };
   }, []);
 
   const fetchCompanyDomain = async (companyName: string) => {
@@ -211,6 +340,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       // Fetch Jobs
       try {
+        console.log('Fetching jobs from:', API_ENDPOINTS.JOBS);
         const jobsRes = await fetch(API_ENDPOINTS.JOBS);
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
@@ -224,11 +354,23 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           setJobs(employerJobs);
           dashboardStats.activeJobs = employerJobs.length;
         } else {
-          console.warn('Jobs API returned error:', jobsRes.status);
+          const errorText = await jobsRes.text().catch(() => 'Unknown error');
+          console.error('Jobs API returned error:', jobsRes.status, jobsRes.statusText);
+          console.error('Jobs API error details:', errorText);
+          
+          // Set more specific error message based on status code
+          if (jobsRes.status === 500) {
+            setError('Server error while loading jobs. The backend server may be experiencing issues. Please try again later or contact support.');
+          } else if (jobsRes.status === 404) {
+            setError('Jobs API endpoint not found. Please check if the server is properly configured.');
+          } else {
+            setError(`Failed to load jobs: ${jobsRes.status} ${jobsRes.statusText}`);
+          }
           setJobs([]);
         }
       } catch (error) {
-        console.error('Error fetching jobs:', error);
+        console.error('Jobs API network error:', error);
+        setError('Network error while loading jobs. Please check your internet connection and try again.');
         setJobs([]);
       }
 
@@ -393,7 +535,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     // Check if user is from Trinity Technology Solutions
     if (user?.email && user.email.includes('@trinitetech')) {
       console.log('Using Trinity logo for trinitetech employee');
-      return '/images/company-logos/trinity-logo.png';
+      // Try Trinity logo with fallback
+      const trinityLogo = '/images/company-logos/trinity-logo.png';
+      return trinityLogo;
     }
     
     // First try to use company logo from user data
@@ -403,7 +547,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
     
     // Try to get logo from company name using Clearbit
-    if (companyName && companyName.trim() !== '') {
+    if (companyName && companyName.trim() !== '' && companyName !== 'Company') {
       const companyDomain = companyName.toLowerCase().replace(/\s+/g, '') + '.com';
       console.log('Trying Clearbit logo for:', companyDomain);
       return `https://logo.clearbit.com/${companyDomain}`;
@@ -490,19 +634,25 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <img
                 src={getDisplayLogo()}
                 alt={companyName || employerName}
-                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+                className="w-16 h-16 rounded-full object-cover border-2 border-blue-200 shadow-md"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
-                  console.log('Logo failed to load, using fallback');
+                  console.log('Logo failed to load:', img.src);
+                  console.log('Using fallback avatar');
                   const displayName = companyName || employerName;
-                  img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
+                  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
+                  
+                  // Prevent infinite loop by checking if we're already using fallback
+                  if (img.src !== fallbackUrl) {
+                    img.src = fallbackUrl;
+                  }
                 }}
               />
-              <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+              <div className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
             </div>
             <div className="flex-1">
-              <p className="font-semibold text-gray-900 text-sm">{employerName}</p>
-              <p className="text-xs text-gray-500">{companyName}</p>
+              <p className="font-bold text-gray-900 text-base">{employerName}</p>
+              <p className="text-sm text-gray-600 font-medium">{companyName}</p>
               {/* Display Employer ID */}
               {user?.employerId && (
                 <p className="text-xs text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded mt-1">
@@ -514,7 +664,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   href={`https://${companyDomain}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-700 block truncate"
+                  className="text-xs text-blue-600 hover:text-blue-700 block truncate mt-1"
                 >
                   {companyDomain}
                 </a>
@@ -623,6 +773,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           </button>
 
           <button
+            onClick={() => setActiveMenu('alerts')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
+              activeMenu === 'alerts' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Bell className="w-5 h-5" />
+            <span className="font-medium">Alerts</span>
+            {notifications.length > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+                {notifications.length}
+              </span>
+            )}
+          </button>
+
+          <button
             onClick={() => onNavigate('settings')}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
@@ -680,58 +845,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
             <div className="flex items-center space-x-4 ml-6">
-              <button type="button" aria-label="Notifications" className="relative p-2 text-gray-600 hover:text-gray-900" onClick={() => setShowNotifications(!showNotifications)}>
-                <Bell className="w-6 h-6" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-              
-              {/* Notifications Dropdown */}
-              {showNotifications && (
-                <>
-                  <div 
-                    className="fixed inset-0 bg-black bg-opacity-50 z-40"
-                    onClick={() => setShowNotifications(false)}
-                  />
-                  <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
-                    <div className="p-4 border-b flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-                      <button 
-                        type="button"
-                        onClick={() => setShowNotifications(false)}
-                        className="text-gray-400 hover:text-gray-600"
-                        title="Close notifications"
-                        aria-label="Close notifications"
-                      >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    
-                    <div className="h-full overflow-y-auto pb-20">
-                      <div className="p-3 text-sm text-gray-500 border-b bg-gray-50">Today</div>
-                      {notifications.map((notification) => (
-                        <div key={notification.id} className="p-4 border-b hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-start space-x-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                              notification.type === 'application' ? 'bg-blue-500' : 
-                              notification.type === 'interview' ? 'bg-green-500' : 'bg-purple-500'
-                            }`}>
-                              {notification.type === 'application' ? 'A' : 
-                               notification.type === 'interview' ? 'I' : 'J'}
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 mb-1">{notification.title}</h4>
-                              <p className="text-sm text-gray-600 mb-2">{notification.message}</p>
-                              <span className="text-xs text-gray-400">{notification.time}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
               <button
                 onClick={() => onNavigate('job-posting-selection')}
                 className="bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-800 transition-colors"
@@ -1260,14 +1373,72 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'saved-candidates' ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-8">Saved Candidates</h1>
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">Saved Candidates</h1>
+                <button
+                  onClick={() => {
+                    const token = localStorage.getItem('token');
+                    if (token) {
+                      console.log('Manual refresh of saved candidates...');
+                      fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, {
+                        headers: {
+                          'Authorization': `Bearer ${token}`
+                        }
+                      })
+                      .then(res => {
+                        console.log('Manual refresh response:', res.status);
+                        return res.ok ? res.json() : [];
+                      })
+                      .then(data => {
+                        console.log('Manual refresh data:', data);
+                        const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
+                        setSavedCandidates(candidates);
+                        alert(`Refreshed! Found ${candidates.length} saved candidates.`);
+                      })
+                      .catch(err => {
+                        console.error('Error refreshing saved candidates:', err);
+                        alert('Failed to refresh saved candidates.');
+                      });
+                    }
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+              </div>
               
               {savedCandidates.length === 0 ? (
-                <div className="text-center py-16">
-                  <Bookmark className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No Saved Candidates</h3>
-                  <p className="text-gray-600 mb-6">Save candidates from the candidate search to view them here.</p>
-                </div>
+                  <div className="text-center py-16">
+                    <Bookmark className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Saved Candidates</h3>
+                    <p className="text-gray-600 mb-6">Save candidates from the candidate search to view them here.</p>
+                    <div className="flex gap-4 justify-center">
+                      <button
+                        onClick={() => onNavigate('candidate-search')}
+                        className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Search Candidates
+                      </button>
+                      <button
+                        onClick={() => {
+                          const token = localStorage.getItem('token');
+                          console.log('Debug info:', {
+                            hasToken: !!token,
+                            tokenLength: token?.length,
+                            apiEndpoint: API_ENDPOINTS.SAVED_CANDIDATES,
+                            user: user
+                          });
+                          alert('Check console for debug information');
+                        }}
+                        className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        Debug Info
+                      </button>
+                    </div>
+                  </div>
               ) : (
                 <div className="space-y-4">
                   {savedCandidates.map((candidate) => (
@@ -1341,6 +1512,80 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   ))}
                 </div>
               )}
+            </>
+          ) : activeMenu === 'alerts' ? (
+            <>
+              <h1 className="text-3xl font-bold text-gray-900 mb-8">Alerts & Notifications</h1>
+              
+              <div className="space-y-4">
+                {notifications.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Bell className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Alerts</h3>
+                    <p className="text-gray-600 mb-6">You're all caught up! New alerts will appear here.</p>
+                  </div>
+                ) : (
+                  notifications.map((notification) => (
+                    <div key={notification.id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-lg hover:border-blue-400 transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50">
+                      <div className="flex items-start space-x-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
+                          notification.type === 'application' ? 'bg-blue-500' : 
+                          notification.type === 'interview' ? 'bg-green-500' : 'bg-purple-500'
+                        }`}>
+                          {notification.type === 'application' ? '📄' : 
+                           notification.type === 'interview' ? '🤝' : '💼'}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between mb-2">
+                            <h3 className="text-lg font-bold text-gray-900">{notification.title}</h3>
+                            <span className="text-xs text-gray-500">{notification.time}</span>
+                          </div>
+                          <p className="text-gray-700 mb-3">{notification.message}</p>
+                          <div className="flex gap-2">
+                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                              View Details
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                              }}
+                              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+                            >
+                              Dismiss
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              {/* Alert Settings */}
+              <div className="mt-8 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">Alert Preferences</h2>
+                <div className="space-y-3">
+                  <label className="flex items-center space-x-3">
+                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-gray-700">New job applications</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-gray-700">Interview confirmations</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-gray-700">Job posting updates</span>
+                  </label>
+                  <label className="flex items-center space-x-3">
+                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <span className="text-gray-700">Weekly summary reports</span>
+                  </label>
+                </div>
+                <button className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                  Save Preferences
+                </button>
+              </div>
             </>
           ) : activeMenu === 'auto-rejection' ? (
             <>

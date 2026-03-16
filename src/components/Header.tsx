@@ -14,11 +14,10 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
+  const [notifications, setNotifications] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const megaMenuRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
   const { items: navItems, fetchNavigation } = useNavigation();
@@ -105,9 +104,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
-      if (megaMenuRef.current && !megaMenuRef.current.contains(event.target as Node)) {
-        setIsMegaMenuOpen(false);
-      }
       if (careerDropdownRef.current && !careerDropdownRef.current.contains(event.target as Node)) {
         setIsCareerDropdownOpen(false);
       }
@@ -154,25 +150,116 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       }
     };
     
+    const fetchNotifications = async () => {
+      if (user) {
+        try {
+          const userData = localStorage.getItem('user');
+          if (userData) {
+            const parsedUser = JSON.parse(userData);
+            const userEmail = parsedUser.email;
+            
+            if (user.type === 'employer') {
+              // Fetch employer notifications
+              const [appsRes, jobsRes, interviewsRes] = await Promise.all([
+                fetch(API_ENDPOINTS.APPLICATIONS),
+                fetch(API_ENDPOINTS.JOBS),
+                fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
+              ]);
+              
+              const realNotifications = [];
+              
+              // Process applications
+              if (appsRes.ok) {
+                const appsData = await appsRes.json();
+                const allApps = appsData.applications || appsData || [];
+                const employerApps = allApps.filter((app: any) => app.employerEmail === userEmail);
+                const recentApps = employerApps.slice(0, 3);
+                
+                recentApps.forEach((app: any) => {
+                  realNotifications.push({
+                    id: `app_${app._id || app.id}`,
+                    type: 'application',
+                    title: 'New application received',
+                    message: `${app.candidateName || app.candidateEmail} applied for a position`,
+                    time: new Date(app.createdAt).toLocaleDateString() || '1d ago'
+                  });
+                });
+              }
+              
+              // Process interviews
+              if (interviewsRes.ok) {
+                const interviewsData = await interviewsRes.json();
+                const interviews = Array.isArray(interviewsData) ? interviewsData : [];
+                const upcomingInterviews = interviews.slice(0, 2);
+                
+                upcomingInterviews.forEach((interview: any) => {
+                  realNotifications.push({
+                    id: `interview_${interview._id}`,
+                    type: 'interview',
+                    title: 'Interview scheduled',
+                    message: `Interview with ${interview.candidateName || 'candidate'} scheduled`,
+                    time: new Date(interview.date).toLocaleDateString() || '1d ago'
+                  });
+                });
+              }
+              
+              // Process jobs
+              if (jobsRes.ok) {
+                const jobsData = await jobsRes.json();
+                const allJobs = Array.isArray(jobsData) ? jobsData : [];
+                const employerJobs = allJobs.filter((job: any) => job.postedBy === userEmail);
+                const recentJobs = employerJobs.slice(0, 2);
+                
+                recentJobs.forEach((job: any) => {
+                  realNotifications.push({
+                    id: `job_${job._id || job.id}`,
+                    type: 'job',
+                    title: 'Job posting active',
+                    message: `Your ${job.jobTitle || job.title} position is live`,
+                    time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || '2d ago'
+                  });
+                });
+              }
+              
+              setNotifications(realNotifications);
+            } else {
+              // For candidates, fetch different notifications
+              setNotifications([]);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+          setNotifications([]);
+        }
+      }
+    };
+    
     fetchProfileMetrics();
+    fetchNotifications();
     
     // Listen for job deletion events to refresh metrics
     const handleJobDeleted = () => {
       console.log('Job deleted event received in Header, refreshing metrics...');
       fetchProfileMetrics();
+      fetchNotifications();
     };
     
     const handleWindowFocus = () => {
       console.log('Window focused, refreshing profile metrics...');
       fetchProfileMetrics();
+      fetchNotifications();
     };
     
     window.addEventListener('jobDeleted', handleJobDeleted);
     window.addEventListener('focus', handleWindowFocus);
     
+    // Set up periodic refresh for notifications
+    const notificationInterval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    
     return () => {
       window.removeEventListener('jobDeleted', handleJobDeleted);
       window.removeEventListener('focus', handleWindowFocus);
+      clearInterval(notificationInterval);
     };
   }, [user]);
 
@@ -227,17 +314,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               {isCareerDropdownOpen && (
                 <div className="absolute left-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 z-50">
                   {user?.type === 'employer' ? (
-                    // Employer Resources
+                    // Employer Resources - Limited Access
                     <>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('resume-parser');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        Resume Parser Tool
-                      </button>
                       <button 
                         onClick={() => {
                           setIsCareerDropdownOpen(false);
@@ -247,9 +325,21 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       >
                         Salary Benchmarking
                       </button>
+                      <button 
+                        onClick={() => {
+                          setIsCareerDropdownOpen(false);
+                          onNavigate && onNavigate('candidate-search');
+                        }}
+                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        Candidate Search
+                      </button>
+                      <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-600 mt-2">
+                        Candidate tools are not available for employers
+                      </div>
                     </>
                   ) : (
-                    // Candidate Resources
+                    // Candidate Resources - Full Access
                     <>
                       <button 
                         onClick={() => {
@@ -258,7 +348,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         }}
                         className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
-                        Resume Builder
+                        🎨 Resume Builder
                       </button>
                       <button 
                         onClick={() => {
@@ -267,7 +357,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         }}
                         className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
-                        Resume Help & Guide
+                        📝 Resume Help & Guide
                       </button>
                       <button 
                         onClick={() => {
@@ -276,16 +366,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         }}
                         className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
-                        Skill Assessments
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('interviews');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        Interview Scheduling
+                        📊 Skill Assessments
                       </button>
                       <button 
                         onClick={() => {
@@ -294,16 +375,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         }}
                         className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
-                        Career Coach Agent
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('salary-report');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        Salary Benchmarking
+                        🤖 Career Coach Agent
                       </button>
                       <button 
                         onClick={() => {
@@ -312,7 +384,25 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         }}
                         className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                       >
-                        Resume Parser Tool
+                        🔍 Resume Parser Tool
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsCareerDropdownOpen(false);
+                          onNavigate && onNavigate('interviews');
+                        }}
+                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        📅 Interview Scheduling
+                      </button>
+                      <button 
+                        onClick={() => {
+                          setIsCareerDropdownOpen(false);
+                          onNavigate && onNavigate('salary-report');
+                        }}
+                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                      >
+                        💰 Salary Benchmarking
                       </button>
                     </>
                   )}
@@ -420,6 +510,11 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                                     onClick={() => {
                                       setIsDropdownOpen(false);
                                       onNavigate && onNavigate('dashboard');
+                                      // Trigger applications section after navigation
+                                      setTimeout(() => {
+                                        const event = new CustomEvent('showApplications');
+                                        window.dispatchEvent(event);
+                                      }, 100);
                                     }}
                                     className="text-blue-600 text-xs hover:underline font-medium"
                                   >
@@ -529,7 +624,18 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                           <button 
                             onClick={() => {
                               setIsDropdownOpen(false);
-                              onNavigate && onNavigate('alerts');
+                              if (user.type === 'employer') {
+                                // For employers, go to dashboard and show alerts section
+                                onNavigate && onNavigate('dashboard');
+                                // Trigger alerts section after navigation
+                                setTimeout(() => {
+                                  const event = new CustomEvent('showAlerts');
+                                  window.dispatchEvent(event);
+                                }, 100);
+                              } else {
+                                // For candidates, go to alerts page
+                                onNavigate && onNavigate('alerts');
+                              }
                             }} 
                             className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                           >
@@ -626,54 +732,60 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="space-y-2">
                 <p className="text-white font-medium">Career Resources</p>
                 <div className="pl-4 space-y-2">
-                  <button 
-                    onClick={() => onNavigate && onNavigate('resume-templates')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Resume Builder
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('career-advice')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Career Coach Agent
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('skill-gap-analysis')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Skill Gap Analysis
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('career-roadmap')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Career Roadmap Generator
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('interview-simulation')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Interview Simulation
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('salary-report')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Salary Benchmarking Tool
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('learning-path')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Learning Path Generator
-                  </button>
-                  <button 
-                    onClick={() => onNavigate && onNavigate('resume-parser')}
-                    className="block text-left text-gray-300 hover:text-white text-sm"
-                  >
-                    Resume Parser Tool
-                  </button>
+                  {user?.type === 'employer' ? (
+                    // Employer Mobile Menu - Limited Access
+                    <>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('salary-report')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        💰 Salary Benchmarking
+                      </button>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('candidate-search')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        🔍 Candidate Search
+                      </button>
+                      <p className="text-xs text-gray-500 italic">
+                        Candidate tools not available for employers
+                      </p>
+                    </>
+                  ) : (
+                    // Candidate Mobile Menu - Full Access
+                    <>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('resume-templates')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        🎨 Resume Builder
+                      </button>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('skill-assessment')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        📊 Skill Assessments
+                      </button>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('career-advice')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        🤖 Career Coach Agent
+                      </button>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('resume-parser')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        🔍 Resume Parser Tool
+                      </button>
+                      <button 
+                        onClick={() => onNavigate && onNavigate('salary-report')}
+                        className="block text-left text-gray-300 hover:text-white text-sm"
+                      >
+                        💰 Salary Benchmarking
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <button 

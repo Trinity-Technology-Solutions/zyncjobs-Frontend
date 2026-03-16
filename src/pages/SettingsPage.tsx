@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2 } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
+import { API_ENDPOINTS } from '../config/env';
+import { accountAPI } from '../api/account';
 
 
 interface SettingsPageProps {
@@ -95,48 +97,49 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
       console.log('✅ User confirmed deletion');
       
       try {
-        // Get user ID from localStorage
-        const userData = localStorage.getItem('user');
-        console.log('📦 User data from localStorage:', userData);
+        // Get user ID using the utility function
+        const userId = accountAPI.getUserIdFromStorage();
         
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          console.log('👤 Parsed user:', parsedUser);
-          
-          const userId = parsedUser.id || parsedUser._id;
-          console.log('🆔 User ID for deletion:', userId);
-          
-          if (userId) {
-            console.log('🌐 Calling delete API...');
-            
-            // Call delete API
-            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${userId}`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            console.log('📡 API Response status:', response.status);
-            const responseData = await response.json();
-            console.log('📡 API Response data:', responseData);
-            
-            if (response.ok) {
-              console.log('✅ Account deleted from database');
-            } else {
-              console.error('❌ Failed to delete from database:', responseData);
-            }
-          } else {
-            console.error('❌ No user ID found');
-          }
+        if (!userId) {
+          setNotification({
+            type: 'error',
+            message: 'Could not identify user for deletion. Account will be cleared locally.',
+            isVisible: true
+          });
         } else {
-          console.error('❌ No user data in localStorage');
+          console.log('🌐 Attempting to delete account from server...');
+          
+          // Call delete API using the utility function
+          const result = await accountAPI.deleteAccount(userId);
+          
+          if (result.success) {
+            console.log('✅ Account deleted from server successfully');
+            setNotification({
+              type: 'success',
+              message: result.message,
+              isVisible: true
+            });
+          } else {
+            console.error('❌ Failed to delete from server:', result.error);
+            setNotification({
+              type: 'error',
+              message: `${result.message}. Account cleared locally.`,
+              isVisible: true
+            });
+          }
         }
         
-        // Clear localStorage and logout regardless of API call result
-        console.log('🧹 Clearing localStorage...');
-        localStorage.removeItem('user');
-        localStorage.clear(); // Clear everything
+      } catch (error) {
+        console.error('❌ Unexpected error during account deletion:', error);
+        setNotification({
+          type: 'error',
+          message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}. Account cleared locally.`,
+          isVisible: true
+        });
+      } finally {
+        // Always clear localStorage and logout regardless of API call result
+        console.log('🧹 Clearing user data and logging out...');
+        accountAPI.clearUserData();
         
         console.log('👤 Setting user to null...');
         setUser(null);
@@ -146,24 +149,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
           onLogout();
         }
         
-        setNotification({
-          type: 'success',
-          message: 'Account deleted successfully',
-          isVisible: true
-        });
-        
-        console.log('🏠 Navigating to home in 1 second...');
+        console.log('🏠 Navigating to home in 2 seconds...');
         setTimeout(() => {
           onNavigate('home');
-        }, 1000);
-        
-      } catch (error) {
-        console.error('❌ Delete account error:', error);
-        setNotification({
-          type: 'error',
-          message: 'Failed to delete account. Please try again.',
-          isVisible: true
-        });
+        }, 2000);
       }
     } else {
       console.log('❌ User cancelled deletion');
