@@ -11,13 +11,6 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
     { name: "Find Jobs", action: () => onNavigate && onNavigate('job-listings') },
     { name: "Browse Companies", action: () => onNavigate && onNavigate('companies') },
     { name: "Career Resources", action: () => onNavigate && onNavigate('career-insights-hub') },
-    { name: "Salary Report", action: () => onNavigate && onNavigate('salary-report') },
-    { name: "Job Hunting Tips", action: () => onNavigate && onNavigate('job-hunting') },
-    { name: "Resume Help", action: () => onNavigate && onNavigate('resume-help') },
-    { name: "AI Resume Builder", action: () => {
-      console.log('Footer AI Resume Builder clicked!');
-      onNavigate && onNavigate('ai-resume-builder');
-    }}
   ];
 
   const employerLinks = [
@@ -47,11 +40,10 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   ];
 
   const resourceLinks = [
-    { name: "Interview Tips", action: () => onNavigate && onNavigate('interview-tips') },
-    { name: "Career Growth", action: () => onNavigate && onNavigate('career-advice', 'Career Growth') },
-    { name: "Diversity & Inclusion", action: () => onNavigate && onNavigate('career-advice', 'Diversity & Inclusion') },
-    { name: "Tech Connects Podcast", action: () => onNavigate && onNavigate('career-advice', 'Tech Connects Podcast') },
-    { name: "ZyncJobs Daily", action: () => onNavigate && onNavigate('career-advice', 'ZyncJobs Daily') }
+    { name: "🎨 Resume Studio", action: () => onNavigate && onNavigate('resume-studio') },
+    { name: "💬 Interview Preparation", action: () => onNavigate && onNavigate('interviews') },
+    { name: "🧭 Career Guidance", action: () => onNavigate && onNavigate('career-advice') },
+    { name: "✅ Skill Check", action: () => onNavigate && onNavigate('skill-assessment') },
   ];
 
   const companyLinks = [

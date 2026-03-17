@@ -43,27 +43,23 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
 
   const loadSettings = async () => {
     try {
-      // Try to load from API first
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}`);
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const employerEmail = user.email;
+      if (!employerEmail) return;
+
+      const url = `${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}?employerEmail=${encodeURIComponent(employerEmail)}`;
+      const response = await fetch(url);
       if (response.ok) {
         const savedSettings = await response.json();
-        setSettings(savedSettings);
+        setSettings(prev => ({ ...prev, ...savedSettings }));
       } else {
-        // Fallback to localStorage
-        const savedSettings = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
-        if (savedSettings) {
-          setSettings(JSON.parse(savedSettings));
-        }
+        const saved = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
+        if (saved) setSettings(JSON.parse(saved));
       }
-    } catch (error) {
-      // Fallback to localStorage if API fails
-      const savedSettings = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
-      if (savedSettings) {
-        setSettings(JSON.parse(savedSettings));
-      }
+    } catch {
+      const saved = localStorage.getItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`);
+      if (saved) setSettings(JSON.parse(saved));
     }
-    
-    // Load real candidate data
     await loadCandidateData();
   };
 
@@ -228,30 +224,32 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
 
   const handleSave = async () => {
     try {
-      // Try to save to API first
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}`, {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const employerEmail = user.email;
+      if (!employerEmail) { alert('Please login first.'); return; }
+
+      const url = `${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}`;
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
+        body: JSON.stringify({ ...settings, employerEmail })
       });
-      
+
       if (response.ok) {
-        alert('Auto-rejection settings saved successfully!');
+        const result = await response.json();
+        const msg = result.autoRejectedCount > 0
+          ? `Settings saved! ${result.autoRejectedCount} existing application(s) auto-rejected.`
+          : 'Auto-rejection settings saved successfully!';
+        alert(msg);
       } else {
         throw new Error('API save failed');
       }
-    } catch (error) {
-      // Fallback to localStorage if API fails
+    } catch {
       localStorage.setItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`, JSON.stringify(settings));
-      alert('Auto-rejection settings saved successfully!');
+      alert('Settings saved locally.');
     }
-    
-    // Reload candidate data with new settings
     await loadCandidateData();
-    
-    if (onSave) {
-      onSave(settings);
-    }
+    if (onSave) onSave(settings);
   };
 
   return (

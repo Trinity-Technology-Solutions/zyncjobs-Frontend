@@ -53,61 +53,46 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       _id: '1',
       name: 'Trinity Technology Solutions',
       industry: 'Technology',
-      rating: 4.2,
+      rating: 0,
       description: 'Leading tech solutions provider',
-      location: 'India',
-      employees: '500-1000',
+      location: 'Bangalore',
+      employees: '100-500',
       website: 'trinitetech.com',
-      openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64',
-      reviews: 245,
-      salaries: 8500000,
-      officeLocations: 3
+      openJobs: 8,
+      logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=128',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 7
     },
     {
       _id: '2',
       name: 'GrowthPulss Private Solutions',
       industry: 'Business Services',
-      rating: 3.8,
+      rating: 0,
       description: 'Growth and business consulting',
       location: 'India',
       employees: '200-500',
       website: 'growthpulss.com',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64',
-      reviews: 156,
-      salaries: 6200000,
-      officeLocations: 2
+      logo: 'https://growthpulss.com/assets/favicon_io/android-chrome-512x512.png',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 0
     },
     {
       _id: '3',
       name: 'Nambikkai India',
       industry: 'Non-Profit',
-      rating: 4.0,
+      rating: 0,
       description: 'Social impact organization',
       location: 'India',
       employees: '100-200',
       website: 'nambikai.com',
       openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=nambikai.com&sz=64',
-      reviews: 89,
-      salaries: 4500000,
-      officeLocations: 1
-    },
-    {
-      _id: '4',
-      name: 'Petrichor',
-      industry: 'Technology',
-      rating: 4.1,
-      description: 'Innovation and tech development',
-      location: 'India',
-      employees: '300-600',
-      website: 'petrichor.com',
-      openJobs: 0,
-      logo: 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64',
-      reviews: 178,
-      salaries: 7800000,
-      officeLocations: 2
+      logo: 'https://www.nambikkai.com/favicon_io/android-chrome-512x512.png',
+      reviews: 0,
+      salaries: 0,
+      officeLocations: 0
     }
   ];
 
@@ -117,62 +102,13 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       if (response.ok) {
         const jobs = await response.json();
         const jobsArray = Array.isArray(jobs) ? jobs : [];
-        
-        const companyMap = new Map<string, Company>();
-        
-        jobsArray.forEach((job: any) => {
-          const companyName = job.company || job.companyName;
-          if (companyName && !companyMap.has(companyName)) {
-            companyMap.set(companyName, {
-              _id: companyName.toLowerCase().replace(/\s+/g, '-'),
-              name: companyName,
-              industry: job.industry || 'Technology',
-              rating: (Math.random() * 1.5 + 3.5).toFixed(1) as any,
-              description: job.description || 'Company description',
-              location: job.location || 'India',
-              employees: '100-500',
-              website: job.website || '',
-              openJobs: 0,
-              logo: '',
-              reviews: Math.floor(Math.random() * 3000) + 100,
-              salaries: Math.floor(Math.random() * 50000000) + 4000000,
-              officeLocations: Math.floor(Math.random() * 5) + 1
-            });
-          }
-        });
 
-        const mergedCompanies = Array.from(companyMap.values());
-        const allCompanies = [...defaultCompanies, ...mergedCompanies];
-        
-        const uniqueCompanies = Array.from(
-          new Map(allCompanies.map(c => [c.name.toLowerCase(), c])).values()
-        );
-
-        const companiesWithJobCounts = uniqueCompanies.map(company => {
+        return defaultCompanies.map(company => {
           const jobCount = jobsArray.filter(
             (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
           ).length;
-          const avgRating = jobsArray
-            .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase())
-            .reduce((sum: number, job: any) => sum + (job.rating || 0), 0) / (jobCount || 1);
-          const avgSalary = jobsArray
-            .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase())
-            .reduce((sum: number, job: any) => sum + (job.salary || 0), 0) / (jobCount || 1);
-          const locations = new Set(jobsArray
-            .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase())
-            .map((job: any) => job.location));
-          
-          return { 
-            ...company, 
-            openJobs: jobCount,
-            rating: avgRating > 0 ? parseFloat(avgRating.toFixed(1)) : 0,
-            salaries: avgSalary > 0 ? avgSalary : 0,
-            officeLocations: locations.size,
-            reviews: 0
-          };
+          return { ...company, openJobs: jobCount || company.openJobs };
         });
-
-        return companiesWithJobCounts;
       }
     } catch (error) {
       console.error('Error fetching companies from jobs:', error);
@@ -181,69 +117,16 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   // Fetch companies from API
-  const fetchCompanies = async (page = 1, append = false) => {
-    try {
-      if (!append) setLoading(true);
-      
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`);
-      if (response.ok) {
-        const jobs = await response.json();
-        const jobsArray = Array.isArray(jobs) ? jobs : [];
-        
-        const filtered = jobsArray.filter((job: any) => {
-          const companyName = (job.company || job.companyName || '').toLowerCase();
-          return companyName.includes(searchTerm.toLowerCase());
-        });
-
-        const companyMap = new Map<string, Company>();
-        filtered.forEach((job: any) => {
-          const companyName = job.company || job.companyName;
-          if (companyName && !companyMap.has(companyName)) {
-            companyMap.set(companyName, {
-              _id: companyName.toLowerCase().replace(/\s+/g, '-'),
-              name: companyName,
-              industry: job.industry || 'Technology',
-              rating: (Math.random() * 1.5 + 3.5).toFixed(1) as any,
-              description: job.description || 'Company description',
-              location: job.location || 'India',
-              employees: '100-500',
-              website: job.website || '',
-              openJobs: 0,
-              logo: '',
-              reviews: Math.floor(Math.random() * 3000) + 100,
-              salaries: Math.floor(Math.random() * 50000) + 40000,
-              officeLocations: Math.floor(Math.random() * 5) + 1
-            });
-          }
-        });
-
-        const searchResults = Array.from(companyMap.values());
-        const companiesWithJobCounts = searchResults.map(company => {
-          const jobCount = filtered.filter(
-            (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
-          ).length;
-          return { ...company, openJobs: jobCount };
-        });
-
-        if (append) {
-          setCompanies(prev => [...prev, ...companiesWithJobCounts]);
-        } else {
-          setCompanies(companiesWithJobCounts);
-        }
-        
-        setHasMoreCompanies(companiesWithJobCounts.length === companiesPerPage);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    } finally {
-      if (!append) setLoading(false);
-    }
+  const fetchCompanies = async () => {
+    const filtered = defaultCompanies.filter(c =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setCompanies(filtered);
+    setHasMoreCompanies(false);
   };
 
   const handleLoadMoreCompanies = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchCompanies(nextPage, true);
+    fetchCompanies();
   };
 
   useEffect(() => {
@@ -287,10 +170,9 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const getCompanyLogo = (company: Company) => {
     // Custom logo URLs for companies
     const customLogos: { [key: string]: string } = {
-      'Nambikkai India': 'https://ui-avatars.com/api/?name=Nambikkai&size=64&background=10b981&color=ffffff&bold=true',
-      'Trinity Technology Solutions': 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=64',
-      'GrowthPulss Private Solutions': 'https://www.google.com/s2/favicons?domain=growthpulss.com&sz=64',
-      'Petrichor': 'https://www.google.com/s2/favicons?domain=petrichor.com&sz=64'
+      'Nambikkai India': 'https://www.nambikkai.com/favicon_io/android-chrome-512x512.png',
+      'Trinity Technology Solutions': 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=128',
+      'GrowthPulss Private Solutions': 'https://growthpulss.com/assets/favicon_io/android-chrome-512x512.png'
     };
 
     // Check if company has custom logo
@@ -371,12 +253,12 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">10K+</div>
+                <div className="text-2xl font-bold text-white">{loading ? '...' : companies.reduce((sum, c) => sum + (c.reviews || 0), 0).toLocaleString()}</div>
                 <div className="text-white/80 text-sm">Reviews</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">500+</div>
+                <div className="text-2xl font-bold text-white">{loading ? '...' : companies.reduce((sum, c) => sum + (c.openJobs || 0), 0)}+</div>
                 <div className="text-white/80 text-sm">Open Jobs</div>
               </div>
             </div>
@@ -486,7 +368,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                           alt={company.name}
                           data-company-name={company.name}
                           onError={handleLogoError}
-                          className="w-16 h-16 rounded-lg object-cover border border-gray-200"
+                          className="w-20 h-20 rounded-lg object-contain border border-gray-200 bg-white p-1"
                         />
                       </div>
                       <div className="flex-1">

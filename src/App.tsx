@@ -94,6 +94,7 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
 const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
+const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
 const JobShareTestPage = lazy(() => import('./pages/JobShareTestPage'));
 
 const LoadingFallback = () => (
@@ -175,20 +176,14 @@ function App() {
 
   // Handle URL-based job detail navigation
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const jobId = urlParams.get('id');
-    
-    if (jobId && location.pathname === '/job-detail') {
-      // Set the job ID in currentData for the job detail page
-      setCurrentData({ jobId });
+    const urlJobId = new URLSearchParams(location.search).get('id');
+    if (urlJobId && location.pathname === '/job-detail') {
+      setCurrentData({ jobId: urlJobId });
     }
   }, [location.pathname, location.search]);
 
   const handleNavigation = (page: string, params?: any) => {
-    console.log('🚀 Navigation called:', page, params);
-    
     startTransition(() => {
-      // Close any open modals when navigating to actual pages
       setShowLoginModal(false);
       setShowRegisterModal(false);
       setShowEmployerLoginModal(false);
@@ -197,14 +192,11 @@ function App() {
       setShowEmployerRegisterModal(false);
       
       if (params) {
-        console.log('📊 Setting params:', params);
         if (typeof params === 'string') {
           setCurrentTopic(params);
         } else {
           setCurrentData(params);
-          // Store job data in localStorage for job-detail navigation
           if (page === 'job-detail' && params.jobData) {
-            console.log('💾 Storing job data in localStorage:', params.jobData);
             localStorage.setItem('selectedJob', JSON.stringify({
               _id: params.jobData._id,
               jobTitle: params.jobData.jobTitle || params.jobData.title,
@@ -218,24 +210,20 @@ function App() {
           }
         }
       } else {
-        console.log('❌ No params provided, clearing currentData');
-        // Clear currentData if no params provided
         setCurrentData(null);
       }
       
-      // Handle assessment review navigation
       if (page === 'assessment-review' && params?.assessmentId) {
         navigate(`/assessment-review/${params.assessmentId}`);
-      } else if (page === 'job-detail' && (params?.jobId || params?.jobData?._id)) {
-        const id = params?.jobId || params?.jobData?._id;
-        navigate(`/job-detail?id=${id}`);
+      } else if (page === 'job-detail') {
+        const id = params?.jobId || params?.jobData?._id || params?.jobData?.id;
+        window.location.href = id ? `/job-detail?id=${id}` : '/job-detail';
+        return;
       } else {
-        // Navigate using React Router
         navigate(`/${page === 'home' ? '' : page}`);
       }
     });
     
-    // Scroll to top when navigating
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
@@ -372,18 +360,12 @@ function App() {
 
 
   if (currentPage === 'job-detail') {
-    // On refresh, currentData is null — read jobId directly from URL
-    const urlParams = new URLSearchParams(location.search);
-    const urlJobId = urlParams.get('id');
+    const urlJobId = new URLSearchParams(location.search).get('id');
     const jobId = urlJobId ||
       (typeof currentData?.jobId === 'string' ? currentData.jobId :
         (currentData?.jobId?._id || currentData?.jobId?.id ||
-         currentData?.jobData?.id || currentData?.jobData?._id));
-    console.log('🔍 App.tsx - job-detail navigation:');
-    console.log('📊 currentData:', currentData);
-    console.log('🆔 jobId:', jobId);
-    console.log('📝 jobData:', currentData?.jobData);
-    
+         currentData?.jobData?._id || currentData?.jobData?.id));
+
     return (
       <Suspense fallback={<LoadingFallback />}>
         <div className="min-h-screen bg-white">
@@ -572,6 +554,11 @@ function App() {
 
   if (currentPage === 'job-management') {
     return <Suspense fallback={<LoadingFallback />}><JobManagementPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'employer-dashboard') {
+    navigate('/dashboard');
+    return null;
   }
 
   if (currentPage === 'candidate-response-detail') {
@@ -871,6 +858,10 @@ function App() {
 
   if (currentPage === 'accessibility') {
     return <Suspense fallback={<LoadingFallback />}><AccessibilityPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'resume-studio') {
+    return <Suspense fallback={<LoadingFallback />}><ResumeStudioPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   if (currentPage === 'resume-help') {

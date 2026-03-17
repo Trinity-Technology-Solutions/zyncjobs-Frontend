@@ -32,8 +32,8 @@ const ResumeParserPage: React.FC<ResumeParserPageProps> = ({ onNavigate, user, o
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
           <BackButton 
-            onClick={() => window.history.back()}
-            text="Back"
+            onClick={() => onNavigate('resume-studio')}
+            text="Back to Resume Studio"
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
           />
         </div>

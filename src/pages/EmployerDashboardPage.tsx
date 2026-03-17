@@ -1041,43 +1041,46 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 <button
                                   onClick={async () => {
                                     try {
-                                      let resumeUrl = application.resumeUrl;
-                                      
-                                      if (!resumeUrl.startsWith('http')) {
-                                        resumeUrl = resumeUrl.startsWith('/') 
-                                          ? `${API_ENDPOINTS.BASE_URL}${resumeUrl}`
-                                          : `${API_ENDPOINTS.BASE_URL}/uploads/${resumeUrl}`;
-                                      }
-                                      
-                                      console.log('Attempting to open resume:', resumeUrl);
-                                      
-                                      try {
-                                        const testResponse = await fetch(resumeUrl, { 
-                                          method: 'HEAD',
-                                          mode: 'cors'
-                                        });
-                                        
-                                        if (testResponse.ok) {
-                                          const newWindow = window.open(resumeUrl, '_blank', 'noopener,noreferrer');
-                                          if (!newWindow) {
-                                            window.location.href = resumeUrl;
+                                      const appId = application._id || application.id;
+                                      const PLACEHOLDERS = ['resume_from_quick_apply', 'resume_from_profile', 'resume_uploaded'];
+                                      const isPlaceholder = PLACEHOLDERS.includes(application.resumeUrl) || !application.resumeUrl.includes('/');
+
+                                      if (isPlaceholder) {
+                                        // Use resume-viewer API to get the real file
+                                        const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+                                        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/resume-viewer/${appId}`);
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          const fileUrl = data.resume?.fileUrl;
+                                          if (fileUrl) {
+                                            const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${serverBase}${fileUrl}`;
+                                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                          } else {
+                                            alert('No resume file found for this candidate.');
                                           }
                                         } else {
-                                          throw new Error(`File not accessible: ${testResponse.status}`);
+                                          alert('No resume file found. The candidate may not have uploaded one.');
                                         }
-                                      } catch (fetchError) {
-                                        console.error('Resume fetch error:', fetchError);
-                                        const link = document.createElement('a');
-                                        link.href = resumeUrl;
-                                        link.download = `resume_${application.candidateName || 'candidate'}.pdf`;
-                                        link.target = '_blank';
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
+                                        return;
                                       }
+
+                                      // Real file path — build correct URL (strip /api prefix for static files)
+                                      const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+                                      let resumeUrl = application.resumeUrl;
+                                      if (resumeUrl.startsWith('http')) {
+                                        // already absolute
+                                      } else if (resumeUrl.startsWith('/uploads/')) {
+                                        resumeUrl = `${serverBase}${resumeUrl}`;
+                                      } else if (resumeUrl.startsWith('/')) {
+                                        resumeUrl = `${serverBase}${resumeUrl}`;
+                                      } else {
+                                        resumeUrl = `${serverBase}/uploads/resumes/${resumeUrl}`;
+                                      }
+
+                                      window.open(resumeUrl, '_blank', 'noopener,noreferrer');
                                     } catch (error) {
                                       console.error('Resume open error:', error);
-                                      alert('Unable to open resume. The file may have been moved or deleted. Please ask the candidate to re-upload their resume.');
+                                      alert('Unable to open resume. Please try again.');
                                     }
                                   }}
                                   className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"

@@ -161,5 +161,16 @@ h6 { font-size: 1.125rem !important; }
   100% { background-position: 0% 50%; }
 }
 
+/* Orbit counter-spin animations - keep emoji labels upright */
+@keyframes counter-spin-inner {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
+@keyframes counter-spin-outer {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Import mobile styles */
 @import './styles/mobile.css';

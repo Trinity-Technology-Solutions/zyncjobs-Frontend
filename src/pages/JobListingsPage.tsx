@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin, Filter, Briefcase, Clock, DollarSign, X, Bookmark, BookmarkCheck, TrendingUp, Share2 } from 'lucide-react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
+import { Search, MapPin, Filter, Briefcase, Clock, DollarSign, X, Bookmark, BookmarkCheck, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import LocationRadiusSearch from '../components/LocationRadiusSearch';
 import RecommendedJobs from '../components/RecommendedJobs';
-import JobShareModal from '../components/JobShareModal';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
@@ -49,7 +48,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const [hasMoreJobs, setHasMoreJobs] = useState(true);
   const [activeTab, setActiveTab] = useState<'search' | 'recommended'>('search');
   const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
-  const [shareModalJob, setShareModalJob] = useState<any>(null);
+  const [statsCompanies, setStatsCompanies] = useState<number>(0);
+  const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
   const jobsPerPage = 10;
 
   // Load saved jobs from backend if user is logged in
@@ -344,10 +344,30 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
     setFilteredJobs(filtered);
   }, [searchTerm, location, jobs, filters, categoryTerms]);
 
+  const fetchStats = async () => {
+    try {
+      const jobsRes = await fetch(API_ENDPOINTS.JOBS);
+      if (jobsRes.ok) {
+        const allJobs = await jobsRes.json();
+        const uniqueCompanies = new Set(allJobs.map((j: any) => j.company).filter(Boolean));
+        setStatsCompanies(uniqueCompanies.size);
+      }
+    } catch {}
+    try {
+      const usersRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users`);
+      if (usersRes.ok) {
+        const users = await usersRes.json();
+        const seekers = Array.isArray(users) ? users.filter((u: any) => u.type === 'candidate').length : 0;
+        setStatsJobSeekers(seekers);
+      }
+    } catch {}
+  };
+
   useEffect(() => {
     fetchJobs();
     fetchFilterOptions();
     fetchTrending();
+    fetchStats();
     
     const handleJobPosted = () => {
       console.log('New job posted, refreshing job listings...');
@@ -607,12 +627,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">500+</div>
+                <div className="text-2xl font-bold text-white">{statsCompanies > 0 ? `${statsCompanies}+` : `...`}</div>
                 <div className="text-white/80 text-sm">Companies</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">50K+</div>
+                <div className="text-2xl font-bold text-white">{statsJobSeekers > 0 ? `${statsJobSeekers}+` : `...`}</div>
                 <div className="text-white/80 text-sm">Job Seekers</div>
               </div>
             </div>
@@ -1184,11 +1204,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                     <button 
                       onClick={() => {
                         console.log('🔗 Share button clicked for job:', job);
-                        setShareModalJob(job);
+                        
                       }}
                       className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-1 shadow-sm"
                     >
-                      <Share2 className="w-4 h-4" />
+                      
                       <span>Share</span>
                     </button>
                     <button 
@@ -1226,17 +1246,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       </div>
       
       <Footer onNavigate={onNavigate} />
-      
-      {/* Job Share Modal */}
-      <JobShareModal 
-        isOpen={!!shareModalJob}
-        onClose={() => {
-          console.log('🔗 Closing share modal');
-          setShareModalJob(null);
-        }}
-        job={shareModalJob}
-        user={user}
-      />
       
       {/* Floating Back Button */}
       <BackButton 

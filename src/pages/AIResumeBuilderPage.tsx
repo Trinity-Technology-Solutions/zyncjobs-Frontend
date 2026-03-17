@@ -30,6 +30,13 @@ const AIResumeBuilderPage: React.FC<AIResumeBuilderPageProps> = ({ onNavigate, u
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <button
+          onClick={() => onNavigate && onNavigate('resume-studio')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-8 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to Resume Studio
+        </button>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           
           {/* Left Content */}

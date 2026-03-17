@@ -303,112 +303,52 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               </>
             )}
 
-            <div className="relative" ref={careerDropdownRef}>
-              <button 
-                onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
-                className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 font-medium transition-colors"
+            {user?.type === 'employer' ? (
+              <button
+                onClick={() => onNavigate && onNavigate('my-jobs')}
+                className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
               >
-                <span>Career Resources</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
+                Posted Jobs
               </button>
-              {isCareerDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 z-50">
-                  {user?.type === 'employer' ? (
-                    // Employer Resources - Limited Access
-                    <>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('salary-report');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        Salary Benchmarking
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('candidate-search');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        Candidate Search
-                      </button>
-                      <div className="px-4 py-2 text-xs text-gray-500 border-t border-gray-600 mt-2">
-                        Candidate tools are not available for employers
-                      </div>
-                    </>
-                  ) : (
-                    // Candidate Resources - Full Access
-                    <>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('resume-templates');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        🎨 Resume Builder
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('resume-help');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        📝 Resume Help & Guide
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('skill-assessment');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        📊 Skill Assessments
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('career-advice');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        🤖 Career Coach Agent
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('resume-parser');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        🔍 Resume Parser Tool
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('interviews');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        📅 Interview Scheduling
-                      </button>
-                      <button 
-                        onClick={() => {
-                          setIsCareerDropdownOpen(false);
-                          onNavigate && onNavigate('salary-report');
-                        }}
-                        className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-                      >
-                        💰 Salary Benchmarking
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="relative" ref={careerDropdownRef}>
+                <button 
+                  onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
+                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                >
+                  <span>Career Resources</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isCareerDropdownOpen && (
+                  <div className="absolute left-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 z-50">
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      🎨 Resume Studio
+                    </button>
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interviews'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      💬 Interview Preparation
+                    </button>
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-advice'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      🧭 Career Guidance
+                    </button>
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('skill-assessment'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      ✅ Skill Check
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <button 
               onClick={() => {
                 if (user) {
@@ -729,65 +669,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-white hover:text-gray-300 font-medium">
                 Skill Assessments
               </button>
-              <div className="space-y-2">
-                <p className="text-white font-medium">Career Resources</p>
-                <div className="pl-4 space-y-2">
-                  {user?.type === 'employer' ? (
-                    // Employer Mobile Menu - Limited Access
-                    <>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('salary-report')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        💰 Salary Benchmarking
-                      </button>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('candidate-search')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        🔍 Candidate Search
-                      </button>
-                      <p className="text-xs text-gray-500 italic">
-                        Candidate tools not available for employers
-                      </p>
-                    </>
-                  ) : (
-                    // Candidate Mobile Menu - Full Access
-                    <>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('resume-templates')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        🎨 Resume Builder
-                      </button>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('skill-assessment')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        📊 Skill Assessments
-                      </button>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('career-advice')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        🤖 Career Coach Agent
-                      </button>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('resume-parser')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        🔍 Resume Parser Tool
-                      </button>
-                      <button 
-                        onClick={() => onNavigate && onNavigate('salary-report')}
-                        className="block text-left text-gray-300 hover:text-white text-sm"
-                      >
-                        💰 Salary Benchmarking
-                      </button>
-                    </>
-                  )}
+              {user?.type !== 'employer' && (
+                <div className="space-y-2">
+                  <p className="text-white font-medium">Career Resources</p>
+                  <div className="pl-4 space-y-2">
+                    <button onClick={() => onNavigate && onNavigate('resume-studio')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      🎨 Resume Studio
+                    </button>
+                    <button onClick={() => onNavigate && onNavigate('interviews')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      💬 Interview Preparation
+                    </button>
+                    <button onClick={() => onNavigate && onNavigate('career-advice')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      🧭 Career Guidance
+                    </button>
+                    <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      ✅ Skill Check
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+              {user?.type === 'employer' && (
+                <button onClick={() => onNavigate && onNavigate('my-jobs')} className="block text-left text-white hover:text-gray-300 font-medium">
+                  Posted Jobs
+                </button>
+              )}
               <button 
                 onClick={() => {
                   if (user) {

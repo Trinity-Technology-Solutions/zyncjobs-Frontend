@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Clock, DollarSign, Building, Share2, X, CheckCircle } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
+import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
-import { getCompanyLogo } from '../utils/logoUtils';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
 import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
@@ -12,14 +11,14 @@ import localStorageMigration from '../services/localStorageMigration';
 interface JobDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
   jobTitle?: string;
-  jobId?: number;
+  jobId?: string | number;
   companyName?: string;
   user?: any;
   onLogout?: () => void;
   jobData?: any;
 }
 
-const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, jobId, companyName, user, onLogout, jobData }) => {
+const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }) => {
   const [job, setJob] = useState<any>(null);
   const [jobPoster, setJobPoster] = useState<any>(null);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
@@ -174,218 +173,65 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   };
 
   useEffect(() => {
-    // Clear any localStorage jobs that don't have database IDs on component mount
-    const clearInvalidLocalStorageJobs = () => {
-      const storedJob = localStorage.getItem('selectedJob');
-      if (storedJob) {
-        try {
-          const parsedJob = JSON.parse(storedJob);
-          const hasValidId = parsedJob._id || parsedJob.jobData?._id;
-          if (!hasValidId) {
-            console.log('🧽 Clearing invalid localStorage job without database ID');
-            localStorage.removeItem('selectedJob');
-          }
-        } catch (error) {
-          console.log('🧽 Clearing corrupted localStorage job');
-          localStorage.removeItem('selectedJob');
-        }
-      }
-    };
-    
-    clearInvalidLocalStorageJobs();
-    
     const fetchJobDetails = async () => {
       try {
-        // Priority 1: If jobData is passed from LatestJobs or other components, use it directly
-        if (jobData && jobData._id) {
-          console.log('🎯 Using passed jobData:', jobData);
-          
-          // Try to fetch fresh data from API, but fallback to passed data if API fails
-          try {
-            const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobData._id}`);
-            if (jobResponse.ok) {
-              const freshJobData = await jobResponse.json();
-              console.log('✅ Fresh job data from API:', freshJobData);
-              setJob(freshJobData);
-            } else {
-              console.warn('⚠️ API fetch failed, using passed jobData as fallback');
-              setJob(jobData);
-            }
-          } catch (error) {
-            console.warn('⚠️ API error, using passed jobData as fallback:', error);
-            setJob(jobData);
-          }
-          
-          // Check if user has applied to this job
-          if (user?.email && jobData._id) {
-            await checkApplicationStatus(jobData._id, user.email);
-          }
-          
-          // Fetch job poster info based on employerEmail
-          if (jobData.employerEmail || jobData.postedBy) {
-            try {
-              const usersResponse = await fetch(API_ENDPOINTS.USERS);
-              if (usersResponse.ok) {
-                const users = await usersResponse.json();
-                const poster = users.find((user: any) => 
-                  user.email === (jobData.employerEmail || jobData.postedBy)
-                );
-                setJobPoster(poster);
-              }
-            } catch (error) {
-              console.warn('⚠️ Failed to fetch job poster:', error);
-            }
-          }
-          
-          setLoading(false);
-          fetchSimilarJobs(jobData);
-          return;
-        }
-        
-        // Priority 2: If jobId is provided (from URL or navigation), fetch from API
-        if (jobId) {
-          console.log('🔍 Fetching job by ID from API:', jobId);
-          // Ensure jobId is a string, not an object
-          const jobIdString = typeof jobId === 'object' ? ((jobId as any)._id || (jobId as any).id) : jobId;
-          
-          try {
-            // Always fetch from API for original job details
-            const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
-            console.log('🌐 API Response status:', jobResponse.status);
-            
-            if (jobResponse.ok) {
-              const apiJobData = await jobResponse.json();
-              console.log('✅ Original job data received from API:', apiJobData);
-              setJob(apiJobData);
-              
-              // Check if user has applied to this job
-              if (user?.email && apiJobData._id) {
-                await checkApplicationStatus(apiJobData._id, user.email);
-              }
-              
-              // Fetch job poster
-              const usersResponse = await fetch(API_ENDPOINTS.USERS);
-              if (usersResponse.ok) {
-                const users = await usersResponse.json();
-                const poster = users.find((user: any) => 
-                  user.email === apiJobData.employerEmail || user.email === apiJobData.postedBy
-                );
-                setJobPoster(poster);
-              }
-              
-              fetchSimilarJobs(apiJobData);
-            } else {
-              const errorText = await jobResponse.text();
-              console.error('❌ Failed to fetch job from API:', jobResponse.status, errorText);
-              console.error('🔗 API URL attempted:', `${API_ENDPOINTS.JOBS}/${jobIdString}`);
-              // Job not found in API, show error
-              setJob(null);
-            }
-          } catch (fetchError) {
-            console.error('❌ Network error fetching job:', fetchError);
-            setJob(null);
-          }
-          setLoading(false);
-          return;
-        }
-        
-        // Priority 3: Check URL parameters for job ID
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlJobId = urlParams.get('id');
-        
-        if (urlJobId) {
-          console.log('🔗 Found job ID in URL, fetching from API:', urlJobId);
-          
-          // Always fetch from API for original job details
-          const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${urlJobId}`);
-          if (jobResponse.ok) {
-            const apiJobData = await jobResponse.json();
-            console.log('✅ Original job data from URL received from API:', apiJobData);
-            setJob(apiJobData);
-            
-            // Check if user has applied to this job
-            if (user?.email && apiJobData._id) {
-              await checkApplicationStatus(apiJobData._id, user.email);
-            }
-            
-            // Fetch job poster
-            const usersResponse = await fetch(API_ENDPOINTS.USERS);
-            if (usersResponse.ok) {
-              const users = await usersResponse.json();
-              const poster = users.find((user: any) => 
-                user.email === apiJobData.employerEmail || user.email === apiJobData.postedBy
-              );
-              setJobPoster(poster);
-            }
-            
-            fetchSimilarJobs(apiJobData);
-          } else {
-            console.error('❌ Failed to fetch job from API using URL ID:', jobResponse.status);
-            setJob(null);
-          }
-          setLoading(false);
-          return;
-        }
-        
-        // Priority 4: Only as last resort, check localStorage (but validate it's a real job)
-        const storedJob = localStorage.getItem('selectedJob');
-        if (storedJob) {
-          try {
-            const parsedJob = JSON.parse(storedJob);
-            console.log('📦 Found job in localStorage:', parsedJob);
-            
-            // CRITICAL: Only proceed if the job has a valid database ID
-            const jobIdToVerify = parsedJob._id || parsedJob.jobData?._id || parsedJob.id || parsedJob.jobData?.id;
-            if (!jobIdToVerify) {
-              console.warn('⚠️ Job in localStorage has no database ID - this is test data, clearing it');
-              localStorage.removeItem('selectedJob');
-              setJob(null);
-              setLoading(false);
-              return;
-            }
-            
-            console.log('🔍 Verifying localStorage job exists in database:', jobIdToVerify);
-            
-            // Always verify against database - no exceptions
-            const verifyResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdToVerify}`);
-            if (verifyResponse.ok) {
-              const verifiedJobData = await verifyResponse.json();
-              console.log('✅ Verified job data from database:', verifiedJobData);
-              setJob(verifiedJobData);
-              
-              if (user?.email && verifiedJobData._id) {
-                await checkApplicationStatus(verifiedJobData._id, user.email);
-              }
-              
-              if (verifiedJobData.employerEmail || verifiedJobData.postedBy) {
-                const usersResponse = await fetch(API_ENDPOINTS.USERS);
-                if (usersResponse.ok) {
-                  const users = await usersResponse.json();
-                  const poster = users.find((user: any) => 
-                    user.email === (verifiedJobData.employerEmail || verifiedJobData.postedBy)
-                  );
-                  setJobPoster(poster);
-                }
-              }
-              
-              fetchSimilarJobs(verifiedJobData);
-            } else {
-              console.warn('⚠️ Job in localStorage not found in database - clearing localStorage');
-              localStorage.removeItem('selectedJob');
-              setJob(null);
-            }
-          } catch (parseError) {
-            console.error('❌ Error parsing stored job:', parseError);
-            localStorage.removeItem('selectedJob');
-            setJob(null);
-          }
-        } else {
-          console.log('❌ No job data found anywhere');
+        setLoading(true);
+
+        const params = new URLSearchParams(window.location.search);
+        const urlJobId = params.get('id');
+        const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+
+        console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId);
+
+        if (!resolvedJobId) {
           setJob(null);
+          setLoading(false);
+          return;
         }
-        
+
+        // Try by UUID/id first
+        let response = await fetch(`${API_ENDPOINTS.JOBS}/${resolvedJobId}`);
+        let jobResult = null;
+
+        if (response.ok) {
+          jobResult = await response.json();
+        } else {
+          // Try by positionId
+          const posResponse = await fetch(`${API_ENDPOINTS.JOBS}/position/${resolvedJobId}`);
+          if (posResponse.ok) {
+            jobResult = await posResponse.json();
+          }
+        }
+
+        if (!jobResult) {
+          setJob(null);
+          return;
+        }
+
+        const jobData = jobResult;
+        setJob(jobData);
+
+        if (user?.email && (jobData.id || jobData._id)) {
+          await checkApplicationStatus(jobData.id || jobData._id, user.email);
+        }
+
+        if (jobData.employerEmail || jobData.postedBy) {
+          const usersResponse = await fetch(API_ENDPOINTS.USERS);
+          if (usersResponse.ok) {
+            const users = await usersResponse.json();
+            const poster = users.find(
+              (u: any) =>
+                u.email === jobData.employerEmail ||
+                u.email === jobData.postedBy
+            );
+            setJobPoster(poster);
+          }
+        }
+
+        fetchSimilarJobs(jobData);
+
       } catch (error) {
-        console.error('❌ Error fetching job details:', error);
+        console.error('Job fetch error:', error);
         setJob(null);
       } finally {
         setLoading(false);
@@ -393,7 +239,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
     };
 
     fetchJobDetails();
-  }, [jobId, jobTitle, companyName, jobData]);
+  }, [jobId]);
 
   // Set Open Graph meta tags for LinkedIn share preview
   useEffect(() => {
@@ -445,11 +291,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
     try {
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${userEmail}&jobId=${jobId}`);
       if (response.ok) {
-        const applications = await response.json();
-        const userApplication = applications.applications?.find((app: any) => 
-          app.jobId?._id === jobId && app.candidateEmail === userEmail
-        );
-        
+        const data = await response.json();
+        const list: any[] = Array.isArray(data) ? data : (data.applications || []);
+        const userApplication = list.find((app: any) => {
+          const jobMatch = app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId;
+          const emailMatch = app.candidateEmail?.toLowerCase() === userEmail.toLowerCase();
+          return jobMatch && emailMatch;
+        });
         if (userApplication) {
           setHasApplied(true);
           setApplicationStatus(userApplication.status);
@@ -465,21 +313,39 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
   const fetchSimilarJobs = async (currentJob: any) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/similar/${currentJob._id}`);
-      if (response.ok) {
-        const similarJobsData = await response.json();
-        setSimilarJobs(similarJobsData.slice(0, 3));
-      } else {
-        // Fallback to regular jobs API
-        const response = await fetch(API_ENDPOINTS.JOBS);
-        if (response.ok) {
-          const allJobs = await response.json();
-          const similar = allJobs
-            .filter((j: any) => j._id !== currentJob._id)
-            .slice(0, 3);
-          setSimilarJobs(similar);
-        }
-      }
+      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=100`);
+      if (!response.ok) return;
+      const data = await response.json();
+      console.log('SimilarJobs raw data:', typeof data, Array.isArray(data), JSON.stringify(data).substring(0, 200));
+      const allJobs: any[] = Array.isArray(data) ? data : (data.jobs || data.data || Object.values(data).find((v: any) => Array.isArray(v)) as any[] || []);
+      console.log('SimilarJobs allJobs count:', allJobs.length);
+      if (!allJobs.length) return;
+
+      const currentTitle = (currentJob.jobTitle || currentJob.title || '').toLowerCase();
+      const currentCompany = (currentJob.company || '').toLowerCase();
+      const titleWords = currentTitle.split(/\s+/).filter((w: string) => w.length > 2);
+
+      const currentId = String(currentJob._id || currentJob.id || '');
+      const others = allJobs.filter((j: any) => {
+        const jId = String(j._id || j.id || '');
+        return jId !== currentId;
+      });
+      console.log('SimilarJobs others count:', others.length);
+      const scored = others
+        .map((j: any) => {
+          const jTitle = (j.jobTitle || j.title || '').toLowerCase();
+          const jCompany = (j.company || '').toLowerCase();
+          let score = 0;
+          if (jCompany === currentCompany) score += 3;
+          titleWords.forEach((w: string) => { if (jTitle.includes(w)) score += 1; });
+          return { ...j, _score: score };
+        })
+        .sort((a: any, b: any) => b._score - a._score)
+        .slice(0, 4);
+
+      const finalJobs = scored.length > 0 ? scored : others.slice(0, 4);
+      console.log('SimilarJobs final count:', finalJobs.length);
+      setSimilarJobs(finalJobs);
     } catch (error) {
       console.error('Error fetching similar jobs:', error);
     }
@@ -559,29 +425,16 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <BackButton 
             onClick={() => {
-              console.log('🔙 Back button clicked');
-              console.log('📊 User:', user);
-              console.log('👤 User type:', user?.type, user?.userType);
-              
-              // Navigate based on user type and context
               try {
                 if (user?.type === 'employer' || user?.userType === 'employer') {
-                  // For employers, go back to my-jobs (their posted jobs)
-                  console.log('🏢 Employer - navigating to my-jobs');
                   onNavigate('my-jobs');
                 } else {
-                  // For candidates and non-logged users, go to job-listings
-                  console.log('👤 Candidate/Guest - navigating to job-listings');
                   onNavigate('job-listings');
                 }
-              } catch (error) {
-                console.error('❌ Navigation error:', error);
-                // Fallback to job-listings
+              } catch {
                 try {
                   onNavigate('job-listings');
-                } catch (fallbackError) {
-                  console.error('❌ Fallback navigation error:', fallbackError);
-                  // Final fallback - reload to home
+                } catch {
                   window.location.href = '/';
                 }
               }
@@ -592,14 +445,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start space-x-4 flex-1">
-              <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center p-2">
+              <div className="w-28 h-28 rounded-xl bg-blue-100 flex items-center justify-center p-3 flex-shrink-0">
                 <img
                   src={getCompanyLogo(job)}
                   alt={job.company}
                   className="w-full h-full object-contain rounded"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    // Don't change Trinity logo on error - keep trying Trinity logo
                     if (!job.company?.toLowerCase().includes('trinity')) {
                       img.src = '/images/zync-logo.svg';
                     }
@@ -625,7 +477,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     </div>
                   )}
                   <div className="flex items-center space-x-2">
-                    <span>{typeof job.salary === 'object' ? `${job.salary.currency === 'INR' ? '₹' : job.salary.currency === 'USD' ? '$' : job.salary.currency || '₹'}${job.salary.min?.toLocaleString()}-${job.salary.max?.toLocaleString()} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive')}</span>
+                    <span>{
+                      job.salaryMin && job.salaryMax
+                        ? `₹${Number(job.salaryMin).toLocaleString('en-IN')} - ₹${Number(job.salaryMax).toLocaleString('en-IN')} per year`
+                        : job.salaryMin
+                        ? `₹${Number(job.salaryMin).toLocaleString('en-IN')}+ per year`
+                        : job.salaryMax
+                        ? `Up to ₹${Number(job.salaryMax).toLocaleString('en-IN')} per year`
+                        : 'Salary not disclosed'
+                    }</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4" />
@@ -741,10 +601,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
       {/* Job Header Image - Like Dice - Following same grid as content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left side - Banner Image (matches Job Description width) */}
-          <div className="lg:col-span-2">
-            <div className="relative h-64 bg-gray-900 overflow-hidden rounded-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+          {/* Left side - Banner Image */}
+          <div className="lg:col-span-2 h-64">
+            <div className="relative h-full bg-gray-900 overflow-hidden rounded-lg">
               <img
                 src={job.jobHeaderImage || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop'}
                 alt={`${job.jobTitle || job.title} at ${job.company}`}
@@ -758,23 +618,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             </div>
           </div>
           
-          {/* Right side - Company Logo Card (matches sidebar width) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center h-64 flex flex-col justify-center">
+          {/* Right side - Company Logo Card */}
+          <div className="lg:col-span-1 h-64">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center h-full flex flex-col justify-center">
               <img
                 src={getCompanyLogo(job)}
                 alt={job.company}
-                className="w-20 h-20 object-contain mx-auto mb-3 rounded"
+                className="w-36 h-36 object-contain mx-auto mb-4 rounded"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
-                  // Don't change Trinity logo on error - keep trying Trinity logo
                   if (!job.company?.toLowerCase().includes('trinity')) {
                     img.src = '/images/zync-logo.svg';
                   }
                 }}
               />
-              <p className="text-lg font-semibold text-gray-900">{job.company}</p>
-              <p className="text-sm text-gray-600 mt-1">Company</p>
+              <p className="text-xl font-bold text-gray-900">{job.company}</p>
+              <p className="text-sm text-gray-500 mt-1">Company</p>
             </div>
           </div>
         </div>
@@ -788,12 +647,53 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             {/* Job Description */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
-              <p className="text-gray-600 leading-relaxed mb-4">
+              <div className="text-gray-700 leading-relaxed mb-4">
                 {formatJobDescription(
                   job.jobDescription || job.description || 'Job description not available.',
-                  typeof job.salary === 'object' ? job.salary.currency : undefined
-                )}
-              </p>
+                  job.currency
+                ).split('\n').map((line, i) => {
+                  const trimmed = line.trim();
+
+                  // blank line spacer
+                  if (!trimmed) return <div key={i} className="h-2" />;
+
+                  // bullet point
+                  if (trimmed.startsWith('\u2022 ') || trimmed.startsWith('- ')) {
+                    const content = trimmed.replace(/^[\u2022\-]\s*/, '');
+                    return (
+                      <div key={i} className="flex items-start gap-2 ml-1 mb-1">
+                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
+                        <span className="text-gray-700">{content}</span>
+                      </div>
+                    );
+                  }
+
+                  // numbered job entry heading e.g. "2.Pega CSSA" - strip the number
+                  if (/^\d+\.\s*\S/.test(trimmed)) {
+                    const title = trimmed.replace(/^\d+\.\s*/, '');
+                    return <p key={i} className="font-bold text-gray-900 text-sm mt-5 mb-1">{title}</p>;
+                  }
+
+                  // section heading — ends with colon, no sentence after it
+                  if (/^[A-Z][A-Za-z ,&/]{2,60}:$/.test(trimmed)) {
+                    return <p key={i} className="font-bold text-gray-900 mt-4 mb-1">{trimmed.replace(/:$/, '')}</p>;
+                  }
+
+                  // inline label: value line — bold the label
+                  const colonMatch = trimmed.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
+                  if (colonMatch) {
+                    return (
+                      <p key={i} className="mb-1">
+                        <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
+                        <span className="text-gray-700">{colonMatch[2]}</span>
+                      </p>
+                    );
+                  }
+
+                  // regular paragraph
+                  return <p key={i} className="text-gray-700 mb-1">{trimmed}</p>;
+                })}
+              </div>
               
               {/* Created By & On Details */}
               <div className="border-t border-gray-100 pt-4 mt-4">
@@ -837,119 +737,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
               </div>
             </div>
 
-            {/* Responsibilities */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Key Responsibilities</h2>
-              <ul className="space-y-3">
-                {(() => {
-                  // Try to get responsibilities from separate field first
-                  if (job.responsibilities && job.responsibilities.length > 0) {
-                    return Array.isArray(job.responsibilities) ? job.responsibilities.map((responsibility: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{responsibility}</span>
-                      </li>
-                    )) : (
-                      <li className="flex items-start">
-                        <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{job.responsibilities}</span>
-                      </li>
-                    );
-                  }
-                  
-                  // Extract from description if separate field not available
-                  const description = job.jobDescription || job.description || '';
-                  const responsibilitiesMatch = description.match(/(?:key\s+)?responsibilities?[:\s]*([\s\S]*?)(?=(?:required\s+qualifications?|requirements?|qualifications?|what\s+we\s+offer|benefits?|$))/gi);
-                  
-                  if (responsibilitiesMatch && responsibilitiesMatch[0]) {
-                    const section = responsibilitiesMatch[0];
-                    const bulletPoints = section.match(/•\s*(.+)/g);
-                    
-                    if (bulletPoints) {
-                      return bulletPoints.map((point: string, index: number) => {
-                        const cleaned = point.replace(/^•\s*/, '').trim();
-                        return (
-                          <li key={index} className="flex items-start">
-                            <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                            <span className="text-gray-600">{cleaned}</span>
-                          </li>
-                        );
-                      });
-                    }
-                  }
-                  
-                  // Fallback
-                  return (
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600">Responsibilities will be discussed during the interview process.</span>
-                    </li>
-                  );
-                })()}
-              </ul>
-            </div>
-
-            {/* Requirements */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
-              <ul className="space-y-3">
-                {(() => {
-                  // Try to get requirements from separate field first
-                  if (job.requirements && job.requirements.length > 0) {
-                    return Array.isArray(job.requirements) ? job.requirements.map((requirement: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{requirement}</span>
-                      </li>
-                    )) : (
-                      <li className="flex items-start">
-                        <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{job.requirements}</span>
-                      </li>
-                    );
-                  }
-                  
-                  // Extract from description if separate field not available
-                  const description = job.jobDescription || job.description || '';
-                  const requirementsMatch = description.match(/(?:required\s+qualifications?|requirements?|qualifications?)[:\s]*([\s\S]*?)(?=(?:what\s+we\s+offer|benefits?|join\s+our\s+team|$))/gi);
-                  
-                  if (requirementsMatch && requirementsMatch[0]) {
-                    const section = requirementsMatch[0];
-                    const bulletPoints = section.match(/•\s*(.+)/g);
-                    
-                    if (bulletPoints) {
-                      return bulletPoints.map((point: string, index: number) => {
-                        const cleaned = point.replace(/^•\s*/, '').trim();
-                        return (
-                          <li key={index} className="flex items-start">
-                            <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                            <span className="text-gray-600">{cleaned}</span>
-                          </li>
-                        );
-                      });
-                    }
-                  }
-                  
-                  // Fallback to skills if available
-                  if (job.skills && Array.isArray(job.skills) && job.skills.length > 0) {
-                    return job.skills.map((skill: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">Experience with {skill}</span>
-                      </li>
-                    ));
-                  }
-                  
-                  // Final fallback
-                  return (
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600">Requirements will be discussed during the interview process.</span>
-                    </li>
-                  );
-                })()}
-              </ul>
-            </div>
           </div>
 
           {/* Sidebar */}
@@ -1043,29 +830,54 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             </div>
 
             {/* Similar Jobs */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{fontFamily: "'IBM Plex Sans', sans-serif"}}>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Jobs</h3>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {similarJobs.length > 0 ? (
-                  similarJobs.map((similarJob, index) => (
-                    <div key={similarJob._id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                      <h4 
-                        className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail', { 
-                          jobTitle: similarJob.jobTitle, 
-                          jobId: similarJob._id, 
-                          companyName: similarJob.company,
-                          jobData: similarJob
-                        })}
-                      >
-                        {similarJob.jobTitle}
-                      </h4>
-                      <p className="text-sm text-gray-600">{similarJob.company}</p>
-                      <p className="text-xs text-gray-500">
-                        {similarJob.location} • {typeof similarJob.salary === 'object' 
-                          ? `${similarJob.salary.currency === 'INR' ? '₹' : similarJob.salary.currency === 'USD' ? '$' : similarJob.salary.currency || '₹'}${similarJob.salary.min?.toLocaleString()}-${similarJob.salary.max?.toLocaleString()}` 
-                          : 'Competitive salary'}
-                      </p>
+                  similarJobs.map((sj) => (
+                    <div
+                      key={sj._id || sj.id}
+                      className="border border-gray-100 rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow"
+                      onClick={() => { window.location.href = `/job-detail?id=${sj._id || sj.id}`; }}
+                    >
+                      {/* Logo + Company */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={getCompanyLogo(sj)}
+                            alt={sj.company}
+                            className="w-8 h-8 rounded object-contain border border-gray-200 bg-white p-0.5"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/images/zync-logo.svg'; }}
+                          />
+                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{sj.company}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{formatDetailedTime(sj.createdAt)}</span>
+                      </div>
+                      {/* Job Title */}
+                      <p className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">{sj.jobTitle || sj.title}</p>
+                      {/* Location */}
+                      <p className="text-xs text-gray-500 mb-2">{sj.location}</p>
+                      {/* Description snippet */}
+                      {(sj.jobDescription || sj.description) && (
+                        <p className="text-xs text-gray-600 mb-2" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>
+                          {(sj.jobDescription || sj.description).substring(0, 120)}
+                        </p>
+                      )}
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1">
+                        {sj.type && (
+                          <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{sj.type}</span>
+                        )}
+                        {(sj.salaryMin || sj.salaryMax) && (
+                          <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                            {sj.salaryMin && sj.salaryMax
+                              ? `₹${Number(sj.salaryMin).toLocaleString('en-IN')} - ₹${Number(sj.salaryMax).toLocaleString('en-IN')}`
+                              : sj.salaryMin
+                              ? `₹${Number(sj.salaryMin).toLocaleString('en-IN')}+`
+                              : `Up to ₹${Number(sj.salaryMax).toLocaleString('en-IN')}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))
                 ) : (

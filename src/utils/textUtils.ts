@@ -227,11 +227,41 @@ export const formatSalary = (salary: any): string => {
 
 export const formatJobDescription = (description: string, jobCurrency?: string): string => {
   if (!description || typeof description !== 'string') return description || '';
-  
-  // If job has INR currency, replace $ with ₹ in the description
+
+  let text = description;
+
   if (jobCurrency === 'INR') {
-    return description.replace(/\$([0-9,]+)/g, '₹$1');
+    text = text.replace(/\$([0-9,]+)/g, '₹$1');
   }
-  
-  return description;
+
+  // Metadata keys to strip (already shown in job header)
+  const metadataKeys = [
+    'location', 'work type', 'visa', 'certification', 'experience',
+    'salary', 'job type', 'employment type', 'notice period',
+    'candidate location', 'work setting'
+  ];
+
+  // Normalize common separators into newlines
+  text = text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    // numbered job entries like "2.Pega CSSA" or "3. Salesforce"
+    .replace(/(^|\s)(\d+\.\s*[A-Z])/g, '\n\n$2')
+    // bullet dash patterns
+    .replace(/\s*[•\-\*]\s+/g, '\n• ')
+    // section headings that end with colon on their own
+    .replace(/([A-Z][A-Za-z &,/]{2,60}:)(\s*\n|\s{2,})/g, '\n$1\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+
+  // Filter out metadata lines
+  const lines = text.split('\n');
+  const filtered = lines.filter(line => {
+    const lower = line.trim().toLowerCase();
+    if (!lower) return true; // keep blank lines for spacing
+    return !metadataKeys.some(key => lower.startsWith(key + ':') || lower === key);
+  });
+
+  return filtered.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 };

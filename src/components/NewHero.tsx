@@ -295,8 +295,56 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
               <div className="relative">
                 {/* Dotted Circle Background */}
                 <div className="absolute inset-0 flex items-center justify-center -mt-12">
-                  <div className="w-[22rem] h-[22rem] border-2 border-dashed border-gray-800 rounded-full opacity-50 animate-spin" style={{animationDuration: '20s'}}></div>
-                  <div className="w-[33rem] h-[33rem] border-2 border-dashed border-gray-800 rounded-full opacity-40 absolute animate-spin" style={{animationDuration: '30s', animationDirection: 'reverse'}}></div>
+                  {/* Inner orbit circle */}
+                  <div className="w-[22rem] h-[22rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.4)', animation: 'spin 20s linear infinite'}}>
+                    {[
+                      { emoji: '🤖', angle: 0 },
+                      { emoji: '✨', angle: 90 },
+                      { emoji: '🧠', angle: 180 },
+                      { emoji: '⚡', angle: 270 },
+                    ].map(({ emoji, angle }) => (
+                      <div
+                        key={angle}
+                        className="absolute"
+                        style={{
+                          top: '50%', left: '50%',
+                          transform: `rotate(${angle}deg) translate(11rem) rotate(-${angle}deg)`,
+                          marginTop: '-1.25rem', marginLeft: '-1.25rem',
+                          animation: `counter-spin-inner 20s linear infinite`,
+                        }}
+                      >
+                        <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-blue-100" style={{fontSize: '1.4rem'}}>
+                          {emoji}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Outer orbit circle */}
+                  <div className="w-[33rem] h-[33rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.3)', animation: 'spin 30s linear infinite reverse'}}>
+                    {[
+                      { src: 'https://www.google.com/favicon.ico', alt: 'Google', angle: 0 },
+                      { src: 'https://img.icons8.com/color/48/microsoft.png', alt: 'Microsoft', angle: 72 },
+                      { src: 'https://img.icons8.com/color/48/amazon.png', alt: 'Amazon', angle: 144 },
+                      { src: 'https://img.icons8.com/ios-filled/50/mac-os.png', alt: 'Apple', angle: 216 },
+                      { src: 'https://img.icons8.com/color/48/meta.png', alt: 'Meta', angle: 288 },
+                    ].map(({ src, alt, angle }) => (
+                      <div
+                        key={alt}
+                        className="absolute"
+                        style={{
+                          top: '50%', left: '50%',
+                          transform: `rotate(${angle}deg) translate(16.5rem) rotate(-${angle}deg)`,
+                          marginTop: '-1.25rem', marginLeft: '-1.25rem',
+                          animation: `counter-spin-outer 30s linear infinite`,
+                        }}
+                      >
+                        <div className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200 overflow-hidden">
+                          <img src={src} alt={alt} className="w-7 h-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/images/zync-logo.svg'; }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 
                 <img
