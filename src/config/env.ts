@@ -63,6 +63,10 @@ export const API_ENDPOINTS = {
   
   // Saved Candidates
   SAVED_CANDIDATES: `${config.API_URL}/saved-candidates`,
+
+  // Notifications
+  NOTIFICATIONS: `${config.API_URL}/notifications`,
+  CANDIDATE_NOTIFICATIONS: `${config.API_URL}/notifications/candidate`,
 };
 
 // Legacy exports for backward compatibility

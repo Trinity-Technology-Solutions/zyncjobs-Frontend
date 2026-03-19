@@ -1,39 +1,120 @@
 "use client";
 import { useState, useEffect } from "react";
 import { readPdf } from "../../lib/parse-resume-from-pdf/read-pdf";
-import type { TextItems } from "../../lib/parse-resume-from-pdf/types";
-import { groupTextItemsIntoLines } from "../../lib/parse-resume-from-pdf/group-text-items-into-lines";
-import { groupLinesIntoSections } from "../../lib/parse-resume-from-pdf/group-lines-into-sections";
 import { ResumeDropzone } from "../ResumeDropzone";
-import { cx } from "../../lib/cx";
-import RecommendedJobs from "../RecommendedJobs";
-import { mistralResumeService } from "../../services/mistralResumeService";
 import MistralJobRecommendations from "../MistralJobRecommendations";
 import CandidateRanking from "../CandidateRanking";
 import CandidateComparison from "../CandidateComparison";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
-const RESUME_EXAMPLES = [
-  {
-    fileUrl: "resume-example/laverne-resume.pdf",
-    description: "Borrowed from University of La Verne Career Center"
-  },
-  {
-    fileUrl: "resume-example/openresume-resume.pdf",
-    description: "Created with OpenResume resume builder"
-  },
-];
-
-const defaultFileUrl = "";
 interface ResumeParserProps {
   onNavigate?: (page: string, data?: any) => void;
   user?: any;
 }
 
+interface ParsedResume {
+  profile: { name: string; email: string; phone: string; location: string };
+  skills: { featuredSkills: { skill: string }[] };
+  workExperiences: { jobTitle: string; company: string; date: string; descriptions: string[] }[];
+  educations: { degree: string; school: string; date: string }[];
+}
+
+const emptyResume: ParsedResume = {
+  profile: { name: '', email: '', phone: '', location: '' },
+  skills: { featuredSkills: [] },
+  workExperiences: [],
+  educations: [],
+};
+
+function findSectionIdx(lines: string[], pattern: RegExp) {
+  return lines.findIndex(l => pattern.test(l.replace(/[:\-_*#]/g, '').trim()));
+}
+
+function parseResumeFromText(text: string): ParsedResume {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  const fullText = text;
+
+  // Email
+  const email = (fullText.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/) || [])[0] || '';
+  // Phone
+  const phone = (fullText.match(/(\+?\d[\d\s\-().]{7,}\d)/) || [])[0]?.trim() || '';
+  // Location
+  const location = (fullText.match(/([A-Z][a-zA-Z]+[,\s]+[A-Z][a-zA-Z\s]{2,20})/) || [])[0]?.trim() || '';
+  // Name — first short line (2-4 words, title case, no digits)
+  const name = lines.find(l =>
+    /^[A-Z][a-zA-Z]+(\s[A-Z][a-zA-Z]+){1,3}$/.test(l) && l.length < 50 && !/\d/.test(l)
+  ) || '';
+
+  // Section indices — loose match (handles caps, colons, extra words)
+  const skillsIdx = findSectionIdx(lines, /^(skills|technical skills?|core competencies|technologies|key skills?|programming languages?)/i);
+  const expIdx = findSectionIdx(lines, /^(experience|work experience|employment|professional experience|work history)/i);
+  const eduIdx = findSectionIdx(lines, /^(education|academic|educational|qualifications?)/i);
+  const projIdx = findSectionIdx(lines, /^(projects?|personal projects?|academic projects?)/i);
+  const certIdx = findSectionIdx(lines, /^(certifications?|courses?|achievements?|awards?)/i);
+
+  // Skills section — find end as next known section
+  const sectionStarts = [expIdx, eduIdx, projIdx, certIdx].filter(i => i > skillsIdx && i > 0);
+  const skillsEnd = sectionStarts.length > 0 ? Math.min(...sectionStarts) : skillsIdx + 15;
+  const skillLines = skillsIdx >= 0 ? lines.slice(skillsIdx + 1, skillsEnd) : [];
+  const skillTokens = skillLines
+    .join(' ')
+    .split(/[,|•·\t\n\/]|\s{2,}/)
+    .map(s => s.replace(/[\-–—*#:]/g, '').trim())
+    .filter(s => s.length > 1 && s.length < 40 && !/^(and|the|with|using|etc)$/i.test(s));
+  const featuredSkills = [...new Set(skillTokens)].slice(0, 20).map(skill => ({ skill }));
+
+  // Experience section
+  const expSectionStarts = [eduIdx, projIdx, certIdx, skillsIdx].filter(i => i > expIdx && i > 0);
+  const expEnd = expSectionStarts.length > 0 ? Math.min(...expSectionStarts) : expIdx + 30;
+  const expLines = expIdx >= 0 ? lines.slice(expIdx + 1, expEnd) : [];
+  const workExperiences: ParsedResume['workExperiences'] = [];
+  const datePattern = /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4})[\s\-–to]*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4}|Present|Current)?/i;
+  for (let i = 0; i < expLines.length; i++) {
+    if (datePattern.test(expLines[i])) {
+      // Look back for job title and company
+      const jobTitle = expLines[i - 1] || expLines[i - 2] || '';
+      const company = expLines[i + 1] || '';
+      const descriptions = expLines.slice(i + 2, i + 6).filter(
+        l => l.length > 20 && !datePattern.test(l)
+      );
+      if (jobTitle) {
+        workExperiences.push({ jobTitle, company, date: expLines[i], descriptions });
+        i += 2;
+      }
+    }
+  }
+
+  // Education section
+  const eduSectionStarts = [expIdx, projIdx, certIdx, skillsIdx].filter(i => i > eduIdx && i > 0);
+  const eduEnd = eduSectionStarts.length > 0 ? Math.min(...eduSectionStarts) : eduIdx + 20;
+  const eduLines = eduIdx >= 0 ? lines.slice(eduIdx + 1, eduEnd) : [];
+  const educations: ParsedResume['educations'] = [];
+  const degreePattern = /b\.?\s*tech|m\.?\s*tech|b\.?\s*e\.?|m\.?\s*e\.?|mba|bsc|msc|b\.?\s*sc|m\.?\s*sc|bachelor|master|phd|doctorate|diploma|b\.?\s*com|m\.?\s*com|university|college|institute|school/i;
+  for (let i = 0; i < eduLines.length; i++) {
+    if (degreePattern.test(eduLines[i])) {
+      const hasDate = datePattern.test(eduLines[i + 1] || '') || /\d{4}/.test(eduLines[i + 1] || '');
+      educations.push({
+        school: degreePattern.test(eduLines[i]) && /university|college|institute|school/i.test(eduLines[i])
+          ? eduLines[i]
+          : eduLines[i + 1] || eduLines[i],
+        degree: /university|college|institute|school/i.test(eduLines[i])
+          ? eduLines[i - 1] || ''
+          : eduLines[i],
+        date: hasDate ? eduLines[i + 1] : (eduLines[i + 2] || ''),
+      });
+      i += hasDate ? 1 : 0;
+    }
+  }
+
+  return { profile: { name, email, phone, location }, skills: { featuredSkills }, workExperiences, educations };
+}
+
 export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {}) {
-  const [fileUrl, setFileUrl] = useState(defaultFileUrl);
-  const [textItems, setTextItems] = useState<TextItems>([]);
+  const [fileUrl, setFileUrl] = useState('');
+  const [resume, setResume] = useState<ParsedResume>(emptyResume);
+  const [rawText, setRawText] = useState('');
   const [isFileUploaded, setIsFileUploaded] = useState(false);
+  const [parsing, setParsing] = useState(false);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [matchingScore, setMatchingScore] = useState<any>(null);
@@ -41,24 +122,9 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState({ minScore: 0, skills: '', location: '' });
-  const lines = groupTextItemsIntoLines(textItems || []);
-  const sections = groupLinesIntoSections(lines);
-
-  // Simple resume extraction fallback
-  const extractResumeFromSections = (sections: any, fileUrl?: string) => {
-    return {
-      profile: { name: '', email: '', phone: '', location: '' },
-      skills: { featuredSkills: [] },
-      workExperiences: [],
-      educations: []
-    };
-  };
 
   useEffect(() => {
-    // Fetch available jobs for employers
-    if (user?.type === 'employer') {
-      fetchEmployerJobs();
-    }
+    if (user?.type === 'employer') fetchEmployerJobs();
   }, [user]);
 
   const fetchEmployerJobs = async () => {
@@ -76,31 +142,25 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
 
   const handleBulkUpload = async (files: FileList) => {
     const candidates: any[] = [];
-    
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.type === 'application/pdf') {
         try {
-          const fileUrl = URL.createObjectURL(file);
-          const textItems = await readPdf(fileUrl);
-          const lines = groupTextItemsIntoLines(textItems);
-          const sections = groupLinesIntoSections(lines);
-          const resume = extractResumeFromSections(sections, fileUrl);
-          
-          const candidate = {
+          const url = URL.createObjectURL(file);
+          const textItems = await readPdf(url);
+          const text = textItems.map(t => t.text).join('\n');
+          const parsed = parseResumeFromText(text);
+          candidates.push({
             id: `candidate-${Date.now()}-${i}`,
             fileName: file.name,
-            resume,
-            matchScore: selectedJob ? calculateMatchingScore(resume, selectedJob) : null
-          };
-          
-          candidates.push(candidate);
+            resume: parsed,
+            matchScore: selectedJob ? calculateMatchingScore(parsed, selectedJob) : null
+          });
         } catch (error) {
           console.error(`Error processing ${file.name}:`, error);
         }
       }
     }
-    
     setUploadedCandidates(prev => [...prev, ...candidates]);
   };
 
@@ -159,52 +219,27 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
   };
 
   useEffect(() => {
+    if (!fileUrl) return;
     async function parseResume() {
-      const textItems = await readPdf(fileUrl);
-      setTextItems(textItems);
-      
-      // Auto-extract when file is uploaded
-      if (fileUrl && fileUrl.startsWith('blob:')) {
+      setParsing(true);
+      try {
+        const textItems = await readPdf(fileUrl);
+        const text = textItems.map(t => t.text).join('\n');
+        setRawText(text);
+        const parsed = parseResumeFromText(text);
+        setResume(parsed);
         setIsFileUploaded(true);
-        
-        // Use AI for intelligent parsing
-        try {
-          const resumeText = `
-            Riley Taylor
-            Accountant
-            Email: e.g.mail@example.com | Phone: 305-123-4444
-            Location: San Francisco, USA
-            
-            Professional Summary
-            Dedicated professional with strong background in accountant and proven
-            track record of delivering results. Skilled in problem-solving, communication,
-            and teamwork with passion for continuous learning and growth.
-            
-            Experience
-            Junior Accountant - Tech Corp
-          `;
-          
-          const aiParsedData = await mistralResumeService.parseResumeWithAI(resumeText);
-          // Store AI parsed data for use in recommendations
-          (window as any).aiParsedResume = aiParsedData;
-          
-          // Calculate matching score if job is selected
-          if (selectedJob) {
-            const score = calculateMatchingScore(resume, selectedJob);
-            setMatchingScore(score);
-          }
-        } catch (error) {
-          console.error('AI parsing failed:', error);
+        if (selectedJob) {
+          setMatchingScore(calculateMatchingScore(parsed, selectedJob));
         }
-      } else {
-        setIsFileUploaded(false);
+      } catch (e) {
+        console.error('Parse error:', e);
+      } finally {
+        setParsing(false);
       }
     }
     parseResume();
   }, [fileUrl]);
-
-  // Extract resume data dynamically from any uploaded file
-  const resume = extractResumeFromSections(sections, isFileUploaded ? fileUrl : undefined);
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -270,7 +305,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
             </div>
           )}
           
-          {fileUrl && !fileUrl.includes('resume-example') && (
+          {fileUrl && (
             <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
               <iframe src={`${fileUrl}#navpanes=0&zoom=75`} className="w-full h-[800px]" title="Resume Preview" />
             </div>
@@ -289,6 +324,17 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
         {/* Results Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Parsed Information</h2>
+          
+          {parsing && (
+            <div className="flex items-center gap-3 py-8 justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <span className="text-gray-600">Parsing your resume...</span>
+            </div>
+          )}
+
+          {!parsing && !isFileUploaded && (
+            <p className="text-gray-400 text-sm text-center py-8">Upload a PDF resume to see parsed information here.</p>
+          )}
           
           {/* Matching Score for Employers */}
           {user?.type === 'employer' && selectedJob && matchingScore && (

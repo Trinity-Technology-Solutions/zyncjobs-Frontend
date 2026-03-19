@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+import React, { useState } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
@@ -78,28 +78,118 @@ interface ResumeData {
   }>;
 }
 
-// Templates removed - placeholder
-const templateComponents: { [key: string]: any } = {};
+// Template category map
+const TEMPLATE_CATEGORY: Record<string, string> = {
+  oslo: 'simple', madrid: 'simple', santiago: 'simple', london: 'simple', barcelona: 'simple',
+  copenhagen: 'picture', stockholm: 'picture', vienna: 'picture', dublin: 'picture', brussels: 'picture', rome: 'picture',
+  boston: 'word', 'new-york': 'word', sydney: 'word', milan: 'word',
+  berlin: 'ats', chicago: 'ats', singapore: 'ats', athens: 'ats',
+  toronto: 'two-column', paris: 'two-column', amsterdam: 'two-column',
+  prague: 'google-docs', shanghai: 'google-docs',
+};
+
+const LivePreview: React.FC<{ data: ResumeData; template: string }> = ({ data, template }) => {
+  const t = (template || 'london').toLowerCase();
+  const category = TEMPLATE_CATEGORY[t] || 'simple';
+  const imgSrc = `/images/organized-resume-templates/${category}/${t}-resume-templates.jpg`;
+
+  const contact = [data.email, data.phone, data.city && data.country ? `${data.city}, ${data.country}` : data.city || data.country].filter(Boolean).join('  ·  ');
+
+  return (
+    <div style={{ position: 'relative', width: '100%', minHeight: '100%', backgroundColor: '#fff' }}>
+      {/* Real template image as background */}
+      <img
+        src={imgSrc}
+        alt={t}
+        style={{ width: '100%', display: 'block', opacity: 0.18 }}
+        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+      {/* User data rendered on top */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '32px 36px', fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#111' }}>
+        {/* Header */}
+        <div style={{ marginBottom: '14px', borderBottom: '2px solid #2163CA', paddingBottom: '10px' }}>
+          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold' }}>
+            {data.firstName || data.lastName ? `${data.firstName} ${data.lastName}`.trim() : <span style={{ color: '#aaa' }}>Your Name</span>}
+          </h1>
+          {data.jobTitle && <p style={{ margin: '3px 0 0', color: '#2163CA', fontSize: '13px' }}>{data.jobTitle}</p>}
+          {contact && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#555' }}>{contact}</p>}
+        </div>
+
+        {/* Summary */}
+        {data.summary && (
+          <div style={{ marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Summary</h2>
+            <p style={{ margin: 0, lineHeight: '1.5', fontSize: '11px' }}>{data.summary}</p>
+          </div>
+        )}
+
+        {/* Experience */}
+        {data.experience.some(e => e.company || e.role) && (
+          <div style={{ marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Experience</h2>
+            {data.experience.filter(e => e.company || e.role).map((exp, i) => (
+              <div key={i} style={{ marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <strong style={{ fontSize: '11px' }}>{exp.role}{exp.company ? ` — ${exp.company}` : ''}</strong>
+                  <span style={{ fontSize: '10px', color: '#666' }}>{exp.start && exp.end ? `${exp.start} – ${exp.end}` : exp.start || ''}</span>
+                </div>
+                {exp.location && <p style={{ margin: '1px 0', fontSize: '10px', color: '#666' }}>{exp.location}</p>}
+                {exp.details.filter(d => d).map((d, j) => <p key={j} style={{ margin: '1px 0 0 8px', fontSize: '11px' }}>• {d}</p>)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Education */}
+        {data.education.some(e => e.school || e.degree) && (
+          <div style={{ marginBottom: '12px' }}>
+            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Education</h2>
+            {data.education.filter(e => e.school || e.degree).map((edu, i) => (
+              <div key={i} style={{ marginBottom: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <strong style={{ fontSize: '11px' }}>{edu.degree}{edu.school ? ` — ${edu.school}` : ''}</strong>
+                  <span style={{ fontSize: '10px', color: '#666' }}>{edu.start && edu.end ? `${edu.start} – ${edu.end}` : edu.start || ''}</span>
+                </div>
+                {edu.location && <p style={{ margin: '1px 0', fontSize: '10px', color: '#666' }}>{edu.location}</p>}
+                {edu.description && <p style={{ margin: '2px 0 0', fontSize: '11px' }}>{edu.description}</p>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Skills */}
+        {data.skills.length > 0 && (
+          <div>
+            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Skills</h2>
+            <p style={{ margin: 0, fontSize: '11px' }}>{data.skills.join(' · ')}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, onLogout, template }) => {
   const selectedTemplate = template || 'london';
   const [activeTab, setActiveTab] = useState<string>('contacts');
+  const [showAdditional, setShowAdditional] = useState(false);
+  const [skillInput, setSkillInput] = useState('');
   const [isGenerating, setIsGenerating] = useState<{[key: string]: boolean}>({});
   
   const [resumeData, setResumeData] = useState<ResumeData>({
-    firstName: 'Riley',
-    lastName: 'Taylor',
-    jobTitle: 'Accountant',
-    email: 'e.g.mail@example.com',
-    phone: '305-123-44444',
-    city: 'San Francisco',
-    country: 'USA',
+    firstName: '',
+    lastName: '',
+    jobTitle: '',
+    email: '',
+    phone: '',
+    city: '',
+    country: '',
     address: '',
-    company: 'Tech Corp',
-    role: 'Junior Accountant',
-    workDescription: 'Helped with monthly financial reports and data entry\nWatched over team budgets and reported issues\nEntered 150+ invoices weekly using accounting software',
-    skills: ['Microsoft Excel', 'Financial Analysis', 'Data Entry', 'QuickBooks', 'Budget Management'],
-    summary: 'Experienced professional with strong background in accounting and finance. Skilled in financial analysis, budget management, and data entry with proven track record of improving efficiency and accuracy.',
+    company: '',
+    role: '',
+    workDescription: '',
+    skills: [],
+    summary: '',
     experience: [{
       company: '',
       role: '',
@@ -117,6 +207,19 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
       description: ''
     }]
   });
+
+  const resumeScore = Math.min(100, [
+    resumeData.firstName && resumeData.lastName ? 15 : 0,
+    resumeData.email ? 10 : 0,
+    resumeData.phone ? 10 : 0,
+    resumeData.jobTitle ? 10 : 0,
+    resumeData.summary.length > 50 ? 20 : resumeData.summary.length > 0 ? 10 : 0,
+    resumeData.experience.some(e => e.company || e.role) ? 20 : 0,
+    resumeData.education.some(e => e.school || e.degree) ? 10 : 0,
+    resumeData.skills.length >= 3 ? 5 : resumeData.skills.length > 0 ? 2 : 0,
+  ].reduce((a, b) => a + b, 0));
+
+  const scoreColor = resumeScore >= 80 ? '#10b981' : resumeScore >= 50 ? '#f59e0b' : '#f97316';
 
   const updateField = (field: keyof ResumeData, value: any) => {
     setResumeData(prev => {
@@ -147,29 +250,7 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
     });
   };
 
-  const renderTemplate = () => {
-    const TemplateComponent = templateComponents[selectedTemplate];
-    if (!TemplateComponent) {
-      return (
-        <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>
-          <h3>Template "{selectedTemplate}" not found</h3>
-          <p>Please select a different template or check if the template exists.</p>
-        </div>
-      );
-    }
-    
-    return (
-      <TemplateErrorBoundary>
-        <Suspense fallback={
-          <div style={{ padding: "40px", textAlign: "center", color: "#666" }}>
-            <div>Loading template...</div>
-          </div>
-        }>
-          <TemplateComponent data={resumeData} />
-        </Suspense>
-      </TemplateErrorBoundary>
-    );
-  };
+
 
   const downloadResume = async (format: 'pdf' | 'docx') => {
     try {
@@ -367,54 +448,26 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
     }
   };
 
-  const renderToolbar = (type?: 'experience' | 'education' | 'summary') => (
-    <div style={{ display: "flex", gap: "5px", marginBottom: "8px", flexWrap: "wrap", alignItems: "center" }}>
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}><b>B</b></button>
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}><i>I</i></button>
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}><u>U</u></button>
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}><s>S</s></button>
-      
-      <select style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px", fontSize: "12px" }}>
-        <option>Arial</option>
-        <option>Times New Roman</option>
-        <option>Helvetica</option>
-        <option>Georgia</option>
-      </select>
-      
-      <select style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px", fontSize: "12px", width: "50px" }}>
-        <option>12</option>
-        <option>14</option>
-        <option>16</option>
-      </select>
-      
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px", display: "flex", alignItems: "center", gap: "3px" }}>
-        <div style={{ width: "16px", height: "16px", backgroundColor: "#000000", borderRadius: "2px" }}></div>
-        <span style={{ fontSize: "10px" }}>▼</span>
+  const renderAIButton = (type: 'experience' | 'education' | 'summary') => (
+    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+      <button
+        onClick={() => generateAIContent(type)}
+        disabled={isGenerating[type]}
+        style={{
+          background: isGenerating[type] ? "#9ca3af" : "#3b82f6",
+          color: "white",
+          border: "none",
+          padding: "6px 12px",
+          borderRadius: "6px",
+          fontSize: "12px",
+          cursor: isGenerating[type] ? "not-allowed" : "pointer",
+          display: "flex",
+          alignItems: "center",
+          gap: "5px"
+        }}
+      >
+        {isGenerating[type] ? "⏳ Generating..." : "✨ Generate with AI"}
       </button>
-      
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}>🔗</button>
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}>•</button>
-      <button style={{ padding: "4px 8px", border: "1px solid #d1d5db", background: "white", cursor: "pointer", borderRadius: "3px" }}>1.</button>
-      <div style={{ marginLeft: "auto" }}>
-        <button
-          onClick={() => type && generateAIContent(type)}
-          disabled={type ? isGenerating[type] : false}
-          style={{
-            background: type && isGenerating[type] ? "#9ca3af" : "#3b82f6",
-            color: "white",
-            border: "none",
-            padding: "6px 12px",
-            borderRadius: "6px",
-            fontSize: "12px",
-            cursor: type && isGenerating[type] ? "not-allowed" : "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "5px"
-          }}
-        >
-          {type && isGenerating[type] ? "⏳ Generating..." : "✨ Generate with AI"}
-        </button>
-      </div>
     </div>
   );
 
@@ -423,15 +476,17 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Back to Templates Button */}
-      <div style={{ padding: "15px 20px", backgroundColor: "white", borderBottom: "1px solid #e5e7eb" }}>
-        <BackButton 
-          onClick={() => onNavigate && onNavigate('resume-templates')}
-          text="Back to Templates"
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
-        />
+      <div style={{ backgroundColor: "white", borderBottom: "1px solid #e5e7eb" }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ padding: "15px 0" }}>
+          <BackButton 
+            onClick={() => onNavigate && onNavigate('resume-templates')}
+            text="Back to Templates"
+            className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
+          />
+        </div>
       </div>
 
-      <div style={{ display: "flex", height: "calc(100vh - 140px)" }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ display: "flex", height: "calc(100vh - 140px)" }}>
         {/* Left Side - Tabbed Interface */}
         <div style={{ width: "40%", backgroundColor: "#f8f9fa" }}>
           {/* Tab Navigation */}
@@ -467,114 +522,111 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
           {/* Resume Score */}
           <div style={{ padding: "15px", backgroundColor: "white", borderBottom: "1px solid #e5e7eb" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <div style={{ 
-                backgroundColor: "#f97316", 
-                color: "white", 
-                padding: "4px 8px", 
-                borderRadius: "4px", 
-                fontSize: "12px", 
-                fontWeight: "bold" 
-              }}>
-                20%
+              <div style={{ backgroundColor: scoreColor, color: "white", padding: "4px 8px", borderRadius: "4px", fontSize: "12px", fontWeight: "bold" }}>
+                {resumeScore}%
               </div>
               <span style={{ fontSize: "14px", color: "#6b7280" }}>Your resume score</span>
-              <span style={{ fontSize: "16px" }}>😊</span>
+              <span style={{ fontSize: "16px" }}>{resumeScore >= 80 ? '🌟' : resumeScore >= 50 ? '😊' : '😐'}</span>
             </div>
           </div>
           
           {/* Tab Content */}
-          <div style={{ padding: "20px", overflowY: "auto", height: "calc(100vh - 240px)" }}>
-            
+          <div style={{ padding: "24px", overflowY: "auto", height: "calc(100vh - 240px)" }}>
+
             {/* Contacts Tab Content */}
             {activeTab === 'contacts' && (
               <div>
-                <h2 style={{ marginBottom: "10px", fontSize: "24px", fontWeight: "bold" }}>Contacts</h2>
-                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "14px" }}>
+                <h2 style={{ marginBottom: "6px", fontSize: "22px", fontWeight: "700", color: "#111827" }}>Contacts</h2>
+                <p style={{ marginBottom: "24px", color: "#6b7280", fontSize: "13px", lineHeight: "1.5" }}>
                   Add your up-to-date contact information so employers and recruiters can easily reach you.
                 </p>
-                
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>First name</label>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>First name</label>
                     <input
-                      style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                       value={resumeData.firstName}
                       onChange={(e) => updateField('firstName', e.target.value)}
                       placeholder="Riley"
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Last name</label>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Last name</label>
                     <input
-                      style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                       value={resumeData.lastName}
                       onChange={(e) => updateField('lastName', e.target.value)}
                       placeholder="Taylor"
                     />
                   </div>
                 </div>
-                
-                <div style={{ marginBottom: "15px" }}>
-                  <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Desired job title</label>
+
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Desired job title</label>
                   <input
-                    style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                    style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                     value={resumeData.jobTitle}
                     onChange={(e) => updateField('jobTitle', e.target.value)}
-                    placeholder="Accountant"
+                    placeholder="e.g. Accountant"
                   />
                 </div>
-                
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Phone</label>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Phone</label>
                     <input
-                      style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                       value={resumeData.phone}
                       onChange={(e) => updateField('phone', e.target.value)}
-                      placeholder="305-123-44444"
+                      placeholder="305-123-4444"
                     />
                   </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Email</label>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Email</label>
                     <input
-                      style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                       value={resumeData.email}
                       onChange={(e) => updateField('email', e.target.value)}
-                      placeholder="e.g.mail@example.com"
+                      placeholder="mail@example.com"
                     />
                   </div>
                 </div>
-                
+
+                <div style={{ marginBottom: "16px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                    <div>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>City</label>
+                      <input style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} value={resumeData.city} onChange={(e) => updateField('city', e.target.value)} placeholder="San Francisco" />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Country</label>
+                      <input style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} value={resumeData.country} onChange={(e) => updateField('country', e.target.value)} placeholder="USA" />
+                    </div>
+                  </div>
+                </div>
+
                 <div style={{ marginBottom: "20px" }}>
                   <button
-                    style={{
-                      color: "#3b82f6",
-                      background: "none",
-                      border: "none",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      textDecoration: "underline"
-                    }}
+                    onClick={() => setShowAdditional(v => !v)}
+                    style={{ color: "#3b82f6", background: "none", border: "none", fontSize: "13px", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px", padding: 0 }}
                   >
-                    Additional information ⌄
+                    + Additional information (Address) {showAdditional ? '▲' : '▼'}
                   </button>
+                  {showAdditional && (
+                    <div style={{ marginTop: "12px" }}>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Address</label>
+                      <input style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} value={resumeData.address} onChange={(e) => updateField('address', e.target.value)} placeholder="123 Main St" />
+                    </div>
+                  )}
                 </div>
-                
-                <div style={{ display: "flex", justifyContent: "center", marginTop: "40px" }}>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "32px" }}>
                   <button
-                    style={{
-                      padding: "12px 32px",
-                      background: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "25px",
-                      fontSize: "16px",
-                      cursor: "pointer",
-                      fontWeight: "500"
-                    }}
+                    style={{ padding: "11px 32px", background: "#3b82f6", color: "white", border: "none", borderRadius: "25px", fontSize: "15px", cursor: "pointer", fontWeight: "600" }}
                     onClick={() => setActiveTab('experience')}
                   >
-                    Next: Experience
+                    Next: Experience →
                   </button>
                 </div>
               </div>
@@ -583,74 +635,62 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
             {/* Experience Tab Content */}
             {activeTab === 'experience' && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}>Experience</h2>
-                  <button style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", fontSize: "14px" }}>💡 Experience tips ⌄</button>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <h2 style={{ fontSize: "22px", fontWeight: "700", margin: 0, color: "#111827" }}>Experience</h2>
                 </div>
-                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "14px" }}>
+                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "13px", lineHeight: "1.5" }}>
                   List your work experience starting with the most recent position first.
                 </p>
-                
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px", marginBottom: "20px", backgroundColor: "white" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+
+                <div style={{ border: "1.5px solid #e5e7eb", borderRadius: "10px", padding: "20px", marginBottom: "16px", backgroundColor: "white" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <div style={{ color: "#9ca3af", fontSize: "14px" }}>Job title, Employer</div>
-                      <div style={{ color: "#9ca3af", fontSize: "12px" }}>MM/YYYY - MM/YYYY</div>
-                    </div>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}>⌃</button>
-                      <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "#ef4444" }}>🗑️</button>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
-                    <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Job title</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Job title</label>
                       <input
-                        style={{ width: "100%", padding: "10px", border: "2px solid #3b82f6", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #3b82f6", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.role}
                         onChange={(e) => updateField('role', e.target.value)}
                         placeholder="Junior Accountant"
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Employer</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Employer</label>
                       <input
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.company}
                         onChange={(e) => updateField('company', e.target.value)}
                         placeholder="Company name"
                       />
                     </div>
                   </div>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>City</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>City</label>
                       <input
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.city}
                         onChange={(e) => updateField('city', e.target.value)}
                         placeholder="San Francisco"
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Country</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Country</label>
                       <input
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.country}
                         onChange={(e) => updateField('country', e.target.value)}
                         placeholder="USA"
                       />
                     </div>
                   </div>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: "15px", alignItems: "end", marginBottom: "15px" }}>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Start date</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Start date</label>
                       <input
                         type="month"
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.experience[0]?.start || ''}
                         onChange={(e) => {
                           const newExperience = [...resumeData.experience];
@@ -659,12 +699,11 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
                         }}
                       />
                     </div>
-                    <div style={{ padding: "10px 0", fontSize: "18px", color: "#9ca3af" }}>—</div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>End date</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>End date</label>
                       <input
                         type="month"
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.experience[0]?.end || ''}
                         onChange={(e) => {
                           const newExperience = [...resumeData.experience];
@@ -674,80 +713,29 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
                       />
                     </div>
                   </div>
-                  
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Description</label>
-                    {renderToolbar('experience')}
+
+                  <div>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Description</label>
+                    {renderAIButton('experience')}
                     <textarea
-                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "6px", padding: "10px", minHeight: "100px", backgroundColor: "white", fontSize: "14px", resize: "vertical" }}
+                      style={{ width: "100%", border: "1.5px solid #d1d5db", borderRadius: "8px", padding: "10px 12px", minHeight: "100px", backgroundColor: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box", outline: "none" }}
                       value={resumeData.workDescription}
                       onChange={(e) => updateField('workDescription', e.target.value)}
-                      placeholder="• Helped with monthly financial reports and data entry&#10;• Watched over team budgets and reported issues&#10;• Entered 150+ invoices weekly using accounting software"
+                      placeholder="• Describe your responsibilities and achievements"
                     />
                   </div>
                 </div>
-                
-                <div style={{ marginTop: "20px", textAlign: "center" }}>
-                  <button
-                    style={{
-                      padding: "10px 20px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      margin: "0 auto"
-                    }}
-                    onClick={() => {
-                      const newExperience = [...resumeData.experience, {
-                        company: '',
-                        role: '',
-                        location: '',
-                        start: '',
-                        end: '',
-                        details: ['']
-                      }];
-                      updateField('experience', newExperience);
-                    }}
-                  >
-                    + Add Experience
-                  </button>
-                </div>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "30px" }}>
-                  <button
-                    style={{
-                      padding: "10px 20px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      cursor: "pointer"
-                    }}
-                    onClick={() => setActiveTab('contacts')}
-                  >
-                    Back
-                  </button>
-                  <button
-                    style={{
-                      padding: "12px 32px",
-                      background: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "25px",
-                      fontSize: "16px",
-                      cursor: "pointer",
-                      fontWeight: "500"
-                    }}
-                    onClick={() => setActiveTab('education')}
-                  >
-                    Next: Education
-                  </button>
+
+                <button
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "9px 18px", background: "white", color: "#374151", border: "1.5px dashed #d1d5db", borderRadius: "8px", fontSize: "13px", cursor: "pointer", width: "100%", justifyContent: "center", marginBottom: "24px" }}
+                  onClick={() => updateField('experience', [...resumeData.experience, { company: '', role: '', location: '', start: '', end: '', details: [''] }])}
+                >
+                  + Add another experience
+                </button>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <button style={{ padding: "10px 20px", background: "white", color: "#374151", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }} onClick={() => setActiveTab('contacts')}>← Back</button>
+                  <button style={{ padding: "11px 32px", background: "#3b82f6", color: "white", border: "none", borderRadius: "25px", fontSize: "15px", cursor: "pointer", fontWeight: "600" }} onClick={() => setActiveTab('education')}>Next: Education →</button>
                 </div>
               </div>
             )}
@@ -755,176 +743,76 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
             {/* Education Tab Content */}
             {activeTab === 'education' && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}>Education</h2>
-                  <button style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", fontSize: "14px" }}>💡 Education tips ⌄</button>
-                </div>
-                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "14px" }}>
-                  Add your education details - even if you haven't graduated yet.
+                <h2 style={{ fontSize: "22px", fontWeight: "700", margin: "0 0 6px", color: "#111827" }}>Education</h2>
+                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "13px", lineHeight: "1.5" }}>
+                  Add your education details — even if you haven't graduated yet.
                 </p>
-                
-                <div style={{ border: "1px solid #e5e7eb", borderRadius: "8px", padding: "20px", marginBottom: "20px", backgroundColor: "white" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
+
+                <div style={{ border: "1.5px solid #e5e7eb", borderRadius: "10px", padding: "20px", marginBottom: "16px", backgroundColor: "white" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <div style={{ color: "#9ca3af", fontSize: "14px" }}>School, Degree</div>
-                      <div style={{ color: "#9ca3af", fontSize: "12px" }}>MM/YYYY - MM/YYYY</div>
-                    </div>
-                    <div style={{ display: "flex", gap: "10px" }}>
-                      <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}>⌃</button>
-                      <button style={{ background: "none", border: "none", cursor: "pointer", fontSize: "16px", color: "#ef4444" }}>🗑️</button>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
-                    <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>School name</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>School name</label>
                       <input
-                        style={{ width: "100%", padding: "10px", border: "2px solid #3b82f6", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #3b82f6", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.education[0]?.school || ''}
-                        onChange={(e) => {
-                          const newEducation = [...resumeData.education];
-                          newEducation[0] = { ...newEducation[0], school: e.target.value };
-                          updateField('education', newEducation);
-                        }}
+                        onChange={(e) => { const n = [...resumeData.education]; n[0] = { ...n[0], school: e.target.value }; updateField('education', n); }}
                         placeholder="UCLA"
                       />
                     </div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Location</label>
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Location</label>
                       <input
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                        style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                         value={resumeData.education[0]?.location || ''}
-                        onChange={(e) => {
-                          const newEducation = [...resumeData.education];
-                          newEducation[0] = { ...newEducation[0], location: e.target.value };
-                          updateField('education', newEducation);
-                        }}
+                        onChange={(e) => { const n = [...resumeData.education]; n[0] = { ...n[0], location: e.target.value }; updateField('education', n); }}
                         placeholder="New York"
                       />
                     </div>
                   </div>
-                  
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Degree</label>
+
+                  <div style={{ marginBottom: "16px" }}>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Degree</label>
                     <input
-                      style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
+                      style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
                       value={resumeData.education[0]?.degree || ''}
-                      onChange={(e) => {
-                        const newEducation = [...resumeData.education];
-                        newEducation[0] = { ...newEducation[0], degree: e.target.value };
-                        updateField('education', newEducation);
-                      }}
+                      onChange={(e) => { const n = [...resumeData.education]; n[0] = { ...n[0], degree: e.target.value }; updateField('education', n); }}
                       placeholder="BA in Finance and Banking"
                     />
                   </div>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: "15px", alignItems: "end", marginBottom: "15px" }}>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Start date</label>
-                      <input
-                        type="month"
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
-                        value={resumeData.education[0]?.start || ''}
-                        onChange={(e) => {
-                          const newEducation = [...resumeData.education];
-                          newEducation[0] = { ...newEducation[0], start: e.target.value };
-                          updateField('education', newEducation);
-                        }}
-                      />
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Start date</label>
+                      <input type="month" style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} value={resumeData.education[0]?.start || ''} onChange={(e) => { const n = [...resumeData.education]; n[0] = { ...n[0], start: e.target.value }; updateField('education', n); }} />
                     </div>
-                    <div style={{ padding: "10px 0", fontSize: "18px", color: "#9ca3af" }}>—</div>
                     <div>
-                      <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>End date</label>
-                      <input
-                        type="month"
-                        style={{ width: "100%", padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
-                        value={resumeData.education[0]?.end || ''}
-                        onChange={(e) => {
-                          const newEducation = [...resumeData.education];
-                          newEducation[0] = { ...newEducation[0], end: e.target.value };
-                          updateField('education', newEducation);
-                        }}
-                      />
+                      <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>End date</label>
+                      <input type="month" style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }} value={resumeData.education[0]?.end || ''} onChange={(e) => { const n = [...resumeData.education]; n[0] = { ...n[0], end: e.target.value }; updateField('education', n); }} />
                     </div>
                   </div>
-                  
-                  <div style={{ marginBottom: "15px" }}>
-                    <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", color: "#374151", fontWeight: "500" }}>Description</label>
-                    {renderToolbar('education')}
+
+                  <div>
+                    <label style={{ display: "block", marginBottom: "6px", fontSize: "13px", color: "#374151", fontWeight: "600" }}>Description</label>
+                    {renderAIButton('education')}
                     <textarea
-                      style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "6px", padding: "10px", minHeight: "80px", backgroundColor: "white", fontSize: "14px", resize: "vertical" }}
+                      style={{ width: "100%", border: "1.5px solid #d1d5db", borderRadius: "8px", padding: "10px 12px", minHeight: "80px", backgroundColor: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box", outline: "none" }}
                       value={resumeData.education[0]?.description || ''}
-                      onChange={(e) => {
-                        const newEducation = [...resumeData.education];
-                        newEducation[0] = { ...newEducation[0], description: e.target.value };
-                        updateField('education', newEducation);
-                      }}
-                      placeholder="e.g., Graduated with B.Tech in Computer Science with Honors. Completed coursework in Data Structures, Algorithms, Software Engineering, and Database Management. Achieved Dean's List recognition for academic excellence."
+                      onChange={(e) => { const n = [...resumeData.education]; n[0] = { ...n[0], description: e.target.value }; updateField('education', n); }}
+                      placeholder="e.g. Graduated with honors. Dean's List recognition."
                     />
                   </div>
                 </div>
-                
-                <div style={{ marginTop: "20px", textAlign: "center" }}>
-                  <button
-                    style={{
-                      padding: "10px 20px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      margin: "0 auto"
-                    }}
-                    onClick={() => {
-                      const newEducation = [...resumeData.education, {
-                        degree: '',
-                        school: '',
-                        location: '',
-                        start: '',
-                        end: '',
-                        description: ''
-                      }];
-                      updateField('education', newEducation);
-                    }}
-                  >
-                    + Add Education
-                  </button>
-                </div>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "30px" }}>
-                  <button
-                    style={{
-                      padding: "10px 20px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      cursor: "pointer"
-                    }}
-                    onClick={() => setActiveTab('experience')}
-                  >
-                    Back
-                  </button>
-                  <button
-                    style={{
-                      padding: "12px 32px",
-                      background: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "25px",
-                      fontSize: "16px",
-                      cursor: "pointer",
-                      fontWeight: "500"
-                    }}
-                    onClick={() => setActiveTab('skills')}
-                  >
-                    Next: Skills
-                  </button>
+
+                <button
+                  style={{ display: "flex", alignItems: "center", gap: "6px", padding: "9px 18px", background: "white", color: "#374151", border: "1.5px dashed #d1d5db", borderRadius: "8px", fontSize: "13px", cursor: "pointer", width: "100%", justifyContent: "center", marginBottom: "24px" }}
+                  onClick={() => updateField('education', [...resumeData.education, { degree: '', school: '', location: '', start: '', end: '', description: '' }])}
+                >
+                  + Add another education
+                </button>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <button style={{ padding: "10px 20px", background: "white", color: "#374151", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }} onClick={() => setActiveTab('experience')}>← Back</button>
+                  <button style={{ padding: "11px 32px", background: "#3b82f6", color: "white", border: "none", borderRadius: "25px", fontSize: "15px", cursor: "pointer", fontWeight: "600" }} onClick={() => setActiveTab('skills')}>Next: Skills →</button>
                 </div>
               </div>
             )}
@@ -932,106 +820,41 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
             {/* Skills Tab Content */}
             {activeTab === 'skills' && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}>Skills</h2>
-                  <button style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", fontSize: "14px" }}>💡 Skills tips ⌄</button>
-                </div>
-                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "14px" }}>
-                  Choose 5 important skills that show you fit the position. Make sure they match the key skills mentioned in the job listing (especially when applying via an online system).
+                <h2 style={{ fontSize: "22px", fontWeight: "700", margin: "0 0 6px", color: "#111827" }}>Skills</h2>
+                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "13px", lineHeight: "1.5" }}>
+                  Choose 5 important skills that show you fit the position. Match them to the key skills in the job listing.
                 </p>
-                
+
                 <div style={{ marginBottom: "20px" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "15px" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "14px", minHeight: "40px" }}>
                     {resumeData.skills.map((skill, index) => (
-                      <div key={index} style={{ 
-                        display: "flex", 
-                        alignItems: "center", 
-                        gap: "8px", 
-                        backgroundColor: "#f3f4f6", 
-                        padding: "8px 12px", 
-                        borderRadius: "20px",
-                        border: "1px solid #d1d5db"
-                      }}>
-                        <span style={{ fontSize: "14px" }}>{skill}</span>
-                        <button 
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "#ef4444", fontSize: "12px" }}
-                          onClick={() => {
-                            const newSkills = resumeData.skills.filter((_, i) => i !== index);
-                            updateField('skills', newSkills);
-                          }}
-                        >
-                          ×
-                        </button>
+                      <div key={index} style={{ display: "flex", alignItems: "center", gap: "6px", backgroundColor: "#eff6ff", padding: "6px 12px", borderRadius: "20px", border: "1.5px solid #bfdbfe" }}>
+                        <span style={{ fontSize: "13px", color: "#1d4ed8" }}>{skill}</span>
+                        <button style={{ background: "none", border: "none", cursor: "pointer", color: "#6b7280", fontSize: "14px", lineHeight: 1, padding: 0 }} onClick={() => updateField('skills', resumeData.skills.filter((_, i) => i !== index))}>×</button>
                       </div>
                     ))}
                   </div>
-                  
-                  <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+
+                  <div style={{ display: "flex", gap: "10px" }}>
                     <input
-                      style={{ flex: 1, padding: "10px", border: "1px solid #d1d5db", borderRadius: "6px", fontSize: "14px" }}
-                      placeholder="Add a skill"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter' && e.target.value.trim()) {
-                          const newSkills = [...resumeData.skills, e.target.value.trim()];
-                          updateField('skills', newSkills);
-                          e.target.value = '';
-                        }
-                      }}
+                      style={{ flex: 1, padding: "10px 12px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+                      placeholder="Type a skill and press Enter or Add"
+                      value={skillInput}
+                      onChange={(e) => setSkillInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && skillInput.trim()) { updateField('skills', [...resumeData.skills, skillInput.trim()]); setSkillInput(''); } }}
                     />
                     <button
-                      style={{
-                        padding: "10px 20px",
-                        background: "#3b82f6",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "6px",
-                        fontSize: "14px",
-                        cursor: "pointer"
-                      }}
-                      onClick={(e) => {
-                        const input = e.target.parentElement.querySelector('input');
-                        if (input.value.trim()) {
-                          const newSkills = [...resumeData.skills, input.value.trim()];
-                          updateField('skills', newSkills);
-                          input.value = '';
-                        }
-                      }}
+                      style={{ padding: "10px 20px", background: "#3b82f6", color: "white", border: "none", borderRadius: "8px", fontSize: "14px", cursor: "pointer", fontWeight: "600", whiteSpace: "nowrap" }}
+                      onClick={() => { if (skillInput.trim()) { updateField('skills', [...resumeData.skills, skillInput.trim()]); setSkillInput(''); } }}
                     >
-                      Add
+                      + Add
                     </button>
                   </div>
                 </div>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "30px" }}>
-                  <button
-                    style={{
-                      padding: "10px 20px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      cursor: "pointer"
-                    }}
-                    onClick={() => setActiveTab('education')}
-                  >
-                    Back
-                  </button>
-                  <button
-                    style={{
-                      padding: "12px 32px",
-                      background: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "25px",
-                      fontSize: "16px",
-                      cursor: "pointer",
-                      fontWeight: "500"
-                    }}
-                    onClick={() => setActiveTab('summary')}
-                  >
-                    Next: Summary
-                  </button>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "32px" }}>
+                  <button style={{ padding: "10px 20px", background: "white", color: "#374151", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }} onClick={() => setActiveTab('education')}>← Back</button>
+                  <button style={{ padding: "11px 32px", background: "#3b82f6", color: "white", border: "none", borderRadius: "25px", fontSize: "15px", cursor: "pointer", fontWeight: "600" }} onClick={() => setActiveTab('summary')}>Next: Summary →</button>
                 </div>
               </div>
             )}
@@ -1039,176 +862,44 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
             {/* Summary Tab Content */}
             {activeTab === 'summary' && (
               <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                  <h2 style={{ fontSize: "24px", fontWeight: "bold", margin: 0 }}>Summary</h2>
-                  <button style={{ background: "none", border: "none", color: "#f59e0b", cursor: "pointer", fontSize: "14px" }}>💡 Summary tips ⌄</button>
-                </div>
-                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "14px" }}>
+                <h2 style={{ fontSize: "22px", fontWeight: "700", margin: "0 0 6px", color: "#111827" }}>Summary</h2>
+                <p style={{ marginBottom: "20px", color: "#6b7280", fontSize: "13px", lineHeight: "1.5" }}>
                   Write a short introduction that highlights your experience, key skills, and career goals.
                 </p>
-                
+
                 <div style={{ marginBottom: "20px" }}>
-                  {renderToolbar('summary')}
-                  
+                  {renderAIButton('summary')}
                   <textarea
-                    style={{ width: "100%", border: "1px solid #d1d5db", borderRadius: "6px", padding: "15px", minHeight: "120px", backgroundColor: "white", marginBottom: "20px", fontSize: "14px", resize: "vertical" }}
+                    style={{ width: "100%", border: "1.5px solid #d1d5db", borderRadius: "8px", padding: "12px", minHeight: "120px", backgroundColor: "white", fontSize: "14px", resize: "vertical", boxSizing: "border-box", outline: "none", lineHeight: "1.6" }}
                     value={resumeData.summary}
                     onChange={(e) => updateField('summary', e.target.value)}
-                    placeholder="Type from scratch or select one of our recruiter-approved structure examples."
+                    placeholder="Type from scratch or click a template below to get started."
                   />
                 </div>
-                
-                <div style={{ marginBottom: "20px" }}>
-                  <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "10px" }}>Suggested summary structure for <span style={{ color: "#3b82f6" }}>hv</span></h3>
-                  <p style={{ color: "#6b7280", fontSize: "14px", marginBottom: "15px" }}>Click an example to insert and customize.</p>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px", marginBottom: "15px" }}>
-                    <div style={{ 
-                      border: "1px solid #d1d5db", 
-                      borderRadius: "8px", 
-                      padding: "15px", 
-                      cursor: "pointer",
-                      backgroundColor: "white",
-                      position: "relative"
-                    }}>
-                      <div style={{ 
-                        position: "absolute", 
-                        top: "10px", 
-                        left: "10px", 
-                        width: "20px", 
-                        height: "20px", 
-                        borderRadius: "50%", 
-                        backgroundColor: "#3b82f6", 
-                        color: "white", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        fontSize: "12px", 
-                        fontWeight: "bold" 
-                      }}>+</div>
-                      <div style={{ paddingLeft: "30px", fontSize: "14px", lineHeight: "1.4" }}>
-                        Detail-oriented professional with 3+ years of experience in <strong>[field]</strong>. Skilled in <strong>[key skills]</strong>. Seeking to contribute to <strong>[type of team/company or goal]</strong>.
-                      </div>
+
+                <p style={{ fontSize: "13px", color: "#6b7280", marginBottom: "10px" }}>Click an example to insert and customize:</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginBottom: "24px" }}>
+                  {[
+                    `Detail-oriented professional with 3+ years of experience in [field]. Skilled in [key skills]. Seeking to contribute to [type of team/company or goal].`,
+                    `Motivated recent graduate with a background in [field]. Eager to apply skills in [skill area] and grow within a dynamic organization.`,
+                    `Creative thinker with a passion for [field]. Experienced in [tools or platforms].`,
+                    `A(n) [role] experienced in [field/industry], skilled in [top 2-3 skills], and looking to...`
+                  ].map((tmpl, i) => (
+                    <div
+                      key={i}
+                      onClick={() => updateField('summary', tmpl)}
+                      style={{ border: "1.5px solid #e5e7eb", borderRadius: "8px", padding: "12px 14px", cursor: "pointer", backgroundColor: "white", fontSize: "13px", lineHeight: "1.5", color: "#374151", transition: "border-color 0.15s" }}
+                      onMouseEnter={e => (e.currentTarget.style.borderColor = '#3b82f6')}
+                      onMouseLeave={e => (e.currentTarget.style.borderColor = '#e5e7eb')}
+                    >
+                      {tmpl}
                     </div>
-                    
-                    <div style={{ 
-                      border: "2px dashed #3b82f6", 
-                      borderRadius: "8px", 
-                      padding: "15px", 
-                      cursor: "pointer",
-                      backgroundColor: "#f8fafc",
-                      position: "relative"
-                    }}>
-                      <div style={{ 
-                        position: "absolute", 
-                        top: "10px", 
-                        left: "10px", 
-                        width: "20px", 
-                        height: "20px", 
-                        borderRadius: "50%", 
-                        backgroundColor: "#3b82f6", 
-                        color: "white", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        fontSize: "12px", 
-                        fontWeight: "bold" 
-                      }}>+</div>
-                      <div style={{ paddingLeft: "30px", fontSize: "14px", lineHeight: "1.4" }}>
-                        Motivated recent graduate with a background in <strong>[field]</strong>. Eager to apply skills in <strong>[skill area]</strong> and grow within a dynamic organization.
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "15px" }}>
-                    <div style={{ 
-                      border: "1px solid #d1d5db", 
-                      borderRadius: "8px", 
-                      padding: "15px", 
-                      cursor: "pointer",
-                      backgroundColor: "white",
-                      position: "relative"
-                    }}>
-                      <div style={{ 
-                        position: "absolute", 
-                        top: "10px", 
-                        left: "10px", 
-                        width: "20px", 
-                        height: "20px", 
-                        borderRadius: "50%", 
-                        backgroundColor: "#3b82f6", 
-                        color: "white", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        fontSize: "12px", 
-                        fontWeight: "bold" 
-                      }}>+</div>
-                      <div style={{ paddingLeft: "30px", fontSize: "14px", lineHeight: "1.4" }}>
-                        Creative thinker with a passion for <strong>[field]</strong>. Experienced in <strong>[tools or platforms]</strong>.
-                      </div>
-                    </div>
-                    
-                    <div style={{ 
-                      border: "1px solid #d1d5db", 
-                      borderRadius: "8px", 
-                      padding: "15px", 
-                      cursor: "pointer",
-                      backgroundColor: "white",
-                      position: "relative"
-                    }}>
-                      <div style={{ 
-                        position: "absolute", 
-                        top: "10px", 
-                        left: "10px", 
-                        width: "20px", 
-                        height: "20px", 
-                        borderRadius: "50%", 
-                        backgroundColor: "#3b82f6", 
-                        color: "white", 
-                        display: "flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        fontSize: "12px", 
-                        fontWeight: "bold" 
-                      }}>+</div>
-                      <div style={{ paddingLeft: "30px", fontSize: "14px", lineHeight: "1.4" }}>
-                        A(n) <strong>[role]</strong> experienced in <strong>[field/industry]</strong>, skilled in <strong>[top 2-3 skills]</strong>, and looking to...
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
-                
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "30px" }}>
-                  <button
-                    style={{
-                      padding: "10px 20px",
-                      background: "#f3f4f6",
-                      color: "#374151",
-                      border: "1px solid #d1d5db",
-                      borderRadius: "6px",
-                      fontSize: "14px",
-                      cursor: "pointer"
-                    }}
-                    onClick={() => setActiveTab('skills')}
-                  >
-                    Back
-                  </button>
-                  <button
-                    style={{
-                      padding: "12px 32px",
-                      background: "#3b82f6",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "25px",
-                      fontSize: "16px",
-                      cursor: "pointer",
-                      fontWeight: "500"
-                    }}
-                    onClick={() => setActiveTab('finalize')}
-                  >
-                    Next: Finalize
-                  </button>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <button style={{ padding: "10px 20px", background: "white", color: "#374151", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }} onClick={() => setActiveTab('skills')}>← Back</button>
+                  <button style={{ padding: "11px 32px", background: "#3b82f6", color: "white", border: "none", borderRadius: "25px", fontSize: "15px", cursor: "pointer", fontWeight: "600" }} onClick={() => setActiveTab('finalize')}>Next: Finalize →</button>
                 </div>
               </div>
             )}
@@ -1229,11 +920,11 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
                   
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                     {[
-                      { text: "Contact information is complete and accurate", checked: true },
-                      { text: "Work experience includes quantifiable achievements", checked: true },
-                      { text: "Education section is properly formatted", checked: true },
-                      { text: "Skills are relevant to the target position", checked: false },
-                      { text: "Professional summary is compelling and concise", checked: false }
+                      { text: "Contact information is complete and accurate", checked: !!(resumeData.firstName && resumeData.lastName && resumeData.email && resumeData.phone) },
+                      { text: "Work experience includes quantifiable achievements", checked: resumeData.experience.some(e => e.company || e.role) },
+                      { text: "Education section is properly formatted", checked: resumeData.education.some(e => e.school || e.degree) },
+                      { text: "Skills are relevant to the target position", checked: resumeData.skills.length >= 3 },
+                      { text: "Professional summary is compelling and concise", checked: resumeData.summary.length >= 50 }
                     ].map((item, index) => (
                       <div key={index} style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{ 
@@ -1420,20 +1111,16 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
 
         {/* Right Side - Live Preview */}
         <div style={{ width: "60%", padding: "20px", backgroundColor: "#f5f5f5" }}>
-          <div style={{ 
-            width: "100%", 
-            height: "calc(100vh - 120px)", 
-            border: "1px solid #d1d5db", 
+          <div style={{
+            width: "100%",
+            height: "calc(100vh - 120px)",
+            border: "1px solid #d1d5db",
             borderRadius: "8px",
             backgroundColor: "white",
             overflow: "auto",
             boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-          }}>
-            <div style={{ transform: "scale(0.8)", transformOrigin: "top left", width: "125%" }} data-resume-content>
-              <TemplateErrorBoundary>
-                {renderTemplate()}
-              </TemplateErrorBoundary>
-            </div>
+          }} data-resume-content>
+            <LivePreview data={resumeData} template={selectedTemplate} />
           </div>
         </div>
       </div>

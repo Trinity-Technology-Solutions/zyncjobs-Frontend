@@ -34,18 +34,12 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const companiesPerPage = 12;
   
   // Filter states
+  const [companyFilter, setCompanyFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [industryInput, setIndustryInput] = useState('');
-  const [workSettingInput, setWorkSettingInput] = useState('');
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
-  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
-  const [showWorkSettingDropdown, setShowWorkSettingDropdown] = useState(false);
-  
-  // Data arrays
-  const [industries, setIndustries] = useState<string[]>([]);
-  const [companySizes, setCompanySizes] = useState<string[]>([]);
-  const [workSettings, setWorkSettings] = useState<string[]>([]);
-
-  // Load filter data
+  const [jobTitleFilter, setJobTitleFilter] = useState('');
+  const [allCompanies, setAllCompanies] = useState<Company[]>([]);
 
   // Default companies
   const defaultCompanies: Company[] = [
@@ -62,7 +56,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=128',
       reviews: 0,
       salaries: 0,
-      officeLocations: 7
+      officeLocations: 0
     },
     {
       _id: '2',
@@ -117,21 +111,27 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   // Fetch companies from API
-  const fetchCompanies = async () => {
-    const filtered = defaultCompanies.filter(c =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const applyFilters = (base: Company[]) => {
+    let filtered = base;
+    if (searchTerm) filtered = filtered.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
+    if (companyFilter) filtered = filtered.filter(c => c.name.toLowerCase().includes(companyFilter.toLowerCase()));
+    if (locationFilter) filtered = filtered.filter(c => c.location.toLowerCase().includes(locationFilter.toLowerCase()));
+    if (industryInput) filtered = filtered.filter(c => c.industry.toLowerCase().includes(industryInput.toLowerCase()));
+    if (jobTitleFilter) filtered = filtered.filter(c =>
+      c.description?.toLowerCase().includes(jobTitleFilter.toLowerCase()) ||
+      c.industry?.toLowerCase().includes(jobTitleFilter.toLowerCase())
     );
     setCompanies(filtered);
-    setHasMoreCompanies(false);
   };
 
   const handleLoadMoreCompanies = () => {
-    fetchCompanies();
+    applyFilters(allCompanies);
   };
 
   useEffect(() => {
     const loadCompanies = async () => {
       const companiesFromJobs = await fetchCompaniesFromJobs();
+      setAllCompanies(companiesFromJobs);
       setCompanies(companiesFromJobs);
       setLoading(false);
     };
@@ -139,10 +139,8 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   }, []);
 
   useEffect(() => {
-    if (searchTerm) {
-      fetchCompanies();
-    }
-  }, [searchTerm]);
+    applyFilters(allCompanies);
+  }, [searchTerm, companyFilter, locationFilter, industryInput, jobTitleFilter, allCompanies]);
 
   const formatSalary = (salary: number) => {
     if (salary >= 1000000) {
@@ -152,9 +150,8 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   const getFilteredIndustries = () => {
-    return industries.filter(industry => 
-      industry.toLowerCase().includes(industryInput.toLowerCase())
-    ).slice(0, 10);
+    const uniqueIndustries = [...new Set(allCompanies.map(c => c.industry).filter(Boolean))];
+    return uniqueIndustries.filter(i => i.toLowerCase().includes(industryInput.toLowerCase())).slice(0, 10);
   };
 
 
@@ -292,6 +289,8 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               <input
                 type="text"
                 placeholder="Select a company"
+                value={companyFilter}
+                onChange={(e) => setCompanyFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
               />
 
@@ -299,6 +298,8 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               <input
                 type="text"
                 placeholder="Select a location"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
               />
 
@@ -332,6 +333,8 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               <input
                 type="text"
                 placeholder="Select a job title"
+                value={jobTitleFilter}
+                onChange={(e) => setJobTitleFilter(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
               />
             </div>

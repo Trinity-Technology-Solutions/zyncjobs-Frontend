@@ -323,14 +323,14 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                   {/* Outer orbit circle */}
                   <div className="w-[33rem] h-[33rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.3)', animation: 'spin 30s linear infinite reverse'}}>
                     {[
-                      { src: 'https://www.google.com/favicon.ico', alt: 'Google', angle: 0 },
-                      { src: 'https://img.icons8.com/color/48/microsoft.png', alt: 'Microsoft', angle: 72 },
-                      { src: 'https://img.icons8.com/color/48/amazon.png', alt: 'Amazon', angle: 144 },
-                      { src: 'https://img.icons8.com/ios-filled/50/mac-os.png', alt: 'Apple', angle: 216 },
-                      { src: 'https://img.icons8.com/color/48/meta.png', alt: 'Meta', angle: 288 },
-                    ].map(({ src, alt, angle }) => (
+                      { emoji: '🎨', label: 'Resume Studio', angle: 0 },
+                      { emoji: '💬', label: 'Interview Preparation', angle: 72 },
+                      { emoji: '🧭', label: 'Career Guidance', angle: 144 },
+                      { emoji: '✅', label: 'Skill Check', angle: 216 },
+                      { emoji: '🚀', label: 'Job Search', angle: 288 },
+                    ].map(({ emoji, label, angle }) => (
                       <div
-                        key={alt}
+                        key={label}
                         className="absolute"
                         style={{
                           top: '50%', left: '50%',
@@ -339,8 +339,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                           animation: `counter-spin-outer 30s linear infinite`,
                         }}
                       >
-                        <div className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200 overflow-hidden">
-                          <img src={src} alt={alt} className="w-7 h-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/images/zync-logo.svg'; }} />
+                        <div className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200" style={{fontSize: '1.4rem'}}>
+                          {emoji}
                         </div>
                       </div>
                     ))}

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
+import Notification from '../components/Notification';
 
 interface Application {
   _id: string;
@@ -53,6 +54,9 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreApplications, setHasMoreApplications] = useState(true);
   const applicationsPerPage = 10;
+  const [toast, setToast] = useState<{ type: 'success' | 'info' | 'error'; message: string; isVisible: boolean }>({ type: 'info', message: '', isVisible: false });
+  const prevStatusesRef = useRef<Record<string, string>>({});
+  const isFirstLoadRef = useRef(true);
 
   useEffect(() => {
     fetchMyApplications();
@@ -61,6 +65,12 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   useEffect(() => {
     fetchMyApplications();
   }, [filter]);
+
+  // Auto-refresh every 30s to detect status changes
+  useEffect(() => {
+    const interval = setInterval(() => fetchMyApplications(), 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const fetchMyApplications = async (page = 1, append = false) => {
     if (!user?.email) {
@@ -79,6 +89,34 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       if (response.ok) {
         const data = await response.json();
         
+        if (!isFirstLoadRef.current && !append) {
+          // Detect status changes
+          const prev = prevStatusesRef.current;
+          const changed = data.filter((app: Application) => prev[app._id] && prev[app._id] !== app.status);
+          if (changed.length > 0) {
+            const app = changed[0];
+            const statusLabels: Record<string, string> = {
+              reviewed: 'is being reviewed',
+              shortlisted: '— you have been shortlisted! 🎉',
+              hired: '— you got the job! 🎊',
+              rejected: 'was not selected',
+            };
+            const label = statusLabels[app.status] || `updated to ${app.status}`;
+            const isPositive = ['shortlisted', 'hired', 'reviewed'].includes(app.status);
+            setToast({
+              type: isPositive ? 'success' : 'info',
+              message: `${app.jobId?.jobTitle || 'Application'} ${label}`,
+              isVisible: true,
+            });
+          }
+        }
+
+        // Update stored statuses
+        const newStatuses: Record<string, string> = {};
+        data.forEach((app: Application) => { if (app._id) newStatuses[app._id] = app.status; });
+        prevStatusesRef.current = newStatuses;
+        isFirstLoadRef.current = false;
+
         if (append) {
           setApplications(prev => [...prev, ...data]);
         } else {
@@ -263,6 +301,12 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   return (
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+      <Notification
+        type={toast.type}
+        message={toast.message}
+        isVisible={toast.isVisible}
+        onClose={() => setToast(t => ({ ...t, isVisible: false }))}
+      />
       
       {/* Page Header */}
       <div className="max-w-7xl mx-auto px-4 py-6">

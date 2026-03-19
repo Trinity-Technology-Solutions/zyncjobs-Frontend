@@ -72,17 +72,18 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       const result = await response.json();
       const d = result.data;
 
+      const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
       return {
         jobTitle:        d.jobTitle        || extractJobTitle(description),
-        companyName:     d.company         || '',
+        companyName:     '',
         jobLocation:     d.location        || extractLocation(description),
         jobType:         d.jobType         ? [d.jobType] : extractJobType(description),
         experienceRange: normalizeExperienceRange(d.experienceRange) || extractExperience(description),
         skills:          d.skills?.length  ? d.skills   : extractSkills(description),
-        minSalary:       d.salaryMin       ? String(d.salaryMin) : extractSalary(description).min,
-        maxSalary:       d.salaryMax       ? String(d.salaryMax) : extractSalary(description).max,
-        currency:        d.currency        || extractSalary(description).currency,
-        payRate:         extractSalary(description).payRate,
+        minSalary:       backendSalary.min,
+        maxSalary:       backendSalary.max,
+        currency:        backendSalary.currency,
+        payRate:         backendSalary.payRate,
         benefits:        extractBenefits(description),
         educationLevel:  d.educationLevel  || extractEducation(description),
         jobDescription:  d.description     || description,
@@ -96,18 +97,18 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       };
     } catch (error) {
       console.warn('Backend parse failed, using regex fallback:', error);
-      const salaryInfo = extractSalary(description);
+      const fallbackSalary = extractSalaryIfNumeric(description);
       return {
         jobTitle:        extractJobTitle(description),
-        companyName:     extractCompanyName(description),
+        companyName:     '',
         jobLocation:     extractLocation(description),
         jobType:         extractJobType(description),
         experienceRange: extractExperience(description),
         skills:          extractSkills(description),
-        minSalary:       salaryInfo.min,
-        maxSalary:       salaryInfo.max,
-        currency:        salaryInfo.currency,
-        payRate:         salaryInfo.payRate,
+        minSalary:       fallbackSalary.min,
+        maxSalary:       fallbackSalary.max,
+        currency:        fallbackSalary.currency,
+        payRate:         fallbackSalary.payRate,
         benefits:        extractBenefits(description),
         educationLevel:  extractEducation(description),
         jobDescription:  extractJobDescription(description),
@@ -120,6 +121,46 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
         workAuth:        extractWorkAuth(description)
       };
     }
+  };
+
+  // Parse salary only if actual numeric values exist in JD
+  const parseSalaryIfNumeric = (salaryMin: any, salaryMax: any, text: string) => {
+    const min = parseInt(salaryMin);
+    const max = parseInt(salaryMax);
+    if (min > 0 && max > 0) {
+      const currency = /₹|INR|rupees?|lakh/i.test(text) ? 'INR' :
+                       /€|EUR/i.test(text) ? 'EUR' :
+                       /£|GBP/i.test(text) ? 'GBP' : 'USD';
+      const payRate = /per\s+month|monthly/i.test(text) ? 'per month' :
+                      /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
+      return { min: String(min), max: String(max), currency, payRate };
+    }
+    return extractSalaryIfNumeric(text);
+  };
+
+  // Extract salary from JD text only if actual numbers found — no defaults
+  const extractSalaryIfNumeric = (text: string) => {
+    const empty = { min: '', max: '', currency: 'INR', payRate: 'per year' };
+    const patterns = [
+      /([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?)/gi,
+      /₹\s*([\d,]+(?:\.\d+)?)\s*[-–to]+\s*₹?\s*([\d,]+(?:\.\d+)?)/gi,
+      /\$([\d,]+(?:\.\d+)?)\s*[-–to]+\s*\$?([\d,]+(?:\.\d+)?)/gi,
+      /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)/gi,
+    ];
+    for (const pattern of patterns) {
+      const match = pattern.exec(text);
+      if (match) {
+        let min = parseFloat(match[1].replace(/,/g, ''));
+        let max = parseFloat(match[2].replace(/,/g, ''));
+        if (/lpa|lakh/i.test(match[0])) { min *= 100000; max *= 100000; }
+        if (min > 0 && max > 0) {
+          const currency = /₹|INR|lakh/i.test(text) ? 'INR' : /€|EUR/i.test(text) ? 'EUR' : /£|GBP/i.test(text) ? 'GBP' : 'USD';
+          const payRate = /per\s+month|monthly/i.test(text) ? 'per month' : /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
+          return { min: String(Math.round(min)), max: String(Math.round(max)), currency, payRate };
+        }
+      }
+    }
+    return empty;
   };
 
   // Normalize any experience string to match the dropdown options exactly

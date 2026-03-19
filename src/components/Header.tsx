@@ -5,6 +5,7 @@ import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 
+
 interface HeaderProps {
   onNavigate?: (page: string) => void;
   user?: {name: string, type: 'candidate' | 'employer' | 'admin'} | null;
@@ -19,6 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+
   const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
   const { items: navItems, fetchNavigation } = useNavigation();
 
@@ -80,12 +82,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   const handleCareerResourcesClick = () => {
     if (onNavigate) {
-      // Check if user is logged in
+      if (user?.type === 'employer') return; // employers cannot access career resources
       if (user) {
-        // User is logged in, go directly to career resources
         onNavigate('career-resources');
       } else {
-        // User not logged in, show registration flow
         onNavigate('register');
       }
     }
@@ -328,13 +328,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       🎨 Resume Studio
                     </button>
                     <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interviews'); }}
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
                       className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                     >
                       💬 Interview Preparation
                     </button>
                     <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-advice'); }}
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
                       className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                     >
                       🧭 Career Guidance
@@ -369,7 +369,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </nav>
 
           {/* Right side items */}
-          <div className="hidden md:flex items-center space-x-6 ml-auto">
+          <div className="hidden md:flex items-center space-x-4 ml-auto">
+
             {/* Login/Register Dropdown */}
             {user ? (
               <div className="relative" ref={dropdownRef}>
@@ -676,10 +677,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     <button onClick={() => onNavigate && onNavigate('resume-studio')} className="block text-left text-gray-300 hover:text-white text-sm">
                       🎨 Resume Studio
                     </button>
-                    <button onClick={() => onNavigate && onNavigate('interviews')} className="block text-left text-gray-300 hover:text-white text-sm">
+                    <button onClick={() => onNavigate && onNavigate('interview-tips')} className="block text-left text-gray-300 hover:text-white text-sm">
                       💬 Interview Preparation
                     </button>
-                    <button onClick={() => onNavigate && onNavigate('career-advice')} className="block text-left text-gray-300 hover:text-white text-sm">
+                    <button onClick={() => onNavigate && onNavigate('career-coach')} className="block text-left text-gray-300 hover:text-white text-sm">
                       🧭 Career Guidance
                     </button>
                     <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-gray-300 hover:text-white text-sm">

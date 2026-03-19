@@ -5,10 +5,11 @@ import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
+import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
 
 interface EmployerDashboardPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, params?: any) => void;
   onLogout?: () => void;
 }
 
@@ -32,6 +33,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [savedCandidates, setSavedCandidates] = useState<any[]>([]);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [selectedResumeAppId, setSelectedResumeAppId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -812,6 +815,37 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
             <div className="flex items-center space-x-4 ml-6">
+              {/* Notification Bell */}
+              <div className="relative">
+                <button
+                  onClick={async () => {
+                    setShowNotifications(!showNotifications);
+                    if (!showNotifications) {
+                      try {
+                        const userData = localStorage.getItem('user');
+                        if (userData) {
+                          const { email } = JSON.parse(userData);
+                          const fresh = await NotificationService.fetchNotifications(email);
+                          setNotifications(fresh);
+                        }
+                      } catch (e) {
+                        console.error('Bell fetch error:', e);
+                      }
+                    }
+                  }}
+                  className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <Bell className="w-6 h-6" />
+                  {notifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+                      {notifications.length > 9 ? '9+' : notifications.length}
+                    </span>
+                  )}
+                </button>
+
+
+              </div>
+
               <button
                 onClick={() => onNavigate('job-posting-selection')}
                 className="bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium hover:bg-emerald-800 transition-colors"
@@ -984,11 +1018,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ) : (
                 <div className="space-y-4">
                   {applications.map((application) => (
-                    <div key={application._id || application.id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-glow hover:border-blue-400 hover:scale-[1.01] transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50 card-hover shimmer-effect">
+                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
-                          <div className="w-14 h-14 bg-gradient-to-br from-emerald-500 to-blue-600 rounded-full flex items-center justify-center shadow-md">
-                            <span className="text-white font-bold text-xl">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-600 font-semibold text-sm">
                               {application.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
                           </div>
@@ -1004,32 +1038,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   Applied for: {application.jobTitle || 'Job Position'}
                                 </p>
                               </div>
-                              <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse ${
-                                application.status === 'applied' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
-                                application.status === 'reviewed' ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white' :
-                                application.status === 'shortlisted' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
-                                application.status === 'hired' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' :
-                                application.status === 'rejected' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' :
-                                'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                application.status === 'applied' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                application.status === 'reviewed' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                                application.status === 'shortlisted' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                application.status === 'hired' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                                application.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                'bg-gray-50 text-gray-600 border border-gray-200'
                               }`}>
                                 {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
                               </span>
                             </div>
                             
                             <div className="flex items-center gap-3 mb-3 flex-wrap">
-                              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
-                                <span>📧</span>
-                                <span className="text-sm font-medium text-blue-900">{application.candidateEmail}</span>
-                              </div>
-                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
-                                <span>📅</span>
-                                <span className="text-sm font-medium text-gray-700">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                              </div>
+                              <span className="text-sm text-gray-500">{application.candidateEmail}</span>
+                              <span className="text-gray-300">·</span>
+                              <span className="text-sm text-gray-500">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             </div>
 
                             {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                              <div className="text-sm text-gray-700 bg-gradient-to-r from-blue-50 to-cyan-50 p-3 rounded-lg mb-3 border-l-4 border-blue-500 shadow-sm">
-                                <strong className="text-blue-900">Cover Letter:</strong> {application.coverLetter.length > 150 ? 
+                              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded mb-3 border-l-2 border-gray-300">
+                                <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 150 ? 
                                   `${application.coverLetter.substring(0, 150)}...` : 
                                   application.coverLetter
                                 }
@@ -1039,49 +1068,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {application.resumeUrl ? (
                               <div className="mb-3">
                                 <button
-                                  onClick={async () => {
-                                    try {
-                                      const appId = application._id || application.id;
-                                      const PLACEHOLDERS = ['resume_from_quick_apply', 'resume_from_profile', 'resume_uploaded'];
-                                      const isPlaceholder = PLACEHOLDERS.includes(application.resumeUrl) || !application.resumeUrl.includes('/');
-
-                                      if (isPlaceholder) {
-                                        // Use resume-viewer API to get the real file
-                                        const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
-                                        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/resume-viewer/${appId}`);
-                                        if (res.ok) {
-                                          const data = await res.json();
-                                          const fileUrl = data.resume?.fileUrl;
-                                          if (fileUrl) {
-                                            const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${serverBase}${fileUrl}`;
-                                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
-                                          } else {
-                                            alert('No resume file found for this candidate.');
-                                          }
-                                        } else {
-                                          alert('No resume file found. The candidate may not have uploaded one.');
-                                        }
-                                        return;
-                                      }
-
-                                      // Real file path — build correct URL (strip /api prefix for static files)
-                                      const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
-                                      let resumeUrl = application.resumeUrl;
-                                      if (resumeUrl.startsWith('http')) {
-                                        // already absolute
-                                      } else if (resumeUrl.startsWith('/uploads/')) {
-                                        resumeUrl = `${serverBase}${resumeUrl}`;
-                                      } else if (resumeUrl.startsWith('/')) {
-                                        resumeUrl = `${serverBase}${resumeUrl}`;
-                                      } else {
-                                        resumeUrl = `${serverBase}/uploads/resumes/${resumeUrl}`;
-                                      }
-
-                                      window.open(resumeUrl, '_blank', 'noopener,noreferrer');
-                                    } catch (error) {
-                                      console.error('Resume open error:', error);
-                                      alert('Unable to open resume. Please try again.');
-                                    }
+                                  onClick={() => {
+                                    const appId = application._id || application.id;
+                                    setSelectedResumeAppId(appId);
+                                    setShowResumeModal(true);
                                   }}
                                   className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
                                 >
@@ -1154,7 +1144,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             Schedule Interview
                           </button>
                           <button 
-                            onClick={() => onNavigate('candidate-profile-view')}
+                            onClick={() => {
+                              const candidateId = application.candidateId || application.userId || application.candidateUserId || application.candidateEmail;
+                              if (!candidateId) {
+                                alert('Candidate profile not available.');
+                                return;
+                              }
+                              sessionStorage.setItem('viewCandidateId', candidateId);
+                              onNavigate('candidate-profile-view', { candidateId });
+                            }}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
                             View Profile
@@ -1208,11 +1206,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ) : (
                 <div className="space-y-4">
                   {interviews.map((interview) => (
-                    <div key={interview._id} className="border-2 border-purple-200 rounded-xl p-6 hover:shadow-glow hover:border-purple-400 hover:scale-[1.01] transition-all duration-300 bg-gradient-to-br from-white via-purple-50 to-pink-50 card-hover shimmer-effect">
+                    <div key={interview._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
-                          <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-md">
-                            <span className="text-white font-bold text-xl">
+                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-600 font-semibold text-sm">
                               {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
                           </div>
@@ -1228,29 +1226,22 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   {interview.jobTitle || 'Interview'}
                                 </p>
                               </div>
-                              <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse ${
-                                interview.status === 'scheduled' ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white' :
-                                interview.status === 'completed' ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white' :
-                                interview.status === 'cancelled' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white' :
-                                'bg-gradient-to-r from-gray-500 to-gray-600 text-white'
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                'bg-gray-50 text-gray-600 border border-gray-200'
                               }`}>
                                 {interview.status?.charAt(0).toUpperCase() + interview.status?.slice(1) || 'Scheduled'}
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-3 mb-3 flex-wrap">
-                              <div className="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-lg">
-                                <span>📅</span>
-                                <span className="text-sm font-semibold text-purple-900">{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                              </div>
-                              <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">
-                                <span>🕒</span>
-                                <span className="text-sm font-semibold text-blue-900">{interview.time}</span>
-                              </div>
-                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg">
-                                <span>📧</span>
-                                <span className="text-sm font-medium text-gray-700">{interview.candidateEmail}</span>
-                              </div>
+                            <div className="flex items-center gap-3 mb-3 flex-wrap text-sm text-gray-500">
+                              <span>📅 {new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              <span className="text-gray-300">·</span>
+                              <span>🕒 {interview.time}</span>
+                              <span className="text-gray-300">·</span>
+                              <span>{interview.candidateEmail}</span>
                             </div>
 
                             {interview.meetingLink && (
@@ -1268,8 +1259,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             )}
 
                             {interview.notes && (
-                              <div className="text-sm text-gray-700 bg-gradient-to-r from-purple-50 to-pink-50 p-3 rounded-lg border-l-4 border-purple-500 shadow-sm">
-                                <strong className="text-purple-900">Notes:</strong> {interview.notes}
+                              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded border-l-2 border-gray-300">
+                                <strong className="text-gray-700">Notes:</strong> {interview.notes}
                               </div>
                             )}
                           </div>
@@ -1487,62 +1478,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <>
               <div className="flex items-center justify-between mb-8">
                 <h1 className="text-3xl font-bold text-gray-900">Alerts & Notifications</h1>
-                <div className="flex gap-2">
-                  <button
+                <button
                     onClick={async () => {
                       try {
                         const userData = localStorage.getItem('user');
                         if (userData) {
                           const parsedUser = JSON.parse(userData);
-                          const userEmail = parsedUser.email;
-                          
-                          console.log('Manual refresh of notifications...');
-                          const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
+                          const dynamicNotifications = await NotificationService.fetchNotifications(parsedUser.email);
                           setNotifications(dynamicNotifications);
-                          alert(`Refreshed! Found ${dynamicNotifications.length} notifications.`);
                         }
                       } catch (error) {
                         console.error('Error refreshing notifications:', error);
-                        alert('Failed to refresh notifications. Please try again.');
                       }
                     }}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    className="flex items-center gap-2 text-sm text-gray-600 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
                     Refresh
                   </button>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const userData = localStorage.getItem('user');
-                        if (userData) {
-                          const parsedUser = JSON.parse(userData);
-                          const userEmail = parsedUser.email;
-                          
-                          console.log('Testing notifications API...');
-                          const testResult = await NotificationService.testNotifications(userEmail);
-                          console.log('Test result:', testResult);
-                          alert(`Test completed! Check console for details. Scheduler status: ${testResult.schedulerStatus?.isRunning ? 'Active' : 'Inactive'}`);
-                          
-                          // Refresh notifications after test
-                          const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
-                          setNotifications(dynamicNotifications);
-                        }
-                      } catch (error) {
-                        console.error('Error testing notifications:', error);
-                        alert('Test failed. Check console for details.');
-                      }
-                    }}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Test API
-                  </button>
-                </div>
               </div>
               
               <div className="space-y-4">
@@ -1554,40 +1509,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                 ) : (
                   notifications.map((notification) => (
-                    <div key={notification.id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-lg hover:border-blue-400 transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50">
+                    <div key={notification.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-start space-x-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold ${
-                          NotificationService.getNotificationColor(notification.type)
-                        }`}>
+                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">
                           {NotificationService.getNotificationIcon(notification.type)}
                         </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between mb-2">
-                            <h3 className="text-lg font-bold text-gray-900">{notification.title}</h3>
-                            <span className="text-xs text-gray-500 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between mb-1">
+                            <h3 className="text-sm font-semibold text-gray-900">{notification.title}</h3>
+                            <span className="text-xs text-gray-400 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
                           </div>
-                          <p className="text-gray-700 mb-3">{notification.message}</p>
+                          <p className="text-sm text-gray-600 mb-3">{notification.message}</p>
                           <div className="flex gap-2">
                             <button 
                               onClick={() => {
-                                // Navigate to relevant section based on notification type
-                                if (notification.type === 'application') {
-                                  setActiveMenu('applications');
-                                } else if (notification.type === 'interview') {
-                                  setActiveMenu('interviews');
-                                } else if (notification.type === 'job') {
-                                  onNavigate('my-jobs');
-                                }
+                                if (notification.type === 'application') setActiveMenu('applications');
+                                else if (notification.type === 'interview') setActiveMenu('interviews');
+                                else if (notification.type === 'job') onNavigate('my-jobs');
                               }}
-                              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                              className="text-xs font-medium text-blue-600 border border-blue-600 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
                             >
                               View Details
                             </button>
                             <button 
-                              onClick={() => {
-                                setNotifications(prev => prev.filter(n => n.id !== notification.id));
-                              }}
-                              className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300 transition-colors"
+                              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                              className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
                             >
                               Dismiss
                             </button>
@@ -1634,6 +1580,103 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         </div>
       </div>
       </div>
+
+      {/* Notification Slide-in Drawer (same as candidate page) */}
+      {showNotifications && (
+        <>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            onClick={() => setShowNotifications(false)}
+          />
+          <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+            <div className="p-4 border-b flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+              <div className="flex items-center gap-3">
+                {notifications.length > 0 && (
+                  <button
+                    onClick={() => setNotifications([])}
+                    className="text-xs text-gray-500 hover:text-red-600 transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowNotifications(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="h-full overflow-y-auto pb-20">
+              {notifications.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p className="text-lg font-medium mb-2">No notifications yet</p>
+                  <p className="text-sm">New alerts will appear here</p>
+                </div>
+              ) : (
+                <>
+                  <div className="p-3 text-sm text-gray-500 border-b bg-gray-50">Recent</div>
+                  {notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className="p-4 border-b hover:bg-gray-50 cursor-pointer"
+                      onClick={() => {
+                        setShowNotifications(false);
+                        if (notification.type === 'application') setActiveMenu('applications');
+                        else if (notification.type === 'interview') setActiveMenu('interviews');
+                        else if (notification.type === 'job') onNavigate('my-jobs');
+                      }}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${
+                          NotificationService.getNotificationColor(notification.type)
+                        }`}>
+                          {NotificationService.getNotificationIcon(notification.type)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-gray-900 mb-1">{notification.title}</h4>
+                          <p className="text-sm text-gray-600 mb-2 line-clamp-2">{notification.message}</p>
+                          <span className="text-xs text-gray-400">{NotificationService.formatTime(notification.time)}</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                          }}
+                          className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-lg leading-none ml-2"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+
+            <div className="absolute bottom-0 left-0 right-0 border-t border-gray-100 bg-white px-4 py-3">
+              <button
+                onClick={() => { setShowNotifications(false); setActiveMenu('alerts'); }}
+                className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
+              >
+                View all alerts →
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Resume Modal */}
+      <ResumeModal
+        applicationId={selectedResumeAppId}
+        isOpen={showResumeModal}
+        onClose={() => { setShowResumeModal(false); setSelectedResumeAppId(null); }}
+      />
 
       {/* Schedule Interview Modal */}
       {showScheduleModal && selectedApplication && (

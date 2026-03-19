@@ -151,8 +151,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     workAuth: parsedData?.workAuth || [],
     jobType: parsedData?.jobType || [],
     payType: 'Range',
-    minSalary: parsedData?.minSalary || '',
-    maxSalary: parsedData?.maxSalary || '',
+    minSalary: (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0) ? parsedData.minSalary : '',
+    maxSalary: (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) ? parsedData.maxSalary : '',
     payRate: parsedData?.payRate || 'per year',
     currency: parsedData?.currency || 'INR',
     benefits: parsedData?.benefits || [],
@@ -162,7 +162,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     skills: parsedData?.skills || [],
     educationLevel: parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: sanitizeParsedCompany(parsedData?.companyName) || '',
+    companyName: '',
     companyLogo: '',
     companyId: ''
   });
@@ -274,9 +274,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     }
   }, [parsedData, mode]);
 
-  // Set salaryModified flag if parsedData contains salary info
+  // Set salaryModified if parsedData has actual salary values
   useEffect(() => {
-    if (parsedData?.minSalary && parsedData?.maxSalary) {
+    if (parsedData?.minSalary && parsedData?.maxSalary &&
+        parseInt(parsedData.minSalary) > 0 && parseInt(parsedData.maxSalary) > 0) {
       setSalaryModified(true);
     }
   }, [parsedData]);
@@ -2411,7 +2412,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       company: user?.companyName || jobData.companyName || 'Your Company',
       companyLogo: logoUrl,
       location: jobData.jobLocation,
-      jobType: jobData.jobType.length > 0 ? jobData.jobType : ['Full-time'],
+      jobType: jobData.jobType.length > 0 ? jobData.jobType[0] : 'Full-time',
       description: jobData.jobDescription,
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join('\n') : jobData.responsibilities,
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,

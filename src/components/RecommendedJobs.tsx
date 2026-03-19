@@ -293,10 +293,10 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Salaries</option>
-              <option value="0-50k">$0 - $50k</option>
-              <option value="50k-100k">$50k - $100k</option>
-              <option value="100k-150k">$100k - $150k</option>
-              <option value="150k+">$150k+</option>
+              <option value="0-50k">₹0 - ₹50k</option>
+              <option value="50k-100k">₹50k - ₹100k</option>
+              <option value="100k-150k">₹100k - ₹150k</option>
+              <option value="150k+">₹150k+</option>
             </select>
           </div>
 

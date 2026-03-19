@@ -3,6 +3,7 @@ export interface TextItem {
   x: number;
   y: number;
   width: number;
+  height: number;
   bold?: boolean;
 }
 

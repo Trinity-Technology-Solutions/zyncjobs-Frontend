@@ -35,13 +35,9 @@ const JobHuntingPage = lazy(() => import('./pages/JobHuntingPage'));
 const ResumeTemplatesPage = lazy(() => import('./pages/ResumeTemplatesPage'));
 const ResumeEditorPage = lazy(() => import('./pages/ResumeEditorPage'));
 const ResumeReadyPage = lazy(() => import('./pages/ResumeReadyPage'));
-const AIResumeBuilderPage = lazy(() => import('./pages/AIResumeBuilderPage'));
 const ResumeViewerPage = lazy(() => import('./pages/ResumeViewerPage'));
 const InterviewTipsPage = lazy(() => import('./pages/InterviewTipsPage'));
-const CareerAdvicePage = lazy(() => import('./pages/CareerAdvicePage'));
 const CareerCoachPage = lazy(() => import('./pages/CareerCoachPage'));
-const CareerInsightsHubPage = lazy(() => import('./pages/CareerInsightsHubPage'));
-const SalaryReportPage = lazy(() => import('./pages/SalaryReportPage'));
 const CandidateSearchPage = lazy(() => import('./pages/CandidateSearchPage'));
 const JobPostingPage = lazy(() => import('./pages/JobPostingPage'));
 const JobPostingSelectionPage = lazy(() => import('./pages/JobPostingSelectionPage'));
@@ -55,11 +51,8 @@ const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
 const SearchEngine = lazy(() => import('./components/SearchEngine'));
 const CompanyProfilePage = lazy(() => import('./pages/CompanyProfilePage'));
 const CompanyViewPage = lazy(() => import('./pages/CompanyViewPage'));
-const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const JobApplicationPage = lazy(() => import('./pages/JobApplicationPage'));
-const DailyJobsPage = lazy(() => import('./pages/DailyJobsPage'));
 const JobRolePage = lazy(() => import('./pages/JobRolePage'));
-const HireTalentPage = lazy(() => import('./pages/HireTalentPage'));
 const JobManagementPage = lazy(() => import('./pages/JobManagementPage'));
 const CandidateResponseDetailPage = lazy(() => import('./pages/CandidateResponseDetailPageNew'));
 const CandidateReviewPage = lazy(() => import('./pages/CandidateReviewPage'));
@@ -69,17 +62,14 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const MyJobsPage = lazy(() => import('./pages/MyJobsPage'));
 const MyApplicationsPage = lazy(() => import('./pages/MyApplicationsPage'));
 const ResumeParserPage = lazy(() => import('./pages/ResumeParserPage'));
-const CompanyTestPage = lazy(() => import('./pages/CompanyTestPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 const ResumeModerationDashboard = lazy(() => import('./pages/ResumeModerationDashboard'));
 const JobModerationDashboard = lazy(() => import('./pages/JobModerationDashboard'));
 const ResumeUploadWithModeration = lazy(() => import('./components/ResumeUploadWithModeration'));
-const AIScoringDemoPage = lazy(() => import('./pages/AIScoringDemoPage'));
 const ApplicationManagementPage = lazy(() => import('./pages/ApplicationManagementPage'));
 const EmployerProfilePage = lazy(() => import('./pages/EmployerProfilePage'));
 const MeetingTest = lazy(() => import('./components/MeetingTest'));
-const SkillAssessment = lazy(() => import('./components/SkillAssessment'));
 const SkillAssessmentPage = lazy(() => import('./pages/SkillAssessmentPage'));
 const AssessmentReviewPage = lazy(() => import('./pages/AssessmentReviewPage'));
 const InterviewScheduling = lazy(() => import('./components/InterviewScheduling'));
@@ -95,7 +85,7 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
 const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
-const JobShareTestPage = lazy(() => import('./pages/JobShareTestPage'));
+const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -183,6 +173,13 @@ function App() {
   }, [location.pathname, location.search]);
 
   const handleNavigation = (page: string, params?: any) => {
+    // resume-editor with template — navigate directly to preserve query string
+    if (page === 'resume-editor') {
+      const templateName = typeof params === 'string' ? params : '';
+      window.location.href = `/resume-editor${templateName ? `?template=${encodeURIComponent(templateName)}` : ''}`;
+      return;
+    }
+
     startTransition(() => {
       setShowLoginModal(false);
       setShowRegisterModal(false);
@@ -190,6 +187,15 @@ function App() {
       setShowRoleSelectionModal(false);
       setShowCandidateRegisterModal(false);
       setShowEmployerRegisterModal(false);
+
+      // Handle job-detail/ID string pattern
+      if (page.startsWith('job-detail/')) {
+        const id = page.split('/')[1];
+        navigate(`/job-detail?id=${id}`);
+        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+        return;
+      }
+
       
       if (params) {
         if (typeof params === 'string') {
@@ -216,9 +222,12 @@ function App() {
       if (page === 'assessment-review' && params?.assessmentId) {
         navigate(`/assessment-review/${params.assessmentId}`);
       } else if (page === 'job-detail') {
-        const id = params?.jobId || params?.jobData?._id || params?.jobData?.id;
-        window.location.href = id ? `/job-detail?id=${id}` : '/job-detail';
-        return;
+        const id = params?.jobId || params?.jobData?._id || params?.jobData?.id
+          || (typeof params === 'string' ? params.replace('job-detail/', '') : null);
+        if (params?.jobData) {
+          localStorage.setItem('selectedJob', JSON.stringify(params.jobData));
+        }
+        navigate(id ? `/job-detail?id=${id}` : '/job-detail');
       } else {
         navigate(`/${page === 'home' ? '' : page}`);
       }
@@ -325,7 +334,7 @@ function App() {
             employerId={currentData?.employerId}
             employerData={currentData?.employerData}
           />
-          <Footer onNavigate={handleNavigation} />
+          <Footer onNavigate={handleNavigation} user={user as any} />
         </div>
       </Suspense>
     );
@@ -341,21 +350,10 @@ function App() {
     return <Suspense fallback={<LoadingFallback />}><InterviewTipsPage onNavigate={handleNavigation} /></Suspense>;
   }
 
-  if (currentPage === 'career-advice') {
-    return <Suspense fallback={<LoadingFallback />}><CareerAdvicePage onNavigate={handleNavigation} topic={currentTopic} /></Suspense>;
-  }
-
   if (currentPage === 'career-coach') {
     return <Suspense fallback={<LoadingFallback />}><CareerCoachPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
-  if (currentPage === 'career-insights-hub') {
-    return <Suspense fallback={<LoadingFallback />}><CareerInsightsHubPage onNavigate={handleNavigation} /></Suspense>;
-  }
-
-  if (currentPage === 'salary-report') {
-    return <Suspense fallback={<LoadingFallback />}><SalaryReportPage onNavigate={handleNavigation} /></Suspense>;
-  }
 
 
 
@@ -379,7 +377,7 @@ function App() {
             user={user as any}
             onLogout={handleLogout}
           />
-          <Footer onNavigate={handleNavigation} />
+          <Footer onNavigate={handleNavigation} user={user as any} />
         </div>
       </Suspense>
     );
@@ -390,12 +388,16 @@ function App() {
   }
 
   if (currentPage === 'career-resources') {
+    if (user?.type === 'employer') {
+      navigate('/dashboard');
+      return null;
+    }
     return (
       <Suspense fallback={<LoadingFallback />}>
         <div className="min-h-screen bg-white">
           <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
           <CareerResources />
-          <Footer onNavigate={handleNavigation} />
+          <Footer onNavigate={handleNavigation} user={user as any} />
           <BackButton onClick={handleBackNavigation} />
         </div>
       </Suspense>
@@ -421,7 +423,7 @@ function App() {
             ) : (
               <CandidateDashboardPage onNavigate={handleNavigation} />
             )}
-            <Footer onNavigate={handleNavigation} />
+            <Footer onNavigate={handleNavigation} user={user as any} />
           </div>
         )}
       </Suspense>
@@ -434,7 +436,7 @@ function App() {
         <div className="min-h-screen bg-white">
           <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
           <SearchEngine />
-          <Footer onNavigate={handleNavigation} />
+          <Footer onNavigate={handleNavigation} user={user as any} />
         </div>
       </Suspense>
     );
@@ -446,7 +448,7 @@ function App() {
         <div className="min-h-screen bg-white">
           <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
           <CompanyProfilePage onNavigate={handleNavigation} companyName={currentData?.companyName} />
-          <Footer onNavigate={handleNavigation} />
+          <Footer onNavigate={handleNavigation} user={user as any} />
         </div>
       </Suspense>
     );
@@ -466,13 +468,19 @@ function App() {
   }
 
   if (currentPage === 'candidate-profile-view') {
+    const urlCandidateId = new URLSearchParams(location.search).get('id');
+    const candidateId = urlCandidateId || currentData?.candidateId || sessionStorage.getItem('viewCandidateId');
     return (
       <Suspense fallback={<LoadingFallback />}>
-        <CandidateProfileView 
-          candidateId={currentData?.candidateId}
-          onNavigate={handleNavigation}
-          onBack={handleBackNavigation}
-        />
+        <div className="min-h-screen bg-white">
+          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+          <CandidateDashboardPage
+            onNavigate={handleNavigation}
+            readOnly={true}
+            viewEmail={candidateId}
+          />
+          <Footer onNavigate={handleNavigation} user={user as any} />
+        </div>
       </Suspense>
     );
   }
@@ -485,18 +493,6 @@ function App() {
           jobId={currentData?.jobId}
           jobData={currentData?.jobData}
         />
-      </Suspense>
-    );
-  }
-
-  if (currentPage === 'daily-jobs') {
-    return (
-      <Suspense fallback={<LoadingFallback />}>
-        <div className="min-h-screen bg-white">
-          <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-          <DailyJobsPage onNavigate={handleNavigation} />
-          <Footer onNavigate={handleNavigation} />
-        </div>
       </Suspense>
     );
   }
@@ -548,10 +544,6 @@ function App() {
     return <Suspense fallback={<LoadingFallback />}><CandidateSearchPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
-  if (currentPage === 'hire-talent') {
-    return <Suspense fallback={<LoadingFallback />}><HireTalentPage onNavigate={handleNavigation} /></Suspense>;
-  }
-
   if (currentPage === 'job-management') {
     return <Suspense fallback={<LoadingFallback />}><JobManagementPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
@@ -582,16 +574,13 @@ function App() {
   }
 
   if (currentPage === 'resume-editor') {
-    return <Suspense fallback={<LoadingFallback />}><ResumeEditorPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} template={currentTopic} /></Suspense>;
+    const templateFromUrl = new URLSearchParams(window.location.search).get('template') || '';
+    return <Suspense fallback={<LoadingFallback />}><ResumeEditorPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} template={templateFromUrl} /></Suspense>;
   }
 
   if (currentPage.startsWith('resume-view/')) {
     const template = currentPage.split('/')[1];
     return <Suspense fallback={<LoadingFallback />}><ResumeViewerPage template={template} /></Suspense>;
-  }
-
-  if (currentPage === 'ai-resume-builder') {
-    return <Suspense fallback={<LoadingFallback />}><AIResumeBuilderPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   if (currentPage === 'resume-templates') {
@@ -628,7 +617,7 @@ function App() {
       <div className="min-h-screen bg-white">
         <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
         <SettingsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
       </div>
     );
   }
@@ -671,17 +660,13 @@ function App() {
             </Suspense>
           </div>
         </div>
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
       </>
     );
   }
 
   if (currentPage === 'resume-parser') {
     return <ResumeParserPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />;
-  }
-
-  if (currentPage === 'company-test') {
-    return <CompanyTestPage onNavigate={handleNavigation} />;
   }
 
   if (currentPage === 'forgot-password') {
@@ -698,7 +683,7 @@ function App() {
       <div className="min-h-screen bg-white">
         <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
         <ResumeModerationDashboard />
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
       </div>
     );
   }
@@ -708,7 +693,7 @@ function App() {
       <div className="min-h-screen bg-white">
         <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
         <JobModerationDashboard />
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
       </div>
     );
   }
@@ -730,17 +715,7 @@ function App() {
             }}
           />
         </div>
-        <Footer onNavigate={handleNavigation} />
-      </div>
-    );
-  }
-
-  if (currentPage === 'ai-scoring-demo') {
-    return (
-      <div className="min-h-screen bg-white">
-        <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-        <AIScoringDemoPage onNavigate={handleNavigation} />
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
       </div>
     );
   }
@@ -770,17 +745,6 @@ function App() {
     );
   }
 
-  if (currentPage === 'skill-assessments') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-        <SkillAssessment />
-        <Footer onNavigate={handleNavigation} />
-        <MobileNavigation onNavigate={handleNavigation} currentPage={currentPage} />
-      </div>
-    );
-  }
-
   if (currentPage === 'meeting-test') {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -788,7 +752,7 @@ function App() {
         <div className="py-8">
           <MeetingTest />
         </div>
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
       </div>
     );
   }
@@ -806,7 +770,7 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
         <InterviewScheduling />
-        <Footer onNavigate={handleNavigation} />
+        <Footer onNavigate={handleNavigation} user={user as any} />
         <MobileNavigation onNavigate={handleNavigation} currentPage={currentPage} />
       </div>
     );
@@ -864,12 +828,12 @@ function App() {
     return <Suspense fallback={<LoadingFallback />}><ResumeStudioPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
-  if (currentPage === 'resume-help') {
-    return <Suspense fallback={<LoadingFallback />}><ResumeHelpPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  if (currentPage === 'skill-gap-analysis') {
+    return <Suspense fallback={<LoadingFallback />}><SkillGapAnalysisPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
-  if (currentPage === 'job-share-test') {
-    return <Suspense fallback={<LoadingFallback />}><JobShareTestPage /></Suspense>;
+  if (currentPage === 'resume-help') {
+    return <Suspense fallback={<LoadingFallback />}><ResumeHelpPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
   return (
@@ -892,7 +856,7 @@ function App() {
             <JobCategories onNavigate={handleNavigation} />
             <TalentedPeople onNavigate={handleNavigation} />
             <CallToAction onNavigate={handleNavigation} />
-            <Footer onNavigate={handleNavigation} />
+            <Footer onNavigate={handleNavigation} user={user as any} />
             <ChatWidget />
             <MobileNavigation onNavigate={handleNavigation} currentPage="home" />
           </div>

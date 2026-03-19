@@ -4,7 +4,7 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 
 interface ResumeTemplatesPageProps {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: string, params?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
   onLogout?: () => void;
 }

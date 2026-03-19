@@ -20,11 +20,16 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   useEffect(() => {
     fetchCandidateProfile();
+    return () => { sessionStorage.removeItem('viewCandidateId'); };
   }, [candidateId]);
 
   const fetchCandidateProfile = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${candidateId}`);
+      // Try by ID first, then fallback to email-based lookup
+      let response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(candidateId)}`);
+      if (!response.ok && candidateId?.includes('@')) {
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile?email=${encodeURIComponent(candidateId)}`);
+      }
       if (response.ok) {
         const data = await response.json();
         setCandidate(data);
@@ -51,7 +56,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Candidate profile not found</p>
+          <p className="text-gray-600 mb-2">Candidate profile not found</p>
+          <p className="text-xs text-gray-400 mb-4">ID: {candidateId}</p>
           <button onClick={onBack} className="text-blue-600 hover:text-blue-800">
             Go Back
           </button>

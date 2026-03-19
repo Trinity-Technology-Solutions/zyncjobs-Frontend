@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, MapPin, Briefcase, Users, DollarSign, MessageSquare, Gift, ChevronRight, Facebook, Instagram, Linkedin, Youtube, X } from 'lucide-react';
+import { Star, MapPin, Briefcase, Users, IndianRupee, MessageSquare, Gift, ChevronRight, Facebook, Instagram, Linkedin, Youtube, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -25,8 +25,20 @@ interface Job {
   _id: string;
   jobTitle: string;
   location: string;
-  salary?: string;
+  salary?: any;
 }
+
+const formatSalary = (salary: any): string => {
+  if (!salary) return '';
+  if (typeof salary === 'string') return salary;
+  if (typeof salary === 'object') {
+    const { min, max, currency = '₹' } = salary;
+    if (min && max) return `${currency}${Number(min).toLocaleString('en-IN')} - ${currency}${Number(max).toLocaleString('en-IN')}`;
+    if (min) return `${currency}${Number(min).toLocaleString('en-IN')}+`;
+    if (max) return `Up to ${currency}${Number(max).toLocaleString('en-IN')}`;
+  }
+  return '';
+};
 
 const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: { 
   onNavigate?: (page: string) => void;
@@ -121,11 +133,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
           }
         });
         
-        return Array.from(locations).map((location, idx) => ({
-          city: location.split(',')[0] || location,
-          country: 'India',
-          rating: (Math.random() * 0.5 + 4.0).toFixed(1),
-          address: `${location}, India`
+        return Array.from(locations).map((location) => ({
+          city: location.split(',')[0]?.trim() || location,
+          country: location.includes(',') ? location.split(',').pop()?.trim() : '',
+          address: location
         }));
       }
     } catch (error) {
@@ -312,17 +323,21 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
                 {jobs.length > 0 ? (
                   <div className="space-y-4">
                     {jobs.map((job) => (
-                      <div key={job._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer">
+                      <div
+                        key={job._id}
+                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                        onClick={() => onNavigate && onNavigate(`job-detail/${job._id}`)}
+                      >
                         <h3 className="font-semibold text-gray-900 mb-2">{job.jobTitle}</h3>
                         <div className="flex items-center gap-4 text-sm text-gray-600">
                           <span className="flex items-center gap-1">
                             <MapPin className="w-4 h-4" />
                             {job.location}
                           </span>
-                          {job.salary && (
+                          {formatSalary(job.salary) && (
                             <span className="flex items-center gap-1">
-                              <DollarSign className="w-4 h-4" />
-                              {job.salary}
+                              <IndianRupee className="w-4 h-4" />
+                              {formatSalary(job.salary)}
                             </span>
                           )}
                         </div>
@@ -335,26 +350,91 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
               </div>
             )}
 
+            {activeTab === 'salaries' && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Salaries at {company.name}</h2>
+                {jobs.length > 0 ? (
+                  <div className="space-y-4">
+                    {jobs.map((job) => (
+                      <div key={job._id} className="border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold text-gray-900">{job.jobTitle}</h3>
+                          <span className="flex items-center gap-1 text-green-600 font-medium">
+                            <IndianRupee className="w-4 h-4" />
+                            {formatSalary(job.salary) || 'Not disclosed'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1 flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {job.location}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-gray-600">No salary data available</p>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'interviews' && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Interview Experience at {company.name}</h2>
+                <div className="space-y-4">
+                  <div className="border border-gray-200 rounded-lg p-6 bg-blue-50">
+                    <h3 className="font-semibold text-gray-900 mb-2">General Interview Process</h3>
+                    <ul className="space-y-2 text-gray-600 text-sm">
+                      <li className="flex items-start gap-2"><span className="text-blue-500 mt-1">•</span>Initial screening call with HR</li>
+                      <li className="flex items-start gap-2"><span className="text-blue-500 mt-1">•</span>Technical / skills assessment round</li>
+                      <li className="flex items-start gap-2"><span className="text-blue-500 mt-1">•</span>Panel interview with team leads</li>
+                      <li className="flex items-start gap-2"><span className="text-blue-500 mt-1">•</span>Final discussion with management</li>
+                    </ul>
+                  </div>
+                  <p className="text-gray-500 text-sm">No candidate interview reviews yet. Be the first to share your experience!</p>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'benefits' && (
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Benefits & Perks at {company.name}</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {[
+                    { icon: '🏥', title: 'Health Insurance', desc: 'Comprehensive medical, dental & vision coverage' },
+                    { icon: '🏖️', title: 'Paid Time Off', desc: 'Generous vacation, sick leave & holidays' },
+                    { icon: '📈', title: 'Performance Bonus', desc: 'Annual performance-based incentives' },
+                    { icon: '🎓', title: 'Learning & Development', desc: 'Training programs and certification support' },
+                    { icon: '🏠', title: 'Remote / Flexible Work', desc: 'Hybrid and remote work options available' },
+                    { icon: '🍽️', title: 'Meal Benefits', desc: 'Subsidised meals or food allowance' },
+                  ].map((benefit, idx) => (
+                    <div key={idx} className="border border-gray-200 rounded-lg p-4 flex items-start gap-3">
+                      <span className="text-2xl">{benefit.icon}</span>
+                      <div>
+                        <h3 className="font-semibold text-gray-900 text-sm">{benefit.title}</h3>
+                        <p className="text-gray-500 text-xs mt-1">{benefit.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {activeTab === 'overview' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Office Locations for {company.name}</h2>
                 <div className="space-y-6">
-                  {officeLocations.map((location, idx) => (
+                  {officeLocations.length > 0 ? officeLocations.map((location, idx) => (
                     <div key={idx} className="border-b border-gray-200 pb-6 last:border-b-0">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {location.city}, {location.country}
-                          </h3>
-                          <div className="flex items-center gap-2 mt-1">
-                            <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                            <span className="text-sm font-semibold text-gray-700">{location.rating}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <p className="text-gray-600 text-sm">{location.address}</p>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {location.city}{location.country ? `, ${location.country}` : ''}
+                      </h3>
+                      {location.address !== location.city && (
+                        <p className="text-gray-600 text-sm mt-1">{location.address}</p>
+                      )}
                     </div>
-                  ))}
+                  )) : (
+                    <p className="text-gray-500">No office locations found</p>
+                  )}
                 </div>
               </div>
             )}

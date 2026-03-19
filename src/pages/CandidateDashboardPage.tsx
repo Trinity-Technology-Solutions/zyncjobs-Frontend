@@ -5,13 +5,17 @@ import BackButton from '../components/BackButton';
 import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import JobAlertsManager from '../components/JobAlertsManager';
 import MistralJobRecommendations from '../components/MistralJobRecommendations';
+import CandidateNotificationBell from '../components/CandidateNotificationBell';
+import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { API_ENDPOINTS } from '../config/env';
 
 interface CandidateDashboardPageProps {
   onNavigate: (page: string) => void;
+  readOnly?: boolean;
+  viewEmail?: string;
 }
 
-const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavigate }) => {
+const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavigate, readOnly = false, viewEmail }) => {
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('Profile');
   const [completionPercentage, setCompletionPercentage] = useState(40);
@@ -22,6 +26,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     isVisible: boolean;
   }>({ type: 'success', message: '', isVisible: false });
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showNotifTooltip, setShowNotifTooltip] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [activityData, setActivityData] = useState<any>(null);
   const [loadingActivity, setLoadingActivity] = useState(false);
@@ -39,76 +44,115 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
 
+  const candidateEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return undefined; } })();
+  const { notifications: appNotifications, unreadCount, markRead, markAllRead, clearAll } =
+    useApplicationNotifications(candidateEmail);
+
   const fetchActivityInsights = async (userId: string) => {
     setLoadingActivity(true);
     try {
-      // Fetch real analytics data from backend
-      const analyticsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(user?.email || userId)}`);
-      const recentActivityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/recent-activity/${encodeURIComponent(user?.email || userId)}`);
-      
-      let realData = {
-        profileViews: 0,
-        searchAppearances: 0,
-        applicationsSent: 0,
-        recruiterActions: 0,
-        recentActivity: [] as Array<{
-          type: string;
-          company: string;
-          message: string;
-          time: string;
-          icon: string;
-        }>
-      };
+      const email = user?.email || userId;
 
-      // Get analytics data from database
+      const [appsRes, interviewsRes, analyticsRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(email)}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(email)}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(email)}`),
+      ]);
+
+      let apps: any[] = [];
+      let interviews: any[] = [];
+
+      if (appsRes.ok) {
+        const data = await appsRes.json();
+        if (Array.isArray(data)) apps = data;
+      }
+
+      if (interviewsRes.ok) {
+        const data = await interviewsRes.json();
+        if (Array.isArray(data)) interviews = data;
+      }
+
+      // profileViews from analytics endpoint only if backend tracks it
+      let profileViews = 0;
       if (analyticsRes.ok) {
         const analytics = await analyticsRes.json();
-        realData.profileViews = analytics.profileViews || 0;
-        realData.searchAppearances = analytics.searchAppearances || 0;
-        realData.applicationsSent = analytics.applicationsSent || 0;
-        realData.recruiterActions = analytics.recruiterActions || 0;
+        profileViews = analytics.profileViews || 0;
       }
 
-      // Get recent activity from database
-      if (recentActivityRes.ok) {
-        const activities = await recentActivityRes.json();
-        if (Array.isArray(activities) && activities.length > 0) {
-          realData.recentActivity = activities;
-        }
+      // applicationsSent = total applications submitted
+      const applicationsSent = apps.length;
+
+      // recruiterActions = applications that moved past 'applied' (reviewed/shortlisted/rejected by recruiter)
+      const recruiterActions = apps.filter((a: any) =>
+        ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
+      ).length + interviews.length;
+
+      // searchAppearances = applications where recruiter viewed/shortlisted (real signal of appearing in search)
+      const searchAppearances = apps.filter((a: any) =>
+        ['reviewed', 'shortlisted', 'hired'].includes(a.status)
+      ).length;
+
+      // Build recent activity from real application + interview events
+      const recentActivity: Array<{ type: string; company: string; message: string; time: string; icon: string }> = [];
+
+      const timeAgo = (dateStr: string) => {
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        if (hours < 24) return hours <= 1 ? 'Just now' : `${hours}h ago`;
+        return `${days}d ago`;
+      };
+
+      apps.slice(0, 4).forEach((app: any) => {
+        const statusIcons: Record<string, string> = {
+          applied: '📝', reviewed: '👀', shortlisted: '🎉', rejected: '❌', hired: '✅'
+        };
+        recentActivity.push({
+          type: 'application',
+          company: app.jobId?.company || 'Company',
+          message: `Applied for ${app.jobId?.jobTitle || 'a position'} — ${app.status}`,
+          time: timeAgo(app.createdAt),
+          icon: statusIcons[app.status] || '📝',
+        });
+      });
+
+      interviews.slice(0, 2).forEach((iv: any) => {
+        recentActivity.push({
+          type: 'interview',
+          company: iv.company || iv.jobId?.company || 'Company',
+          message: `Interview scheduled for ${iv.jobTitle || iv.jobId?.jobTitle || 'a position'}`,
+          time: timeAgo(iv.scheduledAt || iv.createdAt),
+          icon: '📅',
+        });
+      });
+
+      // Sort by most recent
+      recentActivity.sort((a, b) => {
+        const parse = (t: string) => {
+          if (t === 'Just now') return 0;
+          const h = t.match(/(\d+)h ago/); if (h) return parseInt(h[1]) * 60;
+          const d = t.match(/(\d+)d ago/); if (d) return parseInt(d[1]) * 1440;
+          return 9999;
+        };
+        return parse(a.time) - parse(b.time);
+      });
+
+      if (recentActivity.length === 0) {
+        recentActivity.push({
+          type: 'info',
+          company: 'ZyncJobs',
+          message: 'No activity yet. Start applying to jobs!',
+          time: 'Now',
+          icon: '📊',
+        });
       }
 
-      // Add default activity if no activities found
-      if (realData.recentActivity.length === 0) {
-        realData.recentActivity = [
-          {
-            type: 'profile_setup',
-            company: 'ZyncJobs',
-            message: 'Profile created successfully',
-            time: 'Recently',
-            icon: '👤'
-          }
-        ];
-      }
-
-      setActivityData(realData);
-      
+      setActivityData({ profileViews, searchAppearances, applicationsSent, recruiterActions, recentActivity });
     } catch (error) {
       console.error('Error fetching activity insights:', error);
-      // Fallback data
       setActivityData({
-        profileViews: 0,
-        searchAppearances: 0,
-        applicationsSent: 0,
-        recruiterActions: 0,
-        recentActivity: [
-          {
-            type: 'info',
-            company: 'ZyncJobs',
-            message: 'Complete your profile to start tracking activity',
-            time: 'Now',
-            icon: '📊'
-          }
-        ]
+        profileViews: 0, searchAppearances: 0, applicationsSent: 0, recruiterActions: 0,
+        recentActivity: [{ type: 'info', company: 'ZyncJobs', message: 'Failed to load activity data', time: 'Now', icon: '⚠️' }]
       });
     } finally {
       setLoadingActivity(false);
@@ -172,10 +216,33 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   useEffect(() => {
     const loadUserProfile = async () => {
+      let parsedUser: any = null;
+
+      if (readOnly && viewEmail) {
+        // Load the target candidate's profile directly
+        try {
+          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(viewEmail)}`);
+          if (response.ok) {
+            parsedUser = await response.json();
+            setUser(parsedUser);
+            calculateProfileCompletion(parsedUser);
+          }
+        } catch (error) {
+          console.error('Error fetching candidate profile:', error);
+        }
+        setLoading(false);
+        return;
+      }
+
       const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
       if (userData) {
         try {
           const parsedUser = JSON.parse(userData);
+          // Fix any cached wrong photo URL before using it
+          if (parsedUser.profilePhoto && parsedUser.profilePhoto.startsWith('http')) {
+            try { parsedUser.profilePhoto = new URL(parsedUser.profilePhoto).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch {}
+            localStorage.setItem('user', JSON.stringify(parsedUser));
+          }
           
           // Fetch fresh data from database
           try {
@@ -190,10 +257,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 languages: profileData.languages
               });
               // Merge database data with localStorage data, prioritizing database data
+              const normalizePhotoUrl = (url: string) => {
+                if (!url) return '';
+                if (url.startsWith('data:')) return url;
+                if (url.startsWith('http')) {
+                  // Extract just the path — proxy will handle the host
+                  try { return new URL(url).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch { return url; }
+                }
+                return url.startsWith('/') ? url : `/${url}`;
+              };
               const updatedUser = { 
                 ...parsedUser, 
                 ...profileData,
-                profilePhoto: profileData.profilePhoto || parsedUser.profilePhoto || '',
+                profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
                 profileFrame: profileData.profileFrame || parsedUser.profileFrame || 'none',
                 profileSummary: profileData.profileSummary || parsedUser.profileSummary || '',
                 employment: profileData.employment || parsedUser.employment || '',
@@ -207,7 +283,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 companyName: profileData.companyName || parsedUser.companyName || '',
                 roleTitle: profileData.roleTitle || parsedUser.roleTitle || '',
                 gender: profileData.gender || parsedUser.gender || '',
-                birthday: profileData.birthday || parsedUser.birthday || '',
+                email: parsedUser.email,
+                id: parsedUser.id,
+                role: parsedUser.role,
+                birthday: (() => { const d = new Date(profileData.birthday || parsedUser.birthday || ''); return isNaN(d.getTime()) ? '' : (profileData.birthday || parsedUser.birthday || ''); })(),
                 location: profileData.location || parsedUser.location || '',
                 phone: profileData.phone || parsedUser.phone || '',
                 jobTitle: profileData.jobTitle || parsedUser.jobTitle || '',
@@ -245,7 +324,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     
     loadUserProfile();
-  }, [activeTab]);
+  }, []);
 
   const fetchNotifications = async (userId: string) => {
     try {
@@ -266,6 +345,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           applicationId: app._id
         }));
         setNotifications(appNotifications);
+        // Auto-dismiss tooltip after 5 seconds
+        setTimeout(() => setShowNotifTooltip(false), 5000);
       } else {
         // Fallback to job notifications
         const jobsResponse = await fetch(`${API_ENDPOINTS.JOBS}?limit=5`);
@@ -368,166 +449,65 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-8">
               <BackButton 
-                onClick={() => onNavigate && onNavigate('home')}
-                text="Back to Home"
+                onClick={() => onNavigate && onNavigate(readOnly ? 'dashboard' : 'home')}
+                text={readOnly ? 'Back' : 'Back to Home'}
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors py-4 font-['IBM_Plex_Sans']"
               />
-              <button 
-                onClick={() => setActiveTab('Profile')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
-                  activeTab === 'Profile' 
-                    ? 'border-black text-gray-900' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                View & Edit
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveTab('Activity');
-                  if (user && !activityData) {
-                    fetchActivityInsights(user.email);
-                  }
-                }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
-                  activeTab === 'Activity' 
-                    ? 'border-black text-gray-900' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Activity insights
-              </button>
+              {!readOnly && (
+                <>
+                  <button 
+                    onClick={() => setActiveTab('Profile')}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                      activeTab === 'Profile' 
+                        ? 'border-black text-gray-900' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    View & Edit
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setActiveTab('Activity');
+                      if (user && !activityData) {
+                        fetchActivityInsights(user.email);
+                      }
+                    }}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                      activeTab === 'Activity' 
+                        ? 'border-black text-gray-900' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Activity insights
+                  </button>
+                </>
+              )}
+              {readOnly && (
+                <span className="py-4 px-1 font-medium text-sm text-gray-900 font-['IBM_Plex_Sans']">Candidate Profile</span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Notification Bell - Fixed Position */}
+        {!readOnly && (
         <div className="fixed top-20 right-4 z-50">
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 bg-white rounded-full shadow-lg border text-gray-600 hover:text-gray-800 transition-colors"
-            aria-label="View notifications"
-            title="View notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {notifications.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-xs">
-                {notifications.length}
-              </span>
-            )}
-          </button>
-          
-          {/* Simple Alert Popup */}
-          {notifications.length > 0 && !showNotifications && (
-            <div className="absolute top-12 right-0 w-64 bg-white rounded-lg shadow-lg border p-3 animate-pulse">
-              <p className="text-sm text-gray-700">
-                You have {notifications.length} new job notifications
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Click bell to view details</p>
-            </div>
-          )}
+          <CandidateNotificationBell
+            notifications={appNotifications}
+            unreadCount={unreadCount}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+            onClearAll={clearAll}
+            onNavigate={onNavigate}
+          />
         </div>
-
-        {/* Notifications Sidebar */}
-        {showNotifications && (
-          <>
-            {/* Overlay */}
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-40"
-              onClick={() => setShowNotifications(false)}
-            />
-            
-            {/* Sidebar */}
-            <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-                <button 
-                  onClick={() => setShowNotifications(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                  aria-label="Close notifications"
-                  title="Close notifications"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="h-full overflow-y-auto pb-20">
-                {notifications.length > 0 ? (
-                  <>
-                    <div className="p-3 text-sm text-gray-500 border-b bg-gray-50">Today</div>
-                    {notifications.map((notification, index) => (
-                      <div key={index} className="p-4 border-b hover:bg-gray-50 cursor-pointer">
-                        <div className="flex items-start space-x-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                            notification.company === 'Wipro' ? 'bg-orange-500' : 
-                            notification.company === 'Swiggy' ? 'bg-red-500' : 
-                            notification.company === 'Zoho' ? 'bg-blue-500' : 'bg-gray-500'
-                          }`}>
-                            {notification.company?.charAt(0) || 'N'}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-1">{notification.title}</h4>
-                            <p className="text-sm text-gray-600 mb-3">{notification.message}</p>
-                            {notification.actionText && (
-                              <button 
-                                onClick={() => {
-                                  setShowNotifications(false);
-                                  if (notification.jobId) {
-                                    onNavigate(`job-detail/${notification.jobId}`);
-                                  } else if (notification.applicationId) {
-                                    onNavigate('my-applications');
-                                  } else {
-                                    onNavigate('job-listings');
-                                  }
-                                }}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium px-4 py-2 border border-blue-600 rounded-lg"
-                              >
-                                {notification.actionText}
-                              </button>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-400">{notification.time}</span>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {notifications.length > 3 && (
-                      <>
-                        <div className="p-3 text-sm text-gray-500 border-b bg-gray-50">Earlier</div>
-                        <div className="p-4 border-b hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold bg-green-500">
-                              T
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 mb-1">Profile viewed by Trinity Tech</h4>
-                              <p className="text-sm text-gray-600 mb-3">Your profile was viewed by a recruiter</p>
-                            </div>
-                            <span className="text-xs text-gray-400">2d ago</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium mb-2">No notifications yet</p>
-                    <p className="text-sm">We'll notify you when there's something new</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
         )}
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {activeTab === 'Profile' && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Left Sidebar - Quick Actions */}
+              {!readOnly && (
+              
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
@@ -552,6 +532,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     >
                       <TrendingUp className="w-5 h-5 text-blue-600" />
                       <span className="text-gray-700">Take Skill Assessment</span>
+                    </button>
+                    <button 
+                      onClick={() => onNavigate('skill-gap-analysis')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <Search className="w-5 h-5 text-purple-600" />
+                      <span className="text-gray-700">Skill Gap Analysis</span>
                     </button>
                     <button 
                       onClick={() => onNavigate('my-applications')}
@@ -613,7 +600,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   <div className="space-y-4">
                     {recommendedJobs.length > 0 ? (
                       recommendedJobs.map((job, index) => (
-                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all cursor-pointer" onClick={() => onNavigate(`job-detail/${job.id || job._id}`)}>
+                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all cursor-pointer" onClick={() => onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}>
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-gray-900 text-sm">{job.jobTitle || job.title}</h4>
                             <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
@@ -656,75 +643,49 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     <div className="space-y-3">
                       {applications.length > 0 ? (
                         applications.map((app, index) => (
-                          <div 
-                            key={app._id || index} 
-                            className="border border-gray-200 rounded-lg p-4 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
+                          <div
+                            key={app._id || index}
+                            className="border border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
                             onClick={() => onNavigate('my-applications')}
                           >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <h5 className="font-bold text-gray-900 text-base mb-1">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="min-w-0 flex-1">
+                                <h5 className="font-semibold text-gray-900 text-sm leading-tight truncate">
                                   {app.jobId?.jobTitle || 'Job Position'}
                                 </h5>
-                                <p className="text-sm text-gray-600 font-semibold flex items-center gap-1">
-                                  <span className="text-blue-600">🏢</span>
+                                <p className="text-xs text-gray-500 truncate mt-0.5">
                                   {app.jobId?.company || 'Company'}
                                 </p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                app.status === 'applied' ? 'bg-blue-100 text-blue-800' :
-                                app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                                app.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                                app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
+                              <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700' :
+                                app.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
                               }`}>
                                 {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                               </span>
                             </div>
-                            
-                            {app.jobId?.jobDescription && (
-                              <div className="bg-gray-50 border-l-4 border-blue-500 rounded-r-lg p-3 mb-3">
-                                <p className="text-xs text-gray-700 line-clamp-2 leading-relaxed font-medium">
-                                  {app.jobId.jobDescription.substring(0, 120)}...
-                                </p>
-                              </div>
-                            )}
-                            
-                            <div className="flex items-center gap-3 mb-3 flex-wrap">
-                              <div className="flex items-center gap-1 text-xs text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg">
-                                <span>📍</span>
-                                <span className="font-medium">{app.jobId?.location || 'Remote'}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
-                                <span>💰</span>
-                                <span className="font-semibold">
-                                  {app.jobId?.salary ? (
-                                    typeof app.jobId.salary === 'object' 
-                                      ? `${app.jobId.salary.currency || '₹'}${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}` 
-                                      : app.jobId.salary
-                                  ) : 'Competitive'}
-                                </span>
-                              </div>
+
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                📍 {app.jobId?.location || 'Remote'}
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+                                💰 {app.jobId?.salary ? (
+                                  typeof app.jobId.salary === 'object'
+                                    ? `${app.jobId.salary.currency || '₹'}${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
+                                    : app.jobId.salary
+                                ) : 'Competitive'}
+                              </span>
                             </div>
-                            
-                            {app.jobId?.skills && app.jobId.skills.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-3">
-                                {app.jobId.skills.slice(0, 3).map((skill: string, idx: number) => (
-                                  <span key={idx} className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                                    {skill}
-                                  </span>
-                                ))}
-                                {app.jobId.skills.length > 3 && (
-                                  <span className="text-xs text-gray-500 px-2 py-1">+{app.jobId.skills.length - 3} more</span>
-                                )}
-                              </div>
-                            )}
-                            
-                            <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
-                              <p className="text-xs text-gray-500">
-                                <span className="font-semibold">Applied:</span> {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                              <p className="text-xs text-gray-400">
+                                {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
-                              <span className="text-xs text-blue-600 font-medium hover:underline">View Details →</span>
+                              <span className="text-xs text-blue-600 font-medium">View Details →</span>
                             </div>
                           </div>
                         ))
@@ -745,10 +706,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Main Content Area */}
               <div className="lg:col-span-3">
-                {/* Save All Button */}
+                {!readOnly && (
+                <>{/* Save All Button */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-blue-900 mb-1">Save Your Profile</h3>
@@ -815,7 +778,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   >
                     Save All Changes
                   </button>
-                </div>
+                </div></>
+                )}
 
                 {/* Profile Header Card */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -998,7 +962,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 6v6m-4-6h8" />
                               </svg>
-                              <span>{user?.birthday || 'Add birthday'}</span>
+                              <span>{user?.birthday ? new Date(user.birthday).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Add birthday'}</span>
                             </button>
                           </div>
                         </div>
@@ -1695,39 +1659,51 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         isOpen={showPhotoEditor}
         onClose={() => setShowPhotoEditor(false)}
         onSave={async (photo, frame) => {
-          const updatedUser = { ...user, profilePhoto: photo, profileFrame: frame || 'none' };
-          setUser(updatedUser);
-          
-          // Save to localStorage
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          
-          // Save to database
           try {
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+            let photoUrl = photo;
+
+            // If photo is base64, upload it to backend first
+            if (photo && photo.startsWith('data:')) {
+              const res = await fetch(photo);
+              const blob = await res.blob();
+              const ext = blob.type.split('/')[1] || 'jpg';
+              const formData = new FormData();
+              formData.append('photo', blob, `profile.${ext}`);
+              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, {
+                method: 'POST',
+                body: formData
+              });
+              if (uploadRes.ok) {
+                const data = await uploadRes.json();
+                // data.photoUrl is relative like /uploads/photos/xxx.jpg — strip /api from base
+                photoUrl = data.photoUrl?.startsWith('http')
+                  ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
+                  : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
+              } else {
+                // Upload failed — save base64 directly (fallback)
+                photoUrl = photo;
+              }
+            }
+
+            const updatedUser = { ...user, profilePhoto: photoUrl, profileFrame: frame || 'none' };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                userId: user?.id || user?._id || user?.email,
                 email: user?.email,
-                profilePhoto: photo,
+                profilePhoto: photoUrl,
                 profileFrame: frame || 'none'
               })
             });
-            
-            if (response.ok) {
-              console.log('Profile photo saved to database successfully');
-            } else {
-              console.warn('Failed to save profile photo to database');
-            }
+
+            setNotification({ type: 'success', message: 'Profile photo updated successfully!', isVisible: true });
           } catch (error) {
-            console.error('Error saving profile photo to database:', error);
+            console.error('Error saving profile photo:', error);
+            setNotification({ type: 'error', message: 'Failed to save profile photo', isVisible: true });
           }
-          
-          setNotification({
-            type: 'success',
-            message: 'Profile photo updated successfully!',
-            isVisible: true
-          });
         }}
         currentPhoto={user?.profilePhoto}
         currentFrame={user?.profileFrame || 'none'}
@@ -2466,13 +2442,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, employment: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Employment details saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save employment details', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save employment details', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2552,13 +2534,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, projects: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Project details saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save project details', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save project details', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2666,13 +2654,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, internships: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Internship details saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save internship details', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save internship details', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2788,13 +2782,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, certifications: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Certification saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save certification', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save certification', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -3075,13 +3075,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, competitiveExams: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Competitive exam saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save competitive exam', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save competitive exam', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -3152,16 +3158,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </button>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block font-medium mb-2">Degree/Course</label>
-                  <input
-                    type="text"
-                    value={modalData.degree || ''}
-                    onChange={(e) => setModalData({...modalData, degree: e.target.value})}
-                    className="w-full p-3 border rounded-lg"
-                    placeholder="e.g., B.Tech in Computer Science"
-                  />
-                </div>
                 <div>
                   <label className="block font-medium mb-2">College/University Name</label>
                   <div className="relative">

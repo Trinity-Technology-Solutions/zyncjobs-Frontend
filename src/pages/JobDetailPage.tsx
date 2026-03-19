@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
@@ -6,7 +6,7 @@ import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
 import JobShareModal from '../components/JobShareModal';
-import localStorageMigration from '../services/localStorageMigration';
+
 
 interface JobDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -479,11 +479,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   <div className="flex items-center space-x-2">
                     <span>{
                       job.salaryMin && job.salaryMax
-                        ? `₹${Number(job.salaryMin).toLocaleString('en-IN')} - ₹${Number(job.salaryMax).toLocaleString('en-IN')} per year`
+                        ? `?${Number(job.salaryMin).toLocaleString('en-IN')} - ?${Number(job.salaryMax).toLocaleString('en-IN')} per year`
                         : job.salaryMin
-                        ? `₹${Number(job.salaryMin).toLocaleString('en-IN')}+ per year`
+                        ? `?${Number(job.salaryMin).toLocaleString('en-IN')}+ per year`
                         : job.salaryMax
-                        ? `Up to ₹${Number(job.salaryMax).toLocaleString('en-IN')} per year`
+                        ? `Up to ?${Number(job.salaryMax).toLocaleString('en-IN')} per year`
                         : 'Salary not disclosed'
                     }</span>
                   </div>
@@ -520,12 +520,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     ) : (
                       <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-6 py-3 rounded-lg font-semibold">
                         <CheckCircle className="w-4 h-4" />
-                        <span>Applied ({applicationStatus === 'withdrawn' ? 'நீங்கள் திரும்பப் பெற்றுள்ளீர்கள்' : applicationStatus})</span>
+                        <span>Applied ({applicationStatus === 'withdrawn' ? '??????? ????????? ???????????????' : applicationStatus})</span>
                       </div>
                     )
                   ) : (
                     <>
-                      {/* Quick Apply Button - Always show for logged in users */}
                       <QuickApplyButton
                         jobId={job._id || jobId}
                         jobTitle={job.jobTitle || job.title}
@@ -541,13 +540,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                           }, 1000);
                         }}
                       />
-                      
-                      {/* Regular Apply Button */}
                       <button 
-                        onClick={async () => {
+                        onClick={() => {
                           if (user && (user.name || user.fullName)) {
-                            // User is logged in - use session-based storage
-                            const sessionId = await localStorageMigration.storeJobSession({
+                            sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: job._id || jobId,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
@@ -556,28 +552,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                               salary: job.salary,
                               type: job.type,
                               jobData: job
-                            });
-                            
-                            if (sessionId) {
-                              // Navigate with session ID
-                              onNavigate('job-application', { sessionId });
-                            } else {
-                              // Fallback to localStorage
-                              localStorage.setItem('selectedJob', JSON.stringify({
-                                _id: job._id || jobId,
-                                jobTitle: job.jobTitle || job.title,
-                                company: job.company,
-                                location: job.location,
-                                description: job.description,
-                                salary: job.salary,
-                                type: job.type,
-                                jobData: job
-                              }));
-                              onNavigate('job-application');
-                            }
+                            }));
+                            onNavigate('job-application');
                           } else {
-                            // User is not logged in - store job data and go to login
-                            localStorage.setItem('pendingJobApplication', JSON.stringify({
+                            sessionStorage.setItem('pendingJobApplication', JSON.stringify({
                               jobId: job._id || jobId,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
@@ -674,12 +652,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     return <p key={i} className="font-bold text-gray-900 text-sm mt-5 mb-1">{title}</p>;
                   }
 
-                  // section heading — ends with colon, no sentence after it
+                  // section heading � ends with colon, no sentence after it
                   if (/^[A-Z][A-Za-z ,&/]{2,60}:$/.test(trimmed)) {
                     return <p key={i} className="font-bold text-gray-900 mt-4 mb-1">{trimmed.replace(/:$/, '')}</p>;
                   }
 
-                  // inline label: value line — bold the label
+                  // inline label: value line � bold the label
                   const colonMatch = trimmed.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
                   if (colonMatch) {
                     return (
@@ -784,7 +762,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center transition-colors"
               >
                 View Profile
-                <span className="ml-1">→</span>
+                <span className="ml-1">?</span>
               </button>
             </div>
 
@@ -838,7 +816,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <div
                       key={sj._id || sj.id}
                       className="border border-gray-100 rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow"
-                      onClick={() => { window.location.href = `/job-detail?id=${sj._id || sj.id}`; }}
+                      onClick={() => onNavigate(`job-detail/${sj._id || sj.id}`)}
                     >
                       {/* Logo + Company */}
                       <div className="flex items-center justify-between mb-2">
@@ -871,10 +849,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         {(sj.salaryMin || sj.salaryMax) && (
                           <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
                             {sj.salaryMin && sj.salaryMax
-                              ? `₹${Number(sj.salaryMin).toLocaleString('en-IN')} - ₹${Number(sj.salaryMax).toLocaleString('en-IN')}`
+                              ? `?${Number(sj.salaryMin).toLocaleString('en-IN')} - ?${Number(sj.salaryMax).toLocaleString('en-IN')}`
                               : sj.salaryMin
-                              ? `₹${Number(sj.salaryMin).toLocaleString('en-IN')}+`
-                              : `Up to ₹${Number(sj.salaryMax).toLocaleString('en-IN')}`}
+                              ? `?${Number(sj.salaryMin).toLocaleString('en-IN')}+`
+                              : `Up to ?${Number(sj.salaryMax).toLocaleString('en-IN')}`}
                           </span>
                         )}
                       </div>
@@ -902,12 +880,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     ) : (
                       <div className="flex items-center justify-center space-x-2 bg-green-100 text-green-800 py-3 rounded-lg font-semibold">
                         <CheckCircle className="w-5 h-5" />
-                        <span>Applied ({applicationStatus === 'withdrawn' ? 'நீங்கள் திரும்பப் பெற்றுள்ளீர்கள்' : applicationStatus})</span>
+                        <span>Applied ({applicationStatus === 'withdrawn' ? '??????? ????????? ???????????????' : applicationStatus})</span>
                       </div>
                     )
                   ) : (
                     <>
-                      {/* Quick Apply Button */}
                       {user && (user.name || user.fullName) && (
                         <QuickApplyButton
                           jobId={job._id || jobId}
@@ -926,13 +903,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                           className="w-full justify-center"
                         />
                       )}
-                      
-                      {/* Regular Apply Button */}
                       <button 
-                        onClick={async () => {
+                        onClick={() => {
                           if (user && user.name) {
-                            // User is logged in - use session-based storage
-                            const sessionId = await localStorageMigration.storeJobSession({
+                            sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: job._id || jobId,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
@@ -941,28 +915,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                               salary: job.salary,
                               type: job.type,
                               jobData: job
-                            });
-                            
-                            if (sessionId) {
-                              // Navigate with session ID
-                              onNavigate('job-application', { sessionId });
-                            } else {
-                              // Fallback to localStorage
-                              localStorage.setItem('selectedJob', JSON.stringify({
-                                _id: job._id || jobId,
-                                jobTitle: job.jobTitle || job.title,
-                                company: job.company,
-                                location: job.location,
-                                description: job.description,
-                                salary: job.salary,
-                                type: job.type,
-                                jobData: job
-                              }));
-                              onNavigate('job-application');
-                            }
+                            }));
+                            onNavigate('job-application');
                           } else {
-                            // User is not logged in - store job data and go to login
-                            localStorage.setItem('pendingJobApplication', JSON.stringify({
+                            sessionStorage.setItem('pendingJobApplication', JSON.stringify({
                               jobId: job._id || jobId,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,

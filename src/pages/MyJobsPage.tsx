@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Briefcase, MapPin, DollarSign, Bookmark, Clock, Search, Filter } from 'lucide-react';
+import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter } from 'lucide-react';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
@@ -301,7 +301,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             </div>
             {formatSalary(job.salary) && (
               <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                <DollarSign className="w-4 h-4 text-green-600" />
+                <IndianRupee className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
               </div>
             )}
@@ -705,7 +705,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               </div>
                               {formatSalary(application.jobId?.salary) && (
                                 <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
+                                  <IndianRupee className="w-4 h-4 text-green-600" />
                                   <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary)}</span>
                                 </div>
                               )}

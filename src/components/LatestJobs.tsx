@@ -195,7 +195,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex space-x-2">
                         <button
-                          key="view-details"
                           onClick={() => onNavigate && onNavigate('job-detail', { 
                             jobTitle: job.jobTitle, 
                             jobId: job._id,
@@ -208,7 +207,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         </button>
                         {user?.email === job.postedBy && (
                           <button
-                            key="delete"
                             onClick={() => deleteJob(job._id)}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                           >
