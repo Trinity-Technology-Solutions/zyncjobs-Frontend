@@ -171,15 +171,13 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         {/* Header */}
         <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <BackButton 
-                  onClick={() => onNavigate('dashboard')}
-                  text="Back to Dashboard"
-                  className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
-                />
-                <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-              </div>
+            <div className="flex flex-col space-y-4">
+              <BackButton 
+                onClick={() => onNavigate('dashboard')}
+                text="Back to Dashboard"
+                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors self-start"
+              />
+              <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
             </div>
           </div>
         </div>
@@ -209,62 +207,64 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
               <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border card-hover">
                 <div className="p-6 border-b">
                   <h2 className="text-xl font-semibold text-gray-900">Account Information</h2>
-                  <p className="text-gray-600 mt-1">Manage your account information</p>
+                  <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
                 </div>
 
                 {/* Email Section */}
                 <div className="border-b">
                   <button
                     onClick={() => toggleSection('email')}
-                    className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50"
+                    className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center">
                       <Mail className="w-5 h-5 text-gray-400 mr-3" />
                       <div>
-                        <h3 className="font-medium text-gray-900">Email</h3>
-                        <p className="text-sm text-gray-500">{user?.email}</p>
+                        <h3 className="font-medium text-gray-900">Email Address</h3>
+                        <p className="text-sm text-gray-500">{user?.email || 'No email set'}</p>
                       </div>
                     </div>
-                    {expandedSections.email ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    {expandedSections.email ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
                   
                   {expandedSections.email && (
-                    <div className="px-6 pb-6">
-                      <form onSubmit={handleEmailUpdate} className="space-y-4">
+                    <div className="px-6 pb-6 bg-gray-50">
+                      <form onSubmit={handleEmailUpdate} className="space-y-4 max-w-md">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                             New Email Address
                           </label>
                           <input
                             type="email"
                             value={emailForm.newEmail}
                             onChange={(e) => setEmailForm({...emailForm, newEmail: e.target.value})}
-                            className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                             placeholder="Enter new email address"
                             aria-label="New email address"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                             Confirm New Email Address
                           </label>
                           <input
                             type="email"
                             value={emailForm.confirmEmail}
                             onChange={(e) => setEmailForm({...emailForm, confirmEmail: e.target.value})}
-                            className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                             placeholder="Confirm new email address"
                             aria-label="Confirm new email address"
                             required
                           />
                         </div>
-                        <button
-                          type="submit"
-                          className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-4 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
-                        >
-                          Update Email
-                        </button>
+                        <div className="pt-2">
+                          <button
+                            type="submit"
+                            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-6 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
+                          >
+                            Update Email
+                          </button>
+                        </div>
                       </form>
                     </div>
                   )}
@@ -274,69 +274,71 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 <div className="border-b">
                   <button
                     onClick={() => toggleSection('password')}
-                    className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50"
+                    className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center">
                       <Lock className="w-5 h-5 text-gray-400 mr-3" />
                       <div>
                         <h3 className="font-medium text-gray-900">Password</h3>
-                        <p className="text-sm text-gray-500">Change your password</p>
+                        <p className="text-sm text-gray-500">Update your account password</p>
                       </div>
                     </div>
-                    {expandedSections.password ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    {expandedSections.password ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
                   
                   {expandedSections.password && (
-                    <div className="px-6 pb-6">
-                      <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                    <div className="px-6 pb-6 bg-gray-50">
+                      <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-md">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                             Current Password
                           </label>
                           <input
                             type="password"
                             value={passwordForm.currentPassword}
                             onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                             placeholder="Enter current password"
                             aria-label="Current password"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                             New Password
                           </label>
                           <input
                             type="password"
                             value={passwordForm.newPassword}
                             onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            placeholder="Enter new password"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            placeholder="Enter new password (min 6 characters)"
                             aria-label="New password"
                             required
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
                             Confirm New Password
                           </label>
                           <input
                             type="password"
                             value={passwordForm.confirmPassword}
                             onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                             placeholder="Confirm new password"
                             aria-label="Confirm new password"
                             required
                           />
                         </div>
-                        <button
-                          type="submit"
-                          className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-4 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
-                        >
-                          Update Password
-                        </button>
+                        <div className="pt-2">
+                          <button
+                            type="submit"
+                            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-6 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
+                          >
+                            Update Password
+                          </button>
+                        </div>
                       </form>
                     </div>
                   )}
@@ -346,31 +348,31 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 <div>
                   <button
                     onClick={() => toggleSection('manage')}
-                    className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50"
+                    className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center">
                       <User className="w-5 h-5 text-gray-400 mr-3" />
                       <div>
-                        <h3 className="font-medium text-gray-900">Manage Account</h3>
-                        <p className="text-sm text-gray-500">Delete your account</p>
+                        <h3 className="font-medium text-gray-900">Account Management</h3>
+                        <p className="text-sm text-gray-500">Manage or delete your account</p>
                       </div>
                     </div>
-                    {expandedSections.manage ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    {expandedSections.manage ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
                   
                   {expandedSections.manage && (
-                    <div className="px-6 pb-6">
-                      <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-4 card-hover">
+                    <div className="px-6 pb-6 bg-gray-50">
+                      <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-6 card-hover max-w-md">
                         <div className="flex items-start">
-                          <Trash2 className="w-5 h-5 text-red-600 mt-0.5 mr-3" />
-                          <div>
+                          <Trash2 className="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" />
+                          <div className="flex-1">
                             <h4 className="font-medium text-red-900 mb-2">Delete Account</h4>
-                            <p className="text-sm text-red-700 mb-4">
-                              Once you delete your account, there is no going back. Please be certain.
+                            <p className="text-sm text-red-700 mb-4 leading-relaxed">
+                              Permanently delete your account and all associated data. This action cannot be undone.
                             </p>
                             <button
                               onClick={handleDeleteAccount}
-                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium"
+                              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
                             >
                               Delete Account
                             </button>

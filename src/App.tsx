@@ -16,6 +16,7 @@ import MobileNavigation from './components/MobileNavigation';
 import BackButton from './components/BackButton';
 import JobAlertsManager from './components/JobAlertsManager';
 import localStorageMigration from './services/localStorageMigration';
+import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
@@ -93,6 +94,8 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
 const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
+const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
+const JobShareTestPage = lazy(() => import('./pages/JobShareTestPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -125,6 +128,9 @@ function App() {
 
   // Initialize user from localStorage on app start
   useEffect(() => {
+    // Initialize employer ID counter
+    initializeEmployerIdCounter();
+    
     // Disable PWA for now to prevent fetch errors
     // PWAManager.registerServiceWorker();
     // PWAManager.requestNotificationPermission();
@@ -168,14 +174,16 @@ function App() {
     // URL-based navigation is now handled by React Router
   }, []);
 
-  // Force update document title
+  // Handle URL-based job detail navigation
   useEffect(() => {
-    document.title = 'ZyncJobs - AI Skills. Bigger Chances. Better Jobs';
-  }, []);
+    const urlJobId = new URLSearchParams(location.search).get('id');
+    if (urlJobId && location.pathname === '/job-detail') {
+      setCurrentData({ jobId: urlJobId });
+    }
+  }, [location.pathname, location.search]);
 
   const handleNavigation = (page: string, params?: any) => {
     startTransition(() => {
-      // Close any open modals when navigating to actual pages
       setShowLoginModal(false);
       setShowRegisterModal(false);
       setShowEmployerLoginModal(false);
@@ -191,28 +199,31 @@ function App() {
           if (page === 'job-detail' && params.jobData) {
             localStorage.setItem('selectedJob', JSON.stringify({
               _id: params.jobData._id,
-              jobTitle: params.jobData.jobTitle,
+              jobTitle: params.jobData.jobTitle || params.jobData.title,
               company: params.jobData.company,
               location: params.jobData.location,
               description: params.jobData.description,
               salary: params.jobData.salary,
-              type: params.jobData.jobType,
+              type: params.jobData.jobType || params.jobData.type,
               jobData: params.jobData
             }));
           }
         }
+      } else {
+        setCurrentData(null);
       }
       
-      // Handle assessment review navigation
       if (page === 'assessment-review' && params?.assessmentId) {
         navigate(`/assessment-review/${params.assessmentId}`);
+      } else if (page === 'job-detail') {
+        const id = params?.jobId || params?.jobData?._id || params?.jobData?.id;
+        window.location.href = id ? `/job-detail?id=${id}` : '/job-detail';
+        return;
       } else {
-        // Navigate using React Router
         navigate(`/${page === 'home' ? '' : page}`);
       }
     });
     
-    // Scroll to top when navigating
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);
@@ -349,7 +360,12 @@ function App() {
 
 
   if (currentPage === 'job-detail') {
-    const jobId = typeof currentData?.jobId === 'string' ? currentData.jobId : (currentData?.jobId?._id || currentData?.jobId?.id);
+    const urlJobId = new URLSearchParams(location.search).get('id');
+    const jobId = urlJobId ||
+      (typeof currentData?.jobId === 'string' ? currentData.jobId :
+        (currentData?.jobId?._id || currentData?.jobId?.id ||
+         currentData?.jobData?._id || currentData?.jobData?.id));
+
     return (
       <Suspense fallback={<LoadingFallback />}>
         <div className="min-h-screen bg-white">
@@ -538,6 +554,11 @@ function App() {
 
   if (currentPage === 'job-management') {
     return <Suspense fallback={<LoadingFallback />}><JobManagementPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'employer-dashboard') {
+    navigate('/dashboard');
+    return null;
   }
 
   if (currentPage === 'candidate-response-detail') {
@@ -839,8 +860,16 @@ function App() {
     return <Suspense fallback={<LoadingFallback />}><AccessibilityPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
   }
 
+  if (currentPage === 'resume-studio') {
+    return <Suspense fallback={<LoadingFallback />}><ResumeStudioPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
   if (currentPage === 'resume-help') {
     return <Suspense fallback={<LoadingFallback />}><ResumeHelpPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} /></Suspense>;
+  }
+
+  if (currentPage === 'job-share-test') {
+    return <Suspense fallback={<LoadingFallback />}><JobShareTestPage /></Suspense>;
   }
 
   return (

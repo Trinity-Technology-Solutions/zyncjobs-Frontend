@@ -2,6 +2,25 @@ import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Zap, Check } from 'lucide-react';
 
+const refreshAccessToken = async (): Promise<string | null> => {
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) return null;
+  try {
+    const res = await fetch(`${API_ENDPOINTS.BASE_URL}/token/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    localStorage.setItem('accessToken', data.accessToken);
+    localStorage.setItem('refreshToken', data.refreshToken);
+    return data.accessToken;
+  } catch {
+    return null;
+  }
+};
+
 interface QuickApplyButtonProps {
   jobId: string;
   jobTitle: string;
@@ -67,12 +86,15 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
 
   const handleQuickApply = async () => {
     const currentUser = user || JSON.parse(localStorage.getItem('user') || '{}');
-    
-    console.log('Quick Apply clicked, user:', currentUser);
-    
-    if (!currentUser || !currentUser.email || (!currentUser.name && !currentUser.fullName)) {
-      console.log('No user found, redirecting to login');
-      alert('Please login to apply');
+    const token = localStorage.getItem('accessToken');
+
+    if (!currentUser?.email || (!currentUser?.name && !currentUser?.fullName)) {
+      alert('Please login to apply for jobs.');
+      return;
+    }
+
+    if (!token) {
+      alert('Session expired. Please login again.');
       return;
     }
 
@@ -135,11 +157,35 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       
       console.log('Sending quick apply with resume:', payload);
       
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
+      let activeToken = token;
+      let response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
         body: JSON.stringify(payload)
       });
+
+      // Auto-refresh token and retry once if expired
+      if (response.status === 401) {
+        const data = await response.json();
+        if (data.code === 'TOKEN_EXPIRED') {
+          activeToken = await refreshAccessToken();
+          if (!activeToken) {
+            alert('Session expired. Please login again.');
+            return;
+          }
+          response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${activeToken}`
+            },
+            body: JSON.stringify(payload)
+          });
+        }
+      }
 
       const result = await response.json();
       console.log('Quick apply response:', result);
@@ -149,7 +195,8 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
         onSuccess?.();
         alert('✅ Quick Apply successful! Your resume has been sent to the employer.');
       } else {
-        alert(result.error || 'Application failed');
+        const errorMsg = result.errors?.[0]?.msg || result.error || 'Application failed';
+        alert(errorMsg);
       }
     } catch (error) {
       console.error('Quick apply error:', error);

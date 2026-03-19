@@ -174,8 +174,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 onClick={() => {
                   console.log('Sign up button clicked in LoginPage');
-                  console.log('Calling onNavigate with register');
-                  onNavigate('register');
+                  console.log('Calling onNavigate with role-selection');
+                  onNavigate('role-selection');
                 }}
                 className="text-teal-600 hover:text-teal-700 font-semibold"
               >

@@ -242,6 +242,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
           </>
         )}
       </div>
+      
     </div>
   );
 };

@@ -56,7 +56,7 @@ const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
               icon: UserPlus,
               title: "Create Account",
               description: "Sign up for free to save jobs, track applications, and get personalized job recommendations based on your profile.",
-              page: "register"
+              page: "role-selection"
             },
             {
               icon: Send,

@@ -24,7 +24,17 @@ interface ApplicationData {
 }
 
 const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, jobId, jobData }) => {
-  
+
+  // Auth guard — redirect to login if not logged in
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const token = localStorage.getItem('accessToken');
+    if (!user || !token) {
+      alert('Please login to apply for jobs.');
+      onNavigate('login');
+    }
+  }, []);
+
   // Get job data from localStorage if available
   const getJobData = () => {
     if (jobData) return jobData;
@@ -63,9 +73,24 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
   };
 
   const nextStep = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
+    // Validate step 1 before proceeding
+    if (currentStep === 1) {
+      const userData = JSON.parse(localStorage.getItem('user') || '{}');
+      const existingResume = userData?.resume;
+      const hasResume = existingResume && (
+        existingResume.name || existingResume.filename || existingResume.url ||
+        existingResume.path || existingResume.status || typeof existingResume === 'string'
+      );
+      if (!hasResume && !applicationData.resumeFile) {
+        alert('Please upload your resume before proceeding.');
+        return;
+      }
+      if (!userData.phone && !userData.name) {
+        alert('Your profile is missing required details (name, phone). Please update your profile first.');
+        return;
+      }
     }
+    if (currentStep < 3) setCurrentStep(currentStep + 1);
   };
 
   const prevStep = () => {
@@ -162,18 +187,30 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                         try {
                           const formData = new FormData();
                           formData.append('resume', file);
-                          
+
+                          // Send userId so backend can persist to Resume table
+                          const userData = JSON.parse(localStorage.getItem('user') || '{}');
+                          const uid = userData._id || userData.id || userData.userId || '';
+                          const email = userData.email || '';
+                          if (uid) formData.append('userId', uid);
+                          if (email) formData.append('userEmail', email);
+
+                          const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+                          const headers: Record<string, string> = {};
+                          if (token) headers['Authorization'] = `Bearer ${token}`;
+
                           const response = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                             method: 'POST',
+                            headers,
                             body: formData
                           });
-                          
+
                           const result = await response.json();
-                          
+
                           if (response.ok) {
                             updateData('resumeFile', file);
                             updateData('resumeFileName', file.name);
-                            updateData('resumeUrl', result.fileUrl);
+                            updateData('resumeUrl', result.fileUrl || result.file?.url);
                           } else {
                             alert('Upload failed: ' + result.error);
                           }
@@ -306,11 +343,12 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
           <h2 className="text-2xl font-bold mb-6">Work Authorization</h2>
           
           <div className="mb-8">
-            <label className="block text-sm font-medium text-gray-700 mb-3">
+            <label htmlFor="work-auth-select" className="block text-sm font-medium text-gray-700 mb-3">
               Work Authorization <span className="text-red-500">*</span>
             </label>
             
             <select
+              id="work-auth-select"
               value={applicationData.workAuthorization}
               onChange={(e) => updateData('workAuthorization', e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
@@ -487,31 +525,27 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     let resumeUrl = '';
                     let resumeData = null;
                     
+                    const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+
                     if (applicationData.resumeUrl) {
                       resumeUrl = applicationData.resumeUrl;
                     } else if (userData?.resume) {
                       const resume = userData.resume;
-                      resumeData = resume; // Store the full resume object
-                      
-                      // For resume uploaded via modal (has status field)
-                      if (resume.status) {
-                        resumeUrl = `resume_${resume.name || 'uploaded'}`;
+                      resumeData = resume;
+
+                      if (resume.fileUrl) {
+                        // Already a full URL from upload endpoint
+                        resumeUrl = resume.fileUrl.startsWith('http') ? resume.fileUrl : `${serverBase}${resume.fileUrl}`;
                       } else if (resume.filename) {
-                        resumeUrl = `${API_ENDPOINTS.BASE_URL}/uploads/${resume.filename}`;
+                        resumeUrl = `${serverBase}/uploads/resumes/${resume.filename}`;
                       } else if (resume.url) {
-                        resumeUrl = resume.url;
+                        resumeUrl = resume.url.startsWith('http') ? resume.url : `${serverBase}${resume.url}`;
                       } else if (resume.path) {
-                        resumeUrl = resume.path;
-                      } else if (typeof resume === 'string') {
+                        resumeUrl = resume.path.startsWith('http') ? resume.path : `${serverBase}/${resume.path.replace(/^\//, '')}`;
+                      } else if (typeof resume === 'string' && resume.startsWith('http')) {
                         resumeUrl = resume;
-                      } else {
-                        resumeUrl = 'resume_uploaded';
                       }
-                    }
-                    
-                    // If still no resume URL but we detected a resume, use a default
-                    if (!resumeUrl && hasResume) {
-                      resumeUrl = 'resume_from_profile';
+                      // Do NOT save placeholder strings — leave resumeUrl empty if no real path
                     }
                     
                     const applicationPayload = {
@@ -529,11 +563,19 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     console.log('📤 Sending application payload:', applicationPayload);
                     console.log('🌐 API Endpoint:', API_ENDPOINTS.APPLICATIONS);
                     
+                    const token = localStorage.getItem('accessToken');
+                    if (!token) {
+                      alert('Session expired. Please login again.');
+                      onNavigate('login');
+                      return;
+                    }
+
                     const response = await fetch(API_ENDPOINTS.APPLICATIONS, {
                       method: 'POST',
                       headers: { 
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${token}`
                       },
                       body: JSON.stringify(applicationPayload)
                     });

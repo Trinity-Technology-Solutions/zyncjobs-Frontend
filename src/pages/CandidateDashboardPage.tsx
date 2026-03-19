@@ -212,7 +212,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 phone: profileData.phone || parsedUser.phone || '',
                 jobTitle: profileData.jobTitle || parsedUser.jobTitle || '',
                 education: profileData.education || parsedUser.education || '',
-                resume: profileData.resume || parsedUser.resume || null
+                resume: profileData.resume || parsedUser.resume || (profileData.resumeUrl ? { name: profileData.resumeUrl.split('/').pop(), url: profileData.resumeUrl, uploadDate: '' } : null)
               };
               setUser(updatedUser);
               // Update localStorage with fresh data
@@ -1476,45 +1476,38 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           accept=".doc,.docx,.rtf,.pdf"
                           className="hidden"
                           onChange={async (e) => {
-                            console.log('Resume update triggered');
                             const file = e.target.files?.[0];
-                            console.log('Selected file:', file);
-                            if (file && file.size <= 2 * 1024 * 1024) {
-                              console.log('File valid, saving...');
-                              const resumeData = {
-                                name: file.name,
-                                size: file.size,
-                                uploadDate: new Date().toLocaleDateString()
-                              };
-                              const updatedUser = { ...user, resume: resumeData };
+                            if (!file) return;
+                            if (file.size > 2 * 1024 * 1024) {
+                              setNotification({ type: 'error', message: 'File size must be less than 2MB', isVisible: true });
+                              return;
+                            }
+                            try {
+                              const formData = new FormData();
+                              formData.append('resume', file);
+                              if (user?.id) formData.append('userId', user.id);
+                              if (user?.email) formData.append('userEmail', user.email);
+                              const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+                                method: 'POST',
+                                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                                body: formData
+                              });
+                              const result = await uploadRes.json();
+                              if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
+                              const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: result.fileUrl };
+                              const updatedUser = { ...user, resume: resumeData, resumeUrl: result.fileUrl };
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
-                              try {
-                                await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ email: user?.email, resume: resumeData })
-                                });
-                                setNotification({
-                                  type: 'success',
-                                  message: 'Resume updated successfully!',
-                                  isVisible: true
-                                });
-                              } catch (error) {
-                                console.error('Error saving resume:', error);
-                                setNotification({
-                                  type: 'error',
-                                  message: 'Failed to save resume',
-                                  isVisible: true
-                                });
-                              }
-                            } else if (file && file.size > 2 * 1024 * 1024) {
-                              setNotification({
-                                type: 'error',
-                                message: 'File size must be less than 2MB',
-                                isVisible: true
+                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: result.fileUrl })
                               });
+                              setNotification({ type: 'success', message: 'Resume updated successfully!', isVisible: true });
+                            } catch (error: any) {
+                              setNotification({ type: 'error', message: error.message || 'Failed to upload resume', isVisible: true });
                             }
                           }}
                         />
@@ -1535,45 +1528,38 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         accept=".doc,.docx,.rtf,.pdf"
                         className="hidden"
                         onChange={async (e) => {
-                          console.log('Resume upload triggered');
                           const file = e.target.files?.[0];
-                          console.log('Selected file:', file);
-                          if (file && file.size <= 2 * 1024 * 1024) {
-                            console.log('File valid, saving...');
-                            const resumeData = {
-                              name: file.name,
-                              size: file.size,
-                              uploadDate: new Date().toLocaleDateString()
-                            };
-                            const updatedUser = { ...user, resume: resumeData };
+                          if (!file) return;
+                          if (file.size > 2 * 1024 * 1024) {
+                            setNotification({ type: 'error', message: 'File size must be less than 2MB', isVisible: true });
+                            return;
+                          }
+                          try {
+                            const formData = new FormData();
+                            formData.append('resume', file);
+                            if (user?.id) formData.append('userId', user.id);
+                            if (user?.email) formData.append('userEmail', user.email);
+                            const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                            const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+                              method: 'POST',
+                              headers: token ? { Authorization: `Bearer ${token}` } : {},
+                              body: formData
+                            });
+                            const result = await uploadRes.json();
+                            if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
+                            const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: result.fileUrl };
+                            const updatedUser = { ...user, resume: resumeData, resumeUrl: result.fileUrl };
                             setUser(updatedUser);
                             localStorage.setItem('user', JSON.stringify(updatedUser));
                             calculateProfileCompletion(updatedUser);
-                            try {
-                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, resume: resumeData })
-                              });
-                              setNotification({
-                                type: 'success',
-                                message: 'Resume uploaded successfully!',
-                                isVisible: true
-                              });
-                            } catch (error) {
-                              console.error('Error saving resume:', error);
-                              setNotification({
-                                type: 'error',
-                                message: 'Failed to save resume',
-                                isVisible: true
-                              });
-                            }
-                          } else if (file && file.size > 2 * 1024 * 1024) {
-                            setNotification({
-                              type: 'error',
-                              message: 'File size must be less than 2MB',
-                              isVisible: true
+                            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: result.fileUrl })
                             });
+                            setNotification({ type: 'success', message: 'Resume uploaded successfully!', isVisible: true });
+                          } catch (error: any) {
+                            setNotification({ type: 'error', message: error.message || 'Failed to upload resume', isVisible: true });
                           }
                         }}
                       />

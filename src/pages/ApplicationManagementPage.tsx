@@ -138,7 +138,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
       // Update local state
       setApplications(prev => 
         prev.map(app => 
-          app._id === id ? { ...app, status: newStatus } : app
+          (app.id || app._id) === id ? { ...app, status: newStatus } : app
         )
       );
     } catch (error) {
@@ -164,7 +164,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
       }
       
       // Update local state
-      setApplications(prev => prev.filter(app => app._id !== id));
+      setApplications(prev => prev.filter(app => (app.id || app._id) !== id));
     } catch (error) {
       console.error('Error deleting application:', error);
       setError('Failed to delete application');
@@ -287,7 +287,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {applications.map((application) => (
-                    <tr key={application._id} className="hover:bg-gray-50">
+                    <tr key={application.id || application._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -319,7 +319,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => {
-                              setSelectedApplicationId(application._id);
+                              setSelectedApplicationId(application.id || application._id);
                               setShowResumeModal(true);
                             }}
                             className="text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1 rounded text-xs hover:bg-blue-50 transition-colors"
@@ -328,7 +328,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                           </button>
                           <button
                             onClick={() => {
-                              setSelectedApplication(application);
+                              setSelectedApplication({ ...application, _id: application.id || application._id });
                               setShowScheduleModal(true);
                             }}
                             className="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-700 transition-colors"
@@ -337,7 +337,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                           </button>
                           <select
                             value={application.status}
-                            onChange={(e) => updateApplicationStatus(application._id, e.target.value)}
+                            onChange={(e) => updateApplicationStatus(application.id || application._id, e.target.value)}
                             className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
                             aria-label={`Update status for ${application.candidateName}'s application`}
                           >
@@ -348,7 +348,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                             <option value="rejected">Rejected</option>
                           </select>
                           <button
-                            onClick={() => deleteApplication(application._id)}
+                            onClick={() => deleteApplication(application.id || application._id)}
                             className="text-red-600 hover:text-red-800 border border-red-300 px-3 py-1 rounded text-xs hover:bg-red-50 transition-colors"
                           >
                             🗑️ Delete
@@ -390,16 +390,18 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
         }}
       />
 
-      <ScheduleInterviewModal
-        application={selectedApplication}
-        onClose={() => {
-          setShowScheduleModal(false);
-          setSelectedApplication(null);
-        }}
-        onSuccess={() => {
-          fetchApplications();
-        }}
-      />
+      {showScheduleModal && selectedApplication && (
+        <ScheduleInterviewModal
+          application={selectedApplication}
+          onClose={() => {
+            setShowScheduleModal(false);
+            setSelectedApplication(null);
+          }}
+          onSuccess={() => {
+            fetchApplications();
+          }}
+        />
+      )}
 
       <Footer onNavigate={onNavigate} />
     </div>

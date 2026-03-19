@@ -71,8 +71,8 @@ const ResumeTemplatesPage: React.FC<ResumeTemplatesPageProps> = ({ onNavigate, u
             {/* Header */}
             <div className="templates-root__header--without-create-resume-button templates-root__header-sticky text-center">
               <BackButton 
-                onClick={() => onNavigate && onNavigate('dashboard')}
-                text="Back to Dashboard"
+                onClick={() => onNavigate && onNavigate('resume-studio')}
+                text="Back to Resume Studio"
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-4"
               />
               <h1 className="templates-root__header-title">Resume templates</h1>

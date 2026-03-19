@@ -69,13 +69,21 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
               {/* PDF Viewer */}
               <div className="lg:col-span-2">
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <iframe
-                    src={resume.resume?.fileUrl}
-                    width="100%"
-                    height="600"
-                    title="Resume"
-                    className="w-full"
-                  />
+                  {resume.resume?.fileUrl ? (
+                    <iframe
+                      src={resume.resume.fileUrl}
+                      width="100%"
+                      height="600"
+                      title="Resume"
+                      className="w-full"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50">
+                      <span className="text-4xl mb-3">📄</span>
+                      <p className="font-medium">No resume file uploaded</p>
+                      <p className="text-sm mt-1">Candidate applied via Quick Apply without a resume file</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

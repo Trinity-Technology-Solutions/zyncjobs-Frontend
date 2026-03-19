@@ -165,7 +165,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <BackButton 
-          onClick={() => onNavigate('employer-dashboard')}
+          onClick={() => onNavigate('dashboard')}
           text="Back to Dashboard"
           className="mb-6"
         />

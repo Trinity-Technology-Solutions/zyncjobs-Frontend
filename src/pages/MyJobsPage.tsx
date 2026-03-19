@@ -263,9 +263,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     <div key={jobKey} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
         <div className="flex-1">
-          <div className="flex items-start mb-4">
-            <div className="flex-shrink-0 w-14 h-14 mr-4">
-              <div className="bg-white w-14 h-14 rounded-lg flex items-center justify-center p-2 border border-gray-200">
+          {/* Logo + Company Name on top */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-shrink-0 w-12 h-12">
+              <div className="bg-gray-50 w-12 h-12 rounded-lg flex items-center justify-center p-1 border border-gray-200">
                 <img 
                   src={getCompanyLogo(job.company)}
                   alt={`${job.company} logo`}
@@ -277,22 +278,21 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 />
               </div>
             </div>
-            
-            <div className="flex-1">
-              <div className="flex items-start justify-between mb-2">
-                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
-                  {job.jobTitle || job.title}
-                </h3>
-                <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
-                  {formatDate(job.createdAt)}
-                </span>
-              </div>
-              <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-3">
-                <span>🏢</span>
-                {job.company}
-              </p>
-            </div>
+            <span className="text-blue-600 font-semibold text-base">{job.company}</span>
           </div>
+
+          {/* Job Title + Date */}
+          <div className="flex items-start justify-between mb-1">
+            <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
+              {job.jobTitle || job.title}
+            </h3>
+            <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg ml-4 flex-shrink-0">
+              {formatDate(job.createdAt)}
+            </span>
+          </div>
+
+          {/* Dashed divider */}
+          <div className="border-t border-dashed border-gray-300 my-3" />
           
           <div className="flex flex-wrap items-center gap-3 mb-3">
             <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
@@ -321,8 +321,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500 mb-3">
               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                 <span className="font-semibold text-blue-900">Description: </span>
-                {job.description && job.description.length > 300 
-                  ? `${formatJobDescription(job.description.substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
+                {job.description && job.description.length > 600 
+                  ? `${formatJobDescription(job.description.substring(0, 600), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
                   : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
               </p>
             </div>

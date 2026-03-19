@@ -5,6 +5,7 @@ import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
+import NotificationService, { Notification } from '../services/notificationService';
 
 interface EmployerDashboardPageProps {
   onNavigate: (page: string) => void;
@@ -26,7 +27,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
@@ -107,7 +108,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [activeMenu]);
 
   useEffect(() => {
-    // Fetch real notifications instead of mock data
+    // Fetch dynamic notifications using the notification service
     const fetchNotifications = async () => {
       try {
         const userData = localStorage.getItem('user');
@@ -115,87 +116,37 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
           
-          // Fetch real notifications from API
-          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/notifications?employerEmail=${encodeURIComponent(userEmail)}`);
-          if (response.ok) {
-            const data = await response.json();
-            const realNotifications = Array.isArray(data) ? data : data.notifications || [];
-            setNotifications(realNotifications);
-          } else {
-            console.warn('Notifications API returned error:', response.status);
-            // If API fails, create notifications from recent activity
-            createNotificationsFromActivity();
-          }
+          console.log('Fetching dynamic notifications for:', userEmail);
+          
+          // Use the notification service to fetch dynamic notifications
+          const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
+          console.log('Dynamic notifications received:', dynamicNotifications);
+          setNotifications(dynamicNotifications);
         }
       } catch (error) {
-        console.error('Error fetching notifications:', error);
-        // If API fails, create notifications from recent activity
-        createNotificationsFromActivity();
+        console.error('Error fetching dynamic notifications:', error);
+        // Fallback to creating notifications from activity if API fails
+        createFallbackNotifications();
       }
     };
     
-    const createNotificationsFromActivity = () => {
-      // Create real notifications based on actual data
-      const realNotifications = [];
+    const createFallbackNotifications = () => {
+      // Use the notification service to create fallback notifications
+      const fallbackNotifications = NotificationService.createFallbackNotifications(
+        applications, 
+        interviews, 
+        jobs
+      );
       
-      // Add notifications for recent applications
-      if (applications.length > 0) {
-        const recentApps = applications.slice(0, 3);
-        recentApps.forEach((app, index) => {
-          realNotifications.push({
-            id: `app_${app._id || app.id}`,
-            type: 'application',
-            title: 'New application received',
-            message: `${app.candidateName || app.candidateEmail} applied for ${app.jobTitle || 'a position'}`,
-            time: new Date(app.createdAt).toLocaleDateString() || `${index + 1}d ago`,
-            data: app
-          });
-        });
-      }
-      
-      // Add notifications for upcoming interviews
-      if (interviews.length > 0) {
-        const upcomingInterviews = interviews.slice(0, 2);
-        upcomingInterviews.forEach((interview, index) => {
-          realNotifications.push({
-            id: `interview_${interview._id}`,
-            type: 'interview',
-            title: 'Interview scheduled',
-            message: `Interview with ${interview.candidateName || 'candidate'} scheduled for ${new Date(interview.date).toLocaleDateString()}`,
-            time: new Date(interview.createdAt || interview.date).toLocaleDateString() || `${index + 1}d ago`,
-            data: interview
-          });
-        });
-      }
-      
-      // Add notifications for recent job postings
-      if (jobs.length > 0) {
-        const recentJobs = jobs.slice(0, 2);
-        recentJobs.forEach((job, index) => {
-          realNotifications.push({
-            id: `job_${job._id || job.id}`,
-            type: 'job',
-            title: 'Job posting active',
-            message: `Your ${job.jobTitle || job.title} position is receiving applications`,
-            time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || `${index + 2}d ago`,
-            data: job
-          });
-        });
-      }
-      
-      // If no real data, show empty state
-      if (realNotifications.length === 0) {
-        setNotifications([]);
-      } else {
-        setNotifications(realNotifications);
-      }
+      console.log('Using fallback notifications:', fallbackNotifications.length);
+      setNotifications(fallbackNotifications);
     };
     
     // Initial fetch
     fetchNotifications();
     
-    // Set up real-time updates
-    const notificationInterval = setInterval(fetchNotifications, 30000); // Refresh every 30 seconds
+    // Set up real-time updates - fetch every 30 seconds
+    const notificationInterval = setInterval(fetchNotifications, 30000);
     
     return () => {
       clearInterval(notificationInterval);
@@ -217,12 +168,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       setUser(parsedUser);
       setEmployerName(parsedUser.name || 'Employer');
-      setCompanyName(parsedUser.company || parsedUser.companyName || 'Company');
+      // Fix: Use actual company name from registration, not generic 'Company'
+      const actualCompanyName = parsedUser.companyName || parsedUser.company || parsedUser.organizationName || 'Company';
+      setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
       setCompanyWebsite(parsedUser.companyWebsite || '');
       
       // Fetch company domain from companies.json
-      fetchCompanyDomain(parsedUser.company || parsedUser.companyName || 'Company');
+      fetchCompanyDomain(actualCompanyName);
       
       fetchDashboardData(parsedUser);
     }
@@ -553,8 +506,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       return `https://logo.clearbit.com/${companyDomain}`;
     }
     
+    // Try to extract company name from email domain
+    if (user?.email && user.email.includes('@')) {
+      const emailDomain = user.email.split('@')[1];
+      if (emailDomain && !emailDomain.includes('gmail') && !emailDomain.includes('yahoo') && !emailDomain.includes('outlook')) {
+        console.log('Trying Clearbit logo for email domain:', emailDomain);
+        return `https://logo.clearbit.com/${emailDomain}`;
+      }
+    }
+    
     // Fallback to avatar with company name or employer name
-    const displayName = companyName || employerName;
+    const displayName = companyName && companyName !== 'Company' ? companyName : employerName;
     console.log('Using fallback avatar for:', displayName);
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
   };
@@ -652,7 +614,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
             <div className="flex-1">
               <p className="font-bold text-gray-900 text-base">{employerName}</p>
-              <p className="text-sm text-gray-600 font-medium">{companyName}</p>
+              <p className="text-sm text-gray-600 font-medium">
+                {companyName && companyName !== 'Company' ? companyName : 
+                 user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
+                 user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
+                 'Company'}
+              </p>
               {/* Display Employer ID */}
               {user?.employerId && (
                 <p className="text-xs text-blue-600 font-mono bg-blue-50 px-2 py-1 rounded mt-1">
@@ -1074,43 +1041,46 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 <button
                                   onClick={async () => {
                                     try {
-                                      let resumeUrl = application.resumeUrl;
-                                      
-                                      if (!resumeUrl.startsWith('http')) {
-                                        resumeUrl = resumeUrl.startsWith('/') 
-                                          ? `${API_ENDPOINTS.BASE_URL}${resumeUrl}`
-                                          : `${API_ENDPOINTS.BASE_URL}/uploads/${resumeUrl}`;
-                                      }
-                                      
-                                      console.log('Attempting to open resume:', resumeUrl);
-                                      
-                                      try {
-                                        const testResponse = await fetch(resumeUrl, { 
-                                          method: 'HEAD',
-                                          mode: 'cors'
-                                        });
-                                        
-                                        if (testResponse.ok) {
-                                          const newWindow = window.open(resumeUrl, '_blank', 'noopener,noreferrer');
-                                          if (!newWindow) {
-                                            window.location.href = resumeUrl;
+                                      const appId = application._id || application.id;
+                                      const PLACEHOLDERS = ['resume_from_quick_apply', 'resume_from_profile', 'resume_uploaded'];
+                                      const isPlaceholder = PLACEHOLDERS.includes(application.resumeUrl) || !application.resumeUrl.includes('/');
+
+                                      if (isPlaceholder) {
+                                        // Use resume-viewer API to get the real file
+                                        const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+                                        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/resume-viewer/${appId}`);
+                                        if (res.ok) {
+                                          const data = await res.json();
+                                          const fileUrl = data.resume?.fileUrl;
+                                          if (fileUrl) {
+                                            const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${serverBase}${fileUrl}`;
+                                            window.open(fullUrl, '_blank', 'noopener,noreferrer');
+                                          } else {
+                                            alert('No resume file found for this candidate.');
                                           }
                                         } else {
-                                          throw new Error(`File not accessible: ${testResponse.status}`);
+                                          alert('No resume file found. The candidate may not have uploaded one.');
                                         }
-                                      } catch (fetchError) {
-                                        console.error('Resume fetch error:', fetchError);
-                                        const link = document.createElement('a');
-                                        link.href = resumeUrl;
-                                        link.download = `resume_${application.candidateName || 'candidate'}.pdf`;
-                                        link.target = '_blank';
-                                        document.body.appendChild(link);
-                                        link.click();
-                                        document.body.removeChild(link);
+                                        return;
                                       }
+
+                                      // Real file path — build correct URL (strip /api prefix for static files)
+                                      const serverBase = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '');
+                                      let resumeUrl = application.resumeUrl;
+                                      if (resumeUrl.startsWith('http')) {
+                                        // already absolute
+                                      } else if (resumeUrl.startsWith('/uploads/')) {
+                                        resumeUrl = `${serverBase}${resumeUrl}`;
+                                      } else if (resumeUrl.startsWith('/')) {
+                                        resumeUrl = `${serverBase}${resumeUrl}`;
+                                      } else {
+                                        resumeUrl = `${serverBase}/uploads/resumes/${resumeUrl}`;
+                                      }
+
+                                      window.open(resumeUrl, '_blank', 'noopener,noreferrer');
                                     } catch (error) {
                                       console.error('Resume open error:', error);
-                                      alert('Unable to open resume. The file may have been moved or deleted. Please ask the candidate to re-upload their resume.');
+                                      alert('Unable to open resume. Please try again.');
                                     }
                                   }}
                                   className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
@@ -1515,7 +1485,65 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'alerts' ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-8">Alerts & Notifications</h1>
+              <div className="flex items-center justify-between mb-8">
+                <h1 className="text-3xl font-bold text-gray-900">Alerts & Notifications</h1>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const userData = localStorage.getItem('user');
+                        if (userData) {
+                          const parsedUser = JSON.parse(userData);
+                          const userEmail = parsedUser.email;
+                          
+                          console.log('Manual refresh of notifications...');
+                          const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
+                          setNotifications(dynamicNotifications);
+                          alert(`Refreshed! Found ${dynamicNotifications.length} notifications.`);
+                        }
+                      } catch (error) {
+                        console.error('Error refreshing notifications:', error);
+                        alert('Failed to refresh notifications. Please try again.');
+                      }
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                  </button>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const userData = localStorage.getItem('user');
+                        if (userData) {
+                          const parsedUser = JSON.parse(userData);
+                          const userEmail = parsedUser.email;
+                          
+                          console.log('Testing notifications API...');
+                          const testResult = await NotificationService.testNotifications(userEmail);
+                          console.log('Test result:', testResult);
+                          alert(`Test completed! Check console for details. Scheduler status: ${testResult.schedulerStatus?.isRunning ? 'Active' : 'Inactive'}`);
+                          
+                          // Refresh notifications after test
+                          const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
+                          setNotifications(dynamicNotifications);
+                        }
+                      } catch (error) {
+                        console.error('Error testing notifications:', error);
+                        alert('Test failed. Check console for details.');
+                      }
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Test API
+                  </button>
+                </div>
+              </div>
               
               <div className="space-y-4">
                 {notifications.length === 0 ? (
@@ -1528,21 +1556,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   notifications.map((notification) => (
                     <div key={notification.id} className="border-2 border-blue-200 rounded-xl p-6 hover:shadow-lg hover:border-blue-400 transition-all duration-300 bg-gradient-to-br from-white via-blue-50 to-cyan-50">
                       <div className="flex items-start space-x-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                          notification.type === 'application' ? 'bg-blue-500' : 
-                          notification.type === 'interview' ? 'bg-green-500' : 'bg-purple-500'
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-semibold ${
+                          NotificationService.getNotificationColor(notification.type)
                         }`}>
-                          {notification.type === 'application' ? '📄' : 
-                           notification.type === 'interview' ? '🤝' : '💼'}
+                          {NotificationService.getNotificationIcon(notification.type)}
                         </div>
                         <div className="flex-1">
                           <div className="flex items-start justify-between mb-2">
                             <h3 className="text-lg font-bold text-gray-900">{notification.title}</h3>
-                            <span className="text-xs text-gray-500">{notification.time}</span>
+                            <span className="text-xs text-gray-500 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
                           </div>
                           <p className="text-gray-700 mb-3">{notification.message}</p>
                           <div className="flex gap-2">
-                            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                            <button 
+                              onClick={() => {
+                                // Navigate to relevant section based on notification type
+                                if (notification.type === 'application') {
+                                  setActiveMenu('applications');
+                                } else if (notification.type === 'interview') {
+                                  setActiveMenu('interviews');
+                                } else if (notification.type === 'job') {
+                                  onNavigate('my-jobs');
+                                }
+                              }}
+                              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+                            >
                               View Details
                             </button>
                             <button 

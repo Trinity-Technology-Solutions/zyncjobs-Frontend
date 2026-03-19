@@ -1,23 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Clock, DollarSign, Building, Share2, X, CheckCircle } from 'lucide-react';
+﻿import React, { useState, useEffect } from 'react';
+import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
-import { getCompanyLogo } from '../utils/logoUtils';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
+import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
+import JobShareModal from '../components/JobShareModal';
 import localStorageMigration from '../services/localStorageMigration';
 
 interface JobDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
   jobTitle?: string;
-  jobId?: number;
+  jobId?: string | number;
   companyName?: string;
   user?: any;
   onLogout?: () => void;
   jobData?: any;
 }
 
-const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, jobId, companyName, user, onLogout, jobData }) => {
+const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }) => {
   const [job, setJob] = useState<any>(null);
   const [jobPoster, setJobPoster] = useState<any>(null);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
@@ -174,158 +175,129 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
-        // Check localStorage for selectedJob first (for refresh persistence)
-        const storedJob = localStorage.getItem('selectedJob');
-        if (storedJob) {
-          try {
-            const parsedJob = JSON.parse(storedJob);
-            console.log('📦 Retrieved job from localStorage:', parsedJob);
-            setJob(parsedJob.jobData || parsedJob);
-            
-            // Check if user has applied to this job
-            if (user?.email && (parsedJob._id || parsedJob.jobData?._id)) {
-              await checkApplicationStatus(parsedJob._id || parsedJob.jobData?._id, user.email);
-            }
-            
-            // Fetch job poster info
-            if (parsedJob.employerEmail || parsedJob.postedBy) {
-              const usersResponse = await fetch(API_ENDPOINTS.USERS);
-              if (usersResponse.ok) {
-                const users = await usersResponse.json();
-                const poster = users.find((user: any) => 
-                  user.email === (parsedJob.employerEmail || parsedJob.postedBy)
-                );
-                setJobPoster(poster);
-              }
-            }
-            
-            setLoading(false);
-            fetchSimilarJobs(parsedJob.jobData || parsedJob);
-            return;
-          } catch (parseError) {
-            console.error('Error parsing stored job:', parseError);
-            localStorage.removeItem('selectedJob');
-          }
-        }
-        
-        // If jobData is passed from LatestJobs, use it directly
-        if (jobData) {
-          setJob(jobData);
-          
-          // Check if user has applied to this job
-          if (user?.email && jobData._id) {
-            await checkApplicationStatus(jobData._id, user.email);
-          }
-          
-          // Fetch job poster info based on employerEmail
-          if (jobData.employerEmail || jobData.postedBy) {
-            const usersResponse = await fetch(API_ENDPOINTS.USERS);
-            if (usersResponse.ok) {
-              const users = await usersResponse.json();
-              const poster = users.find((user: any) => 
-                user.email === (jobData.employerEmail || jobData.postedBy)
-              );
-              console.log('Looking for employer with email:', jobData.employerEmail || jobData.postedBy);
-              console.log('Found job poster:', poster);
-              setJobPoster(poster);
-            }
-          }
-          
+        setLoading(true);
+
+        const params = new URLSearchParams(window.location.search);
+        const urlJobId = params.get('id');
+        const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+
+        console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId);
+
+        if (!resolvedJobId) {
+          setJob(null);
           setLoading(false);
-          
-          // Fetch similar jobs
-          fetchSimilarJobs(jobData);
           return;
         }
-        
-        if (jobId) {
-          // Ensure jobId is a string, not an object
-          const jobIdString = typeof jobId === 'object' ? ((jobId as any)._id || (jobId as any).id) : jobId;
-          
-          // Fetch job details
-          const jobResponse = await fetch(`${API_ENDPOINTS.JOBS}/${jobIdString}`);
-          if (jobResponse.ok) {
-            const jobData = await jobResponse.json();
-            console.log('🔍 Job data received from API:', jobData);
-            console.log('📸 Job header image:', jobData.jobHeaderImage);
-            console.log('🆔 Employer ID:', jobData.employerId);
-            console.log('🏷️ Position ID:', jobData.positionId);
-            setJob(jobData);
-            
-            // Check if user has applied to this job
-            if (user?.email && jobData._id) {
-              await checkApplicationStatus(jobData._id, user.email);
-            }
-            
-            // Fetch job poster (employer who posted this job)
-            const usersResponse = await fetch(API_ENDPOINTS.USERS);
-            if (usersResponse.ok) {
-              const users = await usersResponse.json();
-              const poster = users.find((user: any) => 
-                user.email === jobData.employerEmail || user.email === jobData.postedBy
-              );
-              console.log('Looking for employer with email:', jobData.employerEmail || jobData.postedBy);
-              console.log('Found job poster:', poster);
-              setJobPoster(poster);
-            }
-          }
+
+        // Try by UUID/id first
+        let response = await fetch(`${API_ENDPOINTS.JOBS}/${resolvedJobId}`);
+        let jobResult = null;
+
+        if (response.ok) {
+          jobResult = await response.json();
         } else {
-          // Fallback to default job data
-          const defaultJob = {
-            id: 1,
-            title: jobTitle || "Senior Frontend Developer",
-            company: companyName || "TechCorp Inc.",
-            location: "San Francisco, CA",
-            type: "Full-time",
-            salary: "$120,000 - $180,000",
-            experience: "3-5 years",
-            posted: "2 days ago",
-            description: "We are looking for a talented Senior Frontend Developer to join our dynamic team.",
-            responsibilities: [
-              "Develop and maintain responsive web applications using React and TypeScript",
-              "Collaborate with designers and backend developers to implement new features",
-              "Optimize applications for maximum speed and scalability"
-            ],
-            requirements: [
-              "Bachelor's degree in Computer Science or related field",
-              "3+ years of experience with React and JavaScript/TypeScript",
-              "Strong understanding of HTML5, CSS3, and responsive design"
-            ],
-            skills: ["React", "TypeScript", "JavaScript", "HTML5", "CSS3", "Redux", "Git"],
-            benefits: [
-              "Competitive salary and equity package",
-              "Comprehensive health, dental, and vision insurance",
-              "Flexible work arrangements and remote work options"
-            ]
-          };
-          
-          // Ensure all required arrays exist with defaults
-          defaultJob.responsibilities = defaultJob.responsibilities || [];
-          defaultJob.requirements = defaultJob.requirements || [];
-          defaultJob.skills = defaultJob.skills || [];
-          defaultJob.benefits = defaultJob.benefits || [];
-          
-          setJob(defaultJob);
+          // Try by positionId
+          const posResponse = await fetch(`${API_ENDPOINTS.JOBS}/position/${resolvedJobId}`);
+          if (posResponse.ok) {
+            jobResult = await posResponse.json();
+          }
         }
+
+        if (!jobResult) {
+          setJob(null);
+          return;
+        }
+
+        const jobData = jobResult;
+        setJob(jobData);
+
+        if (user?.email && (jobData.id || jobData._id)) {
+          await checkApplicationStatus(jobData.id || jobData._id, user.email);
+        }
+
+        if (jobData.employerEmail || jobData.postedBy) {
+          const usersResponse = await fetch(API_ENDPOINTS.USERS);
+          if (usersResponse.ok) {
+            const users = await usersResponse.json();
+            const poster = users.find(
+              (u: any) =>
+                u.email === jobData.employerEmail ||
+                u.email === jobData.postedBy
+            );
+            setJobPoster(poster);
+          }
+        }
+
+        fetchSimilarJobs(jobData);
+
       } catch (error) {
-        console.error('Error fetching job details:', error);
+        console.error('Job fetch error:', error);
+        setJob(null);
       } finally {
         setLoading(false);
       }
     };
 
     fetchJobDetails();
-  }, [jobId, jobTitle, companyName, jobData]);
+  }, [jobId]);
+
+  // Set Open Graph meta tags for LinkedIn share preview
+  useEffect(() => {
+    if (!job) return;
+    
+    const companyName = job.company || '';
+    const jobTitle = job.jobTitle || job.title || '';
+    const description = job.jobDescription || job.description || 'Job opportunity';
+    
+    // Use backend OG tags route for social sharing
+    const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const ogUrl = `${backendUrl}/job-detail?id=${job._id}`;
+    
+    const setMeta = (property: string, content: string) => {
+      let el = document.querySelector(`meta[property='${property}']`) as HTMLMetaElement;
+      if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    
+    // Set canonical URL to backend route for social crawlers
+    let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    if (!canonicalEl) {
+      canonicalEl = document.createElement('link');
+      canonicalEl.rel = 'canonical';
+      document.head.appendChild(canonicalEl);
+    }
+    canonicalEl.href = ogUrl;
+    
+    setMeta('og:title', `${jobTitle} at ${companyName}`);
+    setMeta('og:description', description.substring(0, 160) + '...');
+    setMeta('og:url', ogUrl);
+    setMeta('og:type', 'website');
+    setMeta('og:site_name', 'ZyncJobs');
+    
+    // Set Twitter meta tags
+    const setTwitterMeta = (name: string, content: string) => {
+      let el = document.querySelector(`meta[name='${name}']`) as HTMLMetaElement;
+      if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el); }
+      el.setAttribute('content', content);
+    };
+    
+    setTwitterMeta('twitter:card', 'summary_large_image');
+    setTwitterMeta('twitter:title', `${jobTitle} at ${companyName}`);
+    setTwitterMeta('twitter:description', description.substring(0, 160) + '...');
+    setTwitterMeta('twitter:url', ogUrl);
+  }, [job]);
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
     try {
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${userEmail}&jobId=${jobId}`);
       if (response.ok) {
-        const applications = await response.json();
-        const userApplication = applications.applications?.find((app: any) => 
-          app.jobId?._id === jobId && app.candidateEmail === userEmail
-        );
-        
+        const data = await response.json();
+        const list: any[] = Array.isArray(data) ? data : (data.applications || []);
+        const userApplication = list.find((app: any) => {
+          const jobMatch = app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId;
+          const emailMatch = app.candidateEmail?.toLowerCase() === userEmail.toLowerCase();
+          return jobMatch && emailMatch;
+        });
         if (userApplication) {
           setHasApplied(true);
           setApplicationStatus(userApplication.status);
@@ -341,21 +313,39 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
   const fetchSimilarJobs = async (currentJob: any) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/similar/${currentJob._id}`);
-      if (response.ok) {
-        const similarJobsData = await response.json();
-        setSimilarJobs(similarJobsData.slice(0, 3));
-      } else {
-        // Fallback to regular jobs API
-        const response = await fetch(API_ENDPOINTS.JOBS);
-        if (response.ok) {
-          const allJobs = await response.json();
-          const similar = allJobs
-            .filter((j: any) => j._id !== currentJob._id)
-            .slice(0, 3);
-          setSimilarJobs(similar);
-        }
-      }
+      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=100`);
+      if (!response.ok) return;
+      const data = await response.json();
+      console.log('SimilarJobs raw data:', typeof data, Array.isArray(data), JSON.stringify(data).substring(0, 200));
+      const allJobs: any[] = Array.isArray(data) ? data : (data.jobs || data.data || Object.values(data).find((v: any) => Array.isArray(v)) as any[] || []);
+      console.log('SimilarJobs allJobs count:', allJobs.length);
+      if (!allJobs.length) return;
+
+      const currentTitle = (currentJob.jobTitle || currentJob.title || '').toLowerCase();
+      const currentCompany = (currentJob.company || '').toLowerCase();
+      const titleWords = currentTitle.split(/\s+/).filter((w: string) => w.length > 2);
+
+      const currentId = String(currentJob._id || currentJob.id || '');
+      const others = allJobs.filter((j: any) => {
+        const jId = String(j._id || j.id || '');
+        return jId !== currentId;
+      });
+      console.log('SimilarJobs others count:', others.length);
+      const scored = others
+        .map((j: any) => {
+          const jTitle = (j.jobTitle || j.title || '').toLowerCase();
+          const jCompany = (j.company || '').toLowerCase();
+          let score = 0;
+          if (jCompany === currentCompany) score += 3;
+          titleWords.forEach((w: string) => { if (jTitle.includes(w)) score += 1; });
+          return { ...j, _score: score };
+        })
+        .sort((a: any, b: any) => b._score - a._score)
+        .slice(0, 4);
+
+      const finalJobs = scored.length > 0 ? scored : others.slice(0, 4);
+      console.log('SimilarJobs final count:', finalJobs.length);
+      setSimilarJobs(finalJobs);
     } catch (error) {
       console.error('Error fetching similar jobs:', error);
     }
@@ -435,29 +425,16 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <BackButton 
             onClick={() => {
-              console.log('🔙 Back button clicked');
-              console.log('📊 User:', user);
-              console.log('👤 User type:', user?.type, user?.userType);
-              
-              // Navigate based on user type and context
               try {
                 if (user?.type === 'employer' || user?.userType === 'employer') {
-                  // For employers, go back to my-jobs (their posted jobs)
-                  console.log('🏢 Employer - navigating to my-jobs');
                   onNavigate('my-jobs');
                 } else {
-                  // For candidates and non-logged users, go to job-listings
-                  console.log('👤 Candidate/Guest - navigating to job-listings');
                   onNavigate('job-listings');
                 }
-              } catch (error) {
-                console.error('❌ Navigation error:', error);
-                // Fallback to job-listings
+              } catch {
                 try {
                   onNavigate('job-listings');
-                } catch (fallbackError) {
-                  console.error('❌ Fallback navigation error:', fallbackError);
-                  // Final fallback - reload to home
+                } catch {
                   window.location.href = '/';
                 }
               }
@@ -468,14 +445,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-start space-x-4 flex-1">
-              <div className="w-16 h-16 rounded-lg bg-blue-100 flex items-center justify-center p-2">
+              <div className="w-28 h-28 rounded-xl bg-blue-100 flex items-center justify-center p-3 flex-shrink-0">
                 <img
                   src={getCompanyLogo(job)}
                   alt={job.company}
                   className="w-full h-full object-contain rounded"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    // Don't change Trinity logo on error - keep trying Trinity logo
                     if (!job.company?.toLowerCase().includes('trinity')) {
                       img.src = '/images/zync-logo.svg';
                     }
@@ -501,7 +477,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     </div>
                   )}
                   <div className="flex items-center space-x-2">
-                    <span>{typeof job.salary === 'object' ? `${job.salary.currency === 'INR' ? '₹' : job.salary.currency === 'USD' ? '$' : job.salary.currency || '₹'}${job.salary.min?.toLocaleString()}-${job.salary.max?.toLocaleString()} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive')}</span>
+                    <span>{
+                      job.salaryMin && job.salaryMax
+                        ? `₹${Number(job.salaryMin).toLocaleString('en-IN')} - ₹${Number(job.salaryMax).toLocaleString('en-IN')} per year`
+                        : job.salaryMin
+                        ? `₹${Number(job.salaryMin).toLocaleString('en-IN')}+ per year`
+                        : job.salaryMax
+                        ? `Up to ₹${Number(job.salaryMax).toLocaleString('en-IN')} per year`
+                        : 'Salary not disclosed'
+                    }</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4" />
@@ -617,10 +601,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
 
       {/* Job Header Image - Like Dice - Following same grid as content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left side - Banner Image (matches Job Description width) */}
-          <div className="lg:col-span-2">
-            <div className="relative h-64 bg-gray-900 overflow-hidden rounded-lg">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
+          {/* Left side - Banner Image */}
+          <div className="lg:col-span-2 h-64">
+            <div className="relative h-full bg-gray-900 overflow-hidden rounded-lg">
               <img
                 src={job.jobHeaderImage || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop'}
                 alt={`${job.jobTitle || job.title} at ${job.company}`}
@@ -634,23 +618,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             </div>
           </div>
           
-          {/* Right side - Company Logo Card (matches sidebar width) */}
-          <div className="lg:col-span-1">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center h-64 flex flex-col justify-center">
+          {/* Right side - Company Logo Card */}
+          <div className="lg:col-span-1 h-64">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center h-full flex flex-col justify-center">
               <img
                 src={getCompanyLogo(job)}
                 alt={job.company}
-                className="w-20 h-20 object-contain mx-auto mb-3 rounded"
+                className="w-36 h-36 object-contain mx-auto mb-4 rounded"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
-                  // Don't change Trinity logo on error - keep trying Trinity logo
                   if (!job.company?.toLowerCase().includes('trinity')) {
                     img.src = '/images/zync-logo.svg';
                   }
                 }}
               />
-              <p className="text-lg font-semibold text-gray-900">{job.company}</p>
-              <p className="text-sm text-gray-600 mt-1">Company</p>
+              <p className="text-xl font-bold text-gray-900">{job.company}</p>
+              <p className="text-sm text-gray-500 mt-1">Company</p>
             </div>
           </div>
         </div>
@@ -664,12 +647,53 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             {/* Job Description */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
-              <p className="text-gray-600 leading-relaxed mb-4">
+              <div className="text-gray-700 leading-relaxed mb-4">
                 {formatJobDescription(
                   job.jobDescription || job.description || 'Job description not available.',
-                  typeof job.salary === 'object' ? job.salary.currency : undefined
-                )}
-              </p>
+                  job.currency
+                ).split('\n').map((line, i) => {
+                  const trimmed = line.trim();
+
+                  // blank line spacer
+                  if (!trimmed) return <div key={i} className="h-2" />;
+
+                  // bullet point
+                  if (trimmed.startsWith('\u2022 ') || trimmed.startsWith('- ')) {
+                    const content = trimmed.replace(/^[\u2022\-]\s*/, '');
+                    return (
+                      <div key={i} className="flex items-start gap-2 ml-1 mb-1">
+                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
+                        <span className="text-gray-700">{content}</span>
+                      </div>
+                    );
+                  }
+
+                  // numbered job entry heading e.g. "2.Pega CSSA" - strip the number
+                  if (/^\d+\.\s*\S/.test(trimmed)) {
+                    const title = trimmed.replace(/^\d+\.\s*/, '');
+                    return <p key={i} className="font-bold text-gray-900 text-sm mt-5 mb-1">{title}</p>;
+                  }
+
+                  // section heading — ends with colon, no sentence after it
+                  if (/^[A-Z][A-Za-z ,&/]{2,60}:$/.test(trimmed)) {
+                    return <p key={i} className="font-bold text-gray-900 mt-4 mb-1">{trimmed.replace(/:$/, '')}</p>;
+                  }
+
+                  // inline label: value line — bold the label
+                  const colonMatch = trimmed.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
+                  if (colonMatch) {
+                    return (
+                      <p key={i} className="mb-1">
+                        <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
+                        <span className="text-gray-700">{colonMatch[2]}</span>
+                      </p>
+                    );
+                  }
+
+                  // regular paragraph
+                  return <p key={i} className="text-gray-700 mb-1">{trimmed}</p>;
+                })}
+              </div>
               
               {/* Created By & On Details */}
               <div className="border-t border-gray-100 pt-4 mt-4">
@@ -692,12 +716,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
                     <span>{job.employerCompany || jobPoster?.company || job.company}</span>
                   </div>
                   {/* Employer ID and Position ID - Enhanced Display */}
-                  {job.employerId && (
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium text-gray-700">Employer ID:</span>
-                      <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">{job.employerId}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const displayEmployerId = getDisplayEmployerId(job, jobPoster);
+                    return displayEmployerId ? (
+                      <div className="flex items-center space-x-1">
+                        <span className="font-medium text-gray-700">Employer ID:</span>
+                        <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                          {displayEmployerId}
+                        </span>
+                      </div>
+                    ) : null;
+                  })()} 
                   {job.positionId && (
                     <div className="flex items-center space-x-1">
                       <span className="font-medium text-gray-700">Position ID:</span>
@@ -708,119 +737,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
               </div>
             </div>
 
-            {/* Responsibilities */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Key Responsibilities</h2>
-              <ul className="space-y-3">
-                {(() => {
-                  // Try to get responsibilities from separate field first
-                  if (job.responsibilities && job.responsibilities.length > 0) {
-                    return Array.isArray(job.responsibilities) ? job.responsibilities.map((responsibility: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{responsibility}</span>
-                      </li>
-                    )) : (
-                      <li className="flex items-start">
-                        <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{job.responsibilities}</span>
-                      </li>
-                    );
-                  }
-                  
-                  // Extract from description if separate field not available
-                  const description = job.jobDescription || job.description || '';
-                  const responsibilitiesMatch = description.match(/(?:key\s+)?responsibilities?[:\s]*([\s\S]*?)(?=(?:required\s+qualifications?|requirements?|qualifications?|what\s+we\s+offer|benefits?|$))/gi);
-                  
-                  if (responsibilitiesMatch && responsibilitiesMatch[0]) {
-                    const section = responsibilitiesMatch[0];
-                    const bulletPoints = section.match(/•\s*(.+)/g);
-                    
-                    if (bulletPoints) {
-                      return bulletPoints.map((point: string, index: number) => {
-                        const cleaned = point.replace(/^•\s*/, '').trim();
-                        return (
-                          <li key={index} className="flex items-start">
-                            <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                            <span className="text-gray-600">{cleaned}</span>
-                          </li>
-                        );
-                      });
-                    }
-                  }
-                  
-                  // Fallback
-                  return (
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600">Responsibilities will be discussed during the interview process.</span>
-                    </li>
-                  );
-                })()}
-              </ul>
-            </div>
-
-            {/* Requirements */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Requirements</h2>
-              <ul className="space-y-3">
-                {(() => {
-                  // Try to get requirements from separate field first
-                  if (job.requirements && job.requirements.length > 0) {
-                    return Array.isArray(job.requirements) ? job.requirements.map((requirement: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{requirement}</span>
-                      </li>
-                    )) : (
-                      <li className="flex items-start">
-                        <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">{job.requirements}</span>
-                      </li>
-                    );
-                  }
-                  
-                  // Extract from description if separate field not available
-                  const description = job.jobDescription || job.description || '';
-                  const requirementsMatch = description.match(/(?:required\s+qualifications?|requirements?|qualifications?)[:\s]*([\s\S]*?)(?=(?:what\s+we\s+offer|benefits?|join\s+our\s+team|$))/gi);
-                  
-                  if (requirementsMatch && requirementsMatch[0]) {
-                    const section = requirementsMatch[0];
-                    const bulletPoints = section.match(/•\s*(.+)/g);
-                    
-                    if (bulletPoints) {
-                      return bulletPoints.map((point: string, index: number) => {
-                        const cleaned = point.replace(/^•\s*/, '').trim();
-                        return (
-                          <li key={index} className="flex items-start">
-                            <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                            <span className="text-gray-600">{cleaned}</span>
-                          </li>
-                        );
-                      });
-                    }
-                  }
-                  
-                  // Fallback to skills if available
-                  if (job.skills && Array.isArray(job.skills) && job.skills.length > 0) {
-                    return job.skills.map((skill: any, index: number) => (
-                      <li key={index} className="flex items-start">
-                        <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                        <span className="text-gray-600">Experience with {skill}</span>
-                      </li>
-                    ));
-                  }
-                  
-                  // Final fallback
-                  return (
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-green-600 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600">Requirements will be discussed during the interview process.</span>
-                    </li>
-                  );
-                })()}
-              </ul>
-            </div>
           </div>
 
           {/* Sidebar */}
@@ -914,29 +830,54 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
             </div>
 
             {/* Similar Jobs */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{fontFamily: "'IBM Plex Sans', sans-serif"}}>
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Jobs</h3>
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {similarJobs.length > 0 ? (
-                  similarJobs.map((similarJob, index) => (
-                    <div key={similarJob._id} className="border-b border-gray-100 pb-3 last:border-b-0">
-                      <h4 
-                        className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail', { 
-                          jobTitle: similarJob.jobTitle, 
-                          jobId: similarJob._id, 
-                          companyName: similarJob.company,
-                          jobData: similarJob
-                        })}
-                      >
-                        {similarJob.jobTitle}
-                      </h4>
-                      <p className="text-sm text-gray-600">{similarJob.company}</p>
-                      <p className="text-xs text-gray-500">
-                        {similarJob.location} • {typeof similarJob.salary === 'object' 
-                          ? `${similarJob.salary.currency === 'INR' ? '₹' : similarJob.salary.currency === 'USD' ? '$' : similarJob.salary.currency || '₹'}${similarJob.salary.min?.toLocaleString()}-${similarJob.salary.max?.toLocaleString()}` 
-                          : 'Competitive salary'}
-                      </p>
+                  similarJobs.map((sj) => (
+                    <div
+                      key={sj._id || sj.id}
+                      className="border border-gray-100 rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow"
+                      onClick={() => { window.location.href = `/job-detail?id=${sj._id || sj.id}`; }}
+                    >
+                      {/* Logo + Company */}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <img
+                            src={getCompanyLogo(sj)}
+                            alt={sj.company}
+                            className="w-8 h-8 rounded object-contain border border-gray-200 bg-white p-0.5"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/images/zync-logo.svg'; }}
+                          />
+                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{sj.company}</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{formatDetailedTime(sj.createdAt)}</span>
+                      </div>
+                      {/* Job Title */}
+                      <p className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">{sj.jobTitle || sj.title}</p>
+                      {/* Location */}
+                      <p className="text-xs text-gray-500 mb-2">{sj.location}</p>
+                      {/* Description snippet */}
+                      {(sj.jobDescription || sj.description) && (
+                        <p className="text-xs text-gray-600 mb-2" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>
+                          {(sj.jobDescription || sj.description).substring(0, 120)}
+                        </p>
+                      )}
+                      {/* Badges */}
+                      <div className="flex flex-wrap gap-1">
+                        {sj.type && (
+                          <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{sj.type}</span>
+                        )}
+                        {(sj.salaryMin || sj.salaryMax) && (
+                          <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
+                            {sj.salaryMin && sj.salaryMax
+                              ? `₹${Number(sj.salaryMin).toLocaleString('en-IN')} - ₹${Number(sj.salaryMax).toLocaleString('en-IN')}`
+                              : sj.salaryMin
+                              ? `₹${Number(sj.salaryMin).toLocaleString('en-IN')}+`
+                              : `Up to ₹${Number(sj.salaryMax).toLocaleString('en-IN')}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -1051,289 +992,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobTitle, job
         </div>
       </div>
 
-      {/* Share Modal */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Share this job</h3>
-              <button 
-                onClick={() => setShowShareModal(false)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="space-y-3">
-              {/* LinkedIn */}
-              <button
-                onClick={() => {
-                  const url = encodeURIComponent(window.location.href);
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  const experience = job.experience;
-                  const jobType = job.type;
-                  
-                  // Different content based on user type
-                  const postContent = user?.type === 'employer' || user?.userType === 'employer' ? 
-                    // Employer sharing their job posting
-                    `🚀 We're Hiring! Join Our Team!
-
-🎯 ${jobTitle}
-🏢 ${company}
-📍 ${location}
-💰 ${salary}
-⏰ ${jobType}
-🎯 Experience: ${experience}
-
-📋 What you'll do:
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `🔧 We're looking for:
-${job.skills.slice(0, 5).map((skill: any) => `• ${skill}`).join('\n')}` : ''}
-
-${job.benefits && Array.isArray(job.benefits) ? `✨ What we offer:
-${job.benefits.slice(0, 3).map((benefit: any) => `• ${benefit}`).join('\n')}` : ''}
-
-💼 Ready to join our team? Apply now!
-
-#WeAreHiring #JoinOurTeam #${company.replace(/\s+/g, '')} #${jobTitle.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '')} #CareerOpportunity #NowHiring
-
-Apply here: ${window.location.href}` :
-                    // Candidate sharing job opportunity
-                    `💼 Found an interesting job opportunity that might be perfect for someone in my network!
-
-🎯 ${jobTitle} at ${company}
-📍 ${location}
-💰 ${salary}
-⏰ ${jobType}
-🎯 Experience: ${experience}
-
-📝 About the role:
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `🔧 Looking for:
-${job.skills.slice(0, 5).map((skill: any) => `• ${skill}`).join('\n')}` : ''}
-
-${job.benefits && Array.isArray(job.benefits) ? `✨ What they offer:
-${job.benefits.slice(0, 3).map((benefit: any) => `• ${benefit}`).join('\n')}` : ''}
-
-🤝 Know someone who'd be a great fit? Feel free to share!
-
-#JobOpportunity #Hiring #${company.replace(/\s+/g, '')} #${jobTitle.replace(/\s+/g, '').replace(/[^a-zA-Z0-9]/g, '')} #CareerOpportunity #JobAlert
-
-Apply here: ${window.location.href}`;
-                  
-                  const encodedContent = encodeURIComponent(postContent);
-                  window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${url}&text=${encodedContent}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">in</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on LinkedIn</span>
-              </button>
-
-              {/* Facebook */}
-              <button
-                onClick={() => {
-                  const url = encodeURIComponent(window.location.href);
-                  window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">f</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on Facebook</span>
-              </button>
-
-              {/* Twitter */}
-              <button
-                onClick={() => {
-                  const url = encodeURIComponent(window.location.href);
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max}` : (job.salary || 'Competitive');
-                  
-                  const tweetText = `💼 Spotted a great opportunity!
-
-${jobTitle} at ${company}
-📍 ${location}
-💰 ${salary}
-
-${job.skills && Array.isArray(job.skills) ? `Skills: ${job.skills.slice(0, 3).join(', ')}` : ''}
-
-Might be perfect for someone in my network! 🤝
-
-#JobAlert #Hiring #${company.replace(/\s+/g, '')} #Opportunity`;
-                  
-                  const encodedText = encodeURIComponent(tweetText);
-                  window.open(`https://twitter.com/intent/tweet?url=${url}&text=${encodedText}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-black rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">X</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on X (Twitter)</span>
-              </button>
-
-              {/* WhatsApp */}
-              <button
-                onClick={() => {
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  const experience = job.experience;
-                  
-                  const whatsappMessage = user?.type === 'employer' || user?.userType === 'employer' ?
-                    // Employer sharing their job posting
-                    `🚀 *We're Hiring!*
-
-*Position:* ${jobTitle}
-*Company:* ${company}
-*Location:* ${location}
-*Salary:* ${salary}
-*Experience:* ${experience}
-
-*About the role:*
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `*We're looking for:* ${job.skills.slice(0, 5).join(', ')}` : ''}
-
-Interested? Apply now! 💼
-
-${window.location.href}` :
-                    // Candidate sharing job opportunity
-                    `💼 *Found an interesting job opportunity!*
-
-*Position:* ${jobTitle}
-*Company:* ${company}
-*Location:* ${location}
-*Salary:* ${salary}
-*Experience:* ${experience}
-
-*About the role:*
-${job.description?.substring(0, 200)}...
-
-${job.skills && Array.isArray(job.skills) ? `*Skills they're looking for:* ${job.skills.slice(0, 5).join(', ')}` : ''}
-
-Thought this might be perfect for someone in our group! 🤝
-
-Check it out: ${window.location.href}`;
-                  
-                  const encodedMessage = encodeURIComponent(whatsappMessage);
-                  window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">W</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on WhatsApp</span>
-              </button>
-
-              {/* Telegram */}
-              <button
-                onClick={() => {
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  
-                  const telegramMessage = `💼 Found a great job opportunity!
-
-🎯 ${jobTitle} at ${company}
-📍 Location: ${location}
-💰 Salary: ${salary}
-
-${job.description?.substring(0, 150)}...
-
-Might be perfect for someone here! 🤝
-
-Check it out: ${window.location.href}`;
-                  
-                  const encodedMessage = encodeURIComponent(telegramMessage);
-                  window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.href)}&text=${encodedMessage}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-blue-400 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">T</span>
-                </div>
-                <span className="font-medium text-gray-900">Share on Telegram</span>
-              </button>
-
-              {/* Email */}
-              <button
-                onClick={() => {
-                  const jobTitle = job.jobTitle || job.title;
-                  const company = job.company;
-                  const location = job.location;
-                  const salary = typeof job.salary === 'object' ? `${job.salary.currency || '$'}${job.salary.min}-${job.salary.max} ${job.salary.period || 'per year'}` : (job.salary || 'Competitive salary');
-                  
-                  const subject = `Thought you might be interested: ${jobTitle} at ${company}`;
-                  const body = `Hi,
-
-I came across this job opportunity and thought it might be a great fit for you or someone you know:
-
-💼 Position: ${jobTitle}
-🏢 Company: ${company}
-📍 Location: ${location}
-💰 Salary: ${salary}
-
-About the role:
-${job.description?.substring(0, 300)}...
-
-${job.skills && Array.isArray(job.skills) ? `They're looking for skills in: ${job.skills.join(', ')}` : ''}
-
-If you're interested or know someone who might be, you can check out the full details and apply here: ${window.location.href}
-
-Hope this helps!
-
-Best regards`;
-                  
-                  window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-red-500 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">@</span>
-                </div>
-                <span className="font-medium text-gray-900">Share via Email</span>
-              </button>
-
-              {/* Copy Link */}
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert('Link copied to clipboard!');
-                  setShowShareModal(false);
-                }}
-                className="w-full flex items-center space-x-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
-              >
-                <div className="w-8 h-8 bg-gray-600 rounded flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">🔗</span>
-                </div>
-                <span className="font-medium text-gray-900">Copy Link</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Job Share Modal */}
+      <JobShareModal 
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        job={job}
+        user={user}
+      />
     </div>
   );
 };

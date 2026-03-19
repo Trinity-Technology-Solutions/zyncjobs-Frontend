@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 import mistralAIService from '../services/mistralAIService';
 import { API_ENDPOINTS } from '../config/constants';
+import { generatePositionId } from '../utils/jobMigrationUtils';
 
 
 interface JobPostingPageProps {
@@ -61,6 +62,75 @@ interface JobData {
   companyId: string;
 }
 
+const formatSalary = (value: string): string => {
+  const num = parseInt(value.replace(/,/g, ''));
+  if (isNaN(num)) return value;
+  if (num >= 10000000) return `${(num / 10000000).toFixed(num % 10000000 === 0 ? 0 : 1)}Cr`;
+  if (num >= 100000) return `${(num / 100000).toFixed(num % 100000 === 0 ? 0 : 1)}L`;
+  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}K`;
+  return value;
+};
+
+const extractExperienceFromText = (text: string): string => {
+  if (!text) return '';
+  // Match patterns like: 3-5 years, 2+ years, 5 to 7 years, minimum 3 years, 3 years experience
+  const patterns = [
+    /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(\d+)\+\s*(?:years?|yrs?)/i,
+    /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
+    /minimum\s+(\d+)\s*(?:years?|yrs?)/i,
+    /at\s+least\s+(\d+)\s*(?:years?|yrs?)/i,
+    /(\d+)\s*(?:years?|yrs?)\s+(?:of\s+)?experience/i,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      if (match[2]) return `${match[1]}-${match[2]} years`;
+      return `${match[1]}+ years`;
+    }
+  }
+  return '';
+};
+
+const KNOWN_TOOLS = [
+  'postman', 'rest assured', 'selenium', 'jira', 'confluence', 'jenkins',
+  'docker', 'kubernetes', 'git', 'github', 'gitlab', 'bitbucket',
+  'react', 'angular', 'vue', 'node', 'nodejs', 'express', 'django', 'flask',
+  'spring', 'hibernate', 'maven', 'gradle', 'junit', 'pytest', 'jest',
+  'aws', 'azure', 'gcp', 'terraform', 'ansible', 'linux', 'ubuntu',
+  'mysql', 'postgresql', 'mongodb', 'redis', 'elasticsearch',
+  'python', 'java', 'javascript', 'typescript', 'kotlin', 'swift', 'golang',
+  'html', 'css', 'sass', 'tailwind', 'bootstrap', 'figma', 'sketch',
+  'tableau', 'power bi', 'excel', 'salesforce', 'sap', 'erp',
+  'agile', 'scrum', 'kanban', 'devops', 'ci/cd', 'microservices',
+  'machine learning', 'tensorflow', 'pytorch', 'rest', 'graphql', 'soap', 'api', 'sql'
+];
+
+const INVALID_COMPANY_PHRASES = [
+  'good to have', 'must have', 'nice to have', 'required', 'preferred',
+  'skills', 'experience', 'qualifications', 'responsibilities', 'benefits',
+  'about the role', 'mandatory', 'optional', 'desired', 'added advantage',
+  'key skills', 'technical skills', 'soft skills', 'job description',
+  'job requirements', 'what we offer', 'who we are', 'not mentioned',
+  'not specified', 'not provided', 'n/a', 'none'
+];
+
+const sanitizeParsedCompany = (company?: string): string => {
+  if (!company || company.trim().length < 2) return '';
+  const lower = company.toLowerCase().trim();
+  if (INVALID_COMPANY_PHRASES.some(p => lower.includes(p))) return '';
+  // Check if it's a known tool/technology
+  if (KNOWN_TOOLS.some(t => lower === t || lower.startsWith(t + ' ') || lower.includes(t + ','))) return '';
+  // If comma-separated and any part is a tool = skills list, not company
+  if (lower.includes(',')) {
+    const parts = lower.split(',').map(p => p.trim());
+    if (parts.some(p => KNOWN_TOOLS.some(t => p.includes(t)))) return '';
+  }
+  if (/^[A-Z\s&]+$/.test(company) && company.trim().split(/\s+/).length > 3) return '';
+  if (/^\d/.test(company.trim())) return '';
+  return company.trim();
+};
+
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [jobData, setJobData] = useState<JobData>({
@@ -92,7 +162,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     skills: parsedData?.skills || [],
     educationLevel: parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: parsedData?.companyName || '',
+    companyName: sanitizeParsedCompany(parsedData?.companyName) || '',
     companyLogo: '',
     companyId: ''
   });
@@ -160,7 +230,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '6', name: 'Trinity Technology Solutions', logo: '/images/zync-logo.svg' },
+        { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
         { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
@@ -210,6 +280,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       setSalaryModified(true);
     }
   }, [parsedData]);
+
+  // Auto-extract experience range from job description
+  useEffect(() => {
+    if (jobData.jobDescription && !jobData.experienceRange) {
+      const extracted = extractExperienceFromText(jobData.jobDescription);
+      if (extracted) updateJobData('experienceRange', extracted);
+    }
+  }, [jobData.jobDescription]);
 
   // Load countries on component mount
   useEffect(() => {
@@ -465,7 +543,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         {
           jobType: jobData.jobType.join(', ') || 'full-time',
           skills: jobData.skills,
-          salary: shouldIncludeSalary ? `${currencySymbol}${jobData.minSalary} - ${currencySymbol}${jobData.maxSalary} ${jobData.payRate}` : undefined,
+          salary: shouldIncludeSalary ? `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
           benefits: jobData.benefits,
           educationLevel: jobData.educationLevel
         }
@@ -1132,7 +1210,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
       { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
       { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '6', name: 'Trinity Technology Solutions', logo: '/images/zync-logo.svg' },
+      { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
       { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
       { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
       { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
@@ -1166,7 +1244,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
         if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
-        if (!jobData.experienceRange.trim()) return { isValid: false, message: 'Experience range is required' };
         const languages = Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [];
         if (languages.length === 0) return { isValid: false, message: 'At least one language is required' };
         break;
@@ -1483,56 +1560,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         </div>
         
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Experience Range *</label>
-          <select
-            value={jobData.experienceRange}
-            onChange={(e) => updateJobData('experienceRange', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select experience range</option>
-            <option value="0-1 years">0-1 years</option>
-            <option value="1-2 years">1-2 years</option>
-            <option value="2-3 years">2-3 years</option>
-            <option value="3-5 years">3-5 years</option>
-            <option value="5-7 years">5-7 years</option>
-            <option value="7-10 years">7-10 years</option>
-            <option value="10+ years">10+ years</option>
-          </select>
+          <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
+          <div className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 text-gray-700">
+            {jobData.experienceRange || <span className="text-gray-400 italic">Will be extracted from job description</span>}
+          </div>
+          <p className="text-gray-400 text-xs mt-1">Auto-extracted from job description</p>
         </div>
         
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-gray-700 font-medium mb-3">Client Name</label>
-            <input
-              type="text"
-              value={jobData.clientName}
-              onChange={(e) => updateJobData('clientName', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="e.g. ABC Corp"
-            />
-          </div>
-          <div>
-            <label className="block text-gray-700 font-medium mb-3">Job Code</label>
-            <input
-              type="text"
-              value={jobData.jobCode}
-              onChange={(e) => updateJobData('jobCode', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Auto-generated"
-            />
-          </div>
-        </div>
-        
-        <div>
-          <label className="block text-gray-700 font-medium mb-3">Reporting Manager</label>
-          <input
-            type="text"
-            value={jobData.reportingManager}
-            onChange={(e) => updateJobData('reportingManager', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="e.g. John Smith, VP Engineering"
-          />
-        </div>
+
       </div>
       
       <div className="flex justify-end mt-16">
@@ -1752,12 +1787,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <label className="block text-gray-600 text-sm mb-2">Minimum</label>
               <input
                 type="text"
-                value={jobData.minSalary}
+                value={jobData.minSalary ? formatSalary(jobData.minSalary) : ''}
+                onFocus={(e) => { e.target.value = jobData.minSalary; }}
                 onChange={(e) => {
                   updateJobData('minSalary', e.target.value);
                   setSalaryModified(true);
                 }}
-                placeholder="e.g. 50,000"
+                onBlur={(e) => { e.target.value = jobData.minSalary ? formatSalary(jobData.minSalary) : ''; }}
+                placeholder="e.g. 500000"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -1770,12 +1807,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <label className="block text-gray-600 text-sm mb-2">Maximum</label>
               <input
                 type="text"
-                value={jobData.maxSalary}
+                value={jobData.maxSalary ? formatSalary(jobData.maxSalary) : ''}
+                onFocus={(e) => { e.target.value = jobData.maxSalary; }}
                 onChange={(e) => {
                   updateJobData('maxSalary', e.target.value);
                   setSalaryModified(true);
                 }}
-                placeholder="e.g. 80,000"
+                onBlur={(e) => { e.target.value = jobData.maxSalary ? formatSalary(jobData.maxSalary) : ''; }}
+                placeholder="e.g. 800000"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
@@ -2078,20 +2117,12 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           </div>
           <p className="text-gray-500 text-sm mb-4">AI-powered job description. You can edit or replace it.</p>
           
-          <div className="border border-gray-300 rounded-lg">
-            <div className="border-b border-gray-200 p-3 bg-gray-50 flex items-center space-x-2">
-              <button className="p-1 hover:bg-gray-200 rounded"><strong>B</strong></button>
-              <button className="p-1 hover:bg-gray-200 rounded"><em>I</em></button>
-              <button className="p-1 hover:bg-gray-200 rounded">•</button>
-              <button className="p-1 hover:bg-gray-200 rounded text-sm">?</button>
-            </div>
-            <textarea
-              value={jobData.jobDescription}
-              onChange={(e) => updateJobData('jobDescription', e.target.value)}
-              placeholder="Enter job description here..."
-              className="w-full p-4 min-h-[200px] resize-none border-none outline-none focus:ring-0"
-            />
-          </div>
+          <textarea
+            value={jobData.jobDescription}
+            onChange={(e) => updateJobData('jobDescription', e.target.value)}
+            placeholder="Enter job description here..."
+            className="w-full p-4 min-h-[200px] resize-none border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
         </div>
         
         {/* Key Responsibilities Section */}
@@ -2285,7 +2316,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
                 <span className="text-gray-600">Pay</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">
-                    ₹{jobData.minSalary} - ₹{jobData.maxSalary} {jobData.payRate}
+                    ₹{formatSalary(jobData.minSalary)} - ₹{formatSalary(jobData.maxSalary)} {jobData.payRate}
                   </span>
                   <button className="text-blue-600 hover:text-blue-700">✏️</button>
                 </div>
@@ -2367,8 +2398,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       return 'Mid';
     };
 
-    // Get proper company logo
-    const logoUrl = jobData.companyLogo || '/images/trinity-logo.webp';
+    // Get proper company logo - prioritize Trinity local logo
+    const logoUrl = jobData.companyName?.toLowerCase().includes('trinity') 
+      ? '/images/company-logos/trinity-logo.png' 
+      : jobData.companyLogo || '/images/company-logos/trinity-logo.png';
     
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
@@ -2378,7 +2411,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       company: user?.companyName || jobData.companyName || 'Your Company',
       companyLogo: logoUrl,
       location: jobData.jobLocation,
-      jobType: jobData.jobType.length > 0 ? jobData.jobType.join(', ') : 'Full-time',
+      jobType: jobData.jobType.length > 0 ? jobData.jobType : ['Full-time'],
       description: jobData.jobDescription,
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join('\n') : jobData.responsibilities,
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,
@@ -2398,7 +2431,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       postedBy: user.email,
       employerEmail: user.email,
       employerName: user.name,
-      employerCompany: user?.companyName || jobData.companyName || 'Your Company'
+      employerCompany: user?.companyName || jobData.companyName || 'Your Company',
+      // Include employer ID from user data
+      employerId: user.employerId || 'EID0001', // Fallback to 'EID0001' if not set
+      // Generate a sequential position ID
+      positionId: generatePositionId()
     };
     
     console.log('Posting job for user:', user.email, jobPostData);
