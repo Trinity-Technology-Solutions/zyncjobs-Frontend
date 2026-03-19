@@ -14,7 +14,7 @@ import localStorageMigration from '../services/localStorageMigration';
 import JobShareModal from '../components/JobShareModal';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: { 
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: string, data?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
   onLogout?: () => void;
   searchParams?: { searchTerm?: string; location?: string; experience?: string; category?: string; categoryTerms?: string[] };

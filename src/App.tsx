@@ -17,6 +17,7 @@ import BackButton from './components/BackButton';
 import JobAlertsManager from './components/JobAlertsManager';
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
+import TokenHandler from './components/TokenHandler';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));

@@ -3,6 +3,9 @@
 .env.local
 .env.development
 .env.production
+.env.prod
+.env.qa
+.env.*
 
 # Logs
 logs
@@ -41,3 +44,4 @@ out/
 *.temp
 .temp/
 .tmp/
+

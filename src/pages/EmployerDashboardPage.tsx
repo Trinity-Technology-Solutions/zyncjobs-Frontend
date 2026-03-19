@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, User, Briefcase, MessageSquare, FileText, Bookmark, CreditCard, Settings, Trash2, LogOut, Search, Bell, Plus, MoreVertical, Users, Eye, Edit, UserPlus, FileSearch, Folder, MapPin, Mail } from 'lucide-react';
+import { LayoutDashboard, User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Search, Bell, Plus, MoreVertical, Users, Eye, Edit, UserPlus, FileSearch, Folder, MapPin, Mail } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
 import BackButton from '../components/BackButton';
