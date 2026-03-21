@@ -314,7 +314,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           <div className="mt-3">
             <ResumeDropzone
               onFileUrlChange={(fileUrl) =>
-                setFileUrl(fileUrl || defaultFileUrl)
+                setFileUrl(fileUrl || '')
               }
               playgroundView={true}
             />
@@ -627,31 +627,72 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                   View All Recommended Jobs
                 </button>
                 <button 
-                  onClick={() => {
-                    // Extract and save profile data
+                  onClick={async () => {
                     const userData = localStorage.getItem('user');
                     const currentUser = userData ? JSON.parse(userData) : {};
-                    
+
+                    const firstExp = resume.workExperiences[0] as any;
+                    const firstEdu = resume.educations[0] as any;
+
+                    // Map to proper structured fields used by dashboard
+                    const employment = firstExp ? {
+                      companyName: firstExp.company || '',
+                      designation: firstExp.jobTitle || '',
+                      description: firstExp.descriptions?.join(' ') || '',
+                      startYear: '', endYear: '', currentlyWorking: false
+                    } : currentUser.employment;
+
+                    const educationCollege = firstEdu ? {
+                      college: firstEdu.school || '',
+                      degree: firstEdu.degree || '',
+                      passingYear: firstEdu.date || '',
+                      courseType: '', percentage: ''
+                    } : currentUser.educationCollege;
+
+                    const skills = resume.skills.featuredSkills.map((s: any) => s.skill);
+
+                    const profileSummary = resume.workExperiences.length > 0
+                      ? resume.workExperiences.map((exp: any) =>
+                          `${exp.jobTitle} at ${exp.company}${exp.date ? ` (${exp.date})` : ''}`
+                        ).join(' | ')
+                      : currentUser.profileSummary;
+
                     const updatedUser = {
                       ...currentUser,
                       name: resume.profile.name || currentUser.name,
-                      email: resume.profile.email || currentUser.email,
                       phone: resume.profile.phone || currentUser.phone,
                       location: resume.profile.location || currentUser.location,
-                      skills: resume.skills.featuredSkills.map((s: any) => s.skill) || currentUser.skills || [],
-                      experience: resume.workExperiences.map((exp: any) => 
-                        `${(exp as any).jobTitle} at ${(exp as any).company} (${(exp as any).date}): ${(exp as any).descriptions.join('. ')}`
-                      ).join('\n\n') || currentUser.experience,
-                      education: resume.educations.map((edu: any) => 
-                        `${edu.degree} from ${edu.school} (${edu.date})`
-                      ).join('\n') || currentUser.education,
-                      title: (resume.workExperiences[0] as any)?.jobTitle || currentUser.title
+                      jobTitle: firstExp?.jobTitle || currentUser.jobTitle,
+                      skills: skills.length > 0 ? skills : (currentUser.skills || []),
+                      employment,
+                      educationCollege,
+                      profileSummary,
                     };
-                    
+
                     localStorage.setItem('user', JSON.stringify(updatedUser));
-                    
-                    // Show success message and navigate
-                    alert('Profile updated successfully with resume data!');
+
+                    // Also save to backend
+                    try {
+                      await fetch(`${API_BASE_URL}/profile/save`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          email: currentUser.email,
+                          name: updatedUser.name,
+                          phone: updatedUser.phone,
+                          location: updatedUser.location,
+                          jobTitle: updatedUser.jobTitle,
+                          skills: updatedUser.skills,
+                          employment,
+                          educationCollege,
+                          profileSummary,
+                        })
+                      });
+                    } catch (e) {
+                      console.error('Save error:', e);
+                    }
+
+                    alert('Profile saved successfully!');
                     onNavigate && onNavigate('dashboard');
                   }}
                   className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"

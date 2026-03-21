@@ -3,6 +3,8 @@ import { API_ENDPOINTS } from '../config/env';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import aiService from '../services/aiService';
+import Notification from '../components/Notification';
+import { useToast } from '../hooks/useToast';
 
 class TemplateErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
   constructor(props: {children: React.ReactNode}) {
@@ -78,55 +80,141 @@ interface ResumeData {
   }>;
 }
 
-// Template category map
-const TEMPLATE_CATEGORY: Record<string, string> = {
-  oslo: 'simple', madrid: 'simple', santiago: 'simple', london: 'simple', barcelona: 'simple',
-  copenhagen: 'picture', stockholm: 'picture', vienna: 'picture', dublin: 'picture', brussels: 'picture', rome: 'picture',
-  boston: 'word', 'new-york': 'word', sydney: 'word', milan: 'word',
-  berlin: 'ats', chicago: 'ats', singapore: 'ats', athens: 'ats',
-  toronto: 'two-column', paris: 'two-column', amsterdam: 'two-column',
-  prague: 'google-docs', shanghai: 'google-docs',
+// Per-template style config
+const TEMPLATE_STYLES: Record<string, { accent: string; headerBg: string; headerText: string; font: string; layout: 'single' | 'two-column' }> = {
+  oslo:       { accent: '#1E1E1E', headerBg: '#fff',     headerText: '#1E1E1E', font: 'Georgia, serif',       layout: 'single' },
+  madrid:     { accent: '#333',    headerBg: '#fff',     headerText: '#333',    font: 'Arial, sans-serif',    layout: 'single' },
+  santiago:   { accent: '#444',    headerBg: '#fff',     headerText: '#444',    font: 'Times New Roman',      layout: 'single' },
+  london:     { accent: '#1E1E1E', headerBg: '#fff',     headerText: '#1E1E1E', font: 'Arial, sans-serif',    layout: 'single' },
+  copenhagen: { accent: '#2163CA', headerBg: '#2163CA',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'two-column' },
+  stockholm:  { accent: '#5121CA', headerBg: '#5121CA',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'two-column' },
+  vienna:     { accent: '#084C41', headerBg: '#084C41',  headerText: '#fff',    font: 'Georgia, serif',       layout: 'two-column' },
+  dublin:     { accent: '#87300D', headerBg: '#87300D',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'two-column' },
+  brussels:   { accent: '#CA3D21', headerBg: '#CA3D21',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'two-column' },
+  boston:     { accent: '#2163CA', headerBg: '#f8f8f8',  headerText: '#1E1E1E', font: 'Arial, sans-serif',    layout: 'single' },
+  'new-york': { accent: '#CA3D21', headerBg: '#fff',     headerText: '#1E1E1E', font: 'Arial, sans-serif',    layout: 'single' },
+  sydney:     { accent: '#084C41', headerBg: '#fff',     headerText: '#084C41', font: 'Georgia, serif',       layout: 'single' },
+  milan:      { accent: '#5121CA', headerBg: '#fff',     headerText: '#5121CA', font: 'Arial, sans-serif',    layout: 'single' },
+  berlin:     { accent: '#1E1E1E', headerBg: '#1E1E1E',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'single' },
+  chicago:    { accent: '#2163CA', headerBg: '#f0f4ff',  headerText: '#1E1E1E', font: 'Arial, sans-serif',    layout: 'single' },
+  singapore:  { accent: '#1E1E1E', headerBg: '#fff',     headerText: '#1E1E1E', font: 'Arial, sans-serif',    layout: 'single' },
+  athens:     { accent: '#2163CA', headerBg: '#fff',     headerText: '#2163CA', font: 'Georgia, serif',       layout: 'single' },
+  toronto:    { accent: '#084C41', headerBg: '#084C41',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'two-column' },
+  paris:      { accent: '#2163CA', headerBg: '#2163CA',  headerText: '#fff',    font: 'Georgia, serif',       layout: 'two-column' },
+  amsterdam:  { accent: '#3E1D53', headerBg: '#3E1D53',  headerText: '#fff',    font: 'Arial, sans-serif',    layout: 'two-column' },
+  prague:     { accent: '#2163CA', headerBg: '#fff',     headerText: '#1E1E1E', font: 'Arial, sans-serif',    layout: 'single' },
+  shanghai:   { accent: '#CA9421', headerBg: '#fff',     headerText: '#CA9421', font: 'Arial, sans-serif',    layout: 'single' },
 };
 
 const LivePreview: React.FC<{ data: ResumeData; template: string }> = ({ data, template }) => {
   const t = (template || 'london').toLowerCase();
-  const category = TEMPLATE_CATEGORY[t] || 'simple';
-  const imgSrc = `/images/organized-resume-templates/${category}/${t}-resume-templates.jpg`;
-
+  const s = TEMPLATE_STYLES[t] || TEMPLATE_STYLES['london'];
   const contact = [data.email, data.phone, data.city && data.country ? `${data.city}, ${data.country}` : data.city || data.country].filter(Boolean).join('  ·  ');
 
-  return (
-    <div style={{ position: 'relative', width: '100%', minHeight: '100%', backgroundColor: '#fff' }}>
-      {/* Real template image as background */}
-      <img
-        src={imgSrc}
-        alt={t}
-        style={{ width: '100%', display: 'block', opacity: 0.18 }}
-        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-      />
-      {/* User data rendered on top */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '32px 36px', fontFamily: 'Arial, sans-serif', fontSize: '12px', color: '#111' }}>
-        {/* Header */}
-        <div style={{ marginBottom: '14px', borderBottom: '2px solid #2163CA', paddingBottom: '10px' }}>
-          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold' }}>
-            {data.firstName || data.lastName ? `${data.firstName} ${data.lastName}`.trim() : <span style={{ color: '#aaa' }}>Your Name</span>}
-          </h1>
-          {data.jobTitle && <p style={{ margin: '3px 0 0', color: '#2163CA', fontSize: '13px' }}>{data.jobTitle}</p>}
-          {contact && <p style={{ margin: '4px 0 0', fontSize: '11px', color: '#555' }}>{contact}</p>}
-        </div>
+  const sectionTitle = (title: string) => (
+    <h2 style={{ fontSize: '9px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1.5px', color: s.accent, borderBottom: `1.5px solid ${s.accent}`, paddingBottom: '2px', marginBottom: '6px', marginTop: 0 }}>{title}</h2>
+  );
 
-        {/* Summary */}
+  if (s.layout === 'two-column') {
+    return (
+      <div style={{ fontFamily: s.font, fontSize: '11px', color: '#111', minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+        {/* Header with photo placeholder */}
+        <div style={{ backgroundColor: s.headerBg, color: s.headerText, padding: '20px 24px 14px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'rgba(255,255,255,0.25)', border: '2px solid rgba(255,255,255,0.5)', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: 'rgba(255,255,255,0.7)' }}>&#128100;</div>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 'bold' }}>
+              {data.firstName || data.lastName ? `${data.firstName} ${data.lastName}`.trim() : <span style={{ opacity: 0.5 }}>Your Name</span>}
+            </h1>
+            {data.jobTitle && <p style={{ margin: '3px 0 0', fontSize: '12px', opacity: 0.9 }}>{data.jobTitle}</p>}
+          </div>
+        </div>
+        {/* Two columns */}
+        <div style={{ display: 'flex', flex: 1 }}>
+          {/* Left sidebar */}
+          <div style={{ width: '35%', backgroundColor: '#f5f5f5', padding: '16px 14px' }}>
+            {contact && (
+              <div style={{ marginBottom: '14px' }}>
+                {sectionTitle('Contact')}
+                {[data.email, data.phone, data.city && data.country ? `${data.city}, ${data.country}` : data.city || data.country].filter(Boolean).map((c, i) => (
+                  <p key={i} style={{ margin: '2px 0', fontSize: '10px', wordBreak: 'break-all' }}>{c}</p>
+                ))}
+              </div>
+            )}
+            {data.skills.length > 0 && (
+              <div style={{ marginBottom: '14px' }}>
+                {sectionTitle('Skills')}
+                {data.skills.map((sk, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: s.accent, flexShrink: 0 }} />
+                    <span style={{ fontSize: '10px' }}>{sk}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {data.education.some(e => e.school || e.degree) && (
+              <div>
+                {sectionTitle('Education')}
+                {data.education.filter(e => e.school || e.degree).map((edu, i) => (
+                  <div key={i} style={{ marginBottom: '8px' }}>
+                    <strong style={{ fontSize: '10px', display: 'block' }}>{edu.degree}</strong>
+                    <span style={{ fontSize: '10px', color: '#555' }}>{edu.school}</span>
+                    {(edu.start || edu.end) && <p style={{ margin: '1px 0', fontSize: '9px', color: '#777' }}>{edu.start}{edu.end ? ` – ${edu.end}` : ''}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Right main */}
+          <div style={{ flex: 1, padding: '16px 18px' }}>
+            {data.summary && (
+              <div style={{ marginBottom: '12px' }}>
+                {sectionTitle('Summary')}
+                <p style={{ margin: 0, lineHeight: '1.5', fontSize: '10px' }}>{data.summary}</p>
+              </div>
+            )}
+            {data.experience.some(e => e.company || e.role) && (
+              <div>
+                {sectionTitle('Experience')}
+                {data.experience.filter(e => e.company || e.role).map((exp, i) => (
+                  <div key={i} style={{ marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <strong style={{ fontSize: '11px' }}>{exp.role}{exp.company ? ` — ${exp.company}` : ''}</strong>
+                      <span style={{ fontSize: '9px', color: '#666' }}>{exp.start && exp.end ? `${exp.start} – ${exp.end}` : exp.start || ''}</span>
+                    </div>
+                    {exp.location && <p style={{ margin: '1px 0', fontSize: '9px', color: '#666' }}>{exp.location}</p>}
+                    {exp.details.filter(d => d).map((d, j) => <p key={j} style={{ margin: '1px 0 0 8px', fontSize: '10px' }}>• {d}</p>)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Single-column layout
+  return (
+    <div style={{ fontFamily: s.font, fontSize: '11px', color: '#111', minHeight: '100%' }}>
+      {/* Header */}
+      <div style={{ backgroundColor: s.headerBg, color: s.headerText, padding: '20px 28px 14px', borderBottom: s.headerBg === '#fff' ? `2px solid ${s.accent}` : 'none' }}>
+        <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 'bold' }}>
+          {data.firstName || data.lastName ? `${data.firstName} ${data.lastName}`.trim() : <span style={{ opacity: 0.4 }}>Your Name</span>}
+        </h1>
+        {data.jobTitle && <p style={{ margin: '3px 0 0', fontSize: '13px', color: s.headerBg === '#fff' ? s.accent : 'rgba(255,255,255,0.85)' }}>{data.jobTitle}</p>}
+        {contact && <p style={{ margin: '4px 0 0', fontSize: '10px', opacity: 0.75 }}>{contact}</p>}
+      </div>
+
+      <div style={{ padding: '16px 28px' }}>
         {data.summary && (
           <div style={{ marginBottom: '12px' }}>
-            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Summary</h2>
-            <p style={{ margin: 0, lineHeight: '1.5', fontSize: '11px' }}>{data.summary}</p>
+            {sectionTitle('Summary')}
+            <p style={{ margin: 0, lineHeight: '1.5' }}>{data.summary}</p>
           </div>
         )}
-
-        {/* Experience */}
         {data.experience.some(e => e.company || e.role) && (
           <div style={{ marginBottom: '12px' }}>
-            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Experience</h2>
+            {sectionTitle('Experience')}
             {data.experience.filter(e => e.company || e.role).map((exp, i) => (
               <div key={i} style={{ marginBottom: '8px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -134,16 +222,14 @@ const LivePreview: React.FC<{ data: ResumeData; template: string }> = ({ data, t
                   <span style={{ fontSize: '10px', color: '#666' }}>{exp.start && exp.end ? `${exp.start} – ${exp.end}` : exp.start || ''}</span>
                 </div>
                 {exp.location && <p style={{ margin: '1px 0', fontSize: '10px', color: '#666' }}>{exp.location}</p>}
-                {exp.details.filter(d => d).map((d, j) => <p key={j} style={{ margin: '1px 0 0 8px', fontSize: '11px' }}>• {d}</p>)}
+                {exp.details.filter(d => d).map((d, j) => <p key={j} style={{ margin: '1px 0 0 8px' }}>• {d}</p>)}
               </div>
             ))}
           </div>
         )}
-
-        {/* Education */}
         {data.education.some(e => e.school || e.degree) && (
           <div style={{ marginBottom: '12px' }}>
-            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Education</h2>
+            {sectionTitle('Education')}
             {data.education.filter(e => e.school || e.degree).map((edu, i) => (
               <div key={i} style={{ marginBottom: '6px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -151,17 +237,15 @@ const LivePreview: React.FC<{ data: ResumeData; template: string }> = ({ data, t
                   <span style={{ fontSize: '10px', color: '#666' }}>{edu.start && edu.end ? `${edu.start} – ${edu.end}` : edu.start || ''}</span>
                 </div>
                 {edu.location && <p style={{ margin: '1px 0', fontSize: '10px', color: '#666' }}>{edu.location}</p>}
-                {edu.description && <p style={{ margin: '2px 0 0', fontSize: '11px' }}>{edu.description}</p>}
+                {edu.description && <p style={{ margin: '2px 0 0' }}>{edu.description}</p>}
               </div>
             ))}
           </div>
         )}
-
-        {/* Skills */}
         {data.skills.length > 0 && (
           <div>
-            <h2 style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', color: '#2163CA', borderBottom: '1px solid #2163CA', paddingBottom: '2px', marginBottom: '5px' }}>Skills</h2>
-            <p style={{ margin: 0, fontSize: '11px' }}>{data.skills.join(' · ')}</p>
+            {sectionTitle('Skills')}
+            <p style={{ margin: 0 }}>{data.skills.join(' · ')}</p>
           </div>
         )}
       </div>
@@ -170,42 +254,54 @@ const LivePreview: React.FC<{ data: ResumeData; template: string }> = ({ data, t
 };
 
 const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, onLogout, template }) => {
-  const selectedTemplate = template || 'london';
+  const { toast, showToast, hideToast } = useToast();
+  const selectedTemplate = (template || 'london').toLowerCase();
   const [activeTab, setActiveTab] = useState<string>('contacts');
   const [showAdditional, setShowAdditional] = useState(false);
   const [skillInput, setSkillInput] = useState('');
   const [isGenerating, setIsGenerating] = useState<{[key: string]: boolean}>({});
-  
+
+  // Pre-fill from localStorage profile
+  const prefill = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
+  })();
+  const prefillNameParts = (prefill.name || '').trim().split(/\s+/);
+  const prefillName = prefillNameParts;
+
   const [resumeData, setResumeData] = useState<ResumeData>({
-    firstName: '',
-    lastName: '',
-    jobTitle: '',
-    email: '',
-    phone: '',
-    city: '',
-    country: '',
-    address: '',
-    company: '',
-    role: '',
-    workDescription: '',
-    skills: [],
-    summary: '',
-    experience: [{
-      company: '',
-      role: '',
-      location: '',
-      start: '',
-      end: '',
-      details: ['']
-    }],
-    education: [{
-      degree: '',
-      school: '',
-      location: '',
-      start: '',
-      end: '',
-      description: ''
-    }]
+    firstName: prefillNameParts[0] || '',
+    lastName:  prefillNameParts.slice(1).join(' ') || '',
+    jobTitle:  prefill.jobTitle || '',
+    email:     prefill.email || '',
+    phone:     prefill.phone || '',
+    city:      typeof prefill.location === 'string' ? prefill.location : (prefill.location?.city || ''),
+    country:   typeof prefill.location === 'object' ? (prefill.location?.country || '') : '',
+    address:   '',
+    company:   Array.isArray(prefill.employment) && prefill.employment[0]?.company ? prefill.employment[0].company : '',
+    role:      Array.isArray(prefill.employment) && prefill.employment[0]?.designation ? prefill.employment[0].designation : '',
+    workDescription: Array.isArray(prefill.employment) && prefill.employment[0]?.description ? prefill.employment[0].description : '',
+    skills:    Array.isArray(prefill.skills) ? prefill.skills.filter(Boolean) : [],
+    summary:   prefill.profileSummary || '',
+    experience: Array.isArray(prefill.employment) && prefill.employment.length > 0
+      ? prefill.employment.map((e: any) => ({
+          company: e.company || '',
+          role:    e.designation || '',
+          location: '',
+          start:   e.startDate || '',
+          end:     e.endDate || '',
+          details: e.description ? e.description.split('\n').filter(Boolean) : ['']
+        }))
+      : [{ company: '', role: '', location: '', start: '', end: '', details: [''] }],
+    education: Array.isArray(prefill.education) && prefill.education.length > 0
+      ? prefill.education.map((e: any) => ({
+          degree:   e.degree || e.course || '',
+          school:   e.college || e.school || '',
+          location: '',
+          start:    e.startYear ? String(e.startYear) : '',
+          end:      e.endYear   ? String(e.endYear)   : '',
+          description: ''
+        }))
+      : [{ degree: '', school: '', location: '', start: '', end: '', description: '' }]
   });
 
   const resumeScore = Math.min(100, [
@@ -292,7 +388,7 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
           
           pdf.save(`${resumeData.firstName}_${resumeData.lastName}_Resume.pdf`);
         } else {
-          alert('Resume template not found. Please try again.');
+          showToast('Resume template not found. Please try again.', 'error');
         }
       } else if (format === 'docx') {
         // Create a Word-compatible HTML file
@@ -355,11 +451,11 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         
-        alert('Word document downloaded successfully! You can open it in Microsoft Word.');
+        showToast('Word document downloaded! You can open it in Microsoft Word.', 'success');
       }
     } catch (error) {
       console.error('Download error:', error);
-      alert('Download failed. Please try again.');
+      showToast('Download failed. Please try again.', 'error');
     }
   };
 
@@ -379,44 +475,66 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
         text: shareText
       }).catch(console.error);
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(shareText).then(() => {
-        alert('Resume details copied to clipboard! You can share this with employers.');
-      }).catch(() => {
-        // Manual copy fallback
-        const textArea = document.createElement('textarea');
-        textArea.value = shareText;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert('Resume details copied to clipboard! You can share this with employers.');
-      });
+      navigator.clipboard.writeText(shareText)
+        .then(() => showToast('Resume details copied to clipboard!', 'success'))
+        .catch(() => {
+          const textArea = document.createElement('textarea');
+          textArea.value = shareText;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+          showToast('Resume details copied to clipboard!', 'success');
+        });
     }
   };
 
   const saveToProfile = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/save-resume`, {
+      const userEmail = prefill.email;
+      if (!userEmail) {
+        showToast('Please log in to save your resume.', 'error');
+        return;
+      }
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: user?.name || 'guest',
-          resume_data: resumeData,
-          template: selectedTemplate
+          email: userEmail,
+          name: `${resumeData.firstName} ${resumeData.lastName}`.trim() || prefill.name,
+          phone: resumeData.phone || prefill.phone,
+          location: resumeData.city || prefill.location,
+          jobTitle: resumeData.jobTitle || prefill.jobTitle,
+          profileSummary: resumeData.summary || prefill.profileSummary,
+          skills: resumeData.skills.length > 0 ? resumeData.skills : prefill.skills,
+          employment: resumeData.experience
+            .filter(e => e.company || e.role)
+            .map(e => ({
+              company: e.company,
+              designation: e.role,
+              startDate: e.start,
+              endDate: e.end,
+              description: e.details.filter(Boolean).join('\n')
+            })),
+          education: resumeData.education
+            .filter(e => e.school || e.degree)
+            .map(e => ({
+              college: e.school,
+              degree: e.degree,
+              startYear: e.start,
+              endYear: e.end
+            }))
         })
       });
-      
       if (response.ok) {
-        alert('Resume saved to your profile successfully!');
+        showToast('Resume saved to your profile successfully!', 'success');
       } else {
-        alert('Failed to save resume. Please try again.');
+        const err = await response.json().catch(() => ({}));
+        showToast(err.message || 'Failed to save. Please try again.', 'error');
       }
     } catch (error) {
       console.error('Save error:', error);
-      alert('Failed to save resume. Please try again.');
+      showToast('Network error. Please check your connection.', 'error');
     }
   };
 
@@ -473,6 +591,7 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <Notification type={toast.type} message={toast.message} isVisible={toast.isVisible} onClose={hideToast} />
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Back to Templates Button */}

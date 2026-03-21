@@ -23,6 +23,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   const [timeLeft, setTimeLeft] = useState(1800);
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [startError, setStartError] = useState('');
   const [myAssessments, setMyAssessments] = useState<any[]>([]);
 
   useEffect(() => {
@@ -99,11 +100,12 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
 
   const startAssessment = async () => {
     if (!selectedSkill) return;
+    setStartError('');
     try {
       setLoading(true);
       const token = await getAuthToken();
       if (!token) {
-        alert('Please log in to take an assessment.');
+        setStartError('Please log in to take an assessment.');
         return;
       }
       const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
@@ -113,15 +115,20 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       });
       if (!response.ok) {
         const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || 'Failed to start assessment');
+        if (response.status === 503) {
+          setStartError('The AI question service is temporarily unavailable. Please try again in a moment.');
+        } else {
+          setStartError(err.error || 'Failed to start assessment. Please try again.');
+        }
+        return;
       }
       const data = await response.json();
       setAssessment(data);
       setAnswers(new Array(data.totalQuestions).fill(-1));
       setTimeLeft(data.timeLimit * 60);
       setCurrentQuestion(0);
-    } catch (error: any) {
-      alert(error.message || 'Failed to generate questions. Please try again.');
+    } catch {
+      setStartError('Network error. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -411,12 +418,17 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
                     )}
                   </div>
                 </div>
+                {startError && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    {startError}
+                  </div>
+                )}
                 <button
                   onClick={startAssessment}
                   disabled={!selectedSkill || loading}
                   className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-sm"
                 >
-                  {loading ? 'Generating Questions...' : 'Start Assessment'}
+                  {loading ? 'Generating Questions...' : startError ? 'Retry' : 'Start Assessment'}
                 </button>
               </div>
 

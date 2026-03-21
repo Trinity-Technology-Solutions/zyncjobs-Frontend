@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
@@ -714,6 +715,8 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
         )}
       </div>
       
+      <Footer onNavigate={onNavigate} user={user} />
+
       {/* Withdrawal Modal */}
       {withdrawingApp && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

@@ -334,7 +334,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'posted' && (
               <>
                 <button 
-                  onClick={() => onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}
+                  onClick={() => {
+                    const jobId = job.id || job._id;
+                    if (jobId) {
+                      onNavigate('job-detail', { jobId, jobData: job });
+                    }
+                  }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
                 >
                   View Job
@@ -585,14 +590,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                     {application.candidateName || application.candidateEmail || 'Candidate'}
                                   </h3>
                                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                    application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
                                     application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
                                     application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                    application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
                                     application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                    application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
+                                    application.status === 'hired' ? 'bg-green-100 text-green-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
-                                    {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
+                                    {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
                                   </span>
                                 </div>
                                 <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
@@ -675,14 +681,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                     {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
                                   </h3>
                                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                    application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
                                     application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
                                     application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                    application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
                                     application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                    application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
+                                    application.status === 'hired' ? 'bg-green-100 text-green-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
-                                    {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
+                                    {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
                                   </span>
                                 </div>
                                 <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
@@ -729,7 +736,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
                           <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
                             <button 
-                              onClick={() => onNavigate('job-detail', { jobId: typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id) })}
+                              onClick={() => {
+                                const jobId = application.jobId
+                                  ? (typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id))
+                                  : (application.jobObjectId || application.jobRef);
+                                if (jobId) {
+                                  onNavigate('job-detail', { jobId });
+                                } else {
+                                  alert('Job details are no longer available.');
+                                }
+                              }}
                               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
                             >
                               View Job

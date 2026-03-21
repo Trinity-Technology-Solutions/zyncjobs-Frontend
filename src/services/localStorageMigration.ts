@@ -205,6 +205,7 @@ class LocalStorageMigrationService {
 
   // Get resume skills from backend
   async getResumeSkills(): Promise<Array<{ skill: string }>> {
+    if (!this.token) return [];
     try {
       const response = await this.apiCall('/user-preferences');
       return response.resumeSkills || [];

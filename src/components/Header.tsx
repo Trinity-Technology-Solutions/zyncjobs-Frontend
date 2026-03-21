@@ -114,39 +114,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   useEffect(() => {
     const fetchProfileMetrics = async () => {
-      if (user) {
-        try {
-          // Get user data from localStorage to get email
-          const userData = localStorage.getItem('user');
-          if (userData) {
-            const parsedUser = JSON.parse(userData);
-            const userEmail = parsedUser.email || parsedUser.id;
-            
-            console.log('Fetching analytics for:', userEmail, 'type:', user.type);
-            
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(userEmail)}?userType=${user.type}`);
-            
-            if (response.ok) {
-              const contentType = response.headers.get('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                const data = await response.json();
-                console.log('Analytics data received:', data);
-                setProfileMetrics(data);
-              } else {
-                console.warn('Analytics API returned non-JSON response');
-                // Set default values if API returns HTML
-                setProfileMetrics({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
-              }
-            } else {
-              console.error('Analytics API error:', response.status);
-              setProfileMetrics({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching profile metrics:', error);
-          // Set default values on error
-          setProfileMetrics({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
-        }
+      if (!user || user.type !== 'candidate') return;
+      try {
+        const userData = localStorage.getItem('user');
+        if (!userData) return;
+        const parsedUser = JSON.parse(userData);
+        const userEmail = parsedUser.email;
+        if (!userEmail) return;
+        const [appsRes, interviewsRes] = await Promise.all([
+          fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`),
+          fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(userEmail)}`),
+        ]);
+        let apps: any[] = [];
+        let interviews: any[] = [];
+        if (appsRes.ok) { const d = await appsRes.json(); if (Array.isArray(d)) apps = d; }
+        if (interviewsRes.ok) { const d = await interviewsRes.json(); if (Array.isArray(d)) interviews = d; }
+        const recruiterActions = apps.filter((a: any) =>
+          ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
+        ).length + interviews.length;
+        const searchAppearances = apps.filter((a: any) =>
+          ['reviewed', 'shortlisted', 'hired'].includes(a.status)
+        ).length;
+        setProfileMetrics(prev => ({ ...prev, recruiterActions, searchAppearances }));
+      } catch (error) {
+        console.error('Error fetching profile metrics:', error);
       }
     };
     
@@ -245,7 +236,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     };
     
     const handleWindowFocus = () => {
-      console.log('Window focused, refreshing profile metrics...');
       fetchProfileMetrics();
       fetchNotifications();
     };

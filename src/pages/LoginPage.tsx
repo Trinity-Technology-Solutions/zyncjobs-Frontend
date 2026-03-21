@@ -5,7 +5,7 @@ import Header from '../components/Header';
 
 interface LoginPageProps {
   onNavigate: (page: string, data?: any) => void;
-  onLogin: (userData: {name: string, type: 'candidate' | 'employer'}) => void;
+  onLogin: (userData: {name: string, type: 'candidate' | 'employer' | 'admin', email?: string}) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {

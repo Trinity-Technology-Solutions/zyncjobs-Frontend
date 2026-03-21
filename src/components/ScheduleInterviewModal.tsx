@@ -9,7 +9,6 @@ interface ScheduleInterviewModalProps {
 }
 
 const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ application, onClose, onSuccess }) => {
-  console.log('📋 Application data:', JSON.stringify(application, null, 2));
   
   const [formData, setFormData] = useState({
     scheduledDate: '',
@@ -92,7 +91,6 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
   };
 
   const handleZoomClick = () => {
-    console.log('🔵 ZOOM BUTTON CLICKED!');
     if (!formData.scheduledDate) {
       alert('Please select a date and time first');
       return;
@@ -101,7 +99,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
   };
 
   const handleMeetClick = () => {
-    console.log('🟢 MEET BUTTON CLICKED!');
+    if (formData.meetingLink && formData.meetingLink.includes('meet.google.com')) {
+      window.open(formData.meetingLink, '_blank');
+      return;
+    }
     if (!formData.scheduledDate) {
       alert('Please select a date and time first');
       return;
@@ -128,8 +129,9 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       console.log('✅ Meet result:', result);
       
       if (result.success && result.meeting?.meetLink) {
-        setFormData(prev => ({ ...prev, meetingLink: result.meeting.meetLink }));
-        alert('Google Meet link generated: ' + result.meeting.meetLink);
+        const link = result.meeting.meetLink;
+        setFormData(prev => ({ ...prev, meetingLink: link }));
+        window.open(link, '_blank');
       } else {
         alert('Failed to generate Google Meet link');
       }
@@ -265,7 +267,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
                     className="flex-1 flex items-center justify-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Video size={16} className="mr-2" />
-                    {generatingLink ? 'Generating...' : 'Open GMeet'}
+                    {generatingLink ? 'Generating...' : formData.meetingLink?.includes('meet.google.com') ? 'Open GMeet' : 'Generate GMeet'}
                   </button>
                 </div>
 

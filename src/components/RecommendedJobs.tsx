@@ -280,17 +280,14 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
 
   return (
     <div>
-      {/* Filters Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Salary Range Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-3 mb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
             <select
               value={filters.salaryRange}
               onChange={(e) => setFilters(prev => ({ ...prev, salaryRange: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Salaries</option>
               <option value="0-50k">₹0 - ₹50k</option>
@@ -299,14 +296,11 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               <option value="150k+">₹150k+</option>
             </select>
           </div>
-
-          {/* Job Type Filter */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
+          <div className="flex-1">
             <select
               value={filters.jobType}
               onChange={(e) => setFilters(prev => ({ ...prev, jobType: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Types</option>
               <option value="Full-time">Full-time</option>
@@ -316,97 +310,54 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               <option value="Remote">Remote</option>
             </select>
           </div>
-        </div>
-        
-        {/* Results Count */}
-        <div className="mt-4 text-sm text-gray-600">
-          Showing {filteredJobs.length} of {jobs.length} jobs
+          <span className="text-xs text-gray-500 whitespace-nowrap">Showing {filteredJobs.length} of {jobs.length} jobs</span>
         </div>
       </div>
 
       {/* Jobs List */}
-      <div className="space-y-4">
+      <div className="space-y-2">
         {filteredJobs.length === 0 ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <p className="text-gray-500">No jobs match your filters. Try adjusting them.</p>
+          <div className="text-center py-6 bg-gray-50 rounded-lg">
+            <p className="text-gray-500 text-sm">No jobs match your filters.</p>
           </div>
         ) : (
           filteredJobs.map((job: any) => (
-            <div key={job._id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex-1">
-                  <h4 className="font-semibold text-gray-900 text-lg">{job.title || job.jobTitle}</h4>
-                  <p className="text-blue-600 font-medium">{job.company}</p>
-                  <p className="text-sm text-gray-500">{job.location}</p>
-                </div>
-                <div className="text-right">
+            <div key={job._id} className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
+              <div className="flex justify-between items-start mb-1">
+                <h4 className="font-medium text-gray-900 text-sm leading-tight">{job.title || job.jobTitle}</h4>
+                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
                   {job.matchPercentage && (
-                    <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                      {job.matchPercentage}% Match
-                    </span>
+                    <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">{job.matchPercentage}% Match</span>
                   )}
-                  {formatSalary(job.salary) && (
-                    <p className="text-sm text-gray-600 mt-2 font-semibold">{formatSalary(job.salary)}</p>
-                  )}
+                  <button
+                    onClick={() => handleSaveJob(job._id)}
+                    className={`p-1 rounded transition-colors ${savedJobs.includes(job._id) ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                  >
+                    {savedJobs.includes(job._id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                  </button>
                 </div>
               </div>
-              
-              {job.type && (
-                <div className="mb-2">
-                  <span className="inline-block bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
-                    {job.type}
-                  </span>
-                </div>
+              <p className="text-xs text-gray-600 mb-1">{job.company} • {job.location}</p>
+              {formatSalary(job.salary) && (
+                <p className="text-xs text-green-600 font-medium mb-1.5">{formatSalary(job.salary)}</p>
               )}
-              
-              <p className="text-sm text-gray-600 mb-3 line-clamp-3">{job.description}</p>
-              
               {job.skills && job.skills.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3 mb-4">
+                <div className="flex flex-wrap gap-1 mb-2">
                   {job.skills.slice(0, 4).map((skill: string, idx: number) => (
-                    <span 
-                      key={idx} 
-                      className={`px-2 py-1 rounded text-xs font-medium ${
-                        job.matchingSkills?.includes(skill.toLowerCase()) 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}
-                    >
-                      {skill}
-                    </span>
+                    <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                      job.matchingSkills?.includes(skill.toLowerCase()) ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
+                    }`}>{skill}</span>
                   ))}
-                  {job.skills.length > 4 && (
-                    <span className="text-xs text-gray-500 px-2 py-1">+{job.skills.length - 4} more</span>
-                  )}
+                  {job.skills.length > 4 && <span className="text-xs text-gray-500">+{job.skills.length - 4} more</span>}
                 </div>
               )}
-              
-              <div className="mt-4 flex gap-2 flex-wrap">
-                <button 
+              <div className="flex items-center justify-between pt-1.5 border-t border-gray-100">
+                {job.type && <span className="text-xs text-gray-500">{job.type}</span>}
+                <button
                   onClick={() => handleApplyNow(job)}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors font-medium flex-1 min-w-[140px]"
+                  className="text-xs text-blue-600 font-medium hover:text-blue-800 ml-auto"
                 >
-                  Apply Now
-                </button>
-                <button 
-                  onClick={() => handleSaveJob(job._id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border-2 flex items-center gap-2 ${
-                    savedJobs.includes(job._id)
-                      ? 'bg-blue-100 border-blue-300 text-blue-700'
-                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  {savedJobs.includes(job._id) ? (
-                    <>
-                      <BookmarkCheck className="w-4 h-4" />
-                      Saved
-                    </>
-                  ) : (
-                    <>
-                      <Bookmark className="w-4 h-4" />
-                      Save
-                    </>
-                  )}
+                  Apply Now →
                 </button>
               </div>
             </div>

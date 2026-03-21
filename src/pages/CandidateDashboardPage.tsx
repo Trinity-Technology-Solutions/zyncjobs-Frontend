@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Camera, ChevronDown, Info, TrendingUp, Star, Edit, FileText, Search, Bell, MessageSquare, Plus, X } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
@@ -10,15 +11,16 @@ import { useApplicationNotifications } from '../hooks/useApplicationNotification
 import { API_ENDPOINTS } from '../config/env';
 
 interface CandidateDashboardPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: any) => void;
   readOnly?: boolean;
   viewEmail?: string;
 }
 
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavigate, readOnly = false, viewEmail }) => {
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('Profile');
-  const [completionPercentage, setCompletionPercentage] = useState(40);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'Profile');
+  const [completionPercentage, setCompletionPercentage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
@@ -35,6 +37,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
+  const [myAssessments, setMyAssessments] = useState<any[]>([]);
   const [colleges, setColleges] = useState<any[]>([]);
   const [collegeSearch, setCollegeSearch] = useState('');
   const [showCollegeDropdown, setShowCollegeDropdown] = useState(false);
@@ -266,31 +269,54 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 }
                 return url.startsWith('/') ? url : `/${url}`;
               };
+              // Helper: pick profileData value only if it's meaningfully filled
+              const pick = (fromDB: any, fromLocal: any, fallback: any = '') => {
+                if (fromDB !== null && fromDB !== undefined && fromDB !== '') {
+                  if (typeof fromDB === 'object' && !Array.isArray(fromDB)) {
+                    // Only use DB object if it has at least one non-empty value
+                    if (Object.values(fromDB).some(v => v !== null && v !== undefined && String(v).trim() !== '')) return fromDB;
+                  } else if (Array.isArray(fromDB) && fromDB.length > 0) {
+                    return fromDB;
+                  } else if (typeof fromDB === 'string' && fromDB.trim() !== '') {
+                    return fromDB;
+                  } else if (typeof fromDB !== 'object') {
+                    return fromDB;
+                  }
+                }
+                return fromLocal !== undefined && fromLocal !== null && fromLocal !== '' ? fromLocal : fallback;
+              };
+
               const updatedUser = { 
                 ...parsedUser, 
                 ...profileData,
                 profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
-                profileFrame: profileData.profileFrame || parsedUser.profileFrame || 'none',
-                profileSummary: profileData.profileSummary || parsedUser.profileSummary || '',
-                employment: profileData.employment || parsedUser.employment || '',
-                projects: profileData.projects || parsedUser.projects || '',
-                internships: profileData.internships || parsedUser.internships || '',
-                languages: profileData.languages || parsedUser.languages || '',
-                awards: profileData.awards || parsedUser.awards || '',
-                clubsCommittees: profileData.clubsCommittees || parsedUser.clubsCommittees || '',
-                competitiveExams: profileData.competitiveExams || parsedUser.competitiveExams || '',
-                academicAchievements: profileData.academicAchievements || parsedUser.academicAchievements || '',
-                companyName: profileData.companyName || parsedUser.companyName || '',
-                roleTitle: profileData.roleTitle || parsedUser.roleTitle || '',
-                gender: profileData.gender || parsedUser.gender || '',
+                profileFrame: pick(profileData.profileFrame, parsedUser.profileFrame, 'none'),
+                profileSummary: pick(profileData.profileSummary, parsedUser.profileSummary),
+                employment: pick(profileData.employment, parsedUser.employment),
+                projects: pick(profileData.projects, parsedUser.projects),
+                internships: pick(profileData.internships, parsedUser.internships),
+                languages: pick(profileData.languages, parsedUser.languages),
+                awards: pick(profileData.awards, parsedUser.awards),
+                clubsCommittees: pick(profileData.clubsCommittees, parsedUser.clubsCommittees),
+                competitiveExams: pick(profileData.competitiveExams, parsedUser.competitiveExams),
+                academicAchievements: pick(profileData.academicAchievements, parsedUser.academicAchievements),
+                certifications: pick(profileData.certifications, parsedUser.certifications),
+                companyName: pick(profileData.companyName, parsedUser.companyName),
+                roleTitle: pick(profileData.roleTitle, parsedUser.roleTitle),
+                gender: pick(profileData.gender, parsedUser.gender),
                 email: parsedUser.email,
                 id: parsedUser.id,
                 role: parsedUser.role,
                 birthday: (() => { const d = new Date(profileData.birthday || parsedUser.birthday || ''); return isNaN(d.getTime()) ? '' : (profileData.birthday || parsedUser.birthday || ''); })(),
-                location: profileData.location || parsedUser.location || '',
-                phone: profileData.phone || parsedUser.phone || '',
-                jobTitle: profileData.jobTitle || parsedUser.jobTitle || '',
-                education: profileData.education || parsedUser.education || '',
+                location: pick(profileData.location, parsedUser.location),
+                phone: pick(profileData.phone, parsedUser.phone),
+                jobTitle: pick(profileData.jobTitle, parsedUser.jobTitle),
+                education: pick(profileData.education, parsedUser.education),
+                educationCollege: pick(profileData.educationCollege, parsedUser.educationCollege),
+                educationClass12: pick(profileData.educationClass12, parsedUser.educationClass12),
+                educationClass10: pick(profileData.educationClass10, parsedUser.educationClass10),
+                careerPreferences: pick(profileData.careerPreferences, parsedUser.careerPreferences),
+                skills: pick(profileData.skills, parsedUser.skills),
                 resume: profileData.resume || parsedUser.resume || (profileData.resumeUrl ? { name: profileData.resumeUrl.split('/').pop(), url: profileData.resumeUrl, uploadDate: '' } : null)
               };
               setUser(updatedUser);
@@ -315,6 +341,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           // Fetch applications and recommended jobs
           fetchApplications(parsedUser.email);
           fetchRecommendedJobs(parsedUser);
+          fetchMyAssessments();
         } catch (error) {
           console.error('Error parsing user data:', error);
           setUser(null);
@@ -325,6 +352,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     
     loadUserProfile();
   }, []);
+
+  const fetchMyAssessments = async () => {
+    try {
+      let token = localStorage.getItem('accessToken');
+      if (!token) return;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp * 1000 < Date.now()) {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) return;
+          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('accessToken', data.accessToken);
+            if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+            token = data.accessToken;
+          } else return;
+        }
+      } catch { /* use token as-is */ }
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/skill-assessments/my-assessments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) setMyAssessments(await response.json());
+    } catch { /* silent */ }
+  };
 
   const fetchNotifications = async (userId: string) => {
     try {
@@ -382,19 +438,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       'profilePhoto', 'profileSummary', 'skills', 'languages',
       'education', 'employment', 'projects', 'resume'
     ];
-    
-    fields.forEach(field => {
-      if (userData[field]) {
-        if (Array.isArray(userData[field]) && userData[field].length > 0) {
-          completed += 1;
-        } else if (typeof userData[field] === 'string' && userData[field].trim()) {
-          completed += 1;
-        } else if (typeof userData[field] === 'object' && userData[field] !== null) {
-          completed += 1;
-        }
-      }
-    });
-    
+
+    const hasValue = (val: any): boolean => {
+      if (val === null || val === undefined || val === '') return false;
+      if (typeof val === 'string') return val.trim().length > 0;
+      if (Array.isArray(val)) return val.length > 0 && val.some(item =>
+        typeof item === 'object'
+          ? Object.values(item).some(v => v && String(v).trim().length > 0)
+          : !!item
+      );
+      if (typeof val === 'object') return Object.values(val).some(v => v && String(v).trim().length > 0);
+      return false;
+    };
+
+    fields.forEach(field => { if (hasValue(userData[field])) completed += 1; });
+
     const percentage = Math.round((completed / fields.length) * 100);
     setCompletionPercentage(percentage);
   };
@@ -456,7 +514,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               {!readOnly && (
                 <>
                   <button 
-                    onClick={() => setActiveTab('Profile')}
+                    onClick={() => { setActiveTab('Profile'); setSearchParams({}); }}
                     className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
                       activeTab === 'Profile' 
                         ? 'border-black text-gray-900' 
@@ -468,6 +526,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   <button 
                     onClick={() => {
                       setActiveTab('Activity');
+                      setSearchParams({ tab: 'Activity' });
                       if (user && !activityData) {
                         fetchActivityInsights(user.email);
                       }
@@ -586,7 +645,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     
                     <div className="border-t pt-4">
                       <h4 className="font-medium text-gray-900 mb-2">My Assessments</h4>
-                      <p className="text-sm text-gray-500">No assessments completed yet</p>
+                      {myAssessments.length === 0 ? (
+                        <p className="text-sm text-gray-500">No assessments completed yet</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {myAssessments.slice(0, 3).map((a: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">{a.skill}</p>
+                                <p className="text-xs text-gray-400">
+                                  {a.completedAt && new Date(a.completedAt).getFullYear() > 1970
+                                    ? new Date(a.completedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                                    : 'Date unavailable'}
+                                </p>
+                              </div>
+                              <span className={`text-sm font-bold ${a.score >= 70 ? 'text-green-600' : 'text-orange-500'}`}>
+                                {a.score}%
+                              </span>
+                            </div>
+                          ))}
+                          {myAssessments.length > 3 && (
+                            <button
+                              onClick={() => onNavigate('skill-assessment')}
+                              className="text-xs text-blue-600 hover:underline mt-1"
+                            >
+                              View all {myAssessments.length} assessments
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -853,9 +940,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <p className="text-gray-600 mb-2">
                             {user?.title || user?.jobTitle || 'Add your job title'}
                           </p>
-                          <p className="text-gray-500 text-sm mb-3">
-                            {user?.education || user?.degree || 'Add your education'}
-                          </p>
+                          {user?.educationCollege?.college && (
+                            <p className="text-gray-500 text-sm mb-3">
+                              {user.educationCollege.degree ? `${user.educationCollege.degree} — ` : ''}{user.educationCollege.college}
+                            </p>
+                          )}
                           
                           {/* Contact Info */}
                           <div className="flex items-center space-x-6 text-sm text-gray-600 mb-3">
@@ -1629,27 +1718,46 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     </div>
                   </div>
 
-                  {/* Activity Chart Placeholder */}
+                  {/* Activity Chart */}
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Activity Trends</h2>
-                    <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <span className="text-4xl mb-4 block">📈</span>
-                        <p className="text-gray-600">Activity chart will be implemented here</p>
-                        <p className="text-sm text-gray-500 mt-2">Track your profile performance over time</p>
-                      </div>
-                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-1">Activity Trends</h2>
+                    <p className="text-sm text-gray-500 mb-4">Your job search activity over the last 7 days</p>
+                    {(() => {
+                      const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return { label: d.toLocaleDateString("en-IN", { weekday: "short" }), applications: 0, interviews: 0 }; });
+                      activityData.recentActivity.forEach((a: any) => { const mins = a.time === "Just now" ? 0 : (() => { const h = a.time.match(/(\d+)h ago/); if (h) return parseInt(h[1]) * 60; const d = a.time.match(/(\d+)d ago/); if (d) return parseInt(d[1]) * 1440; return 0; })(); const idx = 6 - Math.floor(mins / 1440); if (idx >= 0 && idx < 7) { if (a.type === "interview") days[idx].interviews += 1; else days[idx].applications += 1; } });
+                      const maxVal = Math.max(...days.map(d => d.applications + d.interviews), 1);
+                      return (
+                        <div>
+                          <div className="flex items-center gap-6 mb-3">
+                            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-blue-500 inline-block"></span><span className="text-xs text-gray-600">Applications</span></div>
+                            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-purple-400 inline-block"></span><span className="text-xs text-gray-600">Interviews</span></div>
+                          </div>
+                          <div className="flex items-end gap-2" style={{height: 120}}>
+                            {days.map((day, i) => {
+                              const total = day.applications + day.interviews;
+                              const barH = total > 0 ? Math.max((total / maxVal) * 96, 6) : 3;
+                              return (
+                                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1">
+                                  {total > 0 && <span className="text-xs font-semibold text-gray-700">{total}</span>}
+                                  <div className="w-full relative rounded-t overflow-hidden" style={{height: barH, backgroundColor: total > 0 ? "#3b82f6" : "#e5e7eb"}}>
+                                    {day.interviews > 0 && total > 0 && <div className="absolute top-0 left-0 right-0 bg-purple-400" style={{height: (day.interviews / total * 100) + "%"}}></div>}
+                                  </div>
+                                  <span className="text-xs text-gray-500">{day.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+                            <div className="text-center"><p className="text-2xl font-bold text-blue-600">{activityData.applicationsSent}</p><p className="text-xs text-gray-500 mt-1">Total Applications</p></div>
+                            <div className="text-center"><p className="text-2xl font-bold text-purple-500">{activityData.recruiterActions}</p><p className="text-xs text-gray-500 mt-1">Recruiter Actions</p></div>
+                            <div className="text-center"><p className="text-2xl font-bold text-green-600">{activityData.searchAppearances}</p><p className="text-xs text-gray-500 mt-1">Search Appearances</p></div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="text-center py-8">
-                    <span className="text-4xl mb-4 block">📈</span>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">No Activity Data</h2>
-                    <p className="text-gray-500">Start applying to jobs to see your activity insights</p>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
@@ -2194,6 +2302,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, languages: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
@@ -2246,6 +2355,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, [field]: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
@@ -2297,14 +2407,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, profileSummary: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, profileSummary: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Profile summary saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save profile summary', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save profile summary', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2441,6 +2558,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, employment: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
@@ -2533,6 +2651,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, projects: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
@@ -2653,6 +2772,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, internships: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',

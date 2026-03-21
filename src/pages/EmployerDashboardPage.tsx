@@ -7,6 +7,9 @@ import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { useToast } from '../hooks/useToast';
+import NotificationComponent from '../components/Notification';
 
 interface EmployerDashboardPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -14,6 +17,14 @@ interface EmployerDashboardPageProps {
 }
 
 const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigate, onLogout }) => {
+  const { toast, showToast, hideToast } = useToast();
+  const [confirm, setConfirm] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>(
+    { isOpen: false, title: '', message: '', onConfirm: () => {} }
+  );
+  const openConfirm = (title: string, message: string, onConfirm: () => void) =>
+    setConfirm({ isOpen: true, title, message, onConfirm });
+  const closeConfirm = () => setConfirm(c => ({ ...c, isOpen: false }));
+
   const [user, setUser] = useState<any>(null);
   const [employerName, setEmployerName] = useState('');
   const [companyName, setCompanyName] = useState('');
@@ -766,11 +777,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           </button>
 
           <button
-            onClick={() => {
-              if (confirm('Once you delete your account, there is no going back. Please be certain.')) {
-                console.log('Delete account feature coming soon');
-              }
-            }}
+            onClick={() => openConfirm('Delete Account', 'Once you delete your account, there is no going back. Are you certain?', () => {
+              showToast('Account deletion coming soon.', 'info');
+              closeConfirm();
+            })}
             className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-5 h-5" />
@@ -1107,21 +1117,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     )
                                   );
                                   
-                                  const statusMessage = {
-                                    'pending': 'Application marked as pending',
-                                    'reviewed': 'Application marked as reviewed',
-                                    'shortlisted': 'Candidate shortlisted successfully!',
-                                    'rejected': 'Application rejected',
-                                    'hired': 'Candidate hired successfully!'
-                                  }[newStatus] || 'Status updated';
-                                  
-                                  alert(statusMessage);
+                                  const statusMessages: Record<string, string> = {
+                                    pending: 'Application marked as pending',
+                                    reviewed: 'Application marked as reviewed',
+                                    shortlisted: 'Candidate shortlisted!',
+                                    rejected: 'Application rejected',
+                                    hired: 'Candidate hired!',
+                                  };
+                                  showToast(statusMessages[newStatus] || 'Status updated', 'success');
                                 } else {
                                   throw new Error(`Failed to update status: ${response.status}`);
                                 }
                               } catch (error) {
                                 console.error('Error updating status:', error);
-                                alert('Failed to update application status. Please try again.');
+                                showToast('Failed to update application status. Please try again.', 'error');
                                 e.target.value = application.status;
                               }
                             }}
@@ -1147,7 +1156,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             onClick={() => {
                               const candidateId = application.candidateId || application.userId || application.candidateUserId || application.candidateEmail;
                               if (!candidateId) {
-                                alert('Candidate profile not available.');
+                                showToast('Candidate profile not available.', 'info');
                                 return;
                               }
                               sessionStorage.setItem('viewCandidateId', candidateId);
@@ -1160,22 +1169,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <button 
                             onClick={() => {
                               const appId = application._id || application.id;
-                              if (!window.confirm('Are you sure you want to delete this application?')) {
-                                return;
-                              }
-                              fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                              }).then(res => {
-                                if (res.ok) {
-                                  setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
-                                  alert('Application deleted successfully!');
-                                } else {
-                                  alert('Failed to delete application');
-                                }
-                              }).catch(err => {
-                                console.error('Error deleting application:', err);
-                                alert('Failed to delete application');
+                              openConfirm('Delete Application', 'Are you sure you want to delete this application?', () => {
+                                fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                }).then(res => {
+                                  if (res.ok) {
+                                    setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
+                                    showToast('Application deleted successfully!', 'success');
+                                  } else {
+                                    showToast('Failed to delete application', 'error');
+                                  }
+                                }).catch(() => showToast('Failed to delete application', 'error'));
+                                closeConfirm();
                               });
                             }}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md"
@@ -1284,13 +1290,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                       int._id === interview._id ? { ...int, status: newStatus } : int
                                     )
                                   );
-                                  alert('Interview status updated successfully!');
+                                  showToast('Interview status updated!', 'success');
                                 } else {
                                   throw new Error('Failed to update status');
                                 }
                               } catch (error) {
                                 console.error('Error updating interview status:', error);
-                                alert('Failed to update interview status. Please try again.');
+                                showToast('Failed to update interview status. Please try again.', 'error');
                                 e.target.value = interview.status || 'scheduled';
                               }
                             }}
@@ -1303,22 +1309,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </select>
                           <button 
                             onClick={() => {
-                              if (!window.confirm('Are you sure you want to delete this interview?')) {
-                                return;
-                              }
-                              fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
-                                method: 'DELETE',
-                                headers: { 'Content-Type': 'application/json' },
-                              }).then(res => {
-                                if (res.ok) {
-                                  setInterviews(prev => prev.filter(int => int._id !== interview._id));
-                                  alert('Interview deleted successfully!');
-                                } else {
-                                  alert('Failed to delete interview');
-                                }
-                              }).catch(err => {
-                                console.error('Error deleting interview:', err);
-                                alert('Failed to delete interview');
+                              openConfirm('Delete Interview', 'Are you sure you want to delete this interview?', () => {
+                                fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                }).then(res => {
+                                  if (res.ok) {
+                                    setInterviews(prev => prev.filter(int => int._id !== interview._id));
+                                    showToast('Interview deleted successfully!', 'success');
+                                  } else {
+                                    showToast('Failed to delete interview', 'error');
+                                  }
+                                }).catch(() => showToast('Failed to delete interview', 'error'));
+                                closeConfirm();
                               });
                             }}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md"
@@ -1354,12 +1357,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         console.log('Manual refresh data:', data);
                         const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
                         setSavedCandidates(candidates);
-                        alert(`Refreshed! Found ${candidates.length} saved candidates.`);
+                        showToast(`Refreshed! Found ${candidates.length} saved candidates.`, 'success');
                       })
-                      .catch(err => {
-                        console.error('Error refreshing saved candidates:', err);
-                        alert('Failed to refresh saved candidates.');
-                      });
+                      .catch(() => showToast('Failed to refresh saved candidates.', 'error'));
                     }
                   }}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
@@ -1383,21 +1383,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       >
                         Search Candidates
                       </button>
-                      <button
-                        onClick={() => {
-                          const token = localStorage.getItem('token');
-                          console.log('Debug info:', {
-                            hasToken: !!token,
-                            tokenLength: token?.length,
-                            apiEndpoint: API_ENDPOINTS.SAVED_CANDIDATES,
-                            user: user
-                          });
-                          alert('Check console for debug information');
-                        }}
-                        className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-                      >
-                        Debug Info
-                      </button>
+
                     </div>
                   </div>
               ) : (
@@ -1440,29 +1426,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
                         <div className="ml-6 flex flex-col space-y-2">
-                          <button onClick={() => candidate.email && (window.location.href = `mailto:${candidate.email}`)} className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-6 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-colors text-sm">
+                          <button onClick={() => { if (candidate.email) window.location.href = `mailto:${candidate.email}`; }} className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-6 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-colors text-sm">
                             <Mail className="w-4 h-4 inline mr-1" />
                             Contact
                           </button>
                           <button onClick={() => {
-                            const token = localStorage.getItem('token');
-                            fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidate._id}`, {
-                              method: 'DELETE',
-                              headers: {
-                                'Authorization': `Bearer ${token}`
-                              }
-                            })
-                            .then(res => {
-                              if (res.ok) {
-                                setSavedCandidates(prev => prev.filter(c => c._id !== candidate._id));
-                                alert('Candidate removed from saved list!');
-                              } else {
-                                throw new Error('Failed to remove candidate');
-                              }
-                            })
-                            .catch(err => {
-                              console.error('Error removing candidate:', err);
-                              alert('Failed to remove candidate. Please try again.');
+                            openConfirm('Remove Candidate', 'Remove this candidate from your saved list?', () => {
+                              const token = localStorage.getItem('token');
+                              fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidate._id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                              })
+                              .then(res => {
+                                if (res.ok) {
+                                  setSavedCandidates(prev => prev.filter(c => c._id !== candidate._id));
+                                  showToast('Candidate removed from saved list!', 'success');
+                                } else {
+                                  showToast('Failed to remove candidate. Please try again.', 'error');
+                                }
+                              })
+                              .catch(() => showToast('Failed to remove candidate. Please try again.', 'error'));
+                              closeConfirm();
                             });
                           }} className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm">
                             Remove
@@ -1676,6 +1660,23 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         applicationId={selectedResumeAppId}
         isOpen={showResumeModal}
         onClose={() => { setShowResumeModal(false); setSelectedResumeAppId(null); }}
+      />
+
+      {/* Toast notification */}
+      <NotificationComponent
+        type={toast.type}
+        message={toast.message}
+        isVisible={toast.isVisible}
+        onClose={hideToast}
+      />
+
+      {/* Confirm dialog */}
+      <ConfirmDialog
+        isOpen={confirm.isOpen}
+        title={confirm.title}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+        onCancel={closeConfirm}
       />
 
       {/* Schedule Interview Modal */}

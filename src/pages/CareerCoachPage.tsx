@@ -66,19 +66,23 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
     setLoading(true);
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
       const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
         method: 'POST',
+        signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           systemPrompt: SYSTEM_PROMPT,
         }),
       });
+      clearTimeout(timeout);
 
       if (res.ok) {
         const data = await res.json();
-        const reply = data.reply || data.message || data.content || 'Sorry, I could not generate a response. Please try again.';
-        setMessages(prev => [...prev, { role: 'assistant', content: reply }]);
+        const reply = data.reply || data.message || data.content || '';
+        setMessages(prev => [...prev, { role: 'assistant', content: reply || getFallbackResponse(trimmed) }]);
       } else {
         throw new Error('API failed');
       }

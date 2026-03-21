@@ -113,7 +113,7 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       if (!res.ok) return;
       const dbNotifs: any[] = await res.json();
 
-      // Convert DB notifications to AppNotification shape (unread ones only as new)
+      // Convert ALL application_status DB notifications (read + unread)
       const converted: AppNotification[] = dbNotifs
         .filter(n => n.type === 'application_status')
         .map(n => ({
@@ -132,9 +132,12 @@ export function useApplicationNotifications(userEmail: string | undefined) {
 
       setNotifications(prev => {
         const existingIds = new Set(prev.map(n => n.id));
-        const truly_new = converted.filter(n => !existingIds.has(n.id) && !n.read);
-        if (truly_new.length === 0) return prev;
-        return persist([...truly_new, ...prev]);
+        const newOnes = converted.filter(n => !existingIds.has(n.id));
+        if (newOnes.length === 0) return prev;
+        // Show toast for new unread ones
+        const firstUnread = newOnes.find(n => !n.read);
+        if (firstUnread) setToast(firstUnread);
+        return persist([...newOnes, ...prev]);
       });
     } catch {
       // Silently fail

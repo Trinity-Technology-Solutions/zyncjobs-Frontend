@@ -1,10 +1,12 @@
 import { API_ENDPOINTS } from '../config/env';
 
-export interface DeleteAccountResponse {
+export interface AccountAPIResponse {
   success: boolean;
   message: string;
   error?: string;
 }
+
+export type DeleteAccountResponse = AccountAPIResponse;
 
 export const accountAPI = {
   /**
@@ -81,6 +83,50 @@ export const accountAPI = {
         message: 'Network error occurred',
         error: error instanceof Error ? error.message : 'Unknown network error'
       };
+    }
+  },
+
+  async changeEmail(userId: string, newEmail: string): Promise<AccountAPIResponse> {
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('authToken');
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/users/${encodeURIComponent(userId)}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ email: newEmail }),
+      });
+      if (response.ok) {
+        return { success: true, message: 'Email updated successfully!' };
+      }
+      const data = await response.json().catch(() => ({}));
+      return { success: false, message: data.error || `Server error: ${response.status}` };
+    } catch (error) {
+      return { success: false, message: 'Network error occurred', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<AccountAPIResponse> {
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || localStorage.getItem('authToken');
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/users/${encodeURIComponent(userId)}/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (response.ok) {
+        return { success: true, message: 'Password updated successfully!' };
+      }
+      const data = await response.json().catch(() => ({}));
+      return { success: false, message: data.error || `Server error: ${response.status}` };
+    } catch (error) {
+      return { success: false, message: 'Network error occurred', error: error instanceof Error ? error.message : 'Unknown error' };
     }
   },
 

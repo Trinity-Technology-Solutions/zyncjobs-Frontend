@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin, Filter, Briefcase, IndianRupee, X, Bookmark, BookmarkCheck, TrendingUp } from 'lucide-react';
+import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -7,7 +7,7 @@ import LocationRadiusSearch from '../components/LocationRadiusSearch';
 import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
-import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
+import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
@@ -105,22 +105,21 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
 
   const loadResumeSkillsFromBackend = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('no token');
+      localStorageMigration.setToken(token);
       const skills = await localStorageMigration.getResumeSkills();
-      setResumeSkills(skills);
-    } catch (error) {
-      console.error('Error loading resume skills from backend:', error);
-      // Fallback to localStorage
-      try {
-        const resumeData = localStorage.getItem('resumeData');
-        if (resumeData) {
-          const parsed = JSON.parse(resumeData);
-          if (parsed.skills && Array.isArray(parsed.skills)) {
-            setResumeSkills(parsed.skills);
-          }
-        }
-      } catch (fallbackError) {
-        console.error('Error loading resume skills from localStorage:', fallbackError);
+      if (skills.length > 0) { setResumeSkills(skills); return; }
+    } catch {}
+    // fallback to localStorage
+    try {
+      const resumeData = localStorage.getItem('resumeData');
+      if (resumeData) {
+        const parsed = JSON.parse(resumeData);
+        if (parsed.skills && Array.isArray(parsed.skills)) setResumeSkills(parsed.skills);
       }
+    } catch (e) {
+      console.error('Error loading resume skills from localStorage:', e);
     }
   };
 
@@ -802,7 +801,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       </div>
 
       {/* Job Listings */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {activeTab === 'search' && <LocationRadiusSearch onSearch={handleLocationSearch} />}
         
         {activeTab === 'recommended' ? (
@@ -823,8 +822,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                     Trending Jobs
                   </h3>
                   <div className="space-y-3">
-                    {trending.map((job: any) => (
-                      <div key={job._id} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => onNavigate && onNavigate(`job-detail/${job._id}`)}>
+                    {trending.map((job: any, idx: number) => (
+                      <div key={job._id || idx} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => onNavigate && onNavigate(`job-detail/${job._id}`)}>
+
                         <h4 className="font-medium text-sm">{job.jobTitle}</h4>
                         <p className="text-xs text-gray-600">{job.company}</p>
                         <p className="text-xs text-gray-500">{job.views} views</p>
@@ -1016,8 +1016,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
           
           {/* Right Content - Job Results */}
           <div className="lg:col-span-3">
-            <div className="mb-6">
-              <p className="text-gray-600">
+            <div className="mb-3">
+              <p className="text-gray-600 text-sm">
                 {loading ? 'Searching...' : (
                   `${filteredJobs.length} results` +
                   (filteredJobs.length > 0 ? ` (${Math.floor(filteredJobs.length * 0.6)} new)` : '')
@@ -1094,114 +1094,100 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
         ) : (
           <div className="space-y-6">
             {Array.isArray(filteredJobs) && filteredJobs.map((job) => (
-            <div key={job._id || job.id} className="border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all bg-white">
-              {/* Row 1: Logo + Company + Action Buttons */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-gray-50 p-1">
-                    <img
-                      src={getSafeCompanyLogo(job)}
-                      alt={`${job.company} logo`}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        const company = job.company || 'Company';
-                        if (company.toLowerCase().includes('trinity')) {
-                          img.src = '/images/company-logos/trinity-logo.png';
-                          return;
-                        }
-                        const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase();
-                        img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="#3B82F6" rx="8"/><text x="24" y="30" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">${initials}</text></svg>`)}`;
-                      }}
-                    />
+            <div key={job._id || job.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-start mb-3">
+                    <div className="flex-shrink-0 w-14 h-14 mr-4">
+                      <div className="w-14 h-14 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
+                        <img
+                            src={getSafeCompanyLogo(job)}
+                            alt={`${job.company} logo`}
+                            className="w-12 h-12 object-contain"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              const name = job.company || '';
+                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="#3B82F6" rx="8"/><text x="24" y="31" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">${initials}</text></svg>`)}`;
+                            }}
+                          />
+                      </div>
+                    </div>
+
+                    <div className="flex-1">
+                      <h3
+                        className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
+                        onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
+                      >
+                        {decodeHtmlEntities(job.title || job.jobTitle)}
+                      </h3>
+                      <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-3">
+                        <span>🏢</span>
+                        {job.company}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 mb-3">
+                        <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
+                          <MapPin className="w-4 h-4 text-gray-600" />
+                          <span className="text-sm font-medium text-gray-700">{job.location}</span>
+                        </div>
+                        {formatSalary(job.salary) && (
+                          <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                          </div>
+                        )}
+                        {job.type && (
+                          <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
+                            <Briefcase className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm font-medium text-blue-700">{job.type}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-lg">
+                          <span className="text-xs font-medium text-purple-600">{formatDate(job.createdAt)}</span>
+                        </div>
+                        {getPostingFreshness(job.createdAt) === 'new' && (
+                          <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>
+                        )}
+                      </div>
+
+                      {job.description && (
+                        <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                          <p className="text-sm text-gray-700 leading-relaxed font-medium">
+                            {decodeHtmlEntities(job.description.replace(/<[^>]+>/g, '')).substring(0, 150)}{job.description.length > 150 ? '...' : ''}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <span className="text-blue-700 font-semibold text-base">{job.company}</span>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
-                    className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
-                  >
-                    View Details
-                  </button>
+
+                <div className="flex flex-col items-end space-y-2 ml-4">
                   {user?.type === 'candidate' && (
                     <button
                       onClick={() => handleSaveJob(job)}
-                      className={`flex items-center justify-center gap-1 px-5 py-2 rounded-lg border-2 font-semibold text-sm transition-colors ${
+                      className={`flex items-center space-x-1 px-4 py-2 rounded-lg border-2 transition-colors shadow-sm ${
                         savedJobs.includes(job._id || job.id)
                           ? 'bg-blue-100 border-blue-300 text-blue-700'
                           : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       {savedJobs.includes(job._id || job.id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                      {savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}
+                      <span className="text-sm font-semibold">{savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}</span>
                     </button>
                   )}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShareJob(job); setShowShareModal(true); }}
+                    className="flex items-center space-x-1 px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
+                  >
+                    <span className="text-sm font-semibold">Share</span>
+                  </button>
+                  <button
+                    onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
+                  >
+                    View Details
+                  </button>
                 </div>
-              </div>
-
-              {/* Row 2: Job Title + Date */}
-              <div className="flex items-center justify-between mb-1">
-                <h3
-                  className="text-lg font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
-                  onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
-                >
-                  {decodeHtmlEntities(job.title || job.jobTitle)}
-                </h3>
-                <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg ml-4 flex-shrink-0">{formatDate(job.createdAt)}</span>
-              </div>
-
-              {/* Dashed divider */}
-              <div className="border-t border-dashed border-gray-300 my-3" />
-
-              {/* Row 3: Location, Job Type, Salary, PID, EID */}
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <div className="flex items-center gap-1 border border-gray-300 px-3 py-1 rounded-full text-sm text-gray-600">
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span>{job.location}</span>
-                </div>
-                {job.type && (
-                  <div className="flex items-center gap-1 border border-gray-300 px-3 py-1 rounded-full text-sm text-gray-600">
-                    <Briefcase className="w-3.5 h-3.5" />
-                  </div>
-                )}
-                {formatSalary(job.salary) && (
-                  <div className="flex items-center gap-1 bg-green-50 border border-green-200 px-3 py-1 rounded-full text-sm text-green-700 font-medium">
-                    <IndianRupee className="w-3.5 h-3.5" />
-                    <span>{formatSalary(job.salary)}</span>
-                  </div>
-                )}
-                {job.positionId && (
-                  <span className="text-green-600 font-semibold text-sm">PID: {job.positionId}</span>
-                )}
-                {job.employerId && (
-                  <span className="text-blue-600 font-semibold text-sm">EID: {job.employerId}</span>
-                )}
-                {getPostingFreshness(job.createdAt) === 'new' && (
-                  <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>
-                )}
-              </div>
-
-              {/* Row 4: Description */}
-              {job.description && (
-                <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
-                  <p className="text-sm text-gray-700 leading-relaxed">
-                    <span className="font-semibold text-blue-900">Description: </span>
-                    {job.description.length > 300
-                      ? `${formatJobDescription(decodeHtmlEntities(job.description).substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...`
-                      : formatJobDescription(decodeHtmlEntities(job.description || ''), typeof job.salary === 'object' ? job.salary.currency : undefined)}
-                  </p>
-                </div>
-              )}
-
-              {/* Share button */}
-              <div className="mt-3 flex justify-end">
-                <button
-                  onClick={() => { setShareJob(job); setShowShareModal(true); }}
-                  className="text-sm text-gray-500 hover:text-gray-700 px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  Share
-                </button>
               </div>
             </div>
             ))}

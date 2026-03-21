@@ -99,7 +99,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
         {/* Compact Hero Banner */}
         <div className="bg-gradient-to-r from-blue-700 to-purple-700 text-white px-4 py-5">
           <div className="max-w-6xl mx-auto">
-            <button onClick={() => onNavigate('candidate-dashboard')} className="inline-flex items-center text-blue-200 hover:text-white text-sm mb-2">
+            <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-blue-200 hover:text-white text-sm mb-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
             </button>
             <div className="flex items-center justify-between">

@@ -36,7 +36,7 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (page: string) => void;
-  onLogin: (userData: {name: string, type: 'candidate' | 'employer', email?: string}) => void;
+  onLogin: (userData: {name: string, type: 'candidate' | 'employer' | 'admin', email?: string}) => void;
 }
 
 const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, onLogin }) => {

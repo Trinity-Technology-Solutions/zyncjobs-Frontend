@@ -173,6 +173,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   };
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [jobId]);
+
+  useEffect(() => {
     const fetchJobDetails = async () => {
       try {
         setLoading(true);
