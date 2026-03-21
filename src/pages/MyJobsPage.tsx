@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 
+
 interface MyJobsPageProps {
   onNavigate: (page: string, data?: any) => void;
   user?: any;
@@ -321,8 +322,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500 mb-3">
               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                 <span className="font-semibold text-blue-900">Description: </span>
-                {job.description && job.description.length > 600 
-                  ? `${formatJobDescription(job.description.substring(0, 600), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
+                {job.description && job.description.length > 300 
+                  ? `${formatJobDescription(job.description.substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
                   : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
               </p>
             </div>
@@ -390,13 +391,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-sm px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <BackButton 
-              onClick={() => onNavigate('dashboard')}
-              text="Back to Dashboard"
-              className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            />
-          </div>
+
           <div className="flex items-center justify-between mb-8">
             <div className="flex space-x-1">
               {user?.type === 'employer' ? (
@@ -660,48 +655,46 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                       <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                           <div className="flex-1">
-                            <div className="flex items-start mb-4">
-                              <div className="flex-shrink-0 w-14 h-14 mr-4">
-                                <div className="w-14 h-14 rounded-lg border-2 border-gray-200 flex items-center justify-center bg-white shadow-sm">
+                            <div className="mb-4">
+                              {/* Company logo + name row */}
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                                   <img 
                                     src={getCompanyLogo(application.jobId?.company || '')}
                                     alt={`${application.jobId?.company || 'Company'} logo`}
-                                    className="w-12 h-12 object-contain"
+                                    className="w-8 h-8 object-contain"
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
                                       target.src = '/images/zync-logo.svg';
                                     }}
                                   />
                                 </div>
+                                <span className="text-blue-600 font-semibold text-base">{application.jobId?.company}</span>
                               </div>
-                              
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between mb-2">
-                                  <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
-                                    {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
-                                  </h3>
-                                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
-                                    application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                                    application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                                    application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
-                                    application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                    application.status === 'hired' ? 'bg-green-100 text-green-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
-                                  </span>
-                                </div>
-                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
-                                  <span>🏢</span>
-                                  {application.jobId?.company}
-                                </p>
-                                <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
-                                  <span>📅</span>
-                                  <span className="text-sm font-medium text-gray-700">
-                                    Applied on: {formatDate(application.createdAt || application.appliedAt)}
-                                  </span>
-                                </div>
+
+                              {/* Job title + status */}
+                              <div className="flex items-start justify-between mb-2">
+                                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
+                                  {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
+                                </h3>
+                                <span className={`px-3 py-1 rounded-full text-sm font-medium ml-3 flex-shrink-0 ${
+                                  application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                                  application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                                  application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                  application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
+                                  application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  application.status === 'hired' ? 'bg-green-100 text-green-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
+                                <span>📅</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                                </span>
                               </div>
                             </div>
                             

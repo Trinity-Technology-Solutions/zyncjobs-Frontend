@@ -269,7 +269,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       case 'shortlisted': return 'Congratulations! You\'ve been shortlisted';
       case 'hired': return 'Congratulations! You got the job';
       case 'rejected': return 'Application was not selected';
-      case 'withdrawn': return 'நீங்கள் இந்த விண்ணப்பத்தை திரும்பப் பெற்றுள்ளீர்கள்';
+      case 'withdrawn': return 'You have withdrawn this application';
       default: return 'Status unknown';
     }
   };
@@ -313,11 +313,6 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            <BackButton 
-              onClick={() => onNavigate('dashboard')}
-              text="Back to Dashboard"
-              className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            />
             <div className="text-2xl">📊</div>
             <h1 className="text-2xl font-bold text-gray-900">My Applications</h1>
           </div>
@@ -403,24 +398,27 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                     <div className="flex items-start justify-between">
                       {/* Left side - Job info */}
                       <div className="flex items-start space-x-4 flex-1">
-                        {/* Company Logo */}
-                        <div className="w-12 h-12 rounded-full flex items-center justify-center overflow-hidden bg-white border border-gray-200">
-                          <img 
-                            src={getCompanyLogo(application.jobId?.company || '')} 
-                            alt={`${application.jobId?.company || 'Company'} Logo`} 
-                            className="w-10 h-10 object-contain"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              const company = application.jobId?.company || 'Company';
-                              const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase();
-                              target.style.display = 'none';
-                              target.parentElement!.innerHTML = `<div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">${initials}</div>`;
-                            }}
-                          />
-                        </div>
-                        
-                        {/* Job details */}
                         <div className="flex-1">
+                          {/* Company logo + name row */}
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white border border-gray-200">
+                              <img 
+                                src={getCompanyLogo(application.jobId?.company || '')} 
+                                alt={`${application.jobId?.company || 'Company'} Logo`} 
+                                className="w-8 h-8 object-contain"
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  const company = application.jobId?.company || 'Company';
+                                  const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                                  target.style.display = 'none';
+                                  target.parentElement!.innerHTML = `<div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-semibold text-xs">${initials}</div>`;
+                                }}
+                              />
+                            </div>
+                            <span className="font-semibold text-blue-700 text-base">{application.jobId?.company || 'Company Not Available'}</span>
+                          </div>
+
+                          {/* Job title + status */}
                           <div className="flex items-center space-x-3 mb-2">
                             <h3 className="font-semibold text-lg text-gray-900">
                               {application.jobId?.jobTitle || 'Job Title Not Available'}
@@ -437,12 +435,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                               <span className="ml-2">{application.status.charAt(0).toUpperCase() + application.status.slice(1)}</span>
                             </div>
                           </div>
-                          
                           <div className="flex items-center space-x-2 mb-3">
-                            <div className="flex items-center space-x-1 bg-blue-50 px-3 py-1 rounded-lg">
-                              <Briefcase className="w-4 h-4 text-blue-600" />
-                              <span className="font-semibold text-blue-900">{application.jobId?.company || 'Company Not Available'}</span>
-                            </div>
                             {application.jobId?.location && (
                               <div className="flex items-center space-x-1 bg-gray-100 px-3 py-1 rounded-lg">
                                 <MapPin className="w-4 h-4 text-gray-600" />
@@ -460,7 +453,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                                 <span className="font-semibold text-blue-900">Job Description: </span>
-                                {application.jobId.jobDescription.substring(0, 200)}{application.jobId.jobDescription.length > 200 ? '...' : ''}
+                                {application.jobId.jobDescription.substring(0, 300)}{application.jobId.jobDescription.length > 300 ? '...' : ''}
                               </p>
                             </div>
                           )}

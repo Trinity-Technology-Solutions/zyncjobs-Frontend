@@ -11,7 +11,6 @@ import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } fro
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
-import JobShareModal from '../components/JobShareModal';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -50,8 +49,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const [activeTab, setActiveTab] = useState<'search' | 'recommended'>('search');
   const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
   const [statsCompanies, setStatsCompanies] = useState<number>(0);
-  const [shareJob, setShareJob] = useState<any>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
   const jobsPerPage = 10;
 
@@ -1098,33 +1095,32 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-start mb-3">
-                    <div className="flex-shrink-0 w-14 h-14 mr-4">
-                      <div className="w-14 h-14 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                        <img
+                    <div className="flex-1">
+                      {/* Company logo + name row */}
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
+                          <img
                             src={getSafeCompanyLogo(job)}
                             alt={`${job.company} logo`}
-                            className="w-12 h-12 object-contain"
+                            className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
                               const name = job.company || '';
                               const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
-                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48"><rect width="48" height="48" fill="#3B82F6" rx="8"/><text x="24" y="31" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">${initials}</text></svg>`)}`;
+                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
                             }}
                           />
+                        </div>
+                        <span className="text-blue-600 font-semibold text-base">{job.company}</span>
                       </div>
-                    </div>
 
-                    <div className="flex-1">
+                      {/* Job title */}
                       <h3
                         className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
                         onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
                       >
                         {decodeHtmlEntities(job.title || job.jobTitle)}
                       </h3>
-                      <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-3">
-                        <span>🏢</span>
-                        {job.company}
-                      </p>
 
                       <div className="flex flex-wrap items-center gap-3 mb-3">
                         <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
@@ -1153,7 +1149,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                       {job.description && (
                         <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                           <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                            {decodeHtmlEntities(job.description.replace(/<[^>]+>/g, '')).substring(0, 150)}{job.description.length > 150 ? '...' : ''}
+                            {decodeHtmlEntities(job.description.replace(/<[^>]+>/g, '')).substring(0, 250)}{job.description.length > 250 ? '...' : ''}
                           </p>
                         </div>
                       )}
@@ -1175,12 +1171,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                       <span className="text-sm font-semibold">{savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}</span>
                     </button>
                   )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShareJob(job); setShowShareModal(true); }}
-                    className="flex items-center space-x-1 px-4 py-2 rounded-lg border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-                  >
-                    <span className="text-sm font-semibold">Share</span>
-                  </button>
+
                   <button
                     onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
                     className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
@@ -1210,12 +1201,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       </div>
       
       <Footer onNavigate={onNavigate} />
-
-      <JobShareModal
-        isOpen={showShareModal}
-        onClose={() => { setShowShareModal(false); setShareJob(null); }}
-        job={shareJob}
-      />
 
       {/* Floating Back Button */}
       <BackButton 
