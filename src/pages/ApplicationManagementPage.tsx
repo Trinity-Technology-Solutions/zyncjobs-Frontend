@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
-import { Zap, X, CheckCircle, XCircle, MinusCircle } from 'lucide-react';
+import { Zap, X, CheckCircle, XCircle, MinusCircle, Search } from 'lucide-react';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -29,6 +29,18 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
   const [jobSkills, setJobSkills] = useState<string[]>([]);
   const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string }[] | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const filteredApplications = useMemo(() => {
+    return applications.filter(app => {
+      const matchesSearch = !searchQuery ||
+        (app.candidateName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (app.candidateEmail || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [applications, searchQuery, statusFilter]);
 
   useEffect(() => {
     // Get jobId from sessionStorage
@@ -316,9 +328,35 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
 
         {/* Applications Table */}
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Applications for {sessionStorage.getItem('selectedJobTitle') || 'This Job'}</h2>
-            <p className="text-sm text-gray-600 mt-1">Showing {applications.length} applications for this position only</p>
+          <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Applications for {sessionStorage.getItem('selectedJobTitle') || 'This Job'}</h2>
+              <p className="text-sm text-gray-600 mt-1">Showing {filteredApplications.length} of {applications.length} applications</p>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-56">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={e => setStatusFilter(e.target.value)}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="shortlisted">Shortlisted</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
           </div>
           
           {applications.length > 0 ? (
@@ -344,7 +382,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {applications.map((application) => (
+                  {filteredApplications.map((application) => (
                     <tr key={application.id || application._id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
@@ -375,6 +413,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              sessionStorage.setItem('viewCandidateId', application.candidateEmail || application.candidateId || '');
+                              onNavigate('candidate-profile-view');
+                            }}
+                            className="text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1 rounded text-xs hover:bg-indigo-50 transition-colors"
+                          >
+                            👤 View Profile
+                          </button>
                           <button
                             onClick={() => {
                               setSelectedApplicationId(application.id || application._id);
@@ -417,6 +464,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                   ))}
                 </tbody>
               </table>
+            </div>
+          ) : filteredApplications.length === 0 && applications.length > 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No applications match your search.</p>
+              <button onClick={() => { setSearchQuery(''); setStatusFilter('all'); }} className="mt-3 text-blue-600 text-sm hover:underline">Clear filters</button>
             </div>
           ) : (
             <div className="text-center py-12">

@@ -19,9 +19,11 @@ class LocalStorageMigrationService {
   }
 
   private async apiCall(endpoint: string, options: RequestInit = {}) {
+    // Always try to get latest token from localStorage
+    const token = this.token || localStorage.getItem('accessToken') || localStorage.getItem('token');
     const headers = {
       'Content-Type': 'application/json',
-      ...(this.token && { 'Authorization': `Bearer ${this.token}` }),
+      ...(token && { 'Authorization': `Bearer ${token}` }),
       ...options.headers
     };
 
@@ -156,6 +158,8 @@ class LocalStorageMigrationService {
 
   // Get saved recommended jobs from backend
   async getSavedRecommendedJobs(): Promise<string[]> {
+    const token = this.token || localStorage.getItem('accessToken') || localStorage.getItem('token');
+    if (!token) return [];
     try {
       const response = await this.apiCall('/saved-recommended-jobs');
       return response.savedJobs.map((job: any) => job.jobId);

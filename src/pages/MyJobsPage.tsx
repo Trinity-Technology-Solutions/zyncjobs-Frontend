@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter } from 'lucide-react';
+import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
@@ -14,7 +14,14 @@ interface MyJobsPageProps {
 }
 
 const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) => {
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string; show: boolean }>({ type: 'success', message: '', show: false });
   const [activeTab, setActiveTab] = useState(user?.type === 'employer' ? 'Posted Jobs' : 'Saved');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ type, message, show: true });
+    setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
+  };
   const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
@@ -108,13 +115,22 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const fetchAppliedJobs = async () => {
     const userEmail = user?.email;
     
-    if (!userEmail) return;
+    if (!userEmail) {
+      console.warn('fetchAppliedJobs: no user email');
+      return;
+    }
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`, { headers });
       if (response.ok) {
         const applications = await response.json();
         setAppliedJobs(applications);
+      } else {
+        console.error('fetchAppliedJobs failed:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching applied jobs:', error);
@@ -153,10 +169,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       const applicationsResponses = await Promise.all(applicationsPromises);
       const allApplications = [];
       
-      for (const response of applicationsResponses) {
-        if (response.ok) {
-          const jobApplications = await response.json();
-          allApplications.push(...jobApplications);
+      for (let i = 0; i < applicationsResponses.length; i++) {
+        if (applicationsResponses[i].ok) {
+          const jobApplications = await applicationsResponses[i].json();
+          const job = employerJobs[i];
+          allApplications.push(...jobApplications.map((app: any) => ({
+            ...app,
+            jobTitle: app.jobTitle || job?.jobTitle || job?.title || '',
+            jobDescription: app.jobDescription || job?.jobDescription || job?.description || ''
+          })));
         }
       }
       
@@ -201,16 +222,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       if (response.ok) {
         setPostedJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
-        alert('Job deleted successfully!');
-        
-        // Trigger a storage event to notify other components
+        showNotification('Job deleted successfully!');
         window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
       } else {
-        alert('Failed to delete job. Please try again.');
+        showNotification('Failed to delete job. Please try again.', 'error');
       }
     } catch (error) {
       console.error('Error deleting job:', error);
-      alert('Error deleting job. Please try again.');
+      showNotification('Error deleting job. Please try again.', 'error');
     }
   };
 
@@ -323,8 +342,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                 <span className="font-semibold text-blue-900">Description: </span>
                 {job.description && job.description.length > 300 
-                  ? `${formatJobDescription(job.description.substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
-                  : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
+                  ? `${formatJobDescription(job.description.substring(0, 300))}...` 
+                  : formatJobDescription(job.description || '')}
               </p>
             </div>
           )}
@@ -389,6 +408,13 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium ${
+          notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {notification.message}
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-sm px-4 sm:px-6 lg:px-8 py-8">
 
@@ -445,7 +471,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             
             {user?.type === 'candidate' && (
               <button
-                onClick={() => onNavigate('job-listings')}
+                onClick={() => onNavigate('job-listings', { tab: 'recommended' })}
                 className="text-blue-600 hover:text-blue-800 flex items-center space-x-1 font-medium"
               >
                 <span>View Recommended Jobs</span>
@@ -503,10 +529,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               
             {activeTab === 'Applied' && (
               <button
-                onClick={() => fetchAppliedJobs()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                onClick={async () => {
+                  setRefreshing(true);
+                  await fetchAppliedJobs();
+                  setRefreshing(false);
+                }}
+                className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Refresh applications"
+                aria-label="Refresh applications"
+                disabled={refreshing}
               >
-                Refresh
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             )}
             
@@ -596,16 +629,26 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                     {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
                                   </span>
                                 </div>
-                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
-                                  <span>💼</span>
-                                  {application.jobTitle || 'Job Position'}
-                                </p>
+                                {application.jobTitle && (
+                                  <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
+                                    <span>💼</span>
+                                    {application.jobTitle}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex">
                                   <span>📅</span>
                                   <span className="text-sm font-medium text-gray-700">
                                     Applied on: {formatDate(application.createdAt || application.appliedAt)}
                                   </span>
                                 </div>
+                                {application.jobDescription && (
+                                  <div className="mt-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                      <span className="font-semibold text-blue-900">Job Description: </span>
+                                      {application.jobDescription.length > 200 ? `${application.jobDescription.substring(0, 200)}...` : application.jobDescription}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -675,7 +718,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               {/* Job title + status */}
                               <div className="flex items-start justify-between mb-2">
                                 <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
-                                  {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
+                                  {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || application.jobId?.company || 'Application'}
                                 </h3>
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium ml-3 flex-shrink-0 ${
                                   application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
@@ -715,6 +758,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               </div>
                             </div>
 
+                            {application.jobId?.jobDescription && (
+                              <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                                <p className="text-sm text-gray-700 leading-relaxed">
+                                  <span className="font-semibold text-blue-900">Job Description: </span>
+                                  {application.jobId.jobDescription.length > 200 ? `${application.jobId.jobDescription.substring(0, 200)}...` : application.jobId.jobDescription}
+                                </p>
+                              </div>
+                            )}
+
                             {application.coverLetter && application.coverLetter !== 'No cover letter' && (
                               <div className="mb-4 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
                                 <h4 className="font-semibold text-blue-900 mb-2 text-sm">Your Cover Letter:</h4>
@@ -736,7 +788,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 if (jobId) {
                                   onNavigate('job-detail', { jobId });
                                 } else {
-                                  alert('Job details are no longer available.');
+                                  showNotification('Job details are no longer available.', 'error');
                                 }
                               }}
                               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"

@@ -1,7 +1,41 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
-import { formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
+import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
+import Notification from '../components/Notification';
+
+const fmtNum = (n: number): string => {
+  if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
+  if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
+  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+  return n.toString();
+};
+
+const formatSalaryDisplay = (job: any): string => {
+  // salary object from DB: { min, max, currency, period }
+  if (job.salary && typeof job.salary === 'object' && (job.salary.min || job.salary.max)) {
+    const s = formatSalary(job.salary);
+    if (s) return s + (job.salary.period ? ` ${job.salary.period}` : '');
+  }
+  // flat salaryMin/salaryMax fields
+  const min = Number(job.salaryMin) || 0;
+  const max = Number(job.salaryMax) || 0;
+  if (min && max) return `₹${fmtNum(min)} - ₹${fmtNum(max)}`;
+  if (min) return `₹${fmtNum(min)}+`;
+  if (max) return `Up to ₹${fmtNum(max)}`;
+  return 'Salary not disclosed';
+};
+
+const formatExperience = (exp: string | undefined): string => {
+  if (!exp) return '2-4 years';
+  // Already has 'years' or 'year' in it
+  if (/year/i.test(exp)) return exp;
+  // Map DB enum values to readable ranges
+  const map: Record<string, string> = {
+    Entry: '0-2 years', Mid: '2-5 years', Senior: '5-8 years', Lead: '8+ years'
+  };
+  return map[exp] || exp;
+};
 import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
@@ -26,6 +60,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   const [showShareModal, setShowShareModal] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
   const [applicationStatus, setApplicationStatus] = useState<string>('');
+  const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; message: string; isVisible: boolean }>({ type: 'success', message: '', isVisible: false });
+
+  const showNotif = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setNotification({ type, message, isVisible: true });
+  };
 
   const getCompanyLogo = (app: any) => {
     const company = app.company || app.companyName || 'Company';
@@ -47,129 +86,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     
     // Default fallback to ZyncJobs logo (NOT for Trinity)
     return '/images/zync-logo.svg';
-  };
-
-  const getJobSpecificContent = (jobTitle: string) => {
-    const title = (jobTitle || '').toLowerCase();
-    
-    if (title.includes('crypto') || title.includes('pki') || title.includes('architect')) {
-      return {
-        experience: '5-8 years',
-        responsibilities: [
-          'Design and implement cryptographic solutions and PKI architectures',
-          'Develop secure key management systems and certificate lifecycle processes',
-          'Collaborate with security teams to ensure compliance with industry standards',
-          'Lead technical reviews and provide guidance on cryptographic best practices'
-        ],
-        requirements: [
-          'Master\'s degree in Computer Science, Cybersecurity, or related field',
-          '5+ years of experience in cryptography and PKI implementation',
-          'Strong expertise in X.509 certificates, HSMs, and cryptographic protocols',
-          'Experience with security frameworks and compliance standards (FIPS, Common Criteria)'
-        ],
-        benefits: [
-          'Competitive salary with performance bonuses',
-          'Comprehensive health and security clearance benefits',
-          'Professional development and certification opportunities',
-          'Flexible work arrangements with security-compliant remote options'
-        ]
-      };
-    }
-    
-    if (title.includes('developer') || title.includes('engineer') || title.includes('software')) {
-      return {
-        experience: '3-5 years',
-        responsibilities: [
-          'Design, develop, and maintain high-quality software solutions',
-          'Collaborate with cross-functional teams to deliver innovative projects',
-          'Write clean, efficient, and well-documented code',
-          'Participate in code reviews and technical discussions'
-        ],
-        requirements: [
-          'Bachelor\'s degree in Computer Science or related field',
-          '3+ years of professional experience in software development',
-          'Strong expertise in JavaScript, Python, React, Node.js, SQL, Git, AWS, Docker',
-          'Experience with agile development methodologies'
-        ],
-        benefits: [
-          'Competitive salary and equity package',
-          'Comprehensive health, dental, and vision insurance',
-          'Flexible work arrangements and remote work options',
-          'Professional development and learning opportunities'
-        ]
-      };
-    }
-    
-    if (title.includes('marketing') || title.includes('digital')) {
-      return {
-        experience: '2-4 years',
-        responsibilities: [
-          'Develop and execute comprehensive marketing strategies',
-          'Manage digital marketing campaigns across multiple channels',
-          'Analyze market trends and customer behavior data',
-          'Collaborate with creative teams to produce engaging content'
-        ],
-        requirements: [
-          'Bachelor\'s degree in Marketing, Communications, or related field',
-          '2+ years of experience in digital marketing',
-          'Proficiency in Google Analytics, SEO, SEM, and social media platforms',
-          'Strong analytical and creative problem-solving skills'
-        ],
-        benefits: [
-          'Competitive salary with performance incentives',
-          'Health insurance and wellness programs',
-          'Creative work environment with flexible hours',
-          'Professional development and conference attendance'
-        ]
-      };
-    }
-    
-    if (title.includes('sales') || title.includes('account')) {
-      return {
-        experience: '2-5 years',
-        responsibilities: [
-          'Generate new business opportunities and manage client relationships',
-          'Develop and execute sales strategies to meet revenue targets',
-          'Conduct product demonstrations and negotiate contracts',
-          'Maintain accurate sales forecasts and pipeline management'
-        ],
-        requirements: [
-          'Bachelor\'s degree in Business, Sales, or related field',
-          '2+ years of proven sales experience with track record of success',
-          'Excellent communication and negotiation skills',
-          'Experience with CRM software and sales analytics tools'
-        ],
-        benefits: [
-          'Base salary plus commission and bonus structure',
-          'Comprehensive benefits package including health insurance',
-          'Car allowance and travel expense reimbursement',
-          'Sales incentive trips and recognition programs'
-        ]
-      };
-    }
-    
-    // Default fallback
-    return {
-      experience: '2-4 years',
-      responsibilities: [
-        'Execute key responsibilities aligned with role requirements',
-        'Collaborate effectively with team members and stakeholders',
-        'Contribute to project success and organizational goals',
-        'Maintain high standards of quality and professionalism'
-      ],
-      requirements: [
-        'Bachelor\'s degree or equivalent experience in relevant field',
-        '2+ years of professional experience in related role',
-        'Strong communication and problem-solving skills',
-        'Ability to work independently and as part of a team'
-      ],
-      benefits: [
-        'Competitive salary and benefits package',
-        'Health insurance and retirement plans',
-        'Professional development opportunities',
-        'Collaborative and supportive work environment'
-      ]
-    };
   };
 
   useEffect(() => {
@@ -358,7 +274,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   const handleReapply = async () => {
     try {
       if (!user?.email) {
-        alert('User email not found. Please login again.');
+        showNotif('User email not found. Please login again.', 'error');
         return;
       }
 
@@ -385,19 +301,19 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
           if (updateResponse.ok) {
             setHasApplied(true);
             setApplicationStatus('applied');
-            alert('Successfully reapplied to the job!');
+            showNotif('Successfully reapplied to the job!');
           } else {
-            alert('Failed to reapply. Please try again.');
+            showNotif('Failed to reapply. Please try again.', 'error');
           }
         } else {
-          alert('No withdrawn application found for this job.');
+          showNotif('No withdrawn application found for this job.', 'error');
         }
       } else {
-        alert('Failed to find your applications. Please try again.');
+        showNotif('Failed to find your applications. Please try again.', 'error');
       }
     } catch (error) {
       console.error('Error reapplying:', error);
-      alert('Failed to reapply. Please try again.');
+      showNotif('Failed to reapply. Please try again.', 'error');
     }
   };
 
@@ -424,6 +340,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+      <Notification
+        type={notification.type}
+        message={notification.message}
+        isVisible={notification.isVisible}
+        onClose={() => setNotification(n => ({ ...n, isVisible: false }))}
+      />
       {/* Job Header */}
       <div className="bg-white/90 backdrop-blur-md shadow-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -481,19 +403,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     </div>
                   )}
                   <div className="flex items-center space-x-2">
-                    <span>{
-                      job.salaryMin && job.salaryMax
-                        ? `?${Number(job.salaryMin).toLocaleString('en-IN')} - ?${Number(job.salaryMax).toLocaleString('en-IN')} per year`
-                        : job.salaryMin
-                        ? `?${Number(job.salaryMin).toLocaleString('en-IN')}+ per year`
-                        : job.salaryMax
-                        ? `Up to ?${Number(job.salaryMax).toLocaleString('en-IN')} per year`
-                        : 'Salary not disclosed'
-                    }</span>
+                    <span>{formatSalaryDisplay(job)}</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4" />
-                    <span>{job.experience || job.experienceLevel || getJobSpecificContent(job.jobTitle || job.title).experience} experience</span>
+                    <span>{formatExperience(job.experience || job.experienceLevel)} experience</span>
                   </div>
                 </div>
               </div>
@@ -632,7 +546,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               <div className="text-gray-700 leading-relaxed mb-4">
                 {formatJobDescription(
                   job.jobDescription || job.description || 'Job description not available.',
-                  job.currency
+                  'INR'
                 ).split('\n').map((line, i) => {
                   const trimmed = line.trim();
 
@@ -760,7 +674,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     });
                   } else {
                     // Show modal with available employer info
-                    alert(`Employer Information:\n\nName: ${jobPoster?.name || job.employerName || 'Hiring Manager'}\nCompany: ${jobPoster?.company || job.employerCompany || job.company}\nEmail: ${job.employerEmail || 'Not available'}\n\nNote: Full profile not available for this employer.`);
+                    showNotif('Full employer profile not available for this employer.', 'info');
                   }
                 }}
                 className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center transition-colors"
@@ -812,7 +726,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             </div>
 
             {/* Similar Jobs */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6" style={{fontFamily: "'IBM Plex Sans', sans-serif"}}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Jobs</h3>
               <div className="space-y-3">
                 {similarJobs.length > 0 ? (
@@ -841,7 +755,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       <p className="text-xs text-gray-500 mb-2">{sj.location}</p>
                       {/* Description snippet */}
                       {(sj.jobDescription || sj.description) && (
-                        <p className="text-xs text-gray-600 mb-2" style={{display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'}}>
+                        <p className="text-xs text-gray-600 mb-2 line-clamp-2">
                           {(sj.jobDescription || sj.description).substring(0, 120)}
                         </p>
                       )}
@@ -850,13 +764,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         {sj.type && (
                           <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">{sj.type}</span>
                         )}
-                        {(sj.salaryMin || sj.salaryMax) && (
+                        {(sj.salaryMin || sj.salaryMax || sj.salary) && (
                           <span className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded-full">
-                            {sj.salaryMin && sj.salaryMax
-                              ? `?${Number(sj.salaryMin).toLocaleString('en-IN')} - ?${Number(sj.salaryMax).toLocaleString('en-IN')}`
-                              : sj.salaryMin
-                              ? `?${Number(sj.salaryMin).toLocaleString('en-IN')}+`
-                              : `Up to ?${Number(sj.salaryMax).toLocaleString('en-IN')}`}
+                            {formatSalaryDisplay(sj)}
                           </span>
                         )}
                       </div>

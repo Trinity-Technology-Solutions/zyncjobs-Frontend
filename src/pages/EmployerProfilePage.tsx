@@ -157,7 +157,7 @@ const EmployerProfilePage: React.FC<EmployerProfilePageProps> = ({
                     {job.salary && (
                       <span>
                         {typeof job.salary === 'object' 
-                          ? `${job.salary.currency === 'INR' ? '₹' : '$'}${job.salary.min?.toLocaleString()}-${job.salary.max?.toLocaleString()}`
+                          ? `₹${job.salary.min?.toLocaleString('en-IN')}-${job.salary.max?.toLocaleString('en-IN')}`
                           : job.salary
                         }
                       </span>

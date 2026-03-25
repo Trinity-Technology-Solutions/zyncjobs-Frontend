@@ -464,7 +464,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                                 <span className="text-green-600 font-bold">💰</span>
                                 <span className="text-green-700 font-semibold text-sm">
                                   {typeof application.jobId.salary === 'object' 
-                                    ? `${application.jobId.salary.currency || '₹'}${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
+                                    ? `₹${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
                                     : application.jobId.salary
                                   }
                                 </span>
@@ -690,7 +690,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               </button>
               
               <button
-                onClick={() => onNavigate('candidate-profile')}
+                onClick={() => onNavigate('settings')}
                 className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left"
               >
                 <div className="flex items-center">

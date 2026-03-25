@@ -190,34 +190,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [skillInput, setSkillInput] = useState('');
   const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
-  const [jobPostingCount, setJobPostingCount] = useState(0);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [salaryModified, setSalaryModified] = useState(false);
 
-  // Check job posting limit on component mount
-  useEffect(() => {
-    const checkJobPostingLimit = async () => {
-      if (user && user.email) {
-        try {
-          const response = await fetch(`${API_ENDPOINTS.JOBS}`);
-          if (response.ok) {
-            const jobs = await response.json();
-            const userJobs = jobs.filter((job: any) => job.postedBy === user.email);
-            setJobPostingCount(userJobs.length);
-            
-            // Show upgrade modal if limit reached
-            if (userJobs.length >= 10) {
-              setShowUpgradeModal(true);
-            }
-          }
-        } catch (error) {
-          console.error('Error checking job posting limit:', error);
-        }
-      }
-    };
-    
-    checkJobPostingLimit();
-  }, [user]);
+  const [salaryModified, setSalaryModified] = useState(false);
+  const [salaryFocused, setSalaryFocused] = useState(null);
 
   const updateJobData = (field: keyof JobData, value: any) => {
     setJobData(prev => ({ ...prev, [field]: value }));
@@ -1562,10 +1537,22 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         
         <div>
           <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
-          <div className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 text-gray-700">
-            {jobData.experienceRange || <span className="text-gray-400 italic">Will be extracted from job description</span>}
-          </div>
-          <p className="text-gray-400 text-xs mt-1">Auto-extracted from job description</p>
+          {mode === 'parse' ? (
+            <>
+              <div className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 text-gray-700">
+                {jobData.experienceRange || <span className="text-gray-400 italic">Will be extracted from job description</span>}
+              </div>
+              <p className="text-gray-400 text-xs mt-1">Auto-extracted from job description</p>
+            </>
+          ) : (
+            <input
+              type="text"
+              value={jobData.experienceRange}
+              onChange={(e) => updateJobData('experienceRange', e.target.value)}
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="e.g. 2-5 years, 3+ years"
+            />
+          )}
         </div>
         
 
@@ -1788,13 +1775,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <label className="block text-gray-600 text-sm mb-2">Minimum</label>
               <input
                 type="text"
-                value={jobData.minSalary ? formatSalary(jobData.minSalary) : ''}
-                onFocus={(e) => { e.target.value = jobData.minSalary; }}
+                value={salaryFocused === 'min' ? jobData.minSalary : (jobData.minSalary ? formatSalary(jobData.minSalary) : '')}
+                onFocus={() => setSalaryFocused('min')}
                 onChange={(e) => {
-                  updateJobData('minSalary', e.target.value);
+                  updateJobData('minSalary', e.target.value.replace(/[^0-9]/g, ''));
                   setSalaryModified(true);
                 }}
-                onBlur={(e) => { e.target.value = jobData.minSalary ? formatSalary(jobData.minSalary) : ''; }}
+                onBlur={() => setSalaryFocused(null)}
                 placeholder="e.g. 500000"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -1808,13 +1795,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <label className="block text-gray-600 text-sm mb-2">Maximum</label>
               <input
                 type="text"
-                value={jobData.maxSalary ? formatSalary(jobData.maxSalary) : ''}
-                onFocus={(e) => { e.target.value = jobData.maxSalary; }}
+                value={salaryFocused === 'max' ? jobData.maxSalary : (jobData.maxSalary ? formatSalary(jobData.maxSalary) : '')}
+                onFocus={() => setSalaryFocused('max')}
                 onChange={(e) => {
-                  updateJobData('maxSalary', e.target.value);
+                  updateJobData('maxSalary', e.target.value.replace(/[^0-9]/g, ''));
                   setSalaryModified(true);
                 }}
-                onBlur={(e) => { e.target.value = jobData.maxSalary ? formatSalary(jobData.maxSalary) : ''; }}
+                onBlur={() => setSalaryFocused(null)}
                 placeholder="e.g. 800000"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
@@ -2384,12 +2371,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       return;
     }
 
-    // Check job posting limit
-    if (jobPostingCount >= 10) {
-      setShowUpgradeModal(true);
-      return;
-    }
-
     // Map experienceRange to experienceLevel enum
     const mapExperienceLevel = (range: string): string => {
       if (range.includes('0-1') || range.includes('1-2')) return 'Entry';
@@ -2546,42 +2527,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         onClose={() => setNotification({ ...notification, isVisible: false })}
       />
       
-      {/* Upgrade Modal */}
-      {showUpgradeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-yellow-600 text-2xl">⚡</span>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Free Limit Reached</h3>
-              <p className="text-gray-600 mb-6">
-                You've used all 10 free job postings. Upgrade to Professional plan to post unlimited jobs.
-              </p>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => {
-                    setShowUpgradeModal(false);
-                    onNavigate('dashboard');
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    setShowUpgradeModal(false);
-                    onNavigate('pricing');
-                  }}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Upgrade Now
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       <div className="min-h-screen bg-white">
         {/* Fixed Header Section */}

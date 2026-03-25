@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Search, Filter, MapPin, Star, Users, Code, Mail, Phone, Briefcase, TrendingUp, Zap, ChevronDown } from 'lucide-react';
 import CandidateProfileModal from '../components/CandidateProfileModal';
+import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 interface Candidate {
   _id: string;
@@ -47,6 +49,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openContactMenu, setOpenContactMenu] = useState<string | null>(null);
+  const [scheduleCandidate, setScheduleCandidate] = useState<Candidate | null>(null);
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
@@ -332,20 +335,24 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                       value={selectedSkill}
                       onChange={(e) => {
                         setSelectedSkill(e.target.value);
-                        if (e.target.value.length >= 1) {
-                          const filtered = allSkills.filter(skill => 
-                            skill.toLowerCase().includes(e.target.value.toLowerCase())
-                          ).slice(0, 10);
-                          setSkillSuggestions(filtered);
-                          setShowSkillSuggestions(true);
-                        } else {
-                          setShowSkillSuggestions(false);
-                        }
+                        const filtered = allSkills.filter(skill =>
+                          skill.toLowerCase().includes(e.target.value.toLowerCase())
+                        ).slice(0, 50);
+                        setSkillSuggestions(filtered);
+                        setShowSkillSuggestions(true);
                       }}
+                      onFocus={() => {
+                        const filtered = selectedSkill
+                          ? allSkills.filter(s => s.toLowerCase().includes(selectedSkill.toLowerCase())).slice(0, 50)
+                          : allSkills.slice(0, 50);
+                        setSkillSuggestions(filtered);
+                        setShowSkillSuggestions(true);
+                      }}
+                      onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
                     />
                     {showSkillSuggestions && skillSuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {skillSuggestions.map((skill, index) => (
                           <button
                             key={index}
@@ -370,20 +377,24 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                       value={selectedLocation}
                       onChange={(e) => {
                         setSelectedLocation(e.target.value);
-                        if (e.target.value.length >= 1) {
-                          const filtered = allLocations.filter(location => 
-                            location.toLowerCase().includes(e.target.value.toLowerCase())
-                          ).slice(0, 10);
-                          setLocationSuggestions(filtered);
-                          setShowLocationSuggestions(true);
-                        } else {
-                          setShowLocationSuggestions(false);
-                        }
+                        const filtered = allLocations.filter(location =>
+                          location.toLowerCase().includes(e.target.value.toLowerCase())
+                        ).slice(0, 50);
+                        setLocationSuggestions(filtered);
+                        setShowLocationSuggestions(true);
                       }}
+                      onFocus={() => {
+                        const filtered = selectedLocation
+                          ? allLocations.filter(l => l.toLowerCase().includes(selectedLocation.toLowerCase())).slice(0, 50)
+                          : allLocations.slice(0, 50);
+                        setLocationSuggestions(filtered);
+                        setShowLocationSuggestions(true);
+                      }}
+                      onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
                     />
                     {showLocationSuggestions && locationSuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                         {locationSuggestions.map((location, index) => (
                           <button
                             key={index}
@@ -400,7 +411,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                       </div>
                     )}
                   </div>
-                  <button className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
+                  <button onClick={() => fetchCandidates()} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
                     <Filter className="w-5 h-5" />
                     <span>Search Talent</span>
                   </button>
@@ -524,13 +535,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                   : 'No candidates are currently registered. Be the first to join our talent pool!'}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <button 
-                  onClick={() => onNavigate('register')}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  Register as Candidate
-                </button>
-                <button 
+                <button
                   onClick={() => {
                     setSearchTerm('');
                     setSelectedSkill('');
@@ -663,7 +668,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                           <button onClick={() => candidate.email && (window.location.href = `mailto:${candidate.email}`)} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <Mail className="w-4 h-4 text-gray-400" /> Send Email
                           </button>
-                          <button onClick={() => { setSelectedCandidate(candidate); setIsModalOpen(true); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
+                          <button onClick={() => { setScheduleCandidate(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <Users className="w-4 h-4 text-gray-400" /> Schedule Interview
                           </button>
                           <button onClick={() => { navigator.clipboard.writeText(candidate.email || ''); alert('Email copied!'); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
@@ -671,16 +676,46 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                           </button>
                           <button onClick={() => {
                             const userData = JSON.parse(localStorage.getItem('user') || '{}');
-                            const token = localStorage.getItem('token');
+                            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
                             if (!token) { alert('Please login to save candidates'); setOpenContactMenu(null); return; }
-                            const candidateData = { _id: candidate._id, candidateId: candidate._id, fullName: getCandidateName(candidate), name: getCandidateName(candidate), title: candidate.title || candidate.jobTitle || 'Professional', location: getCandidateLocation(candidate), experience: candidate.experience || '2+ years', email: candidate.email, skills: getCandidateSkills(candidate), profilePhoto: candidate.profilePhoto, companyName: userData.company || userData.companyName || 'Company', companyLogo: userData.companyLogo || '', savedAt: new Date().toISOString() };
-                            fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(candidateData) })
-                              .then(res => {
-                                if (res.status === 409) return fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidate._id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }).then(() => alert('Candidate removed!'));
-                                if (res.ok) { alert('Candidate saved!'); window.dispatchEvent(new CustomEvent('candidateSaved', { detail: candidateData })); }
-                                else return res.text().then(t => { throw new Error(t); });
+                            const payload = {
+                              candidateId: candidate._id,
+                              fullName: getCandidateName(candidate),
+                              name: getCandidateName(candidate),
+                              title: candidate.title || candidate.jobTitle || 'Professional',
+                              location: getCandidateLocation(candidate),
+                              experience: candidate.experience || '',
+                              email: candidate.email || '',
+                              skills: getCandidateSkills(candidate),
+                              profilePhoto: candidate.profilePhoto || '',
+                              companyName: userData.companyName || userData.company || '',
+                              companyLogo: userData.companyLogo || '',
+                            };
+                            fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) })
+                              .then(async res => {
+                                if (res.status === 409) {
+                                  // Already saved — find the record and remove it
+                                  const existing = await fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                                    .then(r => r.ok ? r.json() : [])
+                                    .then(data => {
+                                      const list = Array.isArray(data) ? data : data.savedCandidates || [];
+                                      return list.find((c: any) => c.candidateId === candidate._id || c.candidateEmail === candidate.email);
+                                    })
+                                    .catch(() => null);
+                                  if (existing) {
+                                    const recordId = existing._id || existing.id;
+                                    fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${recordId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
+                                      .then(r => { if (r.ok) { alert('Candidate removed from saved list!'); window.dispatchEvent(new CustomEvent('candidateSaved')); } else { alert('Could not remove candidate.'); } })
+                                      .catch(() => alert('Could not remove candidate.'));
+                                  } else {
+                                    alert('Candidate is already saved.');
+                                  }
+                                  return;
+                                }
+                                if (res.ok) { alert('Candidate saved successfully!'); window.dispatchEvent(new CustomEvent('candidateSaved', { detail: payload })); }
+                                else { const t = await res.text(); console.error('Save failed:', t); alert('Failed to save candidate. Please try again.'); }
                               })
-                              .catch(err => alert(`Failed: ${err.message}`));
+                              .catch(err => { console.error('Save error:', err); alert('Network error. Please try again.'); });
                             setOpenContactMenu(null);
                           }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2">
                             <Star className="w-4 h-4 text-gray-400" /> Save Candidate
@@ -713,8 +748,23 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         isOpen={isModalOpen}
         onClose={handleCloseModal}
       />
+
+      {scheduleCandidate && (
+        <ScheduleInterviewModal
+          application={{
+            candidateName: getCandidateName(scheduleCandidate),
+            candidateEmail: scheduleCandidate.email || '',
+            jobId: null,
+          }}
+          onClose={() => setScheduleCandidate(null)}
+          onSuccess={() => setScheduleCandidate(null)}
+        />
+      )}
+
+      <Footer onNavigate={onNavigate} />
     </div>
   );
 };
 
 export default CandidateSearchPage;
+

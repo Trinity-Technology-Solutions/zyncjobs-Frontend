@@ -21,7 +21,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   const jobSeekerLinks = [
     { name: "Find Jobs", action: () => onNavigate && onNavigate('job-listings') },
     { name: "Browse Companies", action: () => onNavigate && onNavigate('companies') },
-    { name: "Career Resources", action: () => onNavigate && onNavigate('career-insights-hub') },
+    { name: "Career Resources", action: () => onNavigate && onNavigate('career-resources') },
   ];
 
   const employerLinks = [
@@ -29,15 +29,16 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
     { name: "Find Candidates", action: () => handleEmployerLink('candidate-search') },
     { name: "Employer Solutions", action: () => handleEmployerLink('employers') },
     { name: "Hiring Dashboard", action: () => handleEmployerLink('dashboard') },
-    { name: "Pricing Plans", action: () => onNavigate && onNavigate('pricing') },
   ];
 
+  const isEmployer = user?.type === 'employer';
+
   const resourceLinks = [
-    { name: "🎨 Resume Studio", action: () => onNavigate && onNavigate('resume-studio') },
-    { name: "💬 Interview Preparation", action: () => onNavigate && onNavigate('interview-tips') },
-    { name: "🧭 Career Guidance", action: () => onNavigate && onNavigate('career-coach') },
-    { name: "✅ Skill Check", action: () => onNavigate && onNavigate('skill-assessment') },
-  ];
+    { name: "🎨 Resume Studio", action: () => onNavigate && onNavigate('resume-studio'), candidateOnly: true },
+    { name: "💬 Interview Preparation", action: () => onNavigate && onNavigate('interview-tips'), candidateOnly: true },
+    { name: "🧭 Career Guidance", action: () => onNavigate && onNavigate('career-coach'), candidateOnly: true },
+    { name: "✅ Skill Check", action: () => onNavigate && onNavigate('skill-assessment'), candidateOnly: true },
+  ].filter(link => !isEmployer || !link.candidateOnly);
 
   const companyLinks = [
     { name: "About ZyncJobs", action: () => onNavigate && onNavigate('about') },
@@ -115,6 +116,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           </div>
           )}
           
+          {resourceLinks.length > 0 && (
           <div>
             <h4 className="text-lg font-semibold mb-6">Resources</h4>
             <ul className="space-y-3">
@@ -130,6 +132,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
               ))}
             </ul>
           </div>
+          )}
           
           <div>
             <h4 className="text-lg font-semibold mb-6">Company</h4>

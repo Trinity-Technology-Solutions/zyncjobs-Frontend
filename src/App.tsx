@@ -73,7 +73,6 @@ const SkillAssessmentPage = lazy(() => import('./pages/SkillAssessmentPage'));
 const AssessmentReviewPage = lazy(() => import('./pages/AssessmentReviewPage'));
 const InterviewScheduling = lazy(() => import('./components/InterviewScheduling'));
 const FeaturesPage = lazy(() => import('./pages/FeaturesPage'));
-const PricingPage = lazy(() => import('./pages/PricingPage'));
 const CandidateInterviewsPage = lazy(() => import('./pages/CandidateInterviewsPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const WhyZyncJobsPage = lazy(() => import('./pages/WhyZyncJobsPage'));
@@ -84,8 +83,11 @@ const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
 const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
+const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
+const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
+const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -96,7 +98,7 @@ const LoadingFallback = () => (
   </div>
 );
 
-type UserType = { name: string; type: 'candidate' | 'employer' | 'admin'; email?: string };
+type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin'; email?: string };
 
 // Shared layout wrapper for pages that need Header + Footer
 const WithLayout: React.FC<{
@@ -132,9 +134,25 @@ const ResumeEditorWrapper: React.FC<{
   return <ResumeEditorPage onNavigate={onNavigate} user={user} onLogout={onLogout} template={template} />;
 };
 
+function MaintenancePage({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="text-center px-6">
+        <div className="text-6xl mb-6">🔧</div>
+        <h1 className="text-3xl font-bold text-white mb-3">Under Maintenance</h1>
+        <p className="text-gray-400 mb-6">We're making some improvements. Please check back soon.</p>
+        <button onClick={onRetry} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">
+          Try Again
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [maintenance, setMaintenance] = useState(false);
 
   const [user, setUser] = useState<UserType | null>(() => {
     try {
@@ -143,6 +161,8 @@ function App() {
       const userData = JSON.parse(savedUser);
       let userType: UserType['type'] = 'candidate';
       if (userData.userType === 'employer') userType = 'employer';
+      if (userData.userType === 'admin') userType = 'admin';
+      if (userData.userType === 'super_admin') userType = 'super_admin';
       return { name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User', type: userType, email: userData.email };
     } catch { return null; }
   });
@@ -172,9 +192,9 @@ function App() {
     try {
       const userData = JSON.parse(savedUser);
       let userType: UserType['type'] = 'candidate';
-      if (userData.userType === 'employer') {
-        userType = 'employer';
-      }
+      if (userData.userType === 'employer') userType = 'employer';
+      if (userData.userType === 'admin') userType = 'admin';
+      if (userData.userType === 'super_admin') userType = 'super_admin';
       setUser({
         name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
         type: userType,
@@ -185,17 +205,47 @@ function App() {
     }
   }, []);
 
-  const handleLogin = (userData: UserType) => {
+  // Global fetch interceptor for 503 maintenance
+  useEffect(() => {
+    const orig = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await orig(...args);
+      if (res.status === 503) {
+        const clone = res.clone();
+        try {
+          const data = await clone.json();
+          if (data.maintenance) setMaintenance(true);
+        } catch {}
+      }
+      return res;
+    };
+    return () => { window.fetch = orig; };
+  }, []);
+
+  if (maintenance && !location.pathname.startsWith('/admin')) {
+    const handleRetry = async () => {
+      try {
+        const res = await fetch('/api/jobs?limit=1');
+        if (res.ok) setMaintenance(false);
+      } catch {}
+    };
+    return <MaintenancePage onRetry={handleRetry} />;
+  }
+
+  const handleLogin = (userData: UserType & { id?: string; _id?: string }) => {
+    const existing = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
     localStorage.setItem('user', JSON.stringify({
+      ...existing,
       name: userData.name,
       fullName: userData.name,
       email: userData.email,
       userType: userData.type,
+      id: (userData as any).id || (userData as any)._id || existing.id || existing._id,
     }));
     setUser(userData);
     closeModals();
 
-    if (userData.email) {
+    if (userData.email && (userData.type === 'candidate' || userData.type === 'employer')) {
       const token = localStorage.getItem('token');
       if (token) {
         localStorageMigration.setToken(token);
@@ -207,7 +257,7 @@ function App() {
   const handleLogout = () => {
     setUser(null);
     // Only remove auth-related keys — don't nuke unrelated browser storage
-    ['user', 'token', 'accessToken', 'refreshToken', 'selectedJob'].forEach(k =>
+    ['user', 'token', 'accessToken', 'refreshToken', 'adminToken', 'selectedJob'].forEach(k =>
       localStorage.removeItem(k)
     );
     navigate('/');
@@ -237,6 +287,19 @@ function App() {
     }
     if (page.startsWith('job-detail/')) {
       navigate(`/job-detail?id=${page.split('/')[1]}`);
+      return;
+    }
+    if (page === 'job-listings' && params?.tab) {
+      navigate(`/job-listings?tab=${params.tab}`);
+      return;
+    }
+    if (page === 'job-listings') {
+      const qp = new URLSearchParams();
+      if (params?.searchTerm) qp.set('q', params.searchTerm);
+      if (params?.location) qp.set('location', params.location);
+      if (params?.category) qp.set('category', params.category);
+      const qs = qp.toString();
+      navigate(`/job-listings${qs ? `?${qs}` : ''}`);
       return;
     }
     if (page === 'job-detail') {
@@ -329,7 +392,6 @@ function App() {
             <WithLayout {...nav}><SearchEngine /></WithLayout>
           } />
           <Route path="/features" element={<FeaturesPage {...nav} />} />
-          <Route path="/pricing" element={<PricingPage {...nav} />} />
           <Route path="/about" element={<AboutPage {...nav} />} />
           <Route path="/why-zyncjobs" element={<WhyZyncJobsPage {...nav} />} />
           <Route path="/contact" element={<ContactPage {...nav} />} />
@@ -347,6 +409,8 @@ function App() {
               <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
               {user?.type === 'employer' ? (
                 <WithLayout {...nav}><EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} /></WithLayout>
+              ) : user?.type === 'admin' || user?.type === 'super_admin' ? (
+                <Navigate to="/admin/dashboard" replace />
               ) : (
                 <WithLayout {...nav}><CandidateDashboardPage onNavigate={handleNavigation} /></WithLayout>
               )}
@@ -406,49 +470,55 @@ function App() {
           } />
 
           <Route path="/career-coach" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <CareerCoachPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/skill-gap-analysis" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <SkillGapAnalysisPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/skill-assessment" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <SkillAssessmentPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/assessment-review/:assessmentId" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <AssessmentReviewPageWrapper onNavigate={handleNavigation} user={user as any} />
             </AuthGuard>
           } />
 
           <Route path="/resume-editor" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <ResumeEditorWrapper onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
             </AuthGuard>
           } />
 
           <Route path="/resume-ready" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <ResumeReadyPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/resume-studio" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <ResumeStudioPage {...nav} />
             </AuthGuard>
           } />
 
+          <Route path="/resume-score" element={
+            <AuthGuard user={user} allowedRoles={['candidate']}>
+              <ResumeScorePage {...nav} />
+            </AuthGuard>
+          } />
+
           <Route path="/resume-parser" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} allowedRoles={['candidate']}>
               <ResumeParserPage {...nav} />
             </AuthGuard>
           } />
@@ -558,6 +628,26 @@ function App() {
               <WithLayout {...nav}>
                 <EmployerProfilePage onNavigate={handleNavigation} />
               </WithLayout>
+            </AuthGuard>
+          } />
+
+          {/* ── Admin ── */}
+          <Route path="/admin/login" element={
+            user && (user.type === 'admin' || user.type === 'super_admin')
+              ? <Navigate to="/admin/dashboard" replace />
+              : <AdminLoginPage onLogin={u => {
+                  handleLogin(u);
+                  handleNavigation('admin/dashboard');
+                }} onNavigate={handleNavigation} />
+          } />
+
+          <Route path="/admin/dashboard" element={
+            <AuthGuard user={user} allowedRoles={['admin', 'super_admin']}>
+              <AdminDashboardPage
+                user={{ name: user?.name || 'Admin', email: user?.email }}
+                onNavigate={handleNavigation}
+                onLogout={handleLogout}
+              />
             </AuthGuard>
           } />
 

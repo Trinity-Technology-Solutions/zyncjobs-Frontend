@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -12,16 +13,25 @@ import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 
-const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: { 
+const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
   onLogout?: () => void;
   searchParams?: { searchTerm?: string; location?: string; experience?: string; category?: string; categoryTerms?: string[] };
 }) => {
-  const [searchTerm, setSearchTerm] = useState(searchParams?.searchTerm || '');
-  const [location, setLocation] = useState(searchParams?.location || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams?.category || '');
-  const [categoryTerms, setCategoryTerms] = useState<string[]>(searchParams?.categoryTerms || []);
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return initialSearch?.searchTerm || p.get('q') || '';
+  });
+  const [location, setLocation] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return initialSearch?.location || p.get('location') || '';
+  });
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return initialSearch?.category || p.get('category') || '';
+  });
+  const [categoryTerms, setCategoryTerms] = useState<string[]>(initialSearch?.categoryTerms || []);
   const [jobs, setJobs] = useState<any[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +56,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const [filterOptions, setFilterOptions] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreJobs, setHasMoreJobs] = useState(true);
-  const [activeTab, setActiveTab] = useState<'search' | 'recommended'>('search');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'search' | 'recommended'>(
+    searchParams.get('tab') === 'recommended' ? 'recommended' : 'search'
+  );
   const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
   const [statsCompanies, setStatsCompanies] = useState<number>(0);
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
@@ -380,13 +393,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
     fetchStats();
     
     const handleJobPosted = () => {
-      console.log('New job posted, refreshing job listings...');
       fetchJobs();
     };
     
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'lastJobPosted') {
-        console.log('Job posted detected, refreshing...');
         setTimeout(() => fetchJobs(), 500);
       }
     };
@@ -398,20 +409,18 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       window.removeEventListener('jobPosted', handleJobPosted);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [searchTerm, location, categoryTerms]);
   
   useEffect(() => {
-    if (searchParams?.searchTerm || searchParams?.location || searchParams?.category) {
-      setSearchTerm(searchParams.searchTerm || '');
-      setLocation(searchParams.location || '');
-      setSelectedCategory(searchParams.category || '');
-      setCategoryTerms(searchParams.categoryTerms || []);
-      console.log('Search params received:', searchParams);
-      fetchJobs();
-    } else {
-      fetchJobs();
+    if (initialSearch?.searchTerm || initialSearch?.location || initialSearch?.category) {
+      const term = initialSearch.searchTerm || '';
+      const loc = initialSearch.location || '';
+      setSearchTerm(term);
+      setLocation(loc);
+      setSelectedCategory(initialSearch.category || '');
+      setCategoryTerms(initialSearch.categoryTerms || []);
     }
-  }, [searchParams]);
+  }, [initialSearch]);
   
   useEffect(() => {
     if (jobs.length > 0) {
@@ -804,7 +813,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
         {activeTab === 'recommended' ? (
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Recommended Jobs for You</h2>
-            <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} />
+            <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} onNavigate={onNavigate} />
           </div>
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -820,7 +829,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                   </h3>
                   <div className="space-y-3">
                     {trending.map((job: any, idx: number) => (
-                      <div key={job._id || idx} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => onNavigate && onNavigate(`job-detail/${job._id}`)}>
+                      <div key={job._id || job.id || idx} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => { const jid = job._id || job.id; if (jid && onNavigate) onNavigate(`job-detail/${jid}`); }}>
 
                         <h4 className="font-medium text-sm">{job.jobTitle}</h4>
                         <p className="text-xs text-gray-600">{job.company}</p>

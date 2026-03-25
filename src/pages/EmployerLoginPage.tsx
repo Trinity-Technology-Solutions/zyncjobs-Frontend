@@ -44,8 +44,9 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       onLogin({ 
         name: displayName, 
         type: 'employer',
-        email: response.user.email
-      });
+        email: response.user.email,
+        id: response.user.id,
+      } as any);
       
       onNavigate('dashboard');
       

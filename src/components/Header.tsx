@@ -114,28 +114,53 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   useEffect(() => {
     const fetchProfileMetrics = async () => {
-      if (!user || user.type !== 'candidate') return;
+      if (!user) return;
       try {
         const userData = localStorage.getItem('user');
         if (!userData) return;
         const parsedUser = JSON.parse(userData);
         const userEmail = parsedUser.email;
         if (!userEmail) return;
-        const [appsRes, interviewsRes] = await Promise.all([
-          fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`),
-          fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(userEmail)}`),
-        ]);
-        let apps: any[] = [];
-        let interviews: any[] = [];
-        if (appsRes.ok) { const d = await appsRes.json(); if (Array.isArray(d)) apps = d; }
-        if (interviewsRes.ok) { const d = await interviewsRes.json(); if (Array.isArray(d)) interviews = d; }
-        const recruiterActions = apps.filter((a: any) =>
-          ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
-        ).length + interviews.length;
-        const searchAppearances = apps.filter((a: any) =>
-          ['reviewed', 'shortlisted', 'hired'].includes(a.status)
-        ).length;
-        setProfileMetrics(prev => ({ ...prev, recruiterActions, searchAppearances }));
+
+        if (user.type === 'employer') {
+          const token = localStorage.getItem('token');
+          const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+          const [jobsRes, appsRes] = await Promise.all([
+            fetch(`${API_ENDPOINTS.JOBS}?employerEmail=${encodeURIComponent(userEmail)}`, { headers }),
+            fetch(`${API_ENDPOINTS.APPLICATIONS}`, { headers }),
+          ]);
+          let jobsPosted = 0;
+          let applicationsReceived = 0;
+          if (jobsRes.ok) {
+            const d = await jobsRes.json();
+            const allJobs = Array.isArray(d) ? d : d.jobs || [];
+            jobsPosted = allJobs.filter((j: any) =>
+              j.postedBy === userEmail || j.employerEmail === userEmail
+            ).length || allJobs.length;
+          }
+          if (appsRes.ok) {
+            const d = await appsRes.json();
+            const allApps = Array.isArray(d) ? d : d.applications || [];
+            applicationsReceived = allApps.filter((a: any) => a.employerEmail === userEmail).length;
+          }
+          setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
+        } else {
+          const [appsRes, interviewsRes] = await Promise.all([
+            fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`),
+            fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(userEmail)}`),
+          ]);
+          let apps: any[] = [];
+          let interviews: any[] = [];
+          if (appsRes.ok) { const d = await appsRes.json(); if (Array.isArray(d)) apps = d; }
+          if (interviewsRes.ok) { const d = await interviewsRes.json(); if (Array.isArray(d)) interviews = d; }
+          const recruiterActions = apps.filter((a: any) =>
+            ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
+          ).length + interviews.length;
+          const searchAppearances = apps.filter((a: any) =>
+            ['reviewed', 'shortlisted', 'hired'].includes(a.status)
+          ).length;
+          setProfileMetrics(prev => ({ ...prev, recruiterActions, searchAppearances }));
+        }
       } catch (error) {
         console.error('Error fetching profile metrics:', error);
       }
@@ -498,6 +523,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             <User className="w-5 h-5 mr-3 text-gray-500" />
                             View & Update Profile
                           </button>
+
+                          {(user.type === 'admin' || user.type === 'super_admin') && (
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false);
+                                onNavigate && onNavigate('admin/dashboard');
+                              }}
+                              className="flex items-center w-full text-left px-3 py-3 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
+                            >
+                              <Settings className="w-5 h-5 mr-3 text-purple-500" />
+                              Admin Dashboard
+                            </button>
+                          )}
                           
                           {user?.name === 'ZyncJobs Admin' && (
                             <>
@@ -620,15 +658,22 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
                     <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
                       Login
                     </button>
                     <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
                       Register
                     </button>
+                    <hr className="my-1" />
+                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
                     <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                      Employer Login
+                      For Employers / Post Jobs
+                    </button>
+                    <hr className="my-1" />
+                    <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('admin/login'); }} className="block w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
+                      Admin? Login here
                     </button>
                   </div>
                 )}

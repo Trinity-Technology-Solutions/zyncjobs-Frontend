@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getCompanyLogo } from '../utils/logoUtils';
+import { formatSalary } from '../utils/textUtils';
 
 interface LatestJobsProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -85,21 +86,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatSalary = (salary: Job['salary']) => {
-    if (!salary) return 'Salary not specified';
-    
-    const min = salary.min;
-    const max = salary.max;
-    const currency = salary.currency || 'INR';
-    
-    if (min && max && min > 0 && max > 0) {
-      const currencySymbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
-      return `${currencySymbol}${min.toLocaleString()} - ${currencySymbol}${max.toLocaleString()}`;
-    }
-    
-    return 'Salary not specified';
   };
 
   const getTimeAgo = (dateString: string) => {

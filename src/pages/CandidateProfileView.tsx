@@ -209,40 +209,19 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             )}
 
             {/* Accomplishments */}
-            {(candidate.certifications || candidate.awards || candidate.clubsCommittees || candidate.competitiveExams || candidate.academicAchievements) && (
+            {(['certifications','awards','clubsCommittees','competitiveExams','academicAchievements']
+              .some(f => candidate[f] && candidate[f] !== 'null' && String(candidate[f]).trim())) && (
               <div className="bg-gradient-to-br from-white to-yellow-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Accomplishments</h2>
                 <div className="space-y-4">
-                  {candidate.certifications && (
-                    <div>
-                      <h3 className="font-medium mb-2">Certifications</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.certifications}</p>
-                    </div>
-                  )}
-                  {candidate.awards && (
-                    <div>
-                      <h3 className="font-medium mb-2">Awards</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.awards}</p>
-                    </div>
-                  )}
-                  {candidate.clubsCommittees && (
-                    <div>
-                      <h3 className="font-medium mb-2">Club & Committees</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.clubsCommittees}</p>
-                    </div>
-                  )}
-                  {candidate.competitiveExams && (
-                    <div>
-                      <h3 className="font-medium mb-2">Competitive Exams</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.competitiveExams}</p>
-                    </div>
-                  )}
-                  {candidate.academicAchievements && (
-                    <div>
-                      <h3 className="font-medium mb-2">Academic Achievements</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.academicAchievements}</p>
-                    </div>
-                  )}
+                  {[['certifications','Certifications'],['awards','Awards'],['clubsCommittees','Clubs & Committees'],['competitiveExams','Competitive Exams'],['academicAchievements','Academic Achievements']]
+                    .filter(([f]) => candidate[f] && candidate[f] !== 'null' && String(candidate[f]).trim())
+                    .map(([f, label]) => (
+                      <div key={f}>
+                        <h3 className="font-medium mb-2">{label}</h3>
+                        <p className="text-gray-700 whitespace-pre-line">{candidate[f]}</p>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

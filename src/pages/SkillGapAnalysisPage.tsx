@@ -27,13 +27,32 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
   const [loadingCareerPath, setLoadingCareerPath] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('user');
-    if (saved) {
+    const loadSkills = async () => {
+      const saved = localStorage.getItem('user');
+      if (!saved) return;
       try {
         const u = JSON.parse(saved);
+        const identifier = u.id || u.email;
+        if (!identifier) return;
+        const token = localStorage.getItem('accessToken');
+        const res = await fetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.skills) && data.skills.length > 0) {
+            setUserSkills(data.skills);
+            return;
+          }
+        }
+      } catch { /* ignore */ }
+      // fallback to localStorage
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
         if (Array.isArray(u.skills) && u.skills.length > 0) setUserSkills(u.skills);
       } catch { /* ignore */ }
-    }
+    };
+    loadSkills();
   }, []);
 
   useEffect(() => {
@@ -72,13 +91,37 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     (j.jobTitle || j.title || '').toLowerCase().includes(jobSearch.toLowerCase())
   );
 
+  const saveSkillsToDB = async (skills: string[]) => {
+    try {
+      const saved = localStorage.getItem('user');
+      if (!saved) return;
+      const u = JSON.parse(saved);
+      const email = u.email;
+      if (!email) return;
+      const token = localStorage.getItem('accessToken');
+      await fetch(`${API_BASE}/profile/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ email, userId: u.id || undefined, skills })
+      });
+    } catch { /* ignore */ }
+  };
+
   const addSkill = () => {
     const s = skillInput.trim();
-    if (s && !userSkills.includes(s)) setUserSkills(prev => [...prev, s]);
+    if (s && !userSkills.includes(s)) {
+      const updated = [...userSkills, s];
+      setUserSkills(updated);
+      saveSkillsToDB(updated);
+    }
     setSkillInput('');
   };
 
-  const removeSkill = (skill: string) => setUserSkills(prev => prev.filter(s => s !== skill));
+  const removeSkill = (skill: string) => {
+    const updated = userSkills.filter(s => s !== skill);
+    setUserSkills(updated);
+    saveSkillsToDB(updated);
+  };
 
   const jobSkills: string[] = selectedJob
     ? (selectedJob.skills || []).map((s: string) => s.trim()).filter(Boolean)

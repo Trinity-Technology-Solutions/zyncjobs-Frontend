@@ -32,10 +32,10 @@ const formatSalary = (salary: any): string => {
   if (!salary) return '';
   if (typeof salary === 'string') return salary;
   if (typeof salary === 'object') {
-    const { min, max, currency = '₹' } = salary;
-    if (min && max) return `${currency}${Number(min).toLocaleString('en-IN')} - ${currency}${Number(max).toLocaleString('en-IN')}`;
-    if (min) return `${currency}${Number(min).toLocaleString('en-IN')}+`;
-    if (max) return `Up to ${currency}${Number(max).toLocaleString('en-IN')}`;
+    const { min, max } = salary;
+    if (min && max) return `₹${Number(min).toLocaleString('en-IN')} - ₹${Number(max).toLocaleString('en-IN')}`;
+    if (min) return `₹${Number(min).toLocaleString('en-IN')}+`;
+    if (max) return `Up to ₹${Number(max).toLocaleString('en-IN')}`;
   }
   return '';
 };
@@ -49,7 +49,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
   const [company, setCompany] = useState<Company | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [officeLocations, setOfficeLocations] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [showReviewModal, setShowReviewModal] = useState(false);
@@ -59,6 +58,32 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
     review: ''
   });
   const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+
+  useEffect(() => {
+    const savedCompany = localStorage.getItem('selectedCompany');
+    if (savedCompany) {
+      try {
+        const companyData = JSON.parse(savedCompany);
+        const followKey = `followedCompanies_${user?.email || 'guest'}`;
+        const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
+        setIsFollowing(followed.includes(companyData._id || companyData.name));
+        // Count all users following this company across all keys
+        let count = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith('followedCompanies_')) {
+            const list: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+            if (list.includes(companyData._id || companyData.name)) count++;
+          }
+        }
+        setFollowersCount(count);
+      } catch {}
+    }
+  }, [user]);
 
   useEffect(() => {
     const loadCompanyData = async () => {
@@ -70,8 +95,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
           await fetchCompanyJobs(companyData.name);
           const companyReviews = await fetchCompanyReviews(companyData.name);
           setReviews(companyReviews);
-          const locations = await fetchCompanyOfficeLocations(companyData.name);
-          setOfficeLocations(locations);
         } catch (error) {
           console.error('Error parsing company data:', error);
         }
@@ -119,35 +142,26 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
     return [];
   };
 
-  const fetchCompanyOfficeLocations = async (companyName: string) => {
-    try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`);
-      if (response.ok) {
-        const allJobs = await response.json();
-        const jobsArray = Array.isArray(allJobs) ? allJobs : [];
-        
-        const locations = new Set<string>();
-        jobsArray.forEach((job: any) => {
-          if ((job.company || job.companyName)?.toLowerCase() === companyName.toLowerCase() && job.location) {
-            locations.add(job.location);
-          }
-        });
-        
-        return Array.from(locations).map((location) => ({
-          city: location.split(',')[0]?.trim() || location,
-          country: location.includes(',') ? location.split(',').pop()?.trim() : '',
-          address: location
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching office locations:', error);
+  const handleFollow = () => {
+    if (!user?.email) { alert('Please login to follow companies'); return; }
+    const followKey = `followedCompanies_${user.email}`;
+    const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
+    const companyKey = company?._id || company?.name || '';
+    let updated;
+    if (isFollowing) {
+      updated = followed.filter(id => id !== companyKey);
+    } else {
+      updated = [...followed, companyKey];
     }
-    return [];
+    localStorage.setItem(followKey, JSON.stringify(updated));
+    setIsFollowing(!isFollowing);
+    setFollowersCount(prev => isFollowing ? Math.max(0, prev - 1) : prev + 1);
   };
 
   const submitReview = async () => {
+    setReviewError('');
     if (!reviewForm.title.trim() || !reviewForm.review.trim()) {
-      alert('Please fill in all fields');
+      setReviewError('Please fill in all fields.');
       return;
     }
 
@@ -157,7 +171,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          companyId: company?._id,
+          companyId: company?._id || company?.name,
           companyName: company?.name,
           rating: reviewForm.rating,
           title: reviewForm.title,
@@ -167,22 +181,27 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
         })
       });
 
+      const data = await response.json().catch(() => ({}));
+
       if (response.status === 403) {
-        alert('Company must post jobs before accepting reviews');
+        setReviewError('This company has no job postings yet. Reviews can only be submitted for companies that have posted jobs.');
       } else if (response.ok) {
-        alert('Review submitted successfully!');
-        setShowReviewModal(false);
+        setReviewSuccess(true);
         setReviewForm({ rating: 5, title: '', review: '' });
         if (company) {
           const companyReviews = await fetchCompanyReviews(company.name);
           setReviews(companyReviews);
         }
+        setTimeout(() => {
+          setShowReviewModal(false);
+          setReviewSuccess(false);
+        }, 1500);
       } else {
-        alert('Error submitting review');
+        setReviewError(data.error || 'Failed to submit review. Please try again.');
       }
     } catch (error) {
       console.error('Error submitting review:', error);
-      alert('Error submitting review');
+      setReviewError('Network error. Please check your connection and try again.');
     } finally {
       setSubmittingReview(false);
     }
@@ -250,16 +269,26 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
                 <span>{company.employees} employees</span>
               </div>
               <p className="text-blue-100 mb-4">{company.description}</p>
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
                 <button 
                   onClick={() => setShowReviewModal(true)}
                   className="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100"
                 >
                   Add a review
                 </button>
-                <button className="px-6 py-2 bg-blue-700 text-white rounded-lg font-semibold hover:bg-blue-800 border border-white">
-                  Follow
+                <button 
+                  onClick={handleFollow}
+                  className={`px-6 py-2 rounded-lg font-semibold border transition-colors ${
+                    isFollowing
+                      ? 'bg-white text-blue-600 border-white hover:bg-gray-100'
+                      : 'bg-blue-700 text-white border-white hover:bg-blue-800'
+                  }`}
+                >
+                  {isFollowing ? '✓ Following' : 'Follow'}
                 </button>
+                {followersCount > 0 && (
+                  <span className="text-blue-100 text-sm">{followersCount} follower{followersCount !== 1 ? 's' : ''}</span>
+                )}
               </div>
             </div>
           </div>
@@ -421,21 +450,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
 
             {activeTab === 'overview' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Office Locations for {company.name}</h2>
-                <div className="space-y-6">
-                  {officeLocations.length > 0 ? officeLocations.map((location, idx) => (
-                    <div key={idx} className="border-b border-gray-200 pb-6 last:border-b-0">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {location.city}{location.country ? `, ${location.country}` : ''}
-                      </h3>
-                      {location.address !== location.city && (
-                        <p className="text-gray-600 text-sm mt-1">{location.address}</p>
-                      )}
-                    </div>
-                  )) : (
-                    <p className="text-gray-500">No office locations found</p>
-                  )}
-                </div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">About {company.name}</h2>
+                <p className="text-gray-600">{company.description || 'No description available.'}</p>
               </div>
             )}
           </div>
@@ -449,12 +465,23 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold">Write a Review</h2>
               <button
-                onClick={() => setShowReviewModal(false)}
+                onClick={() => { setShowReviewModal(false); setReviewError(''); setReviewSuccess(false); }}
                 className="text-gray-500 hover:text-gray-700"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
+
+            {reviewError && (
+              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                {reviewError}
+              </div>
+            )}
+            {reviewSuccess && (
+              <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium">
+                ✓ Review submitted successfully!
+              </div>
+            )}
 
             <div className="space-y-4">
               <div>
@@ -509,7 +536,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
                   {submittingReview ? 'Submitting...' : 'Submit Review'}
                 </button>
                 <button
-                  onClick={() => setShowReviewModal(false)}
+                  onClick={() => { setShowReviewModal(false); setReviewError(''); setReviewSuccess(false); }}
                   className="flex-1 bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-400"
                 >
                   Cancel

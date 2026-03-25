@@ -20,9 +20,10 @@ interface RecommendedJobsProps {
   resumeSkills: Array<{ skill: string }>;
   location: string;
   user?: any;
+  onNavigate?: (page: string) => void;
 }
 
-const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, location, user }) => {
+const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, location, user, onNavigate }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,10 +143,15 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   };
 
   const handleApplyNow = (job: any) => {
-    // Store job data for application page
+    const jobId = job._id || job.id;
     localStorage.setItem('selectedJob', JSON.stringify(job));
-    console.log('Applying for job:', job.title);
-    alert(`Redirecting to application for ${job.title}...`);
+    if (onNavigate) {
+      if (jobId) {
+        onNavigate(`job-detail/${jobId}`);
+      } else {
+        onNavigate('job-detail');
+      }
+    }
   };
 
   const fetchMatchingJobs = async () => {
@@ -322,7 +328,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           </div>
         ) : (
           filteredJobs.map((job: any) => (
-            <div key={job._id} className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
+            <div key={job._id || job.id} className="border border-gray-200 rounded-lg p-3 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
               <div className="flex justify-between items-start mb-1">
                 <h4 className="font-medium text-gray-900 text-sm leading-tight">{job.title || job.jobTitle}</h4>
                 <div className="flex items-center gap-2 ml-2 flex-shrink-0">
@@ -330,10 +336,10 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                     <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">{job.matchPercentage}% Match</span>
                   )}
                   <button
-                    onClick={() => handleSaveJob(job._id)}
-                    className={`p-1 rounded transition-colors ${savedJobs.includes(job._id) ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                    onClick={() => handleSaveJob(job._id || job.id)}
+                    className={`p-1 rounded transition-colors ${savedJobs.includes(job._id || job.id) ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                   >
-                    {savedJobs.includes(job._id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                    {savedJobs.includes(job._id || job.id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
                   </button>
                 </div>
               </div>

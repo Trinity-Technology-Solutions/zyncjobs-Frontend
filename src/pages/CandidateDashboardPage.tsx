@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Camera, ChevronDown, Info, TrendingUp, Star, Edit, FileText, Search, Bell, MessageSquare, Plus, X } from 'lucide-react';
 import Notification from '../components/Notification';
@@ -108,14 +108,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       apps.slice(0, 4).forEach((app: any) => {
         const statusIcons: Record<string, string> = {
-          applied: '📝', reviewed: '👀', shortlisted: '🎉', rejected: '❌', hired: '✅'
+          applied: '??', reviewed: '??', shortlisted: '??', rejected: '?', hired: '?'
         };
         recentActivity.push({
           type: 'application',
           company: app.jobId?.company || 'Company',
-          message: `Applied for ${app.jobId?.jobTitle || 'a position'} — ${app.status}`,
+          message: `Applied for ${app.jobId?.jobTitle || 'a position'} � ${app.status}`,
           time: timeAgo(app.createdAt),
-          icon: statusIcons[app.status] || '📝',
+          icon: statusIcons[app.status] || '??',
         });
       });
 
@@ -125,7 +125,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           company: iv.company || iv.jobId?.company || 'Company',
           message: `Interview scheduled for ${iv.jobTitle || iv.jobId?.jobTitle || 'a position'}`,
           time: timeAgo(iv.scheduledAt || iv.createdAt),
-          icon: '📅',
+          icon: '??',
         });
       });
 
@@ -146,7 +146,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           company: 'ZyncJobs',
           message: 'No activity yet. Start applying to jobs!',
           time: 'Now',
-          icon: '📊',
+          icon: '??',
         });
       }
 
@@ -155,7 +155,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       console.error('Error fetching activity insights:', error);
       setActivityData({
         profileViews: 0, searchAppearances: 0, applicationsSent: 0, recruiterActions: 0,
-        recentActivity: [{ type: 'info', company: 'ZyncJobs', message: 'Failed to load activity data', time: 'Now', icon: '⚠️' }]
+        recentActivity: [{ type: 'info', company: 'ZyncJobs', message: 'Failed to load activity data', time: 'Now', icon: '??' }]
       });
     } finally {
       setLoadingActivity(false);
@@ -241,13 +241,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       if (userData) {
         try {
           const parsedUser = JSON.parse(userData);
-          // Fix any cached wrong photo URL before using it
-          if (parsedUser.profilePhoto && parsedUser.profilePhoto.startsWith('http')) {
-            try { parsedUser.profilePhoto = new URL(parsedUser.profilePhoto).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch {}
-            localStorage.setItem('user', JSON.stringify(parsedUser));
-          }
-          
-          // Fetch fresh data from database
+// Fetch fresh data from database
           try {
             const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
             if (response.ok) {
@@ -264,10 +258,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 if (!url) return '';
                 if (url.startsWith('data:')) return url;
                 if (url.startsWith('http')) {
-                  // Extract just the path — proxy will handle the host
+                  // Extract just the path � proxy will handle the host
                   try { return new URL(url).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch { return url; }
                 }
-                return url.startsWith('/') ? url : `/${url}`;
+                const base = (import.meta.env.VITE_API_URL || '').replace('/api', ''); return url.startsWith('/') ? `${base}${url}` : `${base}/${url}`;
               };
               // Helper: pick profileData value only if it's meaningfully filled
               const pick = (fromDB: any, fromLocal: any, fallback: any = '') => {
@@ -625,6 +619,39 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
 
+                {/* Followed Companies Section */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Followed Companies</h3>
+                  {(() => {
+                    const followKey = `followedCompanies_${user?.email || 'guest'}`;
+                    const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
+                    if (followed.length === 0) return (
+                      <div className="text-center py-3">
+                        <p className="text-sm text-gray-500 mb-2">No companies followed yet</p>
+                        <button onClick={() => onNavigate('companies')} className="text-blue-600 text-sm hover:underline">Browse Companies</button>
+                      </div>
+                    );
+                    return (
+                      <div className="space-y-2">
+                        {followed.map((name, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                            <span className="text-sm font-medium text-gray-800 truncate">{name}</span>
+                            <button
+                              onClick={() => {
+                                const updated = followed.filter((_, idx) => idx !== i);
+                                localStorage.setItem(followKey, JSON.stringify(updated));
+                                window.location.reload();
+                              }}
+                              className="text-xs text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                            >Unfollow</button>
+                          </div>
+                        ))}
+                        <button onClick={() => onNavigate('companies')} className="text-xs text-blue-600 hover:underline mt-1">Browse more companies</button>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 {/* Skill Assessments Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Skill Assessments</h3>
@@ -681,13 +708,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 {/* AI Job Recommendations */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xl">🤖</span>
+                    <span className="text-xl">??</span>
                     <h3 className="text-lg font-semibold text-gray-900">AI Job Suggestions</h3>
                   </div>
                   <div className="space-y-4">
                     {recommendedJobs.length > 0 ? (
                       recommendedJobs.map((job, index) => (
-                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all cursor-pointer" onClick={() => onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}>
+                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-gray-900 text-sm">{job.jobTitle || job.title}</h4>
                             <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
@@ -697,22 +724,33 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               }
                             </span>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{job.company} • {job.location}</p>
+                          <p className="text-xs text-gray-600 mb-2">{job.company} � {job.location}</p>
                           {job.salary && (
                             <p className="text-xs text-green-600 font-medium mb-2">
                               {typeof job.salary === 'object' 
-                                ? `${job.salary.currency || '₹'}${job.salary.min || ''} - ${job.salary.currency || '₹'}${job.salary.max || ''}` 
+                                ? `₹${job.salary.min || ''} - ₹${job.salary.max || ''}` 
                                 : job.salary
                               }
                             </p>
                           )}
                           {job.skills && job.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1 mb-2">
                               {job.skills.slice(0, 3).map((skill: string, idx: number) => (
                                 <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{skill}</span>
                               ))}
                             </div>
                           )}
+                          <div className="flex justify-end pt-1.5 border-t border-gray-100">
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('selectedJob', JSON.stringify(job));
+                                onNavigate(`job-detail/${job._id || job.id}`);
+                              }}
+                              className="text-xs text-blue-600 font-medium hover:text-blue-800"
+                            >
+                              Apply Now ?
+                            </button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -724,7 +762,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <span className="text-lg">💼</span>
+                      <span className="text-lg">??</span>
                       <span className="text-sm">Recent Applications</span>
                     </h4>
                     <div className="space-y-3">
@@ -757,12 +795,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                📍 {app.jobId?.location || 'Remote'}
+                                ?? {app.jobId?.location || 'Remote'}
                               </span>
                               <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
-                                💰 {app.jobId?.salary ? (
+                                ?? {app.jobId?.salary ? (
                                   typeof app.jobId.salary === 'object'
-                                    ? `${app.jobId.salary.currency || '₹'}${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
+                                    ? `₹${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
                                     : app.jobId.salary
                                 ) : 'Competitive'}
                               </span>
@@ -772,20 +810,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <p className="text-xs text-gray-400">
                                 {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
-                              <span className="text-xs text-blue-600 font-medium">View Details →</span>
+                              <span className="text-xs text-blue-600 font-medium">View Details ?</span>
                             </div>
                           </div>
                         ))
                       ) : (
                         <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                          <div className="text-4xl mb-2">📋</div>
+                          <div className="text-4xl mb-2">??</div>
                           <p className="text-gray-700 font-medium text-sm mb-2">No applications yet</p>
                           <p className="text-gray-500 text-xs mb-3">Start applying to jobs and track them here</p>
                           <button 
                             onClick={() => onNavigate('job-listings')}
                             className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
                           >
-                            Browse Jobs →
+                            Browse Jobs ?
                           </button>
                         </div>
                       )}
@@ -942,7 +980,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           </p>
                           {user?.educationCollege?.college && (
                             <p className="text-gray-500 text-sm mb-3">
-                              {user.educationCollege.degree ? `${user.educationCollege.degree} — ` : ''}{user.educationCollege.college}
+                              {user.educationCollege.degree ? `${user.educationCollege.degree} � ` : ''}{user.educationCollege.college}
                             </p>
                           )}
                           
@@ -1000,14 +1038,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   Add phone
                                 </button>
                               )}
-                              {user?.phone && <span className="text-green-500">✓</span>}
+                              {user?.phone && <span className="text-green-500">?</span>}
                             </div>
                             <div className="flex items-center space-x-1">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                               </svg>
                               <span>{user?.email ? `${user.email.substring(0, 15)}...` : 'Add email'}</span>
-                              {user?.email && <span className="text-green-500">✓</span>}
+                              {user?.email && <span className="text-green-500">?</span>}
                             </div>
                           </div>
                           
@@ -1146,7 +1184,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <h3 className="font-semibold text-gray-900">{user.educationCollege.degree} from {user.educationCollege.college}</h3>
-                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType} • {user.educationCollege.percentage} • Graduated in {user.educationCollege.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType} � {user.educationCollege.percentage} � Graduated in {user.educationCollege.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1167,7 +1205,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class XII - {user.educationClass12.board}</p>
-                            <p className="text-gray-500 text-sm">{user.educationClass12.percentage}% • {user.educationClass12.medium} Medium • Passed in {user.educationClass12.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationClass12.percentage}% � {user.educationClass12.medium} Medium � Passed in {user.educationClass12.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1196,7 +1234,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class X - {user.educationClass10.board}</p>
-                            <p className="text-gray-500 text-sm">{user.educationClass10.percentage}% • {user.educationClass10.medium} Medium • Passed in {user.educationClass10.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationClass10.percentage}% � {user.educationClass10.medium} Medium � Passed in {user.educationClass10.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1313,7 +1351,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <h3 className="font-semibold text-gray-900">{user.employment.designation} at {user.employment.companyName}</h3>
                           <p className="text-gray-500 text-sm">
                             {user.employment.startMonth} {user.employment.startYear} - {user.employment.currentlyWorking ? 'Present' : `${user.employment.endMonth} ${user.employment.endYear}`}
-                            {user.employment.experienceYears || user.employment.experienceMonths ? ` • ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
+                            {user.employment.experienceYears || user.employment.experienceMonths ? ` � ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
                           </p>
                         </div>
                       </div>
@@ -1450,7 +1488,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <p className="text-gray-900 font-medium">{user.clubsCommittees.designation} at {user.clubsCommittees.clubName}</p>
                           <p className="text-gray-500 text-sm">
                             {user.clubsCommittees.startMonth} {user.clubsCommittees.startYear} - {user.clubsCommittees.currentlyWorking ? 'Present' : `${user.clubsCommittees.endMonth} ${user.clubsCommittees.endYear}`}
-                            {user.clubsCommittees.associatedEducation && ` • ${user.clubsCommittees.associatedEducation}`}
+                            {user.clubsCommittees.associatedEducation && ` � ${user.clubsCommittees.associatedEducation}`}
                           </p>
                           <p className="text-gray-700 text-sm mt-1">{user.clubsCommittees.description}</p>
                           {user.clubsCommittees.mediaFile && (
@@ -1647,7 +1685,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">👁️</span>
+                            <span className="text-lg">???</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1661,7 +1699,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">🔍</span>
+                            <span className="text-lg">??</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1675,7 +1713,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">📝</span>
+                            <span className="text-lg">??</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1689,7 +1727,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">💼</span>
+                            <span className="text-lg">??</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1711,7 +1749,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{activity.company} • {activity.time}</p>
+                            <p className="text-xs text-gray-500 mt-1">{activity.company} � {activity.time}</p>
                           </div>
                         </div>
                       ))}
@@ -1783,13 +1821,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               });
               if (uploadRes.ok) {
                 const data = await uploadRes.json();
-                // data.photoUrl is relative like /uploads/photos/xxx.jpg — strip /api from base
+                // data.photoUrl is relative like /uploads/photos/xxx.jpg � strip /api from base
                 photoUrl = data.photoUrl?.startsWith('http')
                   ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
                   : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
               } else {
-                // Upload failed — save base64 directly (fallback)
-                photoUrl = photo;
+                throw new Error('Photo upload failed. Please try again.');
               }
             }
 

@@ -39,8 +39,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       onLogin({ 
         name: displayName, 
         type: userType,
-        email: response.user.email
-      });
+        email: response.user.email,
+        id: response.user.id,
+      } as any);
       
       // Check for pending job application
       const pendingApplication = localStorage.getItem('pendingJobApplication');
