@@ -126,7 +126,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           const token = localStorage.getItem('token');
           const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
           const [jobsRes, appsRes] = await Promise.all([
-            fetch(`${API_ENDPOINTS.JOBS}?employerEmail=${encodeURIComponent(userEmail)}`, { headers }),
+            fetch(`${API_ENDPOINTS.JOBS}?limit=1000`, { headers }),
             fetch(`${API_ENDPOINTS.APPLICATIONS}`, { headers }),
           ]);
           let jobsPosted = 0;
@@ -136,12 +136,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             const allJobs = Array.isArray(d) ? d : d.jobs || [];
             jobsPosted = allJobs.filter((j: any) =>
               j.postedBy === userEmail || j.employerEmail === userEmail
-            ).length || allJobs.length;
+            ).length;
           }
           if (appsRes.ok) {
             const d = await appsRes.json();
             const allApps = Array.isArray(d) ? d : d.applications || [];
-            applicationsReceived = allApps.filter((a: any) => a.employerEmail === userEmail).length;
+            applicationsReceived = allApps.filter((a: any) =>
+              a.employerEmail === userEmail
+            ).length;
           }
           setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
         } else {

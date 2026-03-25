@@ -50,6 +50,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [savedCandidates, setSavedCandidates] = useState<any[]>([]);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [selectedResumeAppId, setSelectedResumeAppId] = useState<string | null>(null);
+  const [appFilterJob, setAppFilterJob] = useState('all');
+  const [appFilterStatus, setAppFilterStatus] = useState('all');
+  const [appSearch, setAppSearch] = useState('');
 
   const getToken = () => localStorage.getItem('token') || localStorage.getItem('accessToken');
 
@@ -1074,8 +1077,69 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'applications' ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-8">Applications</h1>
-              
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-bold text-gray-900">Applications</h1>
+                <span className="text-sm text-gray-500">
+                  {(() => {
+                    const filtered = applications.filter(a => {
+                      const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
+                      const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
+                      const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
+                      return jobMatch && statusMatch && searchMatch;
+                    });
+                    return `${filtered.length} of ${applications.length} applications`;
+                  })()}
+                </span>
+              </div>
+
+              {/* Filters */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6 flex flex-wrap gap-3 items-center">
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 flex-1 min-w-[180px]">
+                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search candidate..."
+                    value={appSearch}
+                    onChange={e => setAppSearch(e.target.value)}
+                    className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400"
+                  />
+                </div>
+                <select
+                  value={appFilterJob}
+                  onChange={e => setAppFilterJob(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white min-w-[180px]"
+                >
+                  <option value="all">All Jobs</option>
+                  {jobs.map(job => {
+                    const jobTitle = job.jobTitle || job.title;
+                    const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
+                    return (
+                      <option key={job._id || job.id} value={jobTitle}>{jobTitle} ({count})</option>
+                    );
+                  })}
+                </select>
+                <select
+                  value={appFilterStatus}
+                  onChange={e => setAppFilterStatus(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="reviewed">Reviewed</option>
+                  <option value="shortlisted">Shortlisted</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="hired">Hired</option>
+                </select>
+                {(appFilterJob !== 'all' || appFilterStatus !== 'all' || appSearch) && (
+                  <button
+                    onClick={() => { setAppFilterJob('all'); setAppFilterStatus('all'); setAppSearch(''); }}
+                    className="text-sm text-red-500 hover:text-red-700 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+
               {loading ? (
                 <div className="flex justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
@@ -1083,12 +1147,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               ) : applications.length === 0 ? (
                 <div className="text-center py-16">
                   <Users className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No posted jobs</h3>
-                  <p className="text-gray-600 mb-6">Try adjusting your search criteria.</p>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No applications yet</h3>
+                  <p className="text-gray-600 mb-6">Applications will appear here when candidates apply.</p>
                 </div>
-              ) : (
+              ) : (() => {
+                const filtered = applications.filter(a => {
+                  const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
+                  const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
+                  const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
+                  return jobMatch && statusMatch && searchMatch;
+                });
+                return filtered.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <p className="text-gray-500">No applications match your filters.</p>
+                  </div>
+                ) : (
                 <div className="space-y-4">
-                  {applications.map((application) => (
+                  {filtered.map((application) => (
                     <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
                       <div className="flex items-start justify-between">
                         <div className="flex items-start space-x-4 flex-1">
@@ -1204,15 +1280,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <option value="rejected">Rejected</option>
                             <option value="hired">Hired</option>
                           </select>
-                          <button 
-                            onClick={() => {
-                              setSelectedApplication(application);
-                              setShowScheduleModal(true);
-                            }}
-                            className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-sm shadow-md"
-                          >
-                            Schedule Interview
-                          </button>
+                          {application.status !== 'rejected' && (
+                            <button 
+                              onClick={() => {
+                                setSelectedApplication(application);
+                                setShowScheduleModal(true);
+                              }}
+                              className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-sm shadow-md"
+                            >
+                              Schedule Interview
+                            </button>
+                          )}
                           <button 
                             onClick={() => {
                               const candidateId = application.candidateId || application.userId || application.candidateUserId || application.candidateEmail;
@@ -1254,12 +1332,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     </div>
                   ))}
                 </div>
-              )}
+                );
+              })()}
             </>
           ) : activeMenu === 'interviews' ? (
             <>
               <h1 className="text-3xl font-bold text-gray-900 mb-8">Scheduled Interviews</h1>
-              
               {loading ? (
                 <div className="flex justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
@@ -1785,6 +1863,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {showScheduleModal && selectedApplication && (
         <ScheduleInterviewModal
           application={selectedApplication}
+          existingRounds={interviews
+            .filter(i => (i.applicationId === (selectedApplication._id || selectedApplication.id)))
+            .map(i => i.round)
+            .filter(Boolean)}
           onClose={() => {
             setShowScheduleModal(false);
             setSelectedApplication(null);

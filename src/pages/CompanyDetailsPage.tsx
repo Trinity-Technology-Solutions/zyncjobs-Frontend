@@ -63,26 +63,25 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
 
+  const isCandidate = user?.role === 'candidate' || user?.userType === 'candidate' || user?.type === 'candidate';
+  const isEmployer = user?.role === 'employer' || user?.userType === 'employer' || user?.type === 'employer';
+
   useEffect(() => {
     const savedCompany = localStorage.getItem('selectedCompany');
-    if (savedCompany) {
-      try {
-        const companyData = JSON.parse(savedCompany);
-        const followKey = `followedCompanies_${user?.email || 'guest'}`;
-        const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
-        setIsFollowing(followed.includes(companyData._id || companyData.name));
-        // Count all users following this company across all keys
-        let count = 0;
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key?.startsWith('followedCompanies_')) {
-            const list: string[] = JSON.parse(localStorage.getItem(key) || '[]');
-            if (list.includes(companyData._id || companyData.name)) count++;
+    if (!savedCompany) return;
+    try {
+      const companyData = JSON.parse(savedCompany);
+      const companyId = companyData._id || companyData.name;
+      fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyId)}/follow-status?userEmail=${encodeURIComponent(user?.email || '')}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            setIsFollowing(data.isFollowing || false);
+            setFollowersCount(data.followersCount || 0);
           }
-        }
-        setFollowersCount(count);
-      } catch {}
-    }
+        })
+        .catch(() => {});
+    } catch {}
   }, [user]);
 
   useEffect(() => {
@@ -142,24 +141,51 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
     return [];
   };
 
-  const handleFollow = () => {
-    if (!user?.email) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to follow companies" } })); return; }
-    const followKey = `followedCompanies_${user.email}`;
-    const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
-    const companyKey = company?._id || company?.name || '';
-    let updated;
-    if (isFollowing) {
-      updated = followed.filter(id => id !== companyKey);
-    } else {
-      updated = [...followed, companyKey];
+  const handleFollow = async () => {
+    if (!user?.email) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please login to follow companies' } }));
+      return;
     }
-    localStorage.setItem(followKey, JSON.stringify(updated));
-    setIsFollowing(!isFollowing);
-    setFollowersCount(prev => isFollowing ? Math.max(0, prev - 1) : prev + 1);
+    const companyId = company?._id || company?.name || '';
+    const action = isFollowing ? 'unfollow' : 'follow';
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyId)}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userEmail: user.email, userName: user.name })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setIsFollowing(!isFollowing);
+        setFollowersCount(data.followersCount ?? (isFollowing ? Math.max(0, followersCount - 1) : followersCount + 1));
+      }
+    } catch (error) {
+      console.error('Follow error:', error);
+    }
+  };
+
+  const deleteReview = async (reviewId: string) => {
+    if (!window.confirm('Delete this review?')) return;
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews/${reviewId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewerEmail: user?.email })
+      });
+      if (response.ok) {
+        setReviews(prev => prev.filter(r => (r._id || r.id) !== reviewId));
+      }
+    } catch (error) {
+      console.error('Error deleting review:', error);
+    }
   };
 
   const submitReview = async () => {
     setReviewError('');
+    if (!isCandidate) {
+      setReviewError('Only candidates can submit reviews.');
+      return;
+    }
     if (!reviewForm.title.trim() || !reviewForm.review.trim()) {
       setReviewError('Please fill in all fields.');
       return;
@@ -230,13 +256,17 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
   }
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📋' },
+    { id: 'overview', label: 'Overview' },
     { id: 'reviews', label: 'Reviews', count: reviews.length },
     { id: 'jobs', label: 'Jobs', count: jobs.length },
-    { id: 'salaries', label: 'Salaries', icon: '💰' },
-    { id: 'interviews', label: 'Interviews', icon: '🎤' },
-    { id: 'benefits', label: 'Benefits', icon: '🎁' }
+    { id: 'salaries', label: 'Salaries' },
+    { id: 'interviews', label: 'Interviews' },
+    { id: 'benefits', label: 'Benefits' }
   ];
+
+  const avgRating = reviews.length
+    ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
+    : null;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -261,7 +291,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
               <div className="flex items-center gap-4 mb-3">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 fill-yellow-300 text-yellow-300" />
-                  <span className="font-semibold">{company.rating}</span>
+                  <span className="font-semibold">{avgRating ?? '—'}</span>
+                  <span className="text-blue-200 text-sm ml-1">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
                 </div>
                 <span>•</span>
                 <span>{company.industry}</span>
@@ -270,25 +301,37 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
               </div>
               <p className="text-blue-100 mb-4">{company.description}</p>
               <div className="flex gap-3 items-center">
-                <button 
-                  onClick={() => setShowReviewModal(true)}
-                  className="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100"
-                >
-                  Add a review
-                </button>
-                <button 
-                  onClick={handleFollow}
-                  className={`px-6 py-2 rounded-lg font-semibold border transition-colors ${
-                    isFollowing
-                      ? 'bg-white text-blue-600 border-white hover:bg-gray-100'
-                      : 'bg-blue-700 text-white border-white hover:bg-blue-800'
-                  }`}
-                >
-                  {isFollowing ? '✓ Following' : 'Follow'}
-                </button>
-                {followersCount > 0 && (
-                  <span className="text-blue-100 text-sm">{followersCount} follower{followersCount !== 1 ? 's' : ''}</span>
+                {isCandidate && (
+                  <button 
+                    onClick={() => setShowReviewModal(true)}
+                    className="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100"
+                  >
+                    Add a review
+                  </button>
                 )}
+                {!user && (
+                  <button
+                    onClick={() => onNavigate && onNavigate('login')}
+                    className="px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100"
+                  >
+                    Login to review
+                  </button>
+                )}
+                {user && !isEmployer && (
+                  <button 
+                    onClick={handleFollow}
+                    className={`px-6 py-2 rounded-lg font-semibold border transition-colors ${
+                      isFollowing
+                        ? 'bg-white text-blue-600 border-white hover:bg-gray-100'
+                        : 'bg-blue-700 text-white border-white hover:bg-blue-800'
+                    }`}
+                  >
+                    {isFollowing ? '✓ Following' : 'Follow'}
+                  </button>
+                )}
+                <span className="text-blue-100 text-sm">
+                  {followersCount} follower{followersCount !== 1 ? 's' : ''}
+                </span>
               </div>
             </div>
           </div>
@@ -310,7 +353,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
                 }`}
               >
                 {tab.label}
-                {tab.count && <span className="ml-2 text-sm">({tab.count})</span>}
+                {tab.count !== undefined && <span className="ml-2 text-sm">({tab.count})</span>}
               </button>
             ))}
           </div>
@@ -324,24 +367,71 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
           <div className="flex-1">
             {activeTab === 'reviews' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
-                <h2 className="text-2xl font-bold text-gray-900 mb-6">Company Reviews</h2>
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Company Reviews
+                    <span className="ml-2 text-lg font-normal text-gray-500">({reviews.length})</span>
+                  </h2>
+                  {isCandidate && (
+                    <button
+                      onClick={() => setShowReviewModal(true)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm"
+                    >
+                      + Write a Review
+                    </button>
+                  )}
+                </div>
                 {reviews.length > 0 ? (
                   <div className="space-y-4">
-                    {reviews.map((review, idx) => (
-                      <div key={idx} className="border-b border-gray-200 pb-4 last:border-b-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          {[...Array(5)].map((_, i) => (
-                            <Star key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-                          ))}
-                          <span className="font-semibold text-gray-900">{review.title}</span>
+                    {reviews.map((review, idx) => {
+                      const reviewId = review._id || review.id;
+                      const isOwner = user?.email && review.reviewerEmail === user.email;
+                      return (
+                        <div key={reviewId || idx} className="border border-gray-100 rounded-lg p-4 bg-gray-50">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
+                                {(review.reviewerName || 'A').charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="font-semibold text-gray-900 text-sm">{review.reviewerName || 'Anonymous'}</span>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  {[...Array(5)].map((_, i) => (
+                                    <Star key={i} className={`w-3.5 h-3.5 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400">{new Date(review.createdAt).toLocaleDateString()}</span>
+                              {isOwner && (
+                                <button
+                                  onClick={() => deleteReview(reviewId)}
+                                  className="text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-0.5 rounded hover:bg-red-50 transition-colors"
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <p className="font-medium text-gray-800 text-sm mb-1">{review.title}</p>
+                          <p className="text-gray-600 text-sm">{review.review}</p>
                         </div>
-                        <p className="text-gray-600 text-sm mb-2">{review.review}</p>
-                        <p className="text-xs text-gray-500">{review.reviewerName} • {new Date(review.createdAt).toLocaleDateString()}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
-                  <p className="text-gray-600">No reviews yet</p>
+                  <div className="text-center py-8">
+                    <p className="text-gray-500 mb-3">No reviews yet. Be the first to review!</p>
+                    {isCandidate && (
+                      <button
+                        onClick={() => setShowReviewModal(true)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm"
+                      >
+                        Write a Review
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -458,7 +548,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
         </div>
       </div>
 
-      {/* Review Modal */}
+      {/* Review Modal — candidates only */}
       {showReviewModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-2xl w-full p-8">
@@ -472,77 +562,85 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
               </button>
             </div>
 
-            {reviewError && (
-              <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
-                {reviewError}
+            {/* Block non-candidates */}
+            {!user ? (
+              <div className="text-center py-6">
+                <p className="text-gray-600 mb-4">Please login as a candidate to write a review.</p>
+                <button onClick={() => { setShowReviewModal(false); onNavigate && onNavigate('login'); }} className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700">Login</button>
               </div>
-            )}
-            {reviewSuccess && (
-              <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium">
-                ✓ Review submitted successfully!
+            ) : !isCandidate ? (
+              <div className="text-center py-6">
+                <p className="text-red-600 font-medium mb-2">Access Restricted</p>
+                <p className="text-gray-500 text-sm">Only candidates can submit company reviews. Employers are not allowed to add reviews.</p>
               </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      onClick={() => setReviewForm({ ...reviewForm, rating: star })}
-                      className="focus:outline-none"
-                    >
-                      <Star
-                        className={`w-8 h-8 ${
-                          star <= reviewForm.rating
-                            ? 'fill-yellow-400 text-yellow-400'
-                            : 'text-gray-300'
-                        }`}
-                      />
-                    </button>
-                  ))}
+            ) : (
+              <>
+                {reviewError && (
+                  <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">
+                    {reviewError}
+                  </div>
+                )}
+                {reviewSuccess && (
+                  <div className="mb-4 px-4 py-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm font-medium">
+                    ✓ Review submitted successfully!
+                  </div>
+                )}
+                <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-700">
+                  Reviewing as <strong>{user.name || user.email}</strong>
                 </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
-                <input
-                  type="text"
-                  value={reviewForm.title}
-                  onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
-                  placeholder="Summary of your review"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Review</label>
-                <textarea
-                  value={reviewForm.review}
-                  onChange={(e) => setReviewForm({ ...reviewForm, review: e.target.value })}
-                  placeholder="Share your experience..."
-                  rows={5}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  onClick={submitReview}
-                  disabled={submittingReview}
-                  className="flex-1 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {submittingReview ? 'Submitting...' : 'Submit Review'}
-                </button>
-                <button
-                  onClick={() => { setShowReviewModal(false); setReviewError(''); setReviewSuccess(false); }}
-                  className="flex-1 bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-400"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Rating</label>
+                    <div className="flex gap-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          onClick={() => setReviewForm({ ...reviewForm, rating: star })}
+                          className="focus:outline-none"
+                        >
+                          <Star className={`w-8 h-8 ${star <= reviewForm.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Title</label>
+                    <input
+                      type="text"
+                      value={reviewForm.title}
+                      onChange={(e) => setReviewForm({ ...reviewForm, title: e.target.value })}
+                      placeholder="Summary of your review"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Review</label>
+                    <textarea
+                      value={reviewForm.review}
+                      onChange={(e) => setReviewForm({ ...reviewForm, review: e.target.value })}
+                      placeholder="Share your experience working at or interviewing with this company..."
+                      rows={5}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={submitReview}
+                      disabled={submittingReview}
+                      className="flex-1 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {submittingReview ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                    <button
+                      onClick={() => { setShowReviewModal(false); setReviewError(''); setReviewSuccess(false); }}
+                      className="flex-1 bg-gray-300 text-gray-700 px-6 py-2 rounded-lg font-medium hover:bg-gray-400"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
