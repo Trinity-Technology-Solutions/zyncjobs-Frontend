@@ -843,7 +843,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {/* Main Content */}
       <div className="flex-1 overflow-auto bg-gray-50" style={{minWidth: 0}}>
         {/* Top bar */}
-        <div className="bg-white border-b border-gray-200 shadow-sm flex items-center gap-4 px-6 py-3">
+        <div className="bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-[1200px] mx-auto px-6 py-3 flex items-center gap-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 max-w-lg">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -883,11 +884,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               Post a Job
             </button>
           </div>
+          </div>
         </div>
 
 
         {/* Dashboard Content */}
-        <div className="px-10 py-6">
+        <div className="py-6">
+          <div className="max-w-[1200px] mx-auto px-6">
           {activeMenu === 'dashboard' ? (
             <>
               <div className="mb-6">
@@ -1660,6 +1663,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
             </>
           ) : null}
+          </div>
         </div>
       </div>
 
