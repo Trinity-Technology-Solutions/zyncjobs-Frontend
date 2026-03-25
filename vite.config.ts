@@ -7,8 +7,16 @@ export default defineConfig({
   server: {
     historyApiFallback: true,
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/uploads': 'http://localhost:5000',
+      '/api': {
+        target: 'https://api.zyncjobs.com',
+        changeOrigin: true,
+        secure: true,
+      },
+      '/uploads': {
+        target: 'https://api.zyncjobs.com',
+        changeOrigin: true,
+        secure: true,
+      },
     },
   },
   preview: {
