@@ -5,55 +5,133 @@ interface ResumeModalProps {
   applicationId: string | null;
   isOpen: boolean;
   onClose: () => void;
+  resumeUrl?: string;
+  candidateName?: string;
+  candidateEmail?: string;
 }
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-const BACKEND_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
 
-const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClose }) => {
-  const [resume, setResume] = useState<any>(null);
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+const buildFullUrl = (fileUrl: string) => {
+  if (!fileUrl || fileUrl === 'resume_from_quick_apply') return null;
+  if (fileUrl.startsWith('http')) {
+    try {
+      const url = new URL(fileUrl);
+      return url.pathname + url.search;
+    } catch {
+      return fileUrl;
+    }
+  }
+  return fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+};
+
+const ResumeModal: React.FC<ResumeModalProps> = ({
+  applicationId, isOpen, onClose,
+  resumeUrl: directResumeUrl,
+  candidateName: directCandidateName,
+  candidateEmail
+}) => {
+  const [resumeFileUrl, setResumeFileUrl] = useState<string | null>(null);
+  const [candidateName, setCandidateName] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [noResume, setNoResume] = useState(false);
 
   useEffect(() => {
-    if (isOpen && applicationId) {
-      fetchResume();
-    }
-  }, [isOpen, applicationId]);
+    if (!isOpen) return;
+    setResumeFileUrl(null);
+    setError(null);
+    setNoResume(false);
+    setCandidateName(directCandidateName || '');
 
-  const fetchResume = async () => {
+    const resolved = directResumeUrl ? buildFullUrl(directResumeUrl) : null;
+    if (resolved) {
+      setResumeFileUrl(resolved);
+    } else if (candidateEmail) {
+      fetchFromProfile(candidateEmail);
+    } else if (applicationId) {
+      fetchFromApi(applicationId);
+    } else {
+      setNoResume(true);
+    }
+  }, [isOpen, applicationId, directResumeUrl, candidateEmail]);
+
+  const fetchFromProfile = async (email: string) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-      setPdfBlobUrl(null);
-      const response = await fetch(`${API_BASE_URL}/resume-viewer/${applicationId}`);
-      if (!response.ok) throw new Error('Failed to load resume');
-      const data = await response.json();
-      setResume(data);
-      if (data.resume?.fileUrl) {
-        const fullUrl = data.resume.fileUrl.startsWith('http')
-          ? data.resume.fileUrl
-          : `${BACKEND_BASE_URL}${data.resume.fileUrl}`;
-        const pdfRes = await fetch(fullUrl);
-        if (pdfRes.ok) {
-          const blob = await pdfRes.blob();
-          setPdfBlobUrl(URL.createObjectURL(blob));
-        }
+      // Try users endpoint first (has full resume data)
+      const res = await fetch(`${API_BASE_URL}/users?email=${encodeURIComponent(email)}`);
+      let data: any = null;
+      if (res.ok) {
+        const users = await res.json();
+        data = Array.isArray(users) ? users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase()) : users;
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load resume');
+      // Fallback to profile endpoint
+      if (!data) {
+        const profileRes = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(email)}`);
+        if (profileRes.ok) data = await profileRes.json();
+      }
+      if (!data) throw new Error('User not found');
+
+      console.log('User resume data:', JSON.stringify({ resume: data.resume, resumeUrl: data.resumeUrl }, null, 2));
+      if (data.name || data.fullName) setCandidateName(prev => prev || data.name || data.fullName);
+
+      const resume = data.resume || data.user?.resume;
+      let fileUrl: string | null = null;
+
+      if (resume?.url) {
+        fileUrl = buildFullUrl(resume.url);
+      } else if (resume?.fileUrl) {
+        fileUrl = buildFullUrl(resume.fileUrl);
+      } else if (resume?.filename) {
+        fileUrl = `/uploads/${resume.filename}`;
+      } else if (resume?.path) {
+        fileUrl = buildFullUrl(resume.path);
+      } else if (data.resumeUrl) {
+        fileUrl = buildFullUrl(data.resumeUrl);
+      } else if (resume?.name) {
+        // Last resort: try the original filename directly under /uploads
+        fileUrl = `/uploads/${resume.name}`;
+      }
+
+      console.log('Resolved fileUrl:', fileUrl);
+
+      if (fileUrl) {
+        // Verify the file actually exists
+        try {
+          const check = await fetch(fileUrl, { method: 'HEAD' });
+          if (check.ok) {
+            setResumeFileUrl(fileUrl);
+          } else {
+            setNoResume(true);
+          }
+        } catch {
+          setResumeFileUrl(fileUrl); // try anyway in iframe
+        }
+      } else {
+        setNoResume(true);
+      }
+    } catch (e) {
+      console.error('fetchFromProfile error:', e);
+      if (applicationId) await fetchFromApi(applicationId);
+      else setNoResume(true);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchFromApi = async (appId: string) => {
+    // resume-viewer endpoint doesn't exist — skip it, just mark no resume
+    setNoResume(true);
+  };
+
   const handleDownload = () => {
-    if (pdfBlobUrl) {
-      const a = document.createElement('a');
-      a.href = pdfBlobUrl;
-      a.download = resume?.resume?.fileName || 'resume.pdf';
-      a.click();
-    }
+    if (!resumeFileUrl) return;
+    const a = document.createElement('a');
+    a.href = resumeFileUrl;
+    a.download = 'resume.pdf';
+    a.target = '_blank';
+    a.click();
   };
 
   if (!isOpen) return null;
@@ -61,118 +139,47 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold">{resume?.candidateName ? `Resume - ${resume.candidateName}` : 'Resume'}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <X className="w-6 h-6" />
-          </button>
+          <h2 className="text-xl font-semibold">{candidateName ? `Resume - ${candidateName}` : 'Resume'}</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X className="w-6 h-6" /></button>
         </div>
 
-        {/* Content */}
         <div className="p-6">
           {loading && <div className="text-center py-8 text-gray-600">Loading resume...</div>}
-          
           {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">{error}</div>}
 
-          {resume && (
-            <div className="flex flex-col gap-4">
-              {/* PDF Viewer */}
-              <div className="w-full">
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  {pdfBlobUrl ? (
-                    <iframe
-                      src={`${pdfBlobUrl}#toolbar=0&navpanes=0&view=FitH&zoom=page-fit`}
-                      width="100%"
-                      height="500"
-                      title="Resume"
-                      className="w-full"
-                      style={{ minHeight: '500px' }}
-                    />
-                  ) : resume.resume?.fileUrl ? (
-                    <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50">
-                      <span className="text-4xl mb-3">📄</span>
-                      <p className="text-sm">Unable to preview. <a href={resume.resume.fileUrl.startsWith('http') ? resume.resume.fileUrl : `${BACKEND_BASE_URL}${resume.resume.fileUrl}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Open PDF</a></p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50">
-                      <span className="text-4xl mb-3">📄</span>
-                      <p className="font-medium">No resume file uploaded</p>
-                      <p className="text-sm mt-1">Candidate applied via Quick Apply without a resume file</p>
-                    </div>
-                  )}
+          {!loading && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              {resumeFileUrl ? (
+                <iframe
+                  src={`${resumeFileUrl}#toolbar=0&navpanes=0&view=FitH`}
+                  width="100%"
+                  height="600"
+                  title="Resume"
+                  style={{ minHeight: '600px' }}
+                />
+              ) : noResume || (!loading && !error) ? (
+                <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50 p-6">
+                  <span className="text-4xl mb-3">📄</span>
+                  <p className="font-medium text-gray-700">Resume not accessible</p>
+                  <p className="text-sm mt-2 text-center text-gray-500">
+                    {candidateName ? `Ask ${candidateName} to` : 'The candidate needs to'} re-upload their resume from their profile page to make it viewable.
+                  </p>
                 </div>
-              </div>
-
-              {/* Resume Details */}
-              <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                <h3 className="text-lg font-semibold mb-4">{resume.resume?.parsedData?.name}</h3>
-                
-                {resume.resume?.parsedData?.email && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Email:</span> {resume.resume.parsedData.email}
-                  </p>
-                )}
-                
-                {resume.resume?.parsedData?.phone && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Phone:</span> {resume.resume.parsedData.phone}
-                  </p>
-                )}
-                
-                {resume.resume?.parsedData?.location && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Location:</span> {resume.resume.parsedData.location}
-                  </p>
-                )}
-                
-                {resume.resume?.parsedData?.title && (
-                  <p className="text-sm text-gray-600 mb-4">
-                    <span className="font-medium">Title:</span> {resume.resume.parsedData.title}
-                  </p>
-                )}
-
-                {resume.resume?.parsedData?.skills?.length > 0 && (
-                  <div className="mb-4 pb-4 border-b border-gray-200">
-                    <h4 className="font-medium text-sm mb-2">Skills</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {resume.resume.parsedData.skills.map((skill: string, idx: number) => (
-                        <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {resume.resume?.parsedData?.experience && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    <span className="font-medium">Experience:</span> {resume.resume.parsedData.experience} years
-                  </p>
-                )}
-
-                {resume.resume?.parsedData?.education && (
-                  <p className="text-sm text-gray-600">
-                    <span className="font-medium">Education:</span> {resume.resume.parsedData.education}
-                  </p>
-                )}
-              </div>
+              ) : null}
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex gap-3 p-6 border-t border-gray-200 justify-end">
           <button
             onClick={handleDownload}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={!resumeFileUrl}
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             📥 Download Resume
           </button>
-          <button
-            onClick={onClose}
-            className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-          >
+          <button onClick={onClose} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors">
             Close
           </button>
         </div>
@@ -182,4 +189,3 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
 };
 
 export default ResumeModal;
-

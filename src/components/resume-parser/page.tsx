@@ -5,18 +5,13 @@ import { ResumeDropzone } from "../ResumeDropzone";
 import MistralJobRecommendations from "../MistralJobRecommendations";
 import CandidateRanking from "../CandidateRanking";
 import CandidateComparison from "../CandidateComparison";
+import { parseResumeFromText } from "./parseLogic";
+import type { ParsedResume } from "./parseLogic";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 interface ResumeParserProps {
   onNavigate?: (page: string, data?: any) => void;
   user?: any;
-}
-
-interface ParsedResume {
-  profile: { name: string; email: string; phone: string; location: string };
-  skills: { featuredSkills: { skill: string }[] };
-  workExperiences: { jobTitle: string; company: string; date: string; descriptions: string[] }[];
-  educations: { degree: string; school: string; date: string }[];
 }
 
 const emptyResume: ParsedResume = {
@@ -26,95 +21,13 @@ const emptyResume: ParsedResume = {
   educations: [],
 };
 
-function findSectionIdx(lines: string[], pattern: RegExp) {
-  return lines.findIndex(l => pattern.test(l.replace(/[:\-_*#]/g, '').trim()));
-}
-
-function parseResumeFromText(text: string): ParsedResume {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const fullText = text;
-
-  // Email
-  const email = (fullText.match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/) || [])[0] || '';
-  // Phone
-  const phone = (fullText.match(/(\+?\d[\d\s\-().]{7,}\d)/) || [])[0]?.trim() || '';
-  // Location
-  const location = (fullText.match(/([A-Z][a-zA-Z]+[,\s]+[A-Z][a-zA-Z\s]{2,20})/) || [])[0]?.trim() || '';
-  // Name — first short line (2-4 words, title case, no digits)
-  const name = lines.find(l =>
-    /^[A-Z][a-zA-Z]+(\s[A-Z][a-zA-Z]+){1,3}$/.test(l) && l.length < 50 && !/\d/.test(l)
-  ) || '';
-
-  // Section indices — loose match (handles caps, colons, extra words)
-  const skillsIdx = findSectionIdx(lines, /^(skills|technical skills?|core competencies|technologies|key skills?|programming languages?)/i);
-  const expIdx = findSectionIdx(lines, /^(experience|work experience|employment|professional experience|work history)/i);
-  const eduIdx = findSectionIdx(lines, /^(education|academic|educational|qualifications?)/i);
-  const projIdx = findSectionIdx(lines, /^(projects?|personal projects?|academic projects?)/i);
-  const certIdx = findSectionIdx(lines, /^(certifications?|courses?|achievements?|awards?)/i);
-
-  // Skills section — find end as next known section
-  const sectionStarts = [expIdx, eduIdx, projIdx, certIdx].filter(i => i > skillsIdx && i > 0);
-  const skillsEnd = sectionStarts.length > 0 ? Math.min(...sectionStarts) : skillsIdx + 15;
-  const skillLines = skillsIdx >= 0 ? lines.slice(skillsIdx + 1, skillsEnd) : [];
-  const skillTokens = skillLines
-    .join(' ')
-    .split(/[,|•·\t\n\/]|\s{2,}/)
-    .map(s => s.replace(/[\-–—*#:]/g, '').trim())
-    .filter(s => s.length > 1 && s.length < 40 && !/^(and|the|with|using|etc)$/i.test(s));
-  const featuredSkills = [...new Set(skillTokens)].slice(0, 20).map(skill => ({ skill }));
-
-  // Experience section
-  const expSectionStarts = [eduIdx, projIdx, certIdx, skillsIdx].filter(i => i > expIdx && i > 0);
-  const expEnd = expSectionStarts.length > 0 ? Math.min(...expSectionStarts) : expIdx + 30;
-  const expLines = expIdx >= 0 ? lines.slice(expIdx + 1, expEnd) : [];
-  const workExperiences: ParsedResume['workExperiences'] = [];
-  const datePattern = /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4})[\s\-–to]*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4}|Present|Current)?/i;
-  for (let i = 0; i < expLines.length; i++) {
-    if (datePattern.test(expLines[i])) {
-      // Look back for job title and company
-      const jobTitle = expLines[i - 1] || expLines[i - 2] || '';
-      const company = expLines[i + 1] || '';
-      const descriptions = expLines.slice(i + 2, i + 6).filter(
-        l => l.length > 20 && !datePattern.test(l)
-      );
-      if (jobTitle) {
-        workExperiences.push({ jobTitle, company, date: expLines[i], descriptions });
-        i += 2;
-      }
-    }
-  }
-
-  // Education section
-  const eduSectionStarts = [expIdx, projIdx, certIdx, skillsIdx].filter(i => i > eduIdx && i > 0);
-  const eduEnd = eduSectionStarts.length > 0 ? Math.min(...eduSectionStarts) : eduIdx + 20;
-  const eduLines = eduIdx >= 0 ? lines.slice(eduIdx + 1, eduEnd) : [];
-  const educations: ParsedResume['educations'] = [];
-  const degreePattern = /b\.?\s*tech|m\.?\s*tech|b\.?\s*e\.?|m\.?\s*e\.?|mba|bsc|msc|b\.?\s*sc|m\.?\s*sc|bachelor|master|phd|doctorate|diploma|b\.?\s*com|m\.?\s*com|university|college|institute|school/i;
-  for (let i = 0; i < eduLines.length; i++) {
-    if (degreePattern.test(eduLines[i])) {
-      const hasDate = datePattern.test(eduLines[i + 1] || '') || /\d{4}/.test(eduLines[i + 1] || '');
-      educations.push({
-        school: degreePattern.test(eduLines[i]) && /university|college|institute|school/i.test(eduLines[i])
-          ? eduLines[i]
-          : eduLines[i + 1] || eduLines[i],
-        degree: /university|college|institute|school/i.test(eduLines[i])
-          ? eduLines[i - 1] || ''
-          : eduLines[i],
-        date: hasDate ? eduLines[i + 1] : (eduLines[i + 2] || ''),
-      });
-      i += hasDate ? 1 : 0;
-    }
-  }
-
-  return { profile: { name, email, phone, location }, skills: { featuredSkills }, workExperiences, educations };
-}
-
 export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {}) {
   const [fileUrl, setFileUrl] = useState('');
   const [resume, setResume] = useState<ParsedResume>(emptyResume);
   const [rawText, setRawText] = useState('');
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [matchingScore, setMatchingScore] = useState<any>(null);
@@ -149,7 +62,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           const url = URL.createObjectURL(file);
           const textItems = await readPdf(url);
           const text = textItems.map(t => t.text).join('\n');
-          const parsed = parseResumeFromText(text);
+          const parsed = await parseResumeFromText(text);
           candidates.push({
             id: `candidate-${Date.now()}-${i}`,
             fileName: file.name,
@@ -223,17 +136,19 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     async function parseResume() {
       setParsing(true);
       try {
+        setParseError(null);
         const textItems = await readPdf(fileUrl);
+        if (!textItems.length) throw new Error('Could not extract text from PDF. The file may be scanned or image-based.');
         const text = textItems.map(t => t.text).join('\n');
         setRawText(text);
-        const parsed = parseResumeFromText(text);
+        const parsed = await parseResumeFromText(text);
         setResume(parsed);
         setIsFileUploaded(true);
         if (selectedJob) {
           setMatchingScore(calculateMatchingScore(parsed, selectedJob));
         }
-      } catch (e) {
-        console.error('Parse error:', e);
+      } catch (e: any) {
+        setParseError(e?.message || 'Failed to parse resume. Please try a different PDF.');
       } finally {
         setParsing(false);
       }
@@ -332,7 +247,14 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
             </div>
           )}
 
-          {!parsing && !isFileUploaded && (
+          {parseError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-4 mb-4">
+              <p className="font-medium">⚠️ Parse Error</p>
+              <p className="text-sm mt-1">{parseError}</p>
+            </div>
+          )}
+
+          {!parsing && !isFileUploaded && !parseError && (
             <p className="text-gray-400 text-sm text-center py-8">Upload a PDF resume to see parsed information here.</p>
           )}
           
@@ -452,7 +374,11 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                   <h4 className="font-medium text-gray-900">{exp.jobTitle}</h4>
                   <p className="text-blue-600">{exp.company}</p>
                   <p className="text-sm text-gray-500">{exp.date}</p>
-                  <p className="text-gray-700 mt-1">{exp.descriptions.join('. ')}</p>
+                  <ul className="mt-1 space-y-1">
+                    {exp.descriptions.map((d: string, i: number) => (
+                      <li key={i} className="text-gray-700 text-sm">• {d}</li>
+                    ))}
+                  </ul>
                 </div>
               ))}
             </div>
@@ -468,6 +394,69 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                 </div>
               ))}
             </div>
+
+            {/* Projects */}
+            {(resume as any).projects?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Projects</h3>
+                {(resume as any).projects.map((proj: any, index: number) => (
+                  <div key={index} className="border-l-4 border-purple-200 pl-4 mb-3">
+                    <h4 className="font-medium text-gray-900">{proj.name}</h4>
+                    {proj.description && <p className="text-gray-600 text-sm mt-1">{proj.description}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Competitions */}
+            {(resume as any).competitions?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Competitions</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(resume as any).competitions.map((c: string, i: number) => (
+                    <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{c}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Certifications */}
+            {(resume as any).certifications?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Certifications</h3>
+                {(resume as any).certifications.map((cert: any, index: number) => (
+                  <div key={index} className="border-l-4 border-orange-200 pl-4 mb-3">
+                    <h4 className="font-medium text-gray-900">{cert.name}</h4>
+                    <p className="text-orange-600 text-sm">{cert.provider}</p>
+                    <p className="text-gray-500 text-sm">{cert.date}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Tools */}
+            {(resume as any).tools?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Tools</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(resume as any).tools.map((t: string, i: number) => (
+                    <span key={i} className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">{t}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Soft Skills */}
+            {(resume as any).softSkills?.length > 0 && (
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Soft Skills</h3>
+                <div className="flex flex-wrap gap-2">
+                  {(resume as any).softSkills.map((s: string, i: number) => (
+                    <span key={i} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
 
 
           </div>

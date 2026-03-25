@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Camera, ChevronDown, Info, TrendingUp, Star, Edit, FileText, Search, Bell, MessageSquare, Plus, X } from 'lucide-react';
 import Notification from '../components/Notification';
@@ -465,27 +465,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchRecommendedJobs = async (userData: any) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=10`);
+      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=1000`);
       if (response.ok) {
         const allJobs = await response.json();
         let filtered = allJobs;
-        if (userData.skills && Array.isArray(userData.skills) && userData.skills.length > 0) {
+        const rawSkills = userData.skills || userData.keySkills || [];
+        const userSkills: string[] = Array.isArray(rawSkills)
+          ? rawSkills.map((s: any) => (typeof s === 'string' ? s : s?.skill || s?.name || '').toLowerCase()).filter(Boolean)
+          : [];
+        if (userSkills.length > 0) {
           const matchedJobs = allJobs.filter((job: any) => {
-            const jobSkills = (job.skills || job.requiredSkills || []).map((s: string) => s.toLowerCase());
-            return userData.skills.some((skill: string) => 
-              jobSkills.some((jSkill: string) => 
-                jSkill.includes(skill.toLowerCase()) || skill.toLowerCase().includes(jSkill)
-              )
+            const jobSkills = (job.skills || job.requiredSkills || []).map((s: any) =>
+              (typeof s === 'string' ? s : s?.skill || s?.name || '').toLowerCase()
+            ).filter(Boolean);
+            const jobTitle = (job.jobTitle || job.title || '').toLowerCase();
+            const jobDesc = (job.description || job.jobDescription || '').toLowerCase();
+            return userSkills.some((skill: string) =>
+              jobSkills.some((js: string) => js.includes(skill) || skill.includes(js)) ||
+              jobTitle.includes(skill) || jobDesc.includes(skill)
             );
           });
           filtered = matchedJobs.length > 0 ? matchedJobs : allJobs;
         }
-        setRecommendedJobs(filtered.slice(0, 3));
+        setRecommendedJobs(filtered.slice(0, 5));
       }
     } catch (error) {
       console.error('Error fetching recommended jobs:', error);
     }
   };
+
+  // Re-run when user skills update from profile load
+  useEffect(() => {
+    if (user && (user.skills?.length > 0 || user.keySkills?.length > 0)) {
+      fetchRecommendedJobs(user);
+    }
+  }, [JSON.stringify(user?.skills), JSON.stringify(user?.keySkills)]);
 
   return (
     <>
@@ -1586,15 +1600,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               });
                               const result = await uploadRes.json();
                               if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                              const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: result.fileUrl };
-                              const updatedUser = { ...user, resume: resumeData, resumeUrl: result.fileUrl };
+                              const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? /uploads/+result.filename : null);
+                              const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
+                              const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
                               await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: result.fileUrl })
+                                body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
                               });
                               setNotification({ type: 'success', message: 'Resume updated successfully!', isVisible: true });
                             } catch (error: any) {
@@ -1638,15 +1653,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             });
                             const result = await uploadRes.json();
                             if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                            const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: result.fileUrl };
-                            const updatedUser = { ...user, resume: resumeData, resumeUrl: result.fileUrl };
+                            const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? /uploads/+result.filename : null);
+                            const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
+                            const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                             setUser(updatedUser);
                             localStorage.setItem('user', JSON.stringify(updatedUser));
                             calculateProfileCompletion(updatedUser);
                             await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: result.fileUrl })
+                              body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
                             });
                             setNotification({ type: 'success', message: 'Resume uploaded successfully!', isVisible: true });
                           } catch (error: any) {

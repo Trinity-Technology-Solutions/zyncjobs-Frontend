@@ -56,7 +56,6 @@ const CompanyViewPage = lazy(() => import('./pages/CompanyViewPage'));
 const JobApplicationPage = lazy(() => import('./pages/JobApplicationPage'));
 const JobRolePage = lazy(() => import('./pages/JobRolePage'));
 const JobManagementPage = lazy(() => import('./pages/JobManagementPage'));
-const CandidateResponseDetailPage = lazy(() => import('./pages/CandidateResponseDetailPageNew'));
 const CandidateReviewPage = lazy(() => import('./pages/CandidateReviewPage'));
 const RecruiterActionsPage = lazy(() => import('./pages/RecruiterActionsPage'));
 const SearchAppearancesPage = lazy(() => import('./pages/SearchAppearancesPage'));
@@ -604,12 +603,6 @@ function App() {
           <Route path="/candidate-review" element={
             <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
               <CandidateReviewPage onNavigate={handleNavigation} jobId="" />
-            </AuthGuard>
-          } />
-
-          <Route path="/candidate-response-detail" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
-              <CandidateResponseDetailPage onNavigate={handleNavigation} applicationId="" />
             </AuthGuard>
           } />
 
