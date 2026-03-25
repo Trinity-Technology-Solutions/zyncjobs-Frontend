@@ -68,7 +68,7 @@ const ResumeReadyPage: React.FC<ResumeReadyPageProps> = ({ onNavigate, user, onL
       }
     } catch (error) {
       console.error('PDF generation error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to generate PDF. Please try again." } }));
     } finally {
       setIsGeneratingPDF(false);
     }

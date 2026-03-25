@@ -73,9 +73,9 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
       
       fetchCandidates();
       fetchShortlisted();
-      alert('Candidate shortlisted successfully!');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate shortlisted successfully!" } }));
     } catch (error) {
-      alert('Error shortlisting candidate');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Error shortlisting candidate" } }));
     }
   };
 
@@ -89,9 +89,9 @@ const CandidateReviewPage: React.FC<CandidateReviewPageProps> = ({ onNavigate, j
       
       fetchCandidates();
       fetchShortlisted();
-      alert(`Candidate status updated to ${status}`);
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(`Candidate status updated to ${status}`) } }));
     } catch (error) {
-      alert('Error updating candidate status');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Error updating candidate status" } }));
     }
   };
 

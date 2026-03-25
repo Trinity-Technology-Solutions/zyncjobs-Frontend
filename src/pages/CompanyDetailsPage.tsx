@@ -143,7 +143,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout, companyId }: {
   };
 
   const handleFollow = () => {
-    if (!user?.email) { alert('Please login to follow companies'); return; }
+    if (!user?.email) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to follow companies" } })); return; }
     const followKey = `followedCompanies_${user.email}`;
     const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
     const companyKey = company?._id || company?.name || '';

@@ -150,7 +150,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       fetchMyAssessments();
       setTimeout(() => onNavigate('assessment-review', { assessmentId: data.assessmentId }), 2000);
     } catch {
-      alert('Failed to submit assessment. Please try again.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to submit assessment. Please try again." } }));
     } finally {
       setLoading(false);
     }

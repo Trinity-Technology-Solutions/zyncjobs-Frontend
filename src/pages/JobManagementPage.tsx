@@ -325,11 +325,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   <button
                     onClick={() => {
                       if (selectedJobs.length === 0) {
-                        alert('Please select jobs to collaborate');
+                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to collaborate" } }));
                         return;
                       }
                       console.log('Collaborating on jobs:', selectedJobs);
-                      alert(`Collaboration initiated for ${selectedJobs.length} job(s)`);
+                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(`Collaboration initiated for ${selectedJobs.length} job(s) } }))`);
                     }}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
                     title="Collaborate on selected jobs"
@@ -341,12 +341,12 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   <button
                     onClick={() => {
                       if (selectedJobs.length === 0) {
-                        alert('Please select jobs to close');
+                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to close" } }));
                         return;
                       }
                       if (window.confirm(`Close ${selectedJobs.length} job(s)?`)) {
                         console.log('Closing jobs:', selectedJobs);
-                        alert(`${selectedJobs.length} job(s) closed successfully`);
+                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(`${selectedJobs.length} job(s) } })) closed successfully`);
                         setSelectedJobs([]);
                       }
                     }}

@@ -671,13 +671,13 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                           <button onClick={() => { setScheduleCandidate(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <Users className="w-4 h-4 text-gray-400" /> Schedule Interview
                           </button>
-                          <button onClick={() => { navigator.clipboard.writeText(candidate.email || ''); alert('Email copied!'); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
+                          <button onClick={() => { navigator.clipboard.writeText(candidate.email || ''); window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Email copied!" } })); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy Email
                           </button>
                           <button onClick={() => {
                             const userData = JSON.parse(localStorage.getItem('user') || '{}');
                             const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-                            if (!token) { alert('Please login to save candidates'); setOpenContactMenu(null); return; }
+                            if (!token) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to save candidates" } })); setOpenContactMenu(null); return; }
                             const payload = {
                               candidateId: candidate._id,
                               fullName: getCandidateName(candidate),
@@ -705,17 +705,17 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                   if (existing) {
                                     const recordId = existing._id || existing.id;
                                     fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${recordId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
-                                      .then(r => { if (r.ok) { alert('Candidate removed from saved list!'); window.dispatchEvent(new CustomEvent('candidateSaved')); } else { alert('Could not remove candidate.'); } })
-                                      .catch(() => alert('Could not remove candidate.'));
+                                      .then(r => { if (r.ok) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate removed from saved list!" } })); window.dispatchEvent(new CustomEvent('candidateSaved')); } else { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Could not remove candidate." } })); } })
+                                      .catch(() => window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Could not remove candidate." } })));
                                   } else {
-                                    alert('Candidate is already saved.');
+                                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate is already saved." } }));
                                   }
                                   return;
                                 }
-                                if (res.ok) { alert('Candidate saved successfully!'); window.dispatchEvent(new CustomEvent('candidateSaved', { detail: payload })); }
-                                else { const t = await res.text(); console.error('Save failed:', t); alert('Failed to save candidate. Please try again.'); }
+                                if (res.ok) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate saved successfully!" } })); window.dispatchEvent(new CustomEvent('candidateSaved', { detail: payload })); }
+                                else { const t = await res.text(); console.error('Save failed:', t); window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to save candidate. Please try again." } })); }
                               })
-                              .catch(err => { console.error('Save error:', err); alert('Network error. Please try again.'); });
+                              .catch(err => { console.error('Save error:', err); window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Network error. Please try again." } })); });
                             setOpenContactMenu(null);
                           }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2">
                             <Star className="w-4 h-4 text-gray-400" /> Save Candidate

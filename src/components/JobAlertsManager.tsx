@@ -108,14 +108,14 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
       if (response.ok) {
         await fetchAlerts();
         resetForm();
-        alert(editingAlert ? 'Alert updated!' : 'Alert created!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(editingAlert ? 'Alert updated!' : 'Alert created!') } }));
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save alert');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(error.error || 'Failed to save alert') } }));
       }
     } catch (error) {
       console.error('Error saving alert:', error);
-      alert('Failed to save alert');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to save alert" } }));
     }
   };
 
@@ -145,11 +145,11 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
 
       if (response.ok) {
         await fetchAlerts();
-        alert('Alert deleted!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Alert deleted!" } }));
       }
     } catch (error) {
       console.error('Error deleting alert:', error);
-      alert('Failed to delete alert');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to delete alert" } }));
     }
   };
 

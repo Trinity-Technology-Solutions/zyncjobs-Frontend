@@ -486,7 +486,7 @@ ${candidate.company}`;
                                     const uploadDate = resumeData?.uploadDate ? new Date(resumeData.uploadDate).toLocaleDateString() : 'Unknown';
                                     const status = resumeData?.status || 'Available';
                                     
-                                    alert(`Resume Information:\n\nName: ${resumeName}\nUpload Date: ${uploadDate}\nStatus: ${status}\n\nNote: Resume was uploaded by candidate during application process.`);
+                                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(`Resume Information:\n\nName: ${resumeName}\nUpload Date: ${uploadDate}\nStatus: ${status}\n\nNote: Resume was uploaded by candidate during application process.`) } }));
                                   }
                                 }}
                                 className="text-blue-600 hover:text-blue-800 underline cursor-pointer flex items-center space-x-1"
@@ -555,7 +555,7 @@ ${candidate.company}`;
                       </div>
                       
                       <button 
-                        onClick={() => currentCandidate?.candidatePhone ? window.open(`tel:${currentCandidate.candidatePhone}`) : alert('Phone number not available')}
+                        onClick={() => currentCandidate?.candidatePhone ? window.open(`tel:${currentCandidate.candidatePhone}`) : window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Phone number not available" } }))}
                         className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer bg-blue-50 px-3 py-1 rounded"
                       >
                         📱 Call from app →

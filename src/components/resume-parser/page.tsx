@@ -692,7 +692,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                       console.error('Save error:', e);
                     }
 
-                    alert('Profile saved successfully!');
+                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Profile saved successfully!" } }));
                     onNavigate && onNavigate('dashboard');
                   }}
                   className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"

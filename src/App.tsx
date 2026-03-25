@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import GlobalAlert from './components/GlobalAlert';
 import NewHero from './components/NewHero';
 import JobCategories from './components/JobCategories';
 import LatestJobs from './components/LatestJobs';
@@ -331,6 +332,7 @@ function App() {
 
   return (
     <>
+      <GlobalAlert />
       <OfflineIndicator />
       <Notification
         type={notification.type}

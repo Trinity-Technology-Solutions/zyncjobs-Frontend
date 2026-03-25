@@ -41,7 +41,7 @@ const ProfilePhotoEditor: React.FC<ProfilePhotoEditorProps> = ({
   const handlePhotoUpload = (file: File) => {
     if (file && file.type.startsWith('image/')) {
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "File size must be less than 5MB" } }));
         return;
       }
       const reader = new FileReader();

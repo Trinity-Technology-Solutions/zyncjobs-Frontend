@@ -116,12 +116,12 @@ const InterviewScheduling = () => {
       if (result.success) {
         const meetingLink = result.meeting.join_url || result.meeting.joinUrl;
         setFormData({ ...formData, meetingLink });
-        alert('Zoom meeting created successfully!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Zoom meeting created successfully!" } }));
       } else {
-        alert('Error: ' + (result.error || result.message));
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Error: ' + (result.error || result.message) } })));
       }
     } catch (error) {
-      alert('Error creating Zoom meeting: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Error creating Zoom meeting: ' + (error instanceof Error ? error.message : 'Unknown error') } })));
     }
   };
 
@@ -146,12 +146,12 @@ const InterviewScheduling = () => {
       if (result.success) {
         const meetingLink = result.meeting.join_url || result.meeting.meetLink;
         setFormData({ ...formData, meetingLink });
-        alert('Google Meet created successfully!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Google Meet created successfully!" } }));
       } else {
-        alert('Error: ' + (result.error || result.message));
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Error: ' + (result.error || result.message) } })));
       }
     } catch (error) {
-      alert('Error creating Google Meet: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Error creating Google Meet: ' + (error instanceof Error ? error.message : 'Unknown error') } })));
     }
   };
 

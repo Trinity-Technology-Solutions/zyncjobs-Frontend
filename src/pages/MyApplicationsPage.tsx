@@ -163,13 +163,13 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
         ));
         setEditingApp(null);
         setEditCoverLetter('');
-        alert('Application updated successfully!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Application updated successfully!" } }));
       } else {
-        alert('Failed to update application');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to update application" } }));
       }
     } catch (error) {
       console.error('Error updating application:', error);
-      alert('Failed to update application');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to update application" } }));
     }
   };
 
@@ -180,7 +180,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
   const handleWithdrawApplication = async (appId: string) => {
     if (!withdrawalReason.trim()) {
-      alert('Please provide a reason for withdrawal');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please provide a reason for withdrawal" } }));
       return;
     }
 
@@ -195,21 +195,21 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
         await fetchMyApplications();
         setWithdrawingApp(null);
         setWithdrawalReason('');
-        alert('Application withdrawn successfully');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Application withdrawn successfully" } }));
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to withdraw application');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(error.error || 'Failed to withdraw application') } }));
       }
     } catch (error) {
       console.error('Error withdrawing application:', error);
-      alert('Failed to withdraw application');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to withdraw application" } }));
     }
   };
 
   const handleReapply = async (application: Application) => {
     try {
       if (!application.candidateEmail) {
-        alert('Candidate email not found. Please try again.');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Candidate email not found. Please try again." } }));
         return;
       }
 
@@ -226,15 +226,15 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
       if (response.ok) {
         await fetchMyApplications();
-        alert('Successfully reapplied to the job!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Successfully reapplied to the job!" } }));
       } else {
         const errorText = await response.text();
         console.error('Reapply error:', errorText);
-        alert('Failed to reapply. Please try again.');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to reapply. Please try again." } }));
       }
     } catch (error) {
       console.error('Error reapplying:', error);
-      alert('Failed to reapply. Please try again.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to reapply. Please try again." } }));
     }
   };
 
@@ -580,10 +580,10 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                                   if (resumeUrl) {
                                     window.open(resumeUrl, '_blank');
                                   } else {
-                                    alert('Resume not found');
+                                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Resume not found" } }));
                                   }
                                 } else {
-                                  alert('No resume available');
+                                  window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "No resume available" } }));
                                 }
                               }}
                               className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition-colors flex items-center"

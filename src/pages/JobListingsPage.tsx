@@ -456,7 +456,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           localStorage.setItem('selectedJob', JSON.stringify(essentialJobData));
           onNavigate('job-application');
         } catch (retryError) {
-          alert('Storage full. Please clear browser data.');
+          window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Storage full. Please clear browser data." } }));
         }
       }
     }
