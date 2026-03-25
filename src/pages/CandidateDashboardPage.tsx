@@ -426,29 +426,25 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   };
 
   const calculateProfileCompletion = (userData: any) => {
-    let completed = 0;
-    const fields = [
-      'name', 'email', 'phone', 'location', 'gender', 'birthday',
-      'profilePhoto', 'profileSummary', 'skills', 'languages',
-      'education', 'employment', 'projects', 'resume'
+    const checks = [
+      { w: 10, ok: () => !!userData.name?.trim() },
+      { w: 5,  ok: () => !!userData.email?.trim() },
+      { w: 5,  ok: () => !!userData.phone?.trim() },
+      { w: 5,  ok: () => !!userData.location?.trim() },
+      { w: 5,  ok: () => !!userData.gender?.trim() },
+      { w: 5,  ok: () => !!userData.birthday },
+      { w: 10, ok: () => !!userData.profilePhoto?.trim() },
+      { w: 10, ok: () => (userData.profileSummary?.trim()?.length ?? 0) > 10 },
+      { w: 10, ok: () => Array.isArray(userData.skills) && userData.skills.length > 0 },
+      { w: 5,  ok: () => Array.isArray(userData.languages) ? userData.languages.length > 0 : !!(userData.languages?.trim?.()) },
+      { w: 10, ok: () => { const e = userData.educationCollege || userData.education; if (!e) return false; if (typeof e === 'string') return e.trim().length > 0; return !!(e.college?.trim() || e.degree?.trim()); } },
+      { w: 10, ok: () => { const e = userData.employment; return !!(e && typeof e === 'object' && (e.companyName?.trim() || e.designation?.trim())); } },
+      { w: 5,  ok: () => { const p = userData.projects; return !!(p && typeof p === 'object' && p.projectName?.trim()); } },
+      { w: 5,  ok: () => !!(userData.resume || userData.resumeUrl) },
     ];
-
-    const hasValue = (val: any): boolean => {
-      if (val === null || val === undefined || val === '') return false;
-      if (typeof val === 'string') return val.trim().length > 0;
-      if (Array.isArray(val)) return val.length > 0 && val.some(item =>
-        typeof item === 'object'
-          ? Object.values(item).some(v => v && String(v).trim().length > 0)
-          : !!item
-      );
-      if (typeof val === 'object') return Object.values(val).some(v => v && String(v).trim().length > 0);
-      return false;
-    };
-
-    fields.forEach(field => { if (hasValue(userData[field])) completed += 1; });
-
-    const percentage = Math.round((completed / fields.length) * 100);
-    setCompletionPercentage(percentage);
+    const total = checks.reduce((s, c) => s + c.w, 0);
+    const earned = checks.reduce((s, c) => s + (c.ok() ? c.w : 0), 0);
+    setCompletionPercentage(Math.round((earned / total) * 100));
   };
 
   const fetchApplications = async (userEmail: string) => {
