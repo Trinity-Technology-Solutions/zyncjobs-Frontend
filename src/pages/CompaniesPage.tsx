@@ -92,18 +92,33 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
 
   const fetchCompaniesFromJobs = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`);
-      if (response.ok) {
-        const jobs = await response.json();
-        const jobsArray = Array.isArray(jobs) ? jobs : [];
+      const [jobsRes, ...reviewsRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`),
+        ...defaultCompanies.map(c =>
+          fetch(`${API_ENDPOINTS.BASE_URL}/reviews?companyName=${encodeURIComponent(c.name)}`)
+        )
+      ]);
 
-        return defaultCompanies.map(company => {
-          const jobCount = jobsArray.filter(
-            (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
-          ).length;
-          return { ...company, openJobs: jobCount || company.openJobs };
-        });
-      }
+      const jobsArray = jobsRes.ok ? (await jobsRes.json()) : [];
+
+      const reviewsData = await Promise.all(
+        reviewsRes.map(r => r.ok ? r.json() : { reviews: [] })
+      );
+
+      return defaultCompanies.map((company, idx) => {
+        const jobCount = (Array.isArray(jobsArray) ? jobsArray : []).filter(
+          (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
+        ).length;
+
+        const raw = reviewsData[idx];
+        const reviewsArray: any[] = Array.isArray(raw.reviews) ? raw.reviews : Array.isArray(raw) ? raw : [];
+        const reviewCount = reviewsArray.length;
+        const avgRating = reviewCount
+          ? parseFloat((reviewsArray.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviewCount).toFixed(1))
+          : 0;
+
+        return { ...company, openJobs: jobCount || company.openJobs, reviews: reviewCount, rating: avgRating };
+      });
     } catch (error) {
       console.error('Error fetching companies from jobs:', error);
     }
@@ -294,15 +309,6 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
               />
 
-              <h3 className="font-semibold text-gray-900 mb-4">Location</h3>
-              <input
-                type="text"
-                placeholder="Select a location"
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
-              />
-
               <h3 className="font-semibold text-gray-900 mb-4">Industries</h3>
               <div className="relative mb-6">
                 <input
@@ -382,10 +388,14 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                           </div>
                           <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded">
                             <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                            <span className="font-semibold text-gray-900">{company.rating}</span>
+                            <span className="font-semibold text-gray-900">
+                              {company.rating > 0 ? company.rating : '—'}
+                            </span>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">{company.location} • {company.employees} employees • {company.officeLocations} office locations</p>
+                        <p className="text-sm text-gray-600 mb-3">
+                          {[company.location, `${company.employees} employees`, company.officeLocations ? `${company.officeLocations} office locations` : null].filter(Boolean).join(' • ')}
+                        </p>
                         <div className="flex items-center gap-6 text-sm">
                           <div>
                             <span className="font-semibold text-blue-600">{company.reviews?.toLocaleString() || 0}</span>

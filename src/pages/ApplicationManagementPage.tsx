@@ -31,6 +31,8 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
   const [aiRunning, setAiRunning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
+  const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
 
   const filteredApplications = useMemo(() => {
     return applications.filter(app => {
@@ -167,6 +169,20 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
       
       setApplications(applicationsWithJobDetails);
       setError(null);
+
+      // Fetch interview rounds for each application
+      const ids = applicationsWithJobDetails.map((a: any) => a.id || a._id).filter(Boolean);
+      const roundsMap: Record<string, any[]> = {};
+      await Promise.all(
+        ids.map(async (id: string) => {
+          try {
+            const r = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/interviews/application/${id}`);
+            if (r.ok) roundsMap[id] = await r.json();
+            else roundsMap[id] = [];
+          } catch { roundsMap[id] = []; }
+        })
+      );
+      setInterviewRounds(roundsMap);
     } catch (error) {
       console.error('Error fetching applications:', error);
       setError('Failed to load applications');
@@ -360,110 +376,127 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
           </div>
           
           {applications.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Candidate
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Job Position
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Applied Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredApplications.map((application) => (
-                    <tr key={application.id || application._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {application.candidateName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {application.candidateEmail}
-                          </div>
-                          {application.candidatePhone && (
-                            <div className="text-sm text-gray-500">
-                              {application.candidatePhone}
-                            </div>
-                          )}
+            <div className="divide-y divide-gray-100">
+              {filteredApplications.map((application) => {
+                const appId = application.id || application._id;
+                const rounds = interviewRounds[appId] || [];
+                const isRejected = application.status === 'rejected';
+                return (
+                  <div key={appId} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+
+                      {/* Left: Candidate Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <span className="font-semibold text-gray-900 text-sm">{application.candidateName}</span>
+                          <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                            application.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
+                            application.status === 'shortlisted' ? 'bg-green-100 text-green-700 border border-green-200' :
+                            application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                            application.status === 'accepted' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                            'bg-gray-100 text-gray-700 border border-gray-200'
+                          }`}>
+                            {isRejected ? '❌ ' : ''}{application.status}
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{application.jobTitle}</div>
-                        <div className="text-sm text-gray-500">{application.company}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(application.appliedDate).toLocaleDateString()}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(application.status)}`}>
-                          {application.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
+                        <div className="text-xs text-gray-500 mb-0.5">{application.candidateEmail}</div>
+                        {application.candidatePhone && (
+                          <div className="text-xs text-gray-400 mb-0.5">📞 {application.candidatePhone}</div>
+                        )}
+                        <div className="text-xs text-gray-400">
+                          {application.jobTitle} · Applied {new Date(application.appliedDate).toLocaleDateString()}
+                        </div>
+
+                        {/* Interview Rounds — only for non-rejected */}
+                        {!isRejected && rounds.length > 0 && (
+                          <div className="mt-2">
+                            <button
+                              onClick={() => setExpandedAppId(expandedAppId === appId ? null : appId)}
+                              className="text-xs text-blue-600 hover:underline font-medium"
+                            >
+                              📅 {rounds.length} Round{rounds.length > 1 ? 's' : ''} {expandedAppId === appId ? '▲' : '▼'}
+                            </button>
+                            {expandedAppId === appId && (
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                {rounds.map((iv: any) => (
+                                  <div key={iv.id} className="flex items-center gap-1 bg-gray-50 border rounded px-2 py-1">
+                                    <span className="font-semibold text-gray-700 text-xs">{iv.round}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                      iv.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                      iv.status === 'scheduled' ? 'bg-blue-100 text-blue-700' :
+                                      'bg-gray-100 text-gray-600'
+                                    }`}>{iv.status}</span>
+                                    <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                                      iv.result === 'Pass' ? 'bg-emerald-100 text-emerald-700' :
+                                      iv.result === 'Fail' ? 'bg-red-100 text-red-700' :
+                                      'bg-yellow-100 text-yellow-700'
+                                    }`}>{iv.result || 'Pending'}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Actions */}
+                      <div className="flex flex-col gap-2 shrink-0 min-w-[160px]">
+                        <div className="flex flex-wrap gap-1">
                           <button
-                            onClick={() => {
-                              sessionStorage.setItem('viewCandidateId', application.candidateEmail || application.candidateId || '');
-                              onNavigate('candidate-profile-view');
-                            }}
-                            className="text-indigo-600 hover:text-indigo-800 border border-indigo-300 px-3 py-1 rounded text-xs hover:bg-indigo-50 transition-colors"
+                            onClick={() => { sessionStorage.setItem('viewCandidateId', application.candidateEmail || ''); onNavigate('candidate-profile-view'); }}
+                            className="text-indigo-600 border border-indigo-200 px-2 py-1 rounded text-xs hover:bg-indigo-50"
                           >
-                            👤 View Profile
+                            👤 Profile
                           </button>
                           <button
-                            onClick={() => {
-                              setSelectedApplicationId(application.id || application._id);
-                              setShowResumeModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 border border-blue-300 px-3 py-1 rounded text-xs hover:bg-blue-50 transition-colors"
+                            onClick={() => { setSelectedApplicationId(appId); setShowResumeModal(true); }}
+                            className="text-blue-600 border border-blue-200 px-2 py-1 rounded text-xs hover:bg-blue-50"
                           >
                             📄 Resume
                           </button>
+
+                          {/* Rejected: Contact only. Others: Schedule Round */}
+                          {isRejected ? (
+                            <a
+                              href={`mailto:${application.candidateEmail}?subject=Regarding your application for ${application.jobTitle}`}
+                              className="text-orange-600 border border-orange-200 px-2 py-1 rounded text-xs hover:bg-orange-50"
+                            >
+                              ✉️ Contact
+                            </a>
+                          ) : (
+                            <button
+                              onClick={() => { setSelectedApplication({ ...application, _id: appId }); setShowScheduleModal(true); }}
+                              className="bg-blue-600 text-white px-2 py-1 rounded text-xs hover:bg-blue-700"
+                            >
+                              + Round
+                            </button>
+                          )}
+
                           <button
-                            onClick={() => {
-                              setSelectedApplication({ ...application, _id: application.id || application._id });
-                              setShowScheduleModal(true);
-                            }}
-                            className="bg-gray-600 text-white px-3 py-1 rounded text-xs hover:bg-gray-700 transition-colors"
+                            onClick={() => deleteApplication(appId)}
+                            className="text-red-500 border border-red-200 px-2 py-1 rounded text-xs hover:bg-red-50"
                           >
-                            Schedule Interview
-                          </button>
-                          <select
-                            value={application.status}
-                            onChange={(e) => updateApplicationStatus(application.id || application._id, e.target.value)}
-                            className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
-                            aria-label={`Update status for ${application.candidateName}'s application`}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="reviewed">Reviewed</option>
-                            <option value="shortlisted">Shortlisted</option>
-                            <option value="accepted">Accepted</option>
-                            <option value="rejected">Rejected</option>
-                          </select>
-                          <button
-                            onClick={() => deleteApplication(application.id || application._id)}
-                            className="text-red-600 hover:text-red-800 border border-red-300 px-3 py-1 rounded text-xs hover:bg-red-50 transition-colors"
-                          >
-                            🗑️ Delete
+                            🗑️
                           </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+                        <select
+                          value={application.status}
+                          onChange={(e) => updateApplicationStatus(appId, e.target.value)}
+                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 w-full"
+                          aria-label={`Update status for ${application.candidateName}`}
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="reviewed">Reviewed</option>
+                          <option value="shortlisted">Shortlisted</option>
+                          <option value="accepted">Accepted</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : filteredApplications.length === 0 && applications.length > 0 ? (
             <div className="text-center py-12">
@@ -568,13 +601,12 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
       {showScheduleModal && selectedApplication && (
         <ScheduleInterviewModal
           application={selectedApplication}
+          existingRounds={(interviewRounds[selectedApplication._id] || []).map((iv: any) => iv.round)}
           onClose={() => {
             setShowScheduleModal(false);
             setSelectedApplication(null);
           }}
-          onSuccess={() => {
-            fetchApplications();
-          }}
+          onSuccess={() => fetchApplications()}
         />
       )}
 

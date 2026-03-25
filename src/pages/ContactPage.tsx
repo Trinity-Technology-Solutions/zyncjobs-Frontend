@@ -91,11 +91,14 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
               Have a question? Need support? Our team is here to help!
             </p>
             <div className="flex flex-wrap justify-center gap-4">
-              <a href="mailto:support@zyncjobs.com" className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg transition-all backdrop-blur-sm border border-white/30">
+              <a 
+                href="mailto:support@zyncjobs.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg transition-all backdrop-blur-sm border border-white/30 flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
                 Email Us
-              </a>
-              <a href="tel:+914412345678" className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg transition-all backdrop-blur-sm border border-white/30">
-                Call Now
               </a>
             </div>
           </div>

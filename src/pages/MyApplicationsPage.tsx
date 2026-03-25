@@ -38,7 +38,7 @@ interface Application {
 }
 
 interface MyApplicationsPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, params?: any) => void;
   user: any;
   onLogout: () => void;
 }
@@ -58,6 +58,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [toast, setToast] = useState<{ type: 'success' | 'info' | 'error'; message: string; isVisible: boolean }>({ type: 'info', message: '', isVisible: false });
   const prevStatusesRef = useRef<Record<string, string>>({});
   const isFirstLoadRef = useRef(true);
+  const [scheduledAppIds, setScheduledAppIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchMyApplications();
@@ -125,6 +126,23 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
         }
         
         setHasMoreApplications(data.length === applicationsPerPage);
+
+        // Fetch interview status for each application
+        const ids: string[] = data.map((a: Application) => a._id).filter(Boolean);
+        const settled = await Promise.all(
+          ids.map(async (id: string) => {
+            try {
+              const r = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/application/${id}`);
+              if (r.ok) {
+                const d = await r.json();
+                return (Array.isArray(d) ? d.length > 0 : !!d?._id) ? id : null;
+              }
+            } catch {}
+            return null;
+          })
+        );
+        const scheduled = new Set<string>(settled.filter(Boolean) as string[]);
+        setScheduledAppIds(prev => append ? new Set([...prev, ...scheduled]) : scheduled);
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -434,6 +452,12 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                               {getStatusIcon(application.status)}
                               <span className="ml-2">{application.status.charAt(0).toUpperCase() + application.status.slice(1)}</span>
                             </div>
+                            {scheduledAppIds.has(application._id) && (
+                              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                <Calendar className="w-3.5 h-3.5 mr-1" />
+                                Interview Scheduled
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center space-x-2 mb-3">
                             {application.jobId?.location && (
@@ -562,7 +586,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                         <div className="flex flex-col space-y-2">
                           <div className="flex space-x-2">
                             <button 
-                              onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id || application.jobId?.id, jobData: application.jobId })}
+                              onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id, jobData: application.jobId })}
                               className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                             >
                               View Job
@@ -602,6 +626,16 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             >
                               <X className="w-4 h-4" />
                               <span>Withdraw</span>
+                            </button>
+                          )}
+                          
+                          {scheduledAppIds.has(application._id) && (
+                            <button
+                              onClick={() => onNavigate('candidate-interviews')}
+                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded hover:bg-indigo-50 transition-colors"
+                            >
+                              <Calendar className="w-4 h-4" />
+                              <span>View Interview</span>
                             </button>
                           )}
                           
