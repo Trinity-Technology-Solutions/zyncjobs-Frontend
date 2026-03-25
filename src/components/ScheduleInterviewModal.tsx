@@ -23,6 +23,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
   const [generatingLink, setGeneratingLink] = useState(false);
   const [error, setError] = useState('');
 
+  const zyncAlert = (msg: string) => window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: msg } }));
+
   const scheduleInterview = async () => {
     if (!formData.scheduledDate) {
       setError('Please select a date and time');
@@ -76,15 +78,15 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       console.log('Result:', result);
 
       if (response.ok && result.success) {
-        alert('✅ Interview scheduled successfully! Email sent to candidate.');
+        zyncAlert('Interview scheduled successfully! Email sent to candidate.');
         onSuccess();
         onClose();
       } else {
-        alert('❌ ' + (result.error || 'Failed to schedule interview'));
+        zyncAlert('Failed to schedule interview: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('❌ Error: ' + (error as Error).message);
+      zyncAlert('Error scheduling interview: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -92,7 +94,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
 
   const handleZoomClick = () => {
     if (!formData.scheduledDate) {
-      alert('Please select a date and time first');
+      zyncAlert('Please select a date and time first');
       return;
     }
     generateZoomLink();
@@ -104,7 +106,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       return;
     }
     if (!formData.scheduledDate) {
-      alert('Please select a date and time first');
+      zyncAlert('Please select a date and time first');
       return;
     }
     generateGoogleMeetLink();
@@ -133,11 +135,11 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
         setFormData(prev => ({ ...prev, meetingLink: link }));
         window.open(link, '_blank');
       } else {
-        alert('Failed to generate Google Meet link');
+        zyncAlert('Failed to generate Google Meet link');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error: ' + (error as Error).message);
+      zyncAlert('Error: ' + (error as Error).message);
     } finally {
       setGeneratingLink(false);
     }
@@ -163,13 +165,13 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ applica
       
       if (result.success && result.meeting?.join_url) {
         setFormData(prev => ({ ...prev, meetingLink: result.meeting.join_url }));
-        alert('Zoom link generated: ' + result.meeting.join_url);
+        zyncAlert('Zoom link generated: ' + result.meeting.join_url);
       } else {
-        alert('Failed to generate Zoom link');
+        zyncAlert('Failed to generate Zoom link');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error: ' + (error as Error).message);
+      zyncAlert('Error: ' + (error as Error).message);
     } finally {
       setGeneratingLink(false);
     }

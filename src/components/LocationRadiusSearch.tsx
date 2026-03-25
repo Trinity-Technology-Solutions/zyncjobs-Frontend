@@ -25,7 +25,7 @@ const LocationRadiusSearch: React.FC<LocationRadiusSearchProps> = ({ onSearch })
         setLoading(false);
       },
       () => {
-        alert('Unable to get your location');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Unable to get your location" } }));
         setLoading(false);
       }
     );
@@ -48,10 +48,10 @@ const LocationRadiusSearch: React.FC<LocationRadiusSearchProps> = ({ onSearch })
           query
         });
       } else {
-        alert('Location not found');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Location not found" } }));
       }
     } catch (error) {
-      alert('Error finding location');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Error finding location" } }));
     }
     setLoading(false);
   };

@@ -226,7 +226,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const employerEmail = user.email;
-      if (!employerEmail) { alert('Please login first.'); return; }
+      if (!employerEmail) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login first." } })); return; }
 
       const url = `${API_ENDPOINTS.BASE_URL}/ai-rejection-settings${jobId ? `/${jobId}` : ''}`;
       const response = await fetch(url, {
@@ -240,13 +240,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         const msg = result.autoRejectedCount > 0
           ? `Settings saved! ${result.autoRejectedCount} existing application(s) auto-rejected.`
           : 'Auto-rejection settings saved successfully!';
-        alert(msg);
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(msg) } }));
       } else {
         throw new Error('API save failed');
       }
     } catch {
       localStorage.setItem(`aiRejectionSettings${jobId ? `_${jobId}` : ''}`, JSON.stringify(settings));
-      alert('Settings saved locally.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Settings saved locally." } }));
     }
     await loadCandidateData();
     if (onSave) onSave(settings);

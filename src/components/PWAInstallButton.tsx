@@ -27,7 +27,7 @@ const PWAInstallButton: React.FC = () => {
   const handleInstall = () => {
     if (isIOS) {
       // Show iOS install instructions
-      alert('To install: Tap the Share button and then "Add to Home Screen"');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "To install: Tap the Share button and then \"Add to Home Screen\"" } }));
       return;
     }
 

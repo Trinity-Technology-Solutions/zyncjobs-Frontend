@@ -89,12 +89,12 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
     const token = localStorage.getItem('accessToken');
 
     if (!currentUser?.email || (!currentUser?.name && !currentUser?.fullName)) {
-      alert('Please login to apply for jobs.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to apply for jobs." } }));
       return;
     }
 
     if (!token) {
-      alert('Session expired. Please login again.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Session expired. Please login again." } }));
       return;
     }
 
@@ -173,7 +173,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
         if (data.code === 'TOKEN_EXPIRED') {
           activeToken = await refreshAccessToken();
           if (!activeToken) {
-            alert('Session expired. Please login again.');
+            window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Session expired. Please login again." } }));
             return;
           }
           response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`, {
@@ -193,14 +193,14 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       if (response.ok) {
         setHasApplied(true);
         onSuccess?.();
-        alert('✅ Quick Apply successful! Your resume has been sent to the employer.');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "✅ Quick Apply successful! Your resume has been sent to the employer." } }));
       } else {
         const errorMsg = result.errors?.[0]?.msg || result.error || 'Application failed';
-        alert(errorMsg);
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(errorMsg) } }));
       }
     } catch (error) {
       console.error('Quick apply error:', error);
-      alert('Application failed. Please try again.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Application failed. Please try again." } }));
     } finally {
       setIsApplying(false);
     }

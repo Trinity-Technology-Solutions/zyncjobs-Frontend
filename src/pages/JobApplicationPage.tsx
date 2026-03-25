@@ -30,7 +30,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     if (!user || !token) {
-      alert('Please login to apply for jobs.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to apply for jobs." } }));
       onNavigate('login');
     }
   }, []);
@@ -82,11 +82,11 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
         existingResume.path || existingResume.status || typeof existingResume === 'string'
       );
       if (!hasResume && !applicationData.resumeFile) {
-        alert('Please upload your resume before proceeding.');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please upload your resume before proceeding." } }));
         return;
       }
       if (!userData.phone && !userData.name) {
-        alert('Your profile is missing required details (name, phone). Please update your profile first.');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Your profile is missing required details (name, phone). Please update your profile first." } }));
         return;
       }
     }
@@ -212,10 +212,10 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                             updateData('resumeFileName', file.name);
                             updateData('resumeUrl', result.fileUrl || result.file?.url);
                           } else {
-                            alert('Upload failed: ' + result.error);
+                            window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Upload failed: ' + result.error) } }));
                           }
                         } catch (error) {
-                          alert('Upload failed: ' + (error as Error).message);
+                          window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Upload failed: ' + (error as Error) } })).message);
                         }
                       }
                     }}
@@ -512,12 +512,12 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     
                     // Validate required data
                     if (!jobData._id && !jobData.id) {
-                      alert('❌ Job information is missing. Please go back and select a job.');
+                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "❌ Job information is missing. Please go back and select a job." } }));
                       return;
                     }
                     
                     if (!userData.email) {
-                      alert('❌ User information is missing. Please log in again.');
+                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "❌ User information is missing. Please log in again." } }));
                       return;
                     }
                     
@@ -565,7 +565,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     
                     const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
                     if (!token) {
-                      alert('Session expired. Please login again.');
+                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Session expired. Please login again." } }));
                       onNavigate('login');
                       return;
                     }
@@ -587,7 +587,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     
                     if (response.ok) {
                       console.log('✅ Application submitted successfully!');
-                      alert('🎉 Application submitted successfully! You can track your application in your dashboard.');
+                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "🎉 Application submitted successfully! You can track your application in your dashboard." } }));
                       
                       // Update user's applied jobs in localStorage
                       const updatedUser = {
@@ -608,11 +608,11 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                       setTimeout(() => onNavigate('dashboard'), 2000);
                     } else {
                       console.error('❌ Application failed:', result);
-                      alert(`❌ ${result.error || 'Failed to submit application. Please try again.'}`);
+                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(`❌ ${result.error || 'Failed to submit application. Please try again.'}`) } }));
                     }
                   } catch (error) {
                     console.error('❌ Application submission error:', error);
-                    alert('❌ Network error. Please check your connection and try again.');
+                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "❌ Network error. Please check your connection and try again." } }));
                   }
                 }}
                 className="bg-green-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-green-700 flex items-center"

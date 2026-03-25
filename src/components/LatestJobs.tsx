@@ -42,13 +42,13 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
       
       if (response.ok) {
         setJobs(prev => prev.filter(job => job._id !== jobId));
-        alert('Job deleted successfully!');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Job deleted successfully!" } }));
       } else {
-        alert('Failed to delete job. Please try again.');
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to delete job. Please try again." } }));
       }
     } catch (error) {
       console.error('Error deleting job:', error);
-      alert('Error deleting job. Please try again.');
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Error deleting job. Please try again." } }));
     }
   };
 

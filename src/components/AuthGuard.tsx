@@ -9,7 +9,7 @@ interface AuthGuardProps {
 }
 
 const RedirectWithAlert: React.FC<{ message: string; to: string }> = ({ message, to }) => {
-  useEffect(() => { alert(message); }, []);
+  useEffect(() => { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(message) } })); }, []);
   return <Navigate to={to} replace />;
 };
 
