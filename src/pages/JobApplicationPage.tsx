@@ -215,7 +215,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                             window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Upload failed: ' + result.error) } }));
                           }
                         } catch (error) {
-                          window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String('Upload failed: ' + (error as Error) } })).message);
+                          window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'Upload failed: ' + (error as Error).message } }));
                         }
                       }
                     }}
