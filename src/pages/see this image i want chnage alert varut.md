@@ -1,0 +1,1 @@
+see this image i want chnage alert varuthula mela like pop up maathiri athu default browser altert msg but i want chnage like site la eh vara maathiri pannalum ellathukume full module ku ipdi varakoodathu . see second image antha maathiriye msg varanum pls update full site like this alert confirmation msg 

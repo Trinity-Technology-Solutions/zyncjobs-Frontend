@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getCompanyLogo } from '../utils/logoUtils';
+import { formatSalary } from '../utils/textUtils';
 
 interface LatestJobsProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -85,21 +86,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatSalary = (salary: Job['salary']) => {
-    if (!salary) return 'Salary not specified';
-    
-    const min = salary.min;
-    const max = salary.max;
-    const currency = salary.currency || 'INR';
-    
-    if (min && max && min > 0 && max > 0) {
-      const currencySymbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : '$';
-      return `${currencySymbol}${min.toLocaleString()} - ${currencySymbol}${max.toLocaleString()}`;
-    }
-    
-    return 'Salary not specified';
   };
 
   const getTimeAgo = (dateString: string) => {
@@ -195,7 +181,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex space-x-2">
                         <button
-                          key="view-details"
                           onClick={() => onNavigate && onNavigate('job-detail', { 
                             jobTitle: job.jobTitle, 
                             jobId: job._id,
@@ -208,7 +193,6 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         </button>
                         {user?.email === job.postedBy && (
                           <button
-                            key="delete"
                             onClick={() => deleteJob(job._id)}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                           >

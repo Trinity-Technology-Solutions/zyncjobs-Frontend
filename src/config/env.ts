@@ -63,6 +63,25 @@ export const API_ENDPOINTS = {
   
   // Saved Candidates
   SAVED_CANDIDATES: `${config.API_URL}/saved-candidates`,
+
+  // Notifications
+  NOTIFICATIONS: `${config.API_URL}/notifications`,
+  CANDIDATE_NOTIFICATIONS: `${config.API_URL}/notifications/candidate`,
+
+  // Admin
+  ADMIN_OVERVIEW: `${config.API_URL}/admin/analytics/overview`,
+  ADMIN_USER_GROWTH: `${config.API_URL}/admin/analytics/user-growth`,
+  ADMIN_JOB_STATS: `${config.API_URL}/admin/analytics/job-stats`,
+  ADMIN_APP_STATS: `${config.API_URL}/admin/analytics/application-stats`,
+  ADMIN_TOP_COMPANIES: `${config.API_URL}/admin/analytics/top-companies`,
+  ADMIN_TOP_ROLES: `${config.API_URL}/admin/analytics/top-roles`,
+  ADMIN_USERS: `${config.API_URL}/admin/users`,
+  ADMIN_JOBS_PENDING: `${config.API_URL}/admin/jobs/pending`,
+  ADMIN_SETTINGS: `${config.API_URL}/admin/settings`,
+  ADMIN_AUDIT: `${config.API_URL}/admin/audit`,
+  ADMIN_NOTIFICATIONS_BROADCAST: `${config.API_URL}/admin/notifications/broadcast`,
+  ADMIN_NOTIFICATIONS_QUEUE: `${config.API_URL}/admin/notifications/queue`,
+  ADMIN_SYSTEM_HEALTH: `${config.API_URL}/admin/system/health`,
 };
 
 // Legacy exports for backward compatibility

@@ -28,7 +28,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
   // Auth guard — redirect to login if not logged in
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
     if (!user || !token) {
       alert('Please login to apply for jobs.');
       onNavigate('login');
@@ -563,7 +563,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     console.log('📤 Sending application payload:', applicationPayload);
                     console.log('🌐 API Endpoint:', API_ENDPOINTS.APPLICATIONS);
                     
-                    const token = localStorage.getItem('accessToken');
+                    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
                     if (!token) {
                       alert('Session expired. Please login again.');
                       onNavigate('login');
@@ -605,7 +605,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                       };
                       localStorage.setItem('user', JSON.stringify(updatedUser));
                       
-                      setTimeout(() => onNavigate('candidate-dashboard'), 2000);
+                      setTimeout(() => onNavigate('dashboard'), 2000);
                     } else {
                       console.error('❌ Application failed:', result);
                       alert(`❌ ${result.error || 'Failed to submit application. Please try again.'}`);

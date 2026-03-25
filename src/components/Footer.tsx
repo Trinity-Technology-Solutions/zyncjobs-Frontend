@@ -7,44 +7,38 @@ interface FooterProps {
 }
 
 const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
+  const isCandidate = user?.type === 'candidate';
+
+  const handleEmployerLink = (page: string) => {
+    if (!onNavigate) return;
+    if (isCandidate) {
+      onNavigate('employer-login');
+    } else {
+      onNavigate(page);
+    }
+  };
+
   const jobSeekerLinks = [
     { name: "Find Jobs", action: () => onNavigate && onNavigate('job-listings') },
     { name: "Browse Companies", action: () => onNavigate && onNavigate('companies') },
-    { name: "Career Resources", action: () => onNavigate && onNavigate('career-insights-hub') },
+    { name: "Career Resources", action: () => onNavigate && onNavigate('career-resources') },
   ];
 
   const employerLinks = [
-    { 
-      name: "Post a Job", 
-      action: () => {
-        alert('You are logged in as candidate profile. Please switch to employer account.');
-        return;
-      }
-    },
-    { name: "Find Candidates", action: () => {
-      alert('You are logged in as candidate profile. Please switch to employer account.');
-      return;
-    }},
-    { name: "Employer Solutions", action: () => {
-      alert('You are logged in as candidate profile. Please switch to employer account.');
-      return;
-    }},
-    { name: "Hiring Dashboard", action: () => {
-      alert('You are logged in as candidate profile. Please switch to employer account.');
-      return;
-    }},
-    { name: "Pricing Plans", action: () => {
-      alert('You are logged in as candidate profile. Please switch to employer account.');
-      return;
-    }}
+    { name: "Post a Job", action: () => handleEmployerLink('job-posting-selection') },
+    { name: "Find Candidates", action: () => handleEmployerLink('candidate-search') },
+    { name: "Employer Solutions", action: () => handleEmployerLink('employers') },
+    { name: "Hiring Dashboard", action: () => handleEmployerLink('dashboard') },
   ];
 
+  const isEmployer = user?.type === 'employer';
+
   const resourceLinks = [
-    { name: "🎨 Resume Studio", action: () => onNavigate && onNavigate('resume-studio') },
-    { name: "💬 Interview Preparation", action: () => onNavigate && onNavigate('interviews') },
-    { name: "🧭 Career Guidance", action: () => onNavigate && onNavigate('career-advice') },
-    { name: "✅ Skill Check", action: () => onNavigate && onNavigate('skill-assessment') },
-  ];
+    { name: "🎨 Resume Studio", action: () => onNavigate && onNavigate('resume-studio'), candidateOnly: true },
+    { name: "💬 Interview Preparation", action: () => onNavigate && onNavigate('interview-tips'), candidateOnly: true },
+    { name: "🧭 Career Guidance", action: () => onNavigate && onNavigate('career-coach'), candidateOnly: true },
+    { name: "✅ Skill Check", action: () => onNavigate && onNavigate('skill-assessment'), candidateOnly: true },
+  ].filter(link => !isEmployer || !link.candidateOnly);
 
   const companyLinks = [
     { name: "About ZyncJobs", action: () => onNavigate && onNavigate('about') },
@@ -104,29 +98,25 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
             </ul>
           </div>
           
-          {user?.type === 'candidate' ? (
-            <div>
-              <h4 className="text-lg font-semibold mb-6">For Employers</h4>
-              <p className="text-gray-500 text-sm italic">You are logged in as candidate profile</p>
-            </div>
-          ) : (
-            <div>
-              <h4 className="text-lg font-semibold mb-6">For Employers</h4>
-              <ul className="space-y-3">
-                {employerLinks.map((link, index) => (
-                  <li key={index}>
-                    <button 
-                      onClick={link.action}
-                      className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
-                    >
-                      {link.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          {!isCandidate && (
+          <div>
+            <h4 className="text-lg font-semibold mb-6">For Employers</h4>
+            <ul className="space-y-3">
+              {employerLinks.map((link, index) => (
+                <li key={index}>
+                  <button
+                    onClick={link.action}
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                  >
+                    {link.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
           )}
           
+          {resourceLinks.length > 0 && (
           <div>
             <h4 className="text-lg font-semibold mb-6">Resources</h4>
             <ul className="space-y-3">
@@ -142,6 +132,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
               ))}
             </ul>
           </div>
+          )}
           
           <div>
             <h4 className="text-lg font-semibold mb-6">Company</h4>

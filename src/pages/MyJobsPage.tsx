@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Briefcase, MapPin, DollarSign, Bookmark, Clock, Search, Filter } from 'lucide-react';
+import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
+
 
 interface MyJobsPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -13,7 +14,14 @@ interface MyJobsPageProps {
 }
 
 const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) => {
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string; show: boolean }>({ type: 'success', message: '', show: false });
   const [activeTab, setActiveTab] = useState(user?.type === 'employer' ? 'Posted Jobs' : 'Saved');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ type, message, show: true });
+    setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
+  };
   const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
@@ -107,13 +115,22 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const fetchAppliedJobs = async () => {
     const userEmail = user?.email;
     
-    if (!userEmail) return;
+    if (!userEmail) {
+      console.warn('fetchAppliedJobs: no user email');
+      return;
+    }
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`);
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`, { headers });
       if (response.ok) {
         const applications = await response.json();
         setAppliedJobs(applications);
+      } else {
+        console.error('fetchAppliedJobs failed:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Error fetching applied jobs:', error);
@@ -152,10 +169,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       const applicationsResponses = await Promise.all(applicationsPromises);
       const allApplications = [];
       
-      for (const response of applicationsResponses) {
-        if (response.ok) {
-          const jobApplications = await response.json();
-          allApplications.push(...jobApplications);
+      for (let i = 0; i < applicationsResponses.length; i++) {
+        if (applicationsResponses[i].ok) {
+          const jobApplications = await applicationsResponses[i].json();
+          const job = employerJobs[i];
+          allApplications.push(...jobApplications.map((app: any) => ({
+            ...app,
+            jobTitle: app.jobTitle || job?.jobTitle || job?.title || '',
+            jobDescription: app.jobDescription || job?.jobDescription || job?.description || ''
+          })));
         }
       }
       
@@ -200,16 +222,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       if (response.ok) {
         setPostedJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
-        alert('Job deleted successfully!');
-        
-        // Trigger a storage event to notify other components
+        showNotification('Job deleted successfully!');
         window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
       } else {
-        alert('Failed to delete job. Please try again.');
+        showNotification('Failed to delete job. Please try again.', 'error');
       }
     } catch (error) {
       console.error('Error deleting job:', error);
-      alert('Error deleting job. Please try again.');
+      showNotification('Error deleting job. Please try again.', 'error');
     }
   };
 
@@ -301,7 +321,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             </div>
             {formatSalary(job.salary) && (
               <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                <DollarSign className="w-4 h-4 text-green-600" />
+                <IndianRupee className="w-4 h-4 text-green-600" />
                 <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
               </div>
             )}
@@ -321,9 +341,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500 mb-3">
               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                 <span className="font-semibold text-blue-900">Description: </span>
-                {job.description && job.description.length > 600 
-                  ? `${formatJobDescription(job.description.substring(0, 600), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
-                  : formatJobDescription(job.description || '', typeof job.salary === 'object' ? job.salary.currency : undefined)}
+                {job.description && job.description.length > 300 
+                  ? `${formatJobDescription(job.description.substring(0, 300))}...` 
+                  : formatJobDescription(job.description || '')}
               </p>
             </div>
           )}
@@ -334,7 +354,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'posted' && (
               <>
                 <button 
-                  onClick={() => onNavigate('job-detail', { jobId: job._id || job.id, jobData: job })}
+                  onClick={() => {
+                    const jobId = job.id || job._id;
+                    if (jobId) {
+                      onNavigate('job-detail', { jobId, jobData: job });
+                    }
+                  }}
                   className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
                 >
                   View Job
@@ -383,15 +408,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {notification.show && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium ${
+          notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        }`}>
+          {notification.message}
+        </div>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="bg-white rounded-lg shadow-sm px-4 sm:px-6 lg:px-8 py-8">
-          <div className="mb-6">
-            <BackButton 
-              onClick={() => onNavigate('dashboard')}
-              text="Back to Dashboard"
-              className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            />
-          </div>
+
           <div className="flex items-center justify-between mb-8">
             <div className="flex space-x-1">
               {user?.type === 'employer' ? (
@@ -445,7 +471,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             
             {user?.type === 'candidate' && (
               <button
-                onClick={() => onNavigate('job-listings')}
+                onClick={() => onNavigate('job-listings', { tab: 'recommended' })}
                 className="text-blue-600 hover:text-blue-800 flex items-center space-x-1 font-medium"
               >
                 <span>View Recommended Jobs</span>
@@ -503,10 +529,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               
             {activeTab === 'Applied' && (
               <button
-                onClick={() => fetchAppliedJobs()}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                onClick={async () => {
+                  setRefreshing(true);
+                  await fetchAppliedJobs();
+                  setRefreshing(false);
+                }}
+                className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Refresh applications"
+                aria-label="Refresh applications"
+                disabled={refreshing}
               >
-                Refresh
+                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
               </button>
             )}
             
@@ -585,26 +618,37 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                     {application.candidateName || application.candidateEmail || 'Candidate'}
                                   </h3>
                                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
+                                    application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
                                     application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
                                     application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                    application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
                                     application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                    application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
+                                    application.status === 'hired' ? 'bg-green-100 text-green-800' :
                                     'bg-gray-100 text-gray-800'
                                   }`}>
-                                    {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
+                                    {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
                                   </span>
                                 </div>
-                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
-                                  <span>💼</span>
-                                  {application.jobTitle || 'Job Position'}
-                                </p>
+                                {application.jobTitle && (
+                                  <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
+                                    <span>💼</span>
+                                    {application.jobTitle}
+                                  </p>
+                                )}
                                 <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex">
                                   <span>📅</span>
                                   <span className="text-sm font-medium text-gray-700">
                                     Applied on: {formatDate(application.createdAt || application.appliedAt)}
                                   </span>
                                 </div>
+                                {application.jobDescription && (
+                                  <div className="mt-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                                    <p className="text-sm text-gray-700 leading-relaxed">
+                                      <span className="font-semibold text-blue-900">Job Description: </span>
+                                      {application.jobDescription.length > 200 ? `${application.jobDescription.substring(0, 200)}...` : application.jobDescription}
+                                    </p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -654,47 +698,46 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                       <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                           <div className="flex-1">
-                            <div className="flex items-start mb-4">
-                              <div className="flex-shrink-0 w-14 h-14 mr-4">
-                                <div className="w-14 h-14 rounded-lg border-2 border-gray-200 flex items-center justify-center bg-white shadow-sm">
+                            <div className="mb-4">
+                              {/* Company logo + name row */}
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                                   <img 
                                     src={getCompanyLogo(application.jobId?.company || '')}
                                     alt={`${application.jobId?.company || 'Company'} logo`}
-                                    className="w-12 h-12 object-contain"
+                                    className="w-8 h-8 object-contain"
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
                                       target.src = '/images/zync-logo.svg';
                                     }}
                                   />
                                 </div>
+                                <span className="text-blue-600 font-semibold text-base">{application.jobId?.company}</span>
                               </div>
-                              
-                              <div className="flex-1">
-                                <div className="flex items-start justify-between mb-2">
-                                  <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
-                                    {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'}
-                                  </h3>
-                                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                                    application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
-                                    application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                                    application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                                    application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                    application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
-                                    'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Pending'}
-                                  </span>
-                                </div>
-                                <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
-                                  <span>🏢</span>
-                                  {application.jobId?.company}
-                                </p>
-                                <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
-                                  <span>📅</span>
-                                  <span className="text-sm font-medium text-gray-700">
-                                    Applied on: {formatDate(application.createdAt || application.appliedAt)}
-                                  </span>
-                                </div>
+
+                              {/* Job title + status */}
+                              <div className="flex items-start justify-between mb-2">
+                                <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
+                                  {application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || application.jobId?.company || 'Application'}
+                                </h3>
+                                <span className={`px-3 py-1 rounded-full text-sm font-medium ml-3 flex-shrink-0 ${
+                                  application.status === 'pending' ? 'bg-blue-100 text-blue-800' :
+                                  application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
+                                  application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
+                                  application.status === 'interviewed' ? 'bg-purple-100 text-purple-800' :
+                                  application.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                                  application.status === 'hired' ? 'bg-green-100 text-green-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {application.status === 'pending' ? 'Applied' : application.status ? application.status.charAt(0).toUpperCase() + application.status.slice(1) : 'Applied'}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
+                                <span>📅</span>
+                                <span className="text-sm font-medium text-gray-700">
+                                  Applied on: {formatDate(application.createdAt || application.appliedAt)}
+                                </span>
                               </div>
                             </div>
                             
@@ -705,7 +748,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               </div>
                               {formatSalary(application.jobId?.salary) && (
                                 <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                                  <DollarSign className="w-4 h-4 text-green-600" />
+                                  <IndianRupee className="w-4 h-4 text-green-600" />
                                   <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary)}</span>
                                 </div>
                               )}
@@ -714,6 +757,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 <span className="text-sm font-medium text-blue-700">{application.jobId?.type || 'Full-time'}</span>
                               </div>
                             </div>
+
+                            {application.jobId?.jobDescription && (
+                              <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                                <p className="text-sm text-gray-700 leading-relaxed">
+                                  <span className="font-semibold text-blue-900">Job Description: </span>
+                                  {application.jobId.jobDescription.length > 200 ? `${application.jobId.jobDescription.substring(0, 200)}...` : application.jobId.jobDescription}
+                                </p>
+                              </div>
+                            )}
 
                             {application.coverLetter && application.coverLetter !== 'No cover letter' && (
                               <div className="mb-4 bg-blue-50 p-3 rounded-lg border-l-4 border-blue-500">
@@ -729,7 +781,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
                           <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
                             <button 
-                              onClick={() => onNavigate('job-detail', { jobId: typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id) })}
+                              onClick={() => {
+                                const jobId = application.jobId
+                                  ? (typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id))
+                                  : (application.jobObjectId || application.jobRef);
+                                if (jobId) {
+                                  onNavigate('job-detail', { jobId });
+                                } else {
+                                  showNotification('Job details are no longer available.', 'error');
+                                }
+                              }}
                               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
                             >
                               View Job

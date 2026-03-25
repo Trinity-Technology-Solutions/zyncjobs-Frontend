@@ -1,20 +1,26 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Camera, ChevronDown, Info, TrendingUp, Star, Edit, FileText, Search, Bell, MessageSquare, Plus, X } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import JobAlertsManager from '../components/JobAlertsManager';
 import MistralJobRecommendations from '../components/MistralJobRecommendations';
+import CandidateNotificationBell from '../components/CandidateNotificationBell';
+import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { API_ENDPOINTS } from '../config/env';
 
 interface CandidateDashboardPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: any) => void;
+  readOnly?: boolean;
+  viewEmail?: string;
 }
 
-const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavigate }) => {
+const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavigate, readOnly = false, viewEmail }) => {
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState('Profile');
-  const [completionPercentage, setCompletionPercentage] = useState(40);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'Profile');
+  const [completionPercentage, setCompletionPercentage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
@@ -22,6 +28,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     isVisible: boolean;
   }>({ type: 'success', message: '', isVisible: false });
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showNotifTooltip, setShowNotifTooltip] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [activityData, setActivityData] = useState<any>(null);
   const [loadingActivity, setLoadingActivity] = useState(false);
@@ -30,6 +37,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
+  const [myAssessments, setMyAssessments] = useState<any[]>([]);
   const [colleges, setColleges] = useState<any[]>([]);
   const [collegeSearch, setCollegeSearch] = useState('');
   const [showCollegeDropdown, setShowCollegeDropdown] = useState(false);
@@ -39,76 +47,115 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
 
+  const candidateEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return undefined; } })();
+  const { notifications: appNotifications, unreadCount, markRead, markAllRead, clearAll } =
+    useApplicationNotifications(candidateEmail);
+
   const fetchActivityInsights = async (userId: string) => {
     setLoadingActivity(true);
     try {
-      // Fetch real analytics data from backend
-      const analyticsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(user?.email || userId)}`);
-      const recentActivityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/recent-activity/${encodeURIComponent(user?.email || userId)}`);
-      
-      let realData = {
-        profileViews: 0,
-        searchAppearances: 0,
-        applicationsSent: 0,
-        recruiterActions: 0,
-        recentActivity: [] as Array<{
-          type: string;
-          company: string;
-          message: string;
-          time: string;
-          icon: string;
-        }>
-      };
+      const email = user?.email || userId;
 
-      // Get analytics data from database
+      const [appsRes, interviewsRes, analyticsRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(email)}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(email)}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(email)}`),
+      ]);
+
+      let apps: any[] = [];
+      let interviews: any[] = [];
+
+      if (appsRes.ok) {
+        const data = await appsRes.json();
+        if (Array.isArray(data)) apps = data;
+      }
+
+      if (interviewsRes.ok) {
+        const data = await interviewsRes.json();
+        if (Array.isArray(data)) interviews = data;
+      }
+
+      // profileViews from analytics endpoint only if backend tracks it
+      let profileViews = 0;
       if (analyticsRes.ok) {
         const analytics = await analyticsRes.json();
-        realData.profileViews = analytics.profileViews || 0;
-        realData.searchAppearances = analytics.searchAppearances || 0;
-        realData.applicationsSent = analytics.applicationsSent || 0;
-        realData.recruiterActions = analytics.recruiterActions || 0;
+        profileViews = analytics.profileViews || 0;
       }
 
-      // Get recent activity from database
-      if (recentActivityRes.ok) {
-        const activities = await recentActivityRes.json();
-        if (Array.isArray(activities) && activities.length > 0) {
-          realData.recentActivity = activities;
-        }
+      // applicationsSent = total applications submitted
+      const applicationsSent = apps.length;
+
+      // recruiterActions = applications that moved past 'applied' (reviewed/shortlisted/rejected by recruiter)
+      const recruiterActions = apps.filter((a: any) =>
+        ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
+      ).length + interviews.length;
+
+      // searchAppearances = applications where recruiter viewed/shortlisted (real signal of appearing in search)
+      const searchAppearances = apps.filter((a: any) =>
+        ['reviewed', 'shortlisted', 'hired'].includes(a.status)
+      ).length;
+
+      // Build recent activity from real application + interview events
+      const recentActivity: Array<{ type: string; company: string; message: string; time: string; icon: string }> = [];
+
+      const timeAgo = (dateStr: string) => {
+        const diff = Date.now() - new Date(dateStr).getTime();
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        if (hours < 24) return hours <= 1 ? 'Just now' : `${hours}h ago`;
+        return `${days}d ago`;
+      };
+
+      apps.slice(0, 4).forEach((app: any) => {
+        const statusIcons: Record<string, string> = {
+          applied: '??', reviewed: '??', shortlisted: '??', rejected: '?', hired: '?'
+        };
+        recentActivity.push({
+          type: 'application',
+          company: app.jobId?.company || 'Company',
+          message: `Applied for ${app.jobId?.jobTitle || 'a position'} � ${app.status}`,
+          time: timeAgo(app.createdAt),
+          icon: statusIcons[app.status] || '??',
+        });
+      });
+
+      interviews.slice(0, 2).forEach((iv: any) => {
+        recentActivity.push({
+          type: 'interview',
+          company: iv.company || iv.jobId?.company || 'Company',
+          message: `Interview scheduled for ${iv.jobTitle || iv.jobId?.jobTitle || 'a position'}`,
+          time: timeAgo(iv.scheduledAt || iv.createdAt),
+          icon: '??',
+        });
+      });
+
+      // Sort by most recent
+      recentActivity.sort((a, b) => {
+        const parse = (t: string) => {
+          if (t === 'Just now') return 0;
+          const h = t.match(/(\d+)h ago/); if (h) return parseInt(h[1]) * 60;
+          const d = t.match(/(\d+)d ago/); if (d) return parseInt(d[1]) * 1440;
+          return 9999;
+        };
+        return parse(a.time) - parse(b.time);
+      });
+
+      if (recentActivity.length === 0) {
+        recentActivity.push({
+          type: 'info',
+          company: 'ZyncJobs',
+          message: 'No activity yet. Start applying to jobs!',
+          time: 'Now',
+          icon: '??',
+        });
       }
 
-      // Add default activity if no activities found
-      if (realData.recentActivity.length === 0) {
-        realData.recentActivity = [
-          {
-            type: 'profile_setup',
-            company: 'ZyncJobs',
-            message: 'Profile created successfully',
-            time: 'Recently',
-            icon: '👤'
-          }
-        ];
-      }
-
-      setActivityData(realData);
-      
+      setActivityData({ profileViews, searchAppearances, applicationsSent, recruiterActions, recentActivity });
     } catch (error) {
       console.error('Error fetching activity insights:', error);
-      // Fallback data
       setActivityData({
-        profileViews: 0,
-        searchAppearances: 0,
-        applicationsSent: 0,
-        recruiterActions: 0,
-        recentActivity: [
-          {
-            type: 'info',
-            company: 'ZyncJobs',
-            message: 'Complete your profile to start tracking activity',
-            time: 'Now',
-            icon: '📊'
-          }
-        ]
+        profileViews: 0, searchAppearances: 0, applicationsSent: 0, recruiterActions: 0,
+        recentActivity: [{ type: 'info', company: 'ZyncJobs', message: 'Failed to load activity data', time: 'Now', icon: '??' }]
       });
     } finally {
       setLoadingActivity(false);
@@ -172,12 +219,29 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   useEffect(() => {
     const loadUserProfile = async () => {
+      let parsedUser: any = null;
+
+      if (readOnly && viewEmail) {
+        // Load the target candidate's profile directly
+        try {
+          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(viewEmail)}`);
+          if (response.ok) {
+            parsedUser = await response.json();
+            setUser(parsedUser);
+            calculateProfileCompletion(parsedUser);
+          }
+        } catch (error) {
+          console.error('Error fetching candidate profile:', error);
+        }
+        setLoading(false);
+        return;
+      }
+
       const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
       if (userData) {
         try {
           const parsedUser = JSON.parse(userData);
-          
-          // Fetch fresh data from database
+// Fetch fresh data from database
           try {
             const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
             if (response.ok) {
@@ -190,28 +254,63 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 languages: profileData.languages
               });
               // Merge database data with localStorage data, prioritizing database data
+              const normalizePhotoUrl = (url: string) => {
+                if (!url) return '';
+                if (url.startsWith('data:')) return url;
+                if (url.startsWith('http')) {
+                  // Extract just the path � proxy will handle the host
+                  try { return new URL(url).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch { return url; }
+                }
+                const base = (import.meta.env.VITE_API_URL || '').replace('/api', ''); return url.startsWith('/') ? `${base}${url}` : `${base}/${url}`;
+              };
+              // Helper: pick profileData value only if it's meaningfully filled
+              const pick = (fromDB: any, fromLocal: any, fallback: any = '') => {
+                if (fromDB !== null && fromDB !== undefined && fromDB !== '') {
+                  if (typeof fromDB === 'object' && !Array.isArray(fromDB)) {
+                    // Only use DB object if it has at least one non-empty value
+                    if (Object.values(fromDB).some(v => v !== null && v !== undefined && String(v).trim() !== '')) return fromDB;
+                  } else if (Array.isArray(fromDB) && fromDB.length > 0) {
+                    return fromDB;
+                  } else if (typeof fromDB === 'string' && fromDB.trim() !== '') {
+                    return fromDB;
+                  } else if (typeof fromDB !== 'object') {
+                    return fromDB;
+                  }
+                }
+                return fromLocal !== undefined && fromLocal !== null && fromLocal !== '' ? fromLocal : fallback;
+              };
+
               const updatedUser = { 
                 ...parsedUser, 
                 ...profileData,
-                profilePhoto: profileData.profilePhoto || parsedUser.profilePhoto || '',
-                profileFrame: profileData.profileFrame || parsedUser.profileFrame || 'none',
-                profileSummary: profileData.profileSummary || parsedUser.profileSummary || '',
-                employment: profileData.employment || parsedUser.employment || '',
-                projects: profileData.projects || parsedUser.projects || '',
-                internships: profileData.internships || parsedUser.internships || '',
-                languages: profileData.languages || parsedUser.languages || '',
-                awards: profileData.awards || parsedUser.awards || '',
-                clubsCommittees: profileData.clubsCommittees || parsedUser.clubsCommittees || '',
-                competitiveExams: profileData.competitiveExams || parsedUser.competitiveExams || '',
-                academicAchievements: profileData.academicAchievements || parsedUser.academicAchievements || '',
-                companyName: profileData.companyName || parsedUser.companyName || '',
-                roleTitle: profileData.roleTitle || parsedUser.roleTitle || '',
-                gender: profileData.gender || parsedUser.gender || '',
-                birthday: profileData.birthday || parsedUser.birthday || '',
-                location: profileData.location || parsedUser.location || '',
-                phone: profileData.phone || parsedUser.phone || '',
-                jobTitle: profileData.jobTitle || parsedUser.jobTitle || '',
-                education: profileData.education || parsedUser.education || '',
+                profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
+                profileFrame: pick(profileData.profileFrame, parsedUser.profileFrame, 'none'),
+                profileSummary: pick(profileData.profileSummary, parsedUser.profileSummary),
+                employment: pick(profileData.employment, parsedUser.employment),
+                projects: pick(profileData.projects, parsedUser.projects),
+                internships: pick(profileData.internships, parsedUser.internships),
+                languages: pick(profileData.languages, parsedUser.languages),
+                awards: pick(profileData.awards, parsedUser.awards),
+                clubsCommittees: pick(profileData.clubsCommittees, parsedUser.clubsCommittees),
+                competitiveExams: pick(profileData.competitiveExams, parsedUser.competitiveExams),
+                academicAchievements: pick(profileData.academicAchievements, parsedUser.academicAchievements),
+                certifications: pick(profileData.certifications, parsedUser.certifications),
+                companyName: pick(profileData.companyName, parsedUser.companyName),
+                roleTitle: pick(profileData.roleTitle, parsedUser.roleTitle),
+                gender: pick(profileData.gender, parsedUser.gender),
+                email: parsedUser.email,
+                id: parsedUser.id,
+                role: parsedUser.role,
+                birthday: (() => { const d = new Date(profileData.birthday || parsedUser.birthday || ''); return isNaN(d.getTime()) ? '' : (profileData.birthday || parsedUser.birthday || ''); })(),
+                location: pick(profileData.location, parsedUser.location),
+                phone: pick(profileData.phone, parsedUser.phone),
+                jobTitle: pick(profileData.jobTitle, parsedUser.jobTitle),
+                education: pick(profileData.education, parsedUser.education),
+                educationCollege: pick(profileData.educationCollege, parsedUser.educationCollege),
+                educationClass12: pick(profileData.educationClass12, parsedUser.educationClass12),
+                educationClass10: pick(profileData.educationClass10, parsedUser.educationClass10),
+                careerPreferences: pick(profileData.careerPreferences, parsedUser.careerPreferences),
+                skills: pick(profileData.skills, parsedUser.skills),
                 resume: profileData.resume || parsedUser.resume || (profileData.resumeUrl ? { name: profileData.resumeUrl.split('/').pop(), url: profileData.resumeUrl, uploadDate: '' } : null)
               };
               setUser(updatedUser);
@@ -236,6 +335,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           // Fetch applications and recommended jobs
           fetchApplications(parsedUser.email);
           fetchRecommendedJobs(parsedUser);
+          fetchMyAssessments();
         } catch (error) {
           console.error('Error parsing user data:', error);
           setUser(null);
@@ -245,7 +345,36 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     
     loadUserProfile();
-  }, [activeTab]);
+  }, []);
+
+  const fetchMyAssessments = async () => {
+    try {
+      let token = localStorage.getItem('accessToken');
+      if (!token) return;
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.exp * 1000 < Date.now()) {
+          const refreshToken = localStorage.getItem('refreshToken');
+          if (!refreshToken) return;
+          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('accessToken', data.accessToken);
+            if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+            token = data.accessToken;
+          } else return;
+        }
+      } catch { /* use token as-is */ }
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/skill-assessments/my-assessments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) setMyAssessments(await response.json());
+    } catch { /* silent */ }
+  };
 
   const fetchNotifications = async (userId: string) => {
     try {
@@ -266,6 +395,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           applicationId: app._id
         }));
         setNotifications(appNotifications);
+        // Auto-dismiss tooltip after 5 seconds
+        setTimeout(() => setShowNotifTooltip(false), 5000);
       } else {
         // Fallback to job notifications
         const jobsResponse = await fetch(`${API_ENDPOINTS.JOBS}?limit=5`);
@@ -301,19 +432,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       'profilePhoto', 'profileSummary', 'skills', 'languages',
       'education', 'employment', 'projects', 'resume'
     ];
-    
-    fields.forEach(field => {
-      if (userData[field]) {
-        if (Array.isArray(userData[field]) && userData[field].length > 0) {
-          completed += 1;
-        } else if (typeof userData[field] === 'string' && userData[field].trim()) {
-          completed += 1;
-        } else if (typeof userData[field] === 'object' && userData[field] !== null) {
-          completed += 1;
-        }
-      }
-    });
-    
+
+    const hasValue = (val: any): boolean => {
+      if (val === null || val === undefined || val === '') return false;
+      if (typeof val === 'string') return val.trim().length > 0;
+      if (Array.isArray(val)) return val.length > 0 && val.some(item =>
+        typeof item === 'object'
+          ? Object.values(item).some(v => v && String(v).trim().length > 0)
+          : !!item
+      );
+      if (typeof val === 'object') return Object.values(val).some(v => v && String(v).trim().length > 0);
+      return false;
+    };
+
+    fields.forEach(field => { if (hasValue(userData[field])) completed += 1; });
+
     const percentage = Math.round((completed / fields.length) * 100);
     setCompletionPercentage(percentage);
   };
@@ -368,166 +501,66 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center space-x-8">
               <BackButton 
-                onClick={() => onNavigate && onNavigate('home')}
-                text="Back to Home"
+                onClick={() => onNavigate && onNavigate(readOnly ? 'dashboard' : 'home')}
+                text={readOnly ? 'Back' : 'Back to Home'}
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors py-4 font-['IBM_Plex_Sans']"
               />
-              <button 
-                onClick={() => setActiveTab('Profile')}
-                className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
-                  activeTab === 'Profile' 
-                    ? 'border-black text-gray-900' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                View & Edit
-              </button>
-              <button 
-                onClick={() => {
-                  setActiveTab('Activity');
-                  if (user && !activityData) {
-                    fetchActivityInsights(user.email);
-                  }
-                }}
-                className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
-                  activeTab === 'Activity' 
-                    ? 'border-black text-gray-900' 
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Activity insights
-              </button>
+              {!readOnly && (
+                <>
+                  <button 
+                    onClick={() => { setActiveTab('Profile'); setSearchParams({}); }}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                      activeTab === 'Profile' 
+                        ? 'border-black text-gray-900' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    View & Edit
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setActiveTab('Activity');
+                      setSearchParams({ tab: 'Activity' });
+                      if (user && !activityData) {
+                        fetchActivityInsights(user.email);
+                      }
+                    }}
+                    className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                      activeTab === 'Activity' 
+                        ? 'border-black text-gray-900' 
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    Activity insights
+                  </button>
+                </>
+              )}
+              {readOnly && (
+                <span className="py-4 px-1 font-medium text-sm text-gray-900 font-['IBM_Plex_Sans']">Candidate Profile</span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Notification Bell - Fixed Position */}
+        {!readOnly && (
         <div className="fixed top-20 right-4 z-50">
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="relative p-2 bg-white rounded-full shadow-lg border text-gray-600 hover:text-gray-800 transition-colors"
-            aria-label="View notifications"
-            title="View notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {notifications.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center text-xs">
-                {notifications.length}
-              </span>
-            )}
-          </button>
-          
-          {/* Simple Alert Popup */}
-          {notifications.length > 0 && !showNotifications && (
-            <div className="absolute top-12 right-0 w-64 bg-white rounded-lg shadow-lg border p-3 animate-pulse">
-              <p className="text-sm text-gray-700">
-                You have {notifications.length} new job notifications
-              </p>
-              <p className="text-xs text-gray-500 mt-1">Click bell to view details</p>
-            </div>
-          )}
+          <CandidateNotificationBell
+            notifications={appNotifications}
+            unreadCount={unreadCount}
+            onMarkRead={markRead}
+            onMarkAllRead={markAllRead}
+            onClearAll={clearAll}
+            onNavigate={onNavigate}
+          />
         </div>
-
-        {/* Notifications Sidebar */}
-        {showNotifications && (
-          <>
-            {/* Overlay */}
-            <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-40"
-              onClick={() => setShowNotifications(false)}
-            />
-            
-            {/* Sidebar */}
-            <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
-              <div className="p-4 border-b flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-                <button 
-                  onClick={() => setShowNotifications(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                  aria-label="Close notifications"
-                  title="Close notifications"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <div className="h-full overflow-y-auto pb-20">
-                {notifications.length > 0 ? (
-                  <>
-                    <div className="p-3 text-sm text-gray-500 border-b bg-gray-50">Today</div>
-                    {notifications.map((notification, index) => (
-                      <div key={index} className="p-4 border-b hover:bg-gray-50 cursor-pointer">
-                        <div className="flex items-start space-x-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold ${
-                            notification.company === 'Wipro' ? 'bg-orange-500' : 
-                            notification.company === 'Swiggy' ? 'bg-red-500' : 
-                            notification.company === 'Zoho' ? 'bg-blue-500' : 'bg-gray-500'
-                          }`}>
-                            {notification.company?.charAt(0) || 'N'}
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="font-medium text-gray-900 mb-1">{notification.title}</h4>
-                            <p className="text-sm text-gray-600 mb-3">{notification.message}</p>
-                            {notification.actionText && (
-                              <button 
-                                onClick={() => {
-                                  setShowNotifications(false);
-                                  if (notification.jobId) {
-                                    onNavigate(`job-detail/${notification.jobId}`);
-                                  } else if (notification.applicationId) {
-                                    onNavigate('my-applications');
-                                  } else {
-                                    onNavigate('job-listings');
-                                  }
-                                }}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium px-4 py-2 border border-blue-600 rounded-lg"
-                              >
-                                {notification.actionText}
-                              </button>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-400">{notification.time}</span>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {notifications.length > 3 && (
-                      <>
-                        <div className="p-3 text-sm text-gray-500 border-b bg-gray-50">Earlier</div>
-                        <div className="p-4 border-b hover:bg-gray-50 cursor-pointer">
-                          <div className="flex items-start space-x-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold bg-green-500">
-                              T
-                            </div>
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900 mb-1">Profile viewed by Trinity Tech</h4>
-                              <p className="text-sm text-gray-600 mb-3">Your profile was viewed by a recruiter</p>
-                            </div>
-                            <span className="text-xs text-gray-400">2d ago</span>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="p-8 text-center text-gray-500">
-                    <Bell className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium mb-2">No notifications yet</p>
-                    <p className="text-sm">We'll notify you when there's something new</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </>
         )}
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {activeTab === 'Profile' && (
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              {/* Left Sidebar - Quick Actions */}
+              {!readOnly && (
+              
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
@@ -552,6 +585,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     >
                       <TrendingUp className="w-5 h-5 text-blue-600" />
                       <span className="text-gray-700">Take Skill Assessment</span>
+                    </button>
+                    <button 
+                      onClick={() => onNavigate('skill-gap-analysis')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <Search className="w-5 h-5 text-purple-600" />
+                      <span className="text-gray-700">Skill Gap Analysis</span>
                     </button>
                     <button 
                       onClick={() => onNavigate('my-applications')}
@@ -579,6 +619,39 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
 
+                {/* Followed Companies Section */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                  <h3 className="text-lg font-semibold mb-4">Followed Companies</h3>
+                  {(() => {
+                    const followKey = `followedCompanies_${user?.email || 'guest'}`;
+                    const followed: string[] = JSON.parse(localStorage.getItem(followKey) || '[]');
+                    if (followed.length === 0) return (
+                      <div className="text-center py-3">
+                        <p className="text-sm text-gray-500 mb-2">No companies followed yet</p>
+                        <button onClick={() => onNavigate('companies')} className="text-blue-600 text-sm hover:underline">Browse Companies</button>
+                      </div>
+                    );
+                    return (
+                      <div className="space-y-2">
+                        {followed.map((name, i) => (
+                          <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                            <span className="text-sm font-medium text-gray-800 truncate">{name}</span>
+                            <button
+                              onClick={() => {
+                                const updated = followed.filter((_, idx) => idx !== i);
+                                localStorage.setItem(followKey, JSON.stringify(updated));
+                                window.location.reload();
+                              }}
+                              className="text-xs text-red-500 hover:text-red-700 ml-2 flex-shrink-0"
+                            >Unfollow</button>
+                          </div>
+                        ))}
+                        <button onClick={() => onNavigate('companies')} className="text-xs text-blue-600 hover:underline mt-1">Browse more companies</button>
+                      </div>
+                    );
+                  })()}
+                </div>
+
                 {/* Skill Assessments Section */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Skill Assessments</h3>
@@ -599,7 +672,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     
                     <div className="border-t pt-4">
                       <h4 className="font-medium text-gray-900 mb-2">My Assessments</h4>
-                      <p className="text-sm text-gray-500">No assessments completed yet</p>
+                      {myAssessments.length === 0 ? (
+                        <p className="text-sm text-gray-500">No assessments completed yet</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {myAssessments.slice(0, 3).map((a: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                              <div>
+                                <p className="text-sm font-medium text-gray-800">{a.skill}</p>
+                                <p className="text-xs text-gray-400">
+                                  {a.completedAt && new Date(a.completedAt).getFullYear() > 1970
+                                    ? new Date(a.completedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+                                    : 'Date unavailable'}
+                                </p>
+                              </div>
+                              <span className={`text-sm font-bold ${a.score >= 70 ? 'text-green-600' : 'text-orange-500'}`}>
+                                {a.score}%
+                              </span>
+                            </div>
+                          ))}
+                          {myAssessments.length > 3 && (
+                            <button
+                              onClick={() => onNavigate('skill-assessment')}
+                              className="text-xs text-blue-600 hover:underline mt-1"
+                            >
+                              View all {myAssessments.length} assessments
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -607,13 +708,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 {/* AI Job Recommendations */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <span className="text-xl">🤖</span>
+                    <span className="text-xl">??</span>
                     <h3 className="text-lg font-semibold text-gray-900">AI Job Suggestions</h3>
                   </div>
                   <div className="space-y-4">
                     {recommendedJobs.length > 0 ? (
                       recommendedJobs.map((job, index) => (
-                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all cursor-pointer" onClick={() => onNavigate(`job-detail/${job.id || job._id}`)}>
+                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-gray-900 text-sm">{job.jobTitle || job.title}</h4>
                             <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
@@ -623,22 +724,33 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               }
                             </span>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{job.company} • {job.location}</p>
+                          <p className="text-xs text-gray-600 mb-2">{job.company} � {job.location}</p>
                           {job.salary && (
                             <p className="text-xs text-green-600 font-medium mb-2">
                               {typeof job.salary === 'object' 
-                                ? `${job.salary.currency || '₹'}${job.salary.min || ''} - ${job.salary.currency || '₹'}${job.salary.max || ''}` 
+                                ? `₹${job.salary.min || ''} - ₹${job.salary.max || ''}` 
                                 : job.salary
                               }
                             </p>
                           )}
                           {job.skills && job.skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
+                            <div className="flex flex-wrap gap-1 mb-2">
                               {job.skills.slice(0, 3).map((skill: string, idx: number) => (
                                 <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{skill}</span>
                               ))}
                             </div>
                           )}
+                          <div className="flex justify-end pt-1.5 border-t border-gray-100">
+                            <button
+                              onClick={() => {
+                                localStorage.setItem('selectedJob', JSON.stringify(job));
+                                onNavigate(`job-detail/${job._id || job.id}`);
+                              }}
+                              className="text-xs text-blue-600 font-medium hover:text-blue-800"
+                            >
+                              Apply Now ?
+                            </button>
+                          </div>
                         </div>
                       ))
                     ) : (
@@ -650,94 +762,68 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   
                   <div className="mt-4 pt-4 border-t">
                     <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-                      <span className="text-lg">💼</span>
+                      <span className="text-lg">??</span>
                       <span className="text-sm">Recent Applications</span>
                     </h4>
                     <div className="space-y-3">
                       {applications.length > 0 ? (
                         applications.map((app, index) => (
-                          <div 
-                            key={app._id || index} 
-                            className="border border-gray-200 rounded-lg p-4 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
+                          <div
+                            key={app._id || index}
+                            className="border border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
                             onClick={() => onNavigate('my-applications')}
                           >
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="flex-1">
-                                <h5 className="font-bold text-gray-900 text-base mb-1">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <div className="min-w-0 flex-1">
+                                <h5 className="font-semibold text-gray-900 text-sm leading-tight truncate">
                                   {app.jobId?.jobTitle || 'Job Position'}
                                 </h5>
-                                <p className="text-sm text-gray-600 font-semibold flex items-center gap-1">
-                                  <span className="text-blue-600">🏢</span>
+                                <p className="text-xs text-gray-500 truncate mt-0.5">
                                   {app.jobId?.company || 'Company'}
                                 </p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                app.status === 'applied' ? 'bg-blue-100 text-blue-800' :
-                                app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                                app.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                                app.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                                'bg-gray-100 text-gray-800'
+                              <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                app.status === 'applied' ? 'bg-blue-100 text-blue-700' :
+                                app.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700' :
+                                app.status === 'shortlisted' ? 'bg-green-100 text-green-700' :
+                                app.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-700'
                               }`}>
                                 {app.status.charAt(0).toUpperCase() + app.status.slice(1)}
                               </span>
                             </div>
-                            
-                            {app.jobId?.jobDescription && (
-                              <div className="bg-gray-50 border-l-4 border-blue-500 rounded-r-lg p-3 mb-3">
-                                <p className="text-xs text-gray-700 line-clamp-2 leading-relaxed font-medium">
-                                  {app.jobId.jobDescription.substring(0, 120)}...
-                                </p>
-                              </div>
-                            )}
-                            
-                            <div className="flex items-center gap-3 mb-3 flex-wrap">
-                              <div className="flex items-center gap-1 text-xs text-gray-700 bg-gray-100 px-3 py-1.5 rounded-lg">
-                                <span>📍</span>
-                                <span className="font-medium">{app.jobId?.location || 'Remote'}</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg">
-                                <span>💰</span>
-                                <span className="font-semibold">
-                                  {app.jobId?.salary ? (
-                                    typeof app.jobId.salary === 'object' 
-                                      ? `${app.jobId.salary.currency || '₹'}${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}` 
-                                      : app.jobId.salary
-                                  ) : 'Competitive'}
-                                </span>
-                              </div>
+
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                ?? {app.jobId?.location || 'Remote'}
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+                                ?? {app.jobId?.salary ? (
+                                  typeof app.jobId.salary === 'object'
+                                    ? `₹${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
+                                    : app.jobId.salary
+                                ) : 'Competitive'}
+                              </span>
                             </div>
-                            
-                            {app.jobId?.skills && app.jobId.skills.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mb-3">
-                                {app.jobId.skills.slice(0, 3).map((skill: string, idx: number) => (
-                                  <span key={idx} className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
-                                    {skill}
-                                  </span>
-                                ))}
-                                {app.jobId.skills.length > 3 && (
-                                  <span className="text-xs text-gray-500 px-2 py-1">+{app.jobId.skills.length - 3} more</span>
-                                )}
-                              </div>
-                            )}
-                            
-                            <div className="pt-2 border-t border-gray-200 flex items-center justify-between">
-                              <p className="text-xs text-gray-500">
-                                <span className="font-semibold">Applied:</span> {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                              <p className="text-xs text-gray-400">
+                                {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
-                              <span className="text-xs text-blue-600 font-medium hover:underline">View Details →</span>
+                              <span className="text-xs text-blue-600 font-medium">View Details ?</span>
                             </div>
                           </div>
                         ))
                       ) : (
                         <div className="text-center py-6 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                          <div className="text-4xl mb-2">📋</div>
+                          <div className="text-4xl mb-2">??</div>
                           <p className="text-gray-700 font-medium text-sm mb-2">No applications yet</p>
                           <p className="text-gray-500 text-xs mb-3">Start applying to jobs and track them here</p>
                           <button 
                             onClick={() => onNavigate('job-listings')}
                             className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
                           >
-                            Browse Jobs →
+                            Browse Jobs ?
                           </button>
                         </div>
                       )}
@@ -745,10 +831,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Main Content Area */}
               <div className="lg:col-span-3">
-                {/* Save All Button */}
+                {!readOnly && (
+                <>{/* Save All Button */}
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-blue-900 mb-1">Save Your Profile</h3>
@@ -815,7 +903,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   >
                     Save All Changes
                   </button>
-                </div>
+                </div></>
+                )}
 
                 {/* Profile Header Card */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -889,9 +978,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <p className="text-gray-600 mb-2">
                             {user?.title || user?.jobTitle || 'Add your job title'}
                           </p>
-                          <p className="text-gray-500 text-sm mb-3">
-                            {user?.education || user?.degree || 'Add your education'}
-                          </p>
+                          {user?.educationCollege?.college && (
+                            <p className="text-gray-500 text-sm mb-3">
+                              {user.educationCollege.degree ? `${user.educationCollege.degree} � ` : ''}{user.educationCollege.college}
+                            </p>
+                          )}
                           
                           {/* Contact Info */}
                           <div className="flex items-center space-x-6 text-sm text-gray-600 mb-3">
@@ -947,14 +1038,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   Add phone
                                 </button>
                               )}
-                              {user?.phone && <span className="text-green-500">✓</span>}
+                              {user?.phone && <span className="text-green-500">?</span>}
                             </div>
                             <div className="flex items-center space-x-1">
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                               </svg>
                               <span>{user?.email ? `${user.email.substring(0, 15)}...` : 'Add email'}</span>
-                              {user?.email && <span className="text-green-500">✓</span>}
+                              {user?.email && <span className="text-green-500">?</span>}
                             </div>
                           </div>
                           
@@ -998,7 +1089,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 6v6m-4-6h8" />
                               </svg>
-                              <span>{user?.birthday || 'Add birthday'}</span>
+                              <span>{user?.birthday ? new Date(user.birthday).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Add birthday'}</span>
                             </button>
                           </div>
                         </div>
@@ -1093,7 +1184,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <h3 className="font-semibold text-gray-900">{user.educationCollege.degree} from {user.educationCollege.college}</h3>
-                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType} • {user.educationCollege.percentage} • Graduated in {user.educationCollege.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType} � {user.educationCollege.percentage} � Graduated in {user.educationCollege.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1114,7 +1205,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class XII - {user.educationClass12.board}</p>
-                            <p className="text-gray-500 text-sm">{user.educationClass12.percentage}% • {user.educationClass12.medium} Medium • Passed in {user.educationClass12.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationClass12.percentage}% � {user.educationClass12.medium} Medium � Passed in {user.educationClass12.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1143,7 +1234,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class X - {user.educationClass10.board}</p>
-                            <p className="text-gray-500 text-sm">{user.educationClass10.percentage}% • {user.educationClass10.medium} Medium • Passed in {user.educationClass10.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationClass10.percentage}% � {user.educationClass10.medium} Medium � Passed in {user.educationClass10.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1260,7 +1351,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <h3 className="font-semibold text-gray-900">{user.employment.designation} at {user.employment.companyName}</h3>
                           <p className="text-gray-500 text-sm">
                             {user.employment.startMonth} {user.employment.startYear} - {user.employment.currentlyWorking ? 'Present' : `${user.employment.endMonth} ${user.employment.endYear}`}
-                            {user.employment.experienceYears || user.employment.experienceMonths ? ` • ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
+                            {user.employment.experienceYears || user.employment.experienceMonths ? ` � ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
                           </p>
                         </div>
                       </div>
@@ -1397,7 +1488,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <p className="text-gray-900 font-medium">{user.clubsCommittees.designation} at {user.clubsCommittees.clubName}</p>
                           <p className="text-gray-500 text-sm">
                             {user.clubsCommittees.startMonth} {user.clubsCommittees.startYear} - {user.clubsCommittees.currentlyWorking ? 'Present' : `${user.clubsCommittees.endMonth} ${user.clubsCommittees.endYear}`}
-                            {user.clubsCommittees.associatedEducation && ` • ${user.clubsCommittees.associatedEducation}`}
+                            {user.clubsCommittees.associatedEducation && ` � ${user.clubsCommittees.associatedEducation}`}
                           </p>
                           <p className="text-gray-700 text-sm mt-1">{user.clubsCommittees.description}</p>
                           {user.clubsCommittees.mediaFile && (
@@ -1594,7 +1685,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">👁️</span>
+                            <span className="text-lg">???</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1608,7 +1699,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">🔍</span>
+                            <span className="text-lg">??</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1622,7 +1713,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">📝</span>
+                            <span className="text-lg">??</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1636,7 +1727,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">💼</span>
+                            <span className="text-lg">??</span>
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1658,34 +1749,53 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{activity.company} • {activity.time}</p>
+                            <p className="text-xs text-gray-500 mt-1">{activity.company} � {activity.time}</p>
                           </div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  {/* Activity Chart Placeholder */}
+                  {/* Activity Chart */}
                   <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Activity Trends</h2>
-                    <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                      <div className="text-center">
-                        <span className="text-4xl mb-4 block">📈</span>
-                        <p className="text-gray-600">Activity chart will be implemented here</p>
-                        <p className="text-sm text-gray-500 mt-2">Track your profile performance over time</p>
-                      </div>
-                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-1">Activity Trends</h2>
+                    <p className="text-sm text-gray-500 mb-4">Your job search activity over the last 7 days</p>
+                    {(() => {
+                      const days = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - (6 - i)); return { label: d.toLocaleDateString("en-IN", { weekday: "short" }), applications: 0, interviews: 0 }; });
+                      activityData.recentActivity.forEach((a: any) => { const mins = a.time === "Just now" ? 0 : (() => { const h = a.time.match(/(\d+)h ago/); if (h) return parseInt(h[1]) * 60; const d = a.time.match(/(\d+)d ago/); if (d) return parseInt(d[1]) * 1440; return 0; })(); const idx = 6 - Math.floor(mins / 1440); if (idx >= 0 && idx < 7) { if (a.type === "interview") days[idx].interviews += 1; else days[idx].applications += 1; } });
+                      const maxVal = Math.max(...days.map(d => d.applications + d.interviews), 1);
+                      return (
+                        <div>
+                          <div className="flex items-center gap-6 mb-3">
+                            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-blue-500 inline-block"></span><span className="text-xs text-gray-600">Applications</span></div>
+                            <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-sm bg-purple-400 inline-block"></span><span className="text-xs text-gray-600">Interviews</span></div>
+                          </div>
+                          <div className="flex items-end gap-2" style={{height: 120}}>
+                            {days.map((day, i) => {
+                              const total = day.applications + day.interviews;
+                              const barH = total > 0 ? Math.max((total / maxVal) * 96, 6) : 3;
+                              return (
+                                <div key={i} className="flex-1 flex flex-col items-center justify-end gap-1">
+                                  {total > 0 && <span className="text-xs font-semibold text-gray-700">{total}</span>}
+                                  <div className="w-full relative rounded-t overflow-hidden" style={{height: barH, backgroundColor: total > 0 ? "#3b82f6" : "#e5e7eb"}}>
+                                    {day.interviews > 0 && total > 0 && <div className="absolute top-0 left-0 right-0 bg-purple-400" style={{height: (day.interviews / total * 100) + "%"}}></div>}
+                                  </div>
+                                  <span className="text-xs text-gray-500">{day.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-gray-100">
+                            <div className="text-center"><p className="text-2xl font-bold text-blue-600">{activityData.applicationsSent}</p><p className="text-xs text-gray-500 mt-1">Total Applications</p></div>
+                            <div className="text-center"><p className="text-2xl font-bold text-purple-500">{activityData.recruiterActions}</p><p className="text-xs text-gray-500 mt-1">Recruiter Actions</p></div>
+                            <div className="text-center"><p className="text-2xl font-bold text-green-600">{activityData.searchAppearances}</p><p className="text-xs text-gray-500 mt-1">Search Appearances</p></div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
-              ) : (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <div className="text-center py-8">
-                    <span className="text-4xl mb-4 block">📈</span>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-2">No Activity Data</h2>
-                    <p className="text-gray-500">Start applying to jobs to see your activity insights</p>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
@@ -1695,39 +1805,50 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         isOpen={showPhotoEditor}
         onClose={() => setShowPhotoEditor(false)}
         onSave={async (photo, frame) => {
-          const updatedUser = { ...user, profilePhoto: photo, profileFrame: frame || 'none' };
-          setUser(updatedUser);
-          
-          // Save to localStorage
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-          
-          // Save to database
           try {
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+            let photoUrl = photo;
+
+            // If photo is base64, upload it to backend first
+            if (photo && photo.startsWith('data:')) {
+              const res = await fetch(photo);
+              const blob = await res.blob();
+              const ext = blob.type.split('/')[1] || 'jpg';
+              const formData = new FormData();
+              formData.append('photo', blob, `profile.${ext}`);
+              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, {
+                method: 'POST',
+                body: formData
+              });
+              if (uploadRes.ok) {
+                const data = await uploadRes.json();
+                // data.photoUrl is relative like /uploads/photos/xxx.jpg � strip /api from base
+                photoUrl = data.photoUrl?.startsWith('http')
+                  ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
+                  : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
+              } else {
+                throw new Error('Photo upload failed. Please try again.');
+              }
+            }
+
+            const updatedUser = { ...user, profilePhoto: photoUrl, profileFrame: frame || 'none' };
+            setUser(updatedUser);
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                userId: user?.id || user?._id || user?.email,
                 email: user?.email,
-                profilePhoto: photo,
+                profilePhoto: photoUrl,
                 profileFrame: frame || 'none'
               })
             });
-            
-            if (response.ok) {
-              console.log('Profile photo saved to database successfully');
-            } else {
-              console.warn('Failed to save profile photo to database');
-            }
+
+            setNotification({ type: 'success', message: 'Profile photo updated successfully!', isVisible: true });
           } catch (error) {
-            console.error('Error saving profile photo to database:', error);
+            console.error('Error saving profile photo:', error);
+            setNotification({ type: 'error', message: 'Failed to save profile photo', isVisible: true });
           }
-          
-          setNotification({
-            type: 'success',
-            message: 'Profile photo updated successfully!',
-            isVisible: true
-          });
         }}
         currentPhoto={user?.profilePhoto}
         currentFrame={user?.profileFrame || 'none'}
@@ -2218,6 +2339,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, languages: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
@@ -2270,6 +2392,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, [field]: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
                       await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
@@ -2321,14 +2444,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, profileSummary: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, profileSummary: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Profile summary saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save profile summary', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save profile summary', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2465,14 +2595,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, employment: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, employment: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Employment details saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save employment details', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save employment details', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2551,14 +2688,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, projects: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, projects: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Project details saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save project details', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save project details', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2665,14 +2809,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updatedUser = { ...user, internships: modalData };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
+                    calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, internships: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Internship details saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save internship details', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save internship details', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -2788,13 +2939,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, certifications: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Certification saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save certification', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save certification', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -3075,13 +3232,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, competitiveExams: modalData })
                       });
+                      if (res.ok) {
+                        setNotification({ type: 'success', message: 'Competitive exam saved successfully!', isVisible: true });
+                      } else {
+                        setNotification({ type: 'error', message: 'Failed to save competitive exam', isVisible: true });
+                      }
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save competitive exam', isVisible: true });
                     }
                     setActiveModal(null);
                   }}
@@ -3152,16 +3315,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </button>
               </div>
               <div className="space-y-4">
-                <div>
-                  <label className="block font-medium mb-2">Degree/Course</label>
-                  <input
-                    type="text"
-                    value={modalData.degree || ''}
-                    onChange={(e) => setModalData({...modalData, degree: e.target.value})}
-                    className="w-full p-3 border rounded-lg"
-                    placeholder="e.g., B.Tech in Computer Science"
-                  />
-                </div>
                 <div>
                   <label className="block font-medium mb-2">College/University Name</label>
                   <div className="relative">

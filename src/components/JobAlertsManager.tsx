@@ -330,7 +330,7 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
                   placeholder="e.g., React, JavaScript, Frontend"
                 />
                 {showJobTitleDropdown && jobTitleSuggestions.length > 0 && (
-                  <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ zIndex: 9999 }}>
+                  <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                     {jobTitleSuggestions.map((title, index) => (
                       <button
                         key={index}
@@ -378,7 +378,7 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
                     placeholder="e.g., San Francisco, Remote"
                   />
                   {showLocationDropdown && locationSuggestions.length > 0 && (
-                    <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ zIndex: 9999 }}>
+                    <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                       {locationSuggestions.map((location, index) => (
                         <button
                           key={index}
@@ -425,7 +425,7 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
                     placeholder="e.g., Google, Microsoft"
                   />
                   {showCompanyDropdown && companySuggestions.length > 0 && (
-                    <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto" style={{ zIndex: 9999 }}>
+                    <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-xl max-h-48 overflow-y-auto">
                       {companySuggestions.map((company, index) => (
                         <button
                           key={index}

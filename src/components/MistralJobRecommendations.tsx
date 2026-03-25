@@ -80,8 +80,8 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
         recommendations = [
           {
             jobTitle: 'Software Developer',
-            matchReason: 'Good match for your technical skills and ' + experience + ' experience',
-            requiredSkills: skillNames.slice(0, 3),
+            matchReason: 'Good match for your technical skills and ' + (experience || 'your') + ' experience',
+            requiredSkills: skillNames.slice(0, 3).filter(Boolean),
             matchPercentage: 85
           }
         ];
@@ -219,7 +219,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
               </div>
               <p className="text-sm text-gray-700 mb-3">{rec.matchReason}</p>
               <div className="flex flex-wrap gap-2">
-                {rec.requiredSkills.map((skill, idx) => (
+                {rec.requiredSkills.filter(Boolean).map((skill, idx) => (
                   <span key={idx} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
                     {skill}
                   </span>
@@ -242,8 +242,8 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
                     <h5 className="font-semibold text-gray-900 text-base mb-1">{job.jobTitle || job.title}</h5>
-                    <p className="text-blue-600 font-medium text-sm">{job.company}</p>
-                    <p className="text-xs text-gray-500">{job.location}</p>
+                    <p className="text-blue-600 font-medium text-sm">{String(job.company ?? '')}</p>
+                    <p className="text-xs text-gray-500">{String(job.location ?? '')}</p>
                   </div>
                   <div className="text-right">
                     <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
@@ -253,7 +253,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
                       <p className="text-sm text-gray-600 mt-1">
                         {typeof job.salary === 'object' && job.salary.min 
                           ? `${job.salary.currency === 'INR' ? '₹' : '$'}${job.salary.min?.toLocaleString()} - ${job.salary.currency === 'INR' ? '₹' : '$'}${job.salary.max?.toLocaleString()}`
-                          : job.salary
+                          : typeof job.salary === 'string' ? job.salary : ''
                         }
                       </p>
                     )}
@@ -263,7 +263,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
                 {job.aiAnalysis && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-3">
                     <p className="text-sm text-yellow-800">
-                      <strong>AI Insight:</strong> {job.aiAnalysis.recommendation}
+                      <strong>AI Insight:</strong> {String(job.aiAnalysis.recommendation ?? '')}
                     </p>
                     {job.aiAnalysis.strengths && job.aiAnalysis.strengths.length > 0 && (
                       <div className="mt-2">

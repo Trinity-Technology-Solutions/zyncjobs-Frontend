@@ -31,13 +31,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
     // Fetch job titles from API
     const fetchJobTitles = async () => {
       try {
-        console.log('Fetching job titles from:', `${API_ENDPOINTS.BASE_URL}/jobs/titles`);
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/titles`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/jobs`);
         const data = await response.json();
-        console.log('Job titles response:', data);
-        if (data.job_titles && data.job_titles.length > 0) {
-          setAllJobTitles(data.job_titles);
-          setJobSuggestions(data.job_titles.slice(0, 10));
+        const titles = Array.isArray(data) ? data : data.job_titles || [];
+        if (titles.length > 0) {
+          setAllJobTitles(titles);
+          setJobSuggestions(titles.slice(0, 50));
         }
       } catch (error) {
         console.error('Error fetching job titles:', error);
@@ -47,13 +46,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
     // Fetch locations from API
     const fetchLocations = async () => {
       try {
-        console.log('Fetching locations from:', `${API_ENDPOINTS.BASE_URL}/locations`);
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`);
         const data = await response.json();
-        console.log('Locations response:', data);
-        if (data.locations && data.locations.length > 0) {
-          setAllLocations(data.locations);
-          setLocationSuggestions(data.locations.slice(0, 10));
+        const locs = Array.isArray(data) ? data : data.locations || [];
+        if (locs.length > 0) {
+          setAllLocations(locs);
+          setLocationSuggestions(locs.slice(0, 50));
         }
       } catch (error) {
         console.error('Error fetching locations:', error);
@@ -81,32 +79,20 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
 
   const handleJobSearch = (value: string) => {
     setSearchTerm(value);
-    if (value.length > 0) {
-      const filtered = allJobTitles.filter(job => 
-        job.toLowerCase().includes(value.toLowerCase())
-      );
-      setJobSuggestions(filtered.slice(0, 10));
-      setShowJobDropdown(true);
-    } else {
-      setJobSuggestions(allJobTitles.slice(0, 10));
-      setShowJobDropdown(true);
-    }
+    const filtered = value.length > 0
+      ? allJobTitles.filter(job => job.toLowerCase().includes(value.toLowerCase()))
+      : allJobTitles;
+    setJobSuggestions(filtered.slice(0, 50));
+    setShowJobDropdown(true);
   };
 
   const handleLocationSearch = (value: string) => {
-    console.log('Location search:', value, 'All locations:', allLocations.length);
     setLocation(value);
-    if (value.length > 0) {
-      const filtered = allLocations.filter(loc => 
-        loc.toLowerCase().includes(value.toLowerCase())
-      );
-      console.log('Filtered locations:', filtered);
-      setLocationSuggestions(filtered.slice(0, 10));
-      setShowLocationDropdown(true);
-    } else {
-      setLocationSuggestions(allLocations.slice(0, 10));
-      setShowLocationDropdown(true);
-    }
+    const filtered = value.length > 0
+      ? allLocations.filter(loc => loc.toLowerCase().includes(value.toLowerCase()))
+      : allLocations;
+    setLocationSuggestions(filtered.slice(0, 50));
+    setShowLocationDropdown(true);
   };
 
   const selectJob = (job: string) => {
@@ -121,19 +107,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!searchTerm.trim()) {
-      alert('Please enter a job title or keyword');
-      return;
-    }
-    
-    if (!location.trim()) {
-      alert('Please enter a city or postcode');
-      return;
-    }
-    
+    if (!searchTerm.trim() && !location.trim()) return;
     trackSearch(searchTerm);
-    
     if (onNavigate) {
       onNavigate('job-listings', { searchTerm, location });
     }
@@ -160,7 +135,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
   return (
     <>
       {/* Main Banner Section */}
-      <div className="relative bg-white overflow-hidden">
+      <div className="relative bg-white">
         <div className="absolute inset-0">
           <div className="absolute top-20 right-20 w-96 h-96 bg-blue-100 rounded-full opacity-20"></div>
           <div className="absolute bottom-20 left-20 w-64 h-64 bg-blue-200 rounded-full opacity-30"></div>
@@ -191,6 +166,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                     <div className="sm:col-span-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Job Title Input */}
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search className="h-5 w-5 text-blue-600" />
@@ -202,27 +178,46 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                             value={searchTerm}
                             onChange={(e) => handleJobSearch(e.target.value)}
                             onFocus={() => {
-                              setJobSuggestions(allJobTitles.slice(0, 10));
+                              setJobSuggestions(allJobTitles.length > 0 ? allJobTitles.slice(0, 50) : []);
                               setShowJobDropdown(true);
                             }}
-                            onBlur={() => setTimeout(() => setShowJobDropdown(false), 300)}
-                            required
+                            onBlur={() => setTimeout(() => setShowJobDropdown(false), 200)}
                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                           {showJobDropdown && jobSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <ul
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                zIndex: 9999,
+                                background: '#fff',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                maxHeight: '240px',
+                                overflowY: 'auto',
+                                marginTop: '4px',
+                                listStyle: 'none',
+                                padding: 0,
+                              }}
+                            >
                               {jobSuggestions.map((job, index) => (
-                                <div
+                                <li
                                   key={index}
                                   onMouseDown={() => selectJob(job)}
-                                  className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                  style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '14px', color: '#1f2937' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
                                 >
                                   {job}
-                                </div>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           )}
                         </div>
+                        {/* Location Input */}
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <MapPin className="h-5 w-5 text-blue-600" />
@@ -234,25 +229,43 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                             value={location}
                             onChange={(e) => handleLocationSearch(e.target.value)}
                             onFocus={() => {
-                              setLocationSuggestions(allLocations.slice(0, 10));
+                              setLocationSuggestions(allLocations.length > 0 ? allLocations.slice(0, 50) : []);
                               setShowLocationDropdown(true);
                             }}
-                            onBlur={() => setTimeout(() => setShowLocationDropdown(false), 300)}
-                            required
+                            onBlur={() => setTimeout(() => setShowLocationDropdown(false), 200)}
                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                           {showLocationDropdown && locationSuggestions.length > 0 && (
-                            <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                            <ul
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                zIndex: 9999,
+                                background: '#fff',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px',
+                                boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                                maxHeight: '240px',
+                                overflowY: 'auto',
+                                marginTop: '4px',
+                                listStyle: 'none',
+                                padding: 0,
+                              }}
+                            >
                               {locationSuggestions.map((loc, index) => (
-                                <div
+                                <li
                                   key={index}
                                   onMouseDown={() => selectLocation(loc)}
-                                  className="px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                  style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '14px', color: '#1f2937' }}
+                                  onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
+                                  onMouseLeave={e => (e.currentTarget.style.background = '#fff')}
                                 >
                                   {loc}
-                                </div>
+                                </li>
                               ))}
-                            </div>
+                            </ul>
                           )}
                         </div>
                       </div>
@@ -323,14 +336,14 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                   {/* Outer orbit circle */}
                   <div className="w-[33rem] h-[33rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.3)', animation: 'spin 30s linear infinite reverse'}}>
                     {[
-                      { src: 'https://www.google.com/favicon.ico', alt: 'Google', angle: 0 },
-                      { src: 'https://img.icons8.com/color/48/microsoft.png', alt: 'Microsoft', angle: 72 },
-                      { src: 'https://img.icons8.com/color/48/amazon.png', alt: 'Amazon', angle: 144 },
-                      { src: 'https://img.icons8.com/ios-filled/50/mac-os.png', alt: 'Apple', angle: 216 },
-                      { src: 'https://img.icons8.com/color/48/meta.png', alt: 'Meta', angle: 288 },
-                    ].map(({ src, alt, angle }) => (
+                      { emoji: '🎨', label: 'Resume Studio', angle: 0 },
+                      { emoji: '💬', label: 'Interview Preparation', angle: 72 },
+                      { emoji: '🧭', label: 'Career Guidance', angle: 144 },
+                      { emoji: '✅', label: 'Skill Check', angle: 216 },
+                      { emoji: '🚀', label: 'Job Search', angle: 288 },
+                    ].map(({ emoji, label, angle }) => (
                       <div
-                        key={alt}
+                        key={label}
                         className="absolute"
                         style={{
                           top: '50%', left: '50%',
@@ -339,8 +352,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                           animation: `counter-spin-outer 30s linear infinite`,
                         }}
                       >
-                        <div className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200 overflow-hidden">
-                          <img src={src} alt={alt} className="w-7 h-7 object-contain" onError={(e) => { (e.target as HTMLImageElement).src = '/images/zync-logo.svg'; }} />
+                        <div className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200" style={{fontSize: '1.4rem'}}>
+                          {emoji}
                         </div>
                       </div>
                     ))}

@@ -21,6 +21,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
   const [error, setError] = useState('');
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] });
+  const [userRole, setUserRole] = useState<'candidate' | 'employer'>('candidate');
 
   const validatePassword = (pwd: string) => {
     const feedback = [];
@@ -95,6 +96,18 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
       console.log('Reset response:', response.status, data);
       
       if (response.ok && data.success) {
+        // Store user role so success screen can redirect to correct login
+        try {
+          const tokenRes = await fetch(`${API_ENDPOINTS.BASE_URL}/verify-reset-token/${token}`);
+          if (tokenRes.ok) {
+            const tokenData = await tokenRes.json();
+            const userRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/check/${encodeURIComponent(tokenData.email)}`);
+            if (userRes.ok) {
+              const userData = await userRes.json();
+              if (userData.user?.userType === 'employer') setUserRole('employer');
+            }
+          }
+        } catch {}
         setSuccess(true);
       } else {
         setError(data.error || 'Failed to reset password');
@@ -153,7 +166,7 @@ const ResetPasswordPage: React.FC<ResetPasswordPageProps> = ({ onNavigate, token
               Your password has been updated. You can now login with your new password.
             </p>
             <button
-              onClick={() => onNavigate('login')}
+              onClick={() => onNavigate(userRole === 'employer' ? 'employer-login' : 'login')}
               className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               Go to Login

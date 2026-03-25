@@ -6,7 +6,7 @@ import { generateEmployerId } from '../utils/employerIdUtils';
 
 interface EmployerLoginPageProps {
   onNavigate: (page: string, data?: any) => void;
-  onLogin: (userData: {name: string, type: 'candidate' | 'employer'}) => void;
+  onLogin: (userData: {name: string, type: 'candidate' | 'employer' | 'admin', email?: string}) => void;
   onShowNotification?: (notification: {type: 'success' | 'error' | 'info', message: string}) => void;
 }
 
@@ -44,8 +44,9 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       onLogin({ 
         name: displayName, 
         type: 'employer',
-        email: response.user.email
-      });
+        email: response.user.email,
+        id: response.user.id,
+      } as any);
       
       onNavigate('dashboard');
       

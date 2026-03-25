@@ -5,6 +5,7 @@ import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 
+
 interface HeaderProps {
   onNavigate?: (page: string) => void;
   user?: {name: string, type: 'candidate' | 'employer' | 'admin'} | null;
@@ -19,6 +20,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [notifications, setNotifications] = useState<any[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+
   const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
   const { items: navItems, fetchNavigation } = useNavigation();
 
@@ -80,12 +82,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   const handleCareerResourcesClick = () => {
     if (onNavigate) {
-      // Check if user is logged in
+      if (user?.type === 'employer') return; // employers cannot access career resources
       if (user) {
-        // User is logged in, go directly to career resources
         onNavigate('career-resources');
       } else {
-        // User not logged in, show registration flow
         onNavigate('register');
       }
     }
@@ -114,39 +114,55 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   useEffect(() => {
     const fetchProfileMetrics = async () => {
-      if (user) {
-        try {
-          // Get user data from localStorage to get email
-          const userData = localStorage.getItem('user');
-          if (userData) {
-            const parsedUser = JSON.parse(userData);
-            const userEmail = parsedUser.email || parsedUser.id;
-            
-            console.log('Fetching analytics for:', userEmail, 'type:', user.type);
-            
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(userEmail)}?userType=${user.type}`);
-            
-            if (response.ok) {
-              const contentType = response.headers.get('content-type');
-              if (contentType && contentType.includes('application/json')) {
-                const data = await response.json();
-                console.log('Analytics data received:', data);
-                setProfileMetrics(data);
-              } else {
-                console.warn('Analytics API returned non-JSON response');
-                // Set default values if API returns HTML
-                setProfileMetrics({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
-              }
-            } else {
-              console.error('Analytics API error:', response.status);
-              setProfileMetrics({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
-            }
+      if (!user) return;
+      try {
+        const userData = localStorage.getItem('user');
+        if (!userData) return;
+        const parsedUser = JSON.parse(userData);
+        const userEmail = parsedUser.email;
+        if (!userEmail) return;
+
+        if (user.type === 'employer') {
+          const token = localStorage.getItem('token');
+          const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+          const [jobsRes, appsRes] = await Promise.all([
+            fetch(`${API_ENDPOINTS.JOBS}?employerEmail=${encodeURIComponent(userEmail)}`, { headers }),
+            fetch(`${API_ENDPOINTS.APPLICATIONS}`, { headers }),
+          ]);
+          let jobsPosted = 0;
+          let applicationsReceived = 0;
+          if (jobsRes.ok) {
+            const d = await jobsRes.json();
+            const allJobs = Array.isArray(d) ? d : d.jobs || [];
+            jobsPosted = allJobs.filter((j: any) =>
+              j.postedBy === userEmail || j.employerEmail === userEmail
+            ).length || allJobs.length;
           }
-        } catch (error) {
-          console.error('Error fetching profile metrics:', error);
-          // Set default values on error
-          setProfileMetrics({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
+          if (appsRes.ok) {
+            const d = await appsRes.json();
+            const allApps = Array.isArray(d) ? d : d.applications || [];
+            applicationsReceived = allApps.filter((a: any) => a.employerEmail === userEmail).length;
+          }
+          setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
+        } else {
+          const [appsRes, interviewsRes] = await Promise.all([
+            fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`),
+            fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(userEmail)}`),
+          ]);
+          let apps: any[] = [];
+          let interviews: any[] = [];
+          if (appsRes.ok) { const d = await appsRes.json(); if (Array.isArray(d)) apps = d; }
+          if (interviewsRes.ok) { const d = await interviewsRes.json(); if (Array.isArray(d)) interviews = d; }
+          const recruiterActions = apps.filter((a: any) =>
+            ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
+          ).length + interviews.length;
+          const searchAppearances = apps.filter((a: any) =>
+            ['reviewed', 'shortlisted', 'hired'].includes(a.status)
+          ).length;
+          setProfileMetrics(prev => ({ ...prev, recruiterActions, searchAppearances }));
         }
+      } catch (error) {
+        console.error('Error fetching profile metrics:', error);
       }
     };
     
@@ -245,7 +261,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     };
     
     const handleWindowFocus = () => {
-      console.log('Window focused, refreshing profile metrics...');
       fetchProfileMetrics();
       fetchNotifications();
     };
@@ -328,13 +343,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       🎨 Resume Studio
                     </button>
                     <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interviews'); }}
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
                       className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                     >
                       💬 Interview Preparation
                     </button>
                     <button 
-                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-advice'); }}
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
                       className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
                     >
                       🧭 Career Guidance
@@ -369,7 +384,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </nav>
 
           {/* Right side items */}
-          <div className="hidden md:flex items-center space-x-6 ml-auto">
+          <div className="hidden md:flex items-center space-x-4 ml-auto">
+
             {/* Login/Register Dropdown */}
             {user ? (
               <div className="relative" ref={dropdownRef}>
@@ -507,6 +523,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             <User className="w-5 h-5 mr-3 text-gray-500" />
                             View & Update Profile
                           </button>
+
+                          {(user.type === 'admin' || user.type === 'super_admin') && (
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false);
+                                onNavigate && onNavigate('admin/dashboard');
+                              }}
+                              className="flex items-center w-full text-left px-3 py-3 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
+                            >
+                              <Settings className="w-5 h-5 mr-3 text-purple-500" />
+                              Admin Dashboard
+                            </button>
+                          )}
                           
                           {user?.name === 'ZyncJobs Admin' && (
                             <>
@@ -629,15 +658,22 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
                     <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
                       Login
                     </button>
                     <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
                       Register
                     </button>
+                    <hr className="my-1" />
+                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
                     <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
-                      Employer Login
+                      For Employers / Post Jobs
+                    </button>
+                    <hr className="my-1" />
+                    <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('admin/login'); }} className="block w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
+                      Admin? Login here
                     </button>
                   </div>
                 )}
@@ -676,10 +712,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     <button onClick={() => onNavigate && onNavigate('resume-studio')} className="block text-left text-gray-300 hover:text-white text-sm">
                       🎨 Resume Studio
                     </button>
-                    <button onClick={() => onNavigate && onNavigate('interviews')} className="block text-left text-gray-300 hover:text-white text-sm">
+                    <button onClick={() => onNavigate && onNavigate('interview-tips')} className="block text-left text-gray-300 hover:text-white text-sm">
                       💬 Interview Preparation
                     </button>
-                    <button onClick={() => onNavigate && onNavigate('career-advice')} className="block text-left text-gray-300 hover:text-white text-sm">
+                    <button onClick={() => onNavigate && onNavigate('career-coach')} className="block text-left text-gray-300 hover:text-white text-sm">
                       🧭 Career Guidance
                     </button>
                     <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-gray-300 hover:text-white text-sm">

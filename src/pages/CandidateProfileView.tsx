@@ -20,11 +20,16 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   useEffect(() => {
     fetchCandidateProfile();
+    return () => { sessionStorage.removeItem('viewCandidateId'); };
   }, [candidateId]);
 
   const fetchCandidateProfile = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${candidateId}`);
+      // Try by ID first, then fallback to email-based lookup
+      let response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(candidateId)}`);
+      if (!response.ok && candidateId?.includes('@')) {
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile?email=${encodeURIComponent(candidateId)}`);
+      }
       if (response.ok) {
         const data = await response.json();
         setCandidate(data);
@@ -51,7 +56,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-600 mb-4">Candidate profile not found</p>
+          <p className="text-gray-600 mb-2">Candidate profile not found</p>
+          <p className="text-xs text-gray-400 mb-4">ID: {candidateId}</p>
           <button onClick={onBack} className="text-blue-600 hover:text-blue-800">
             Go Back
           </button>
@@ -203,40 +209,19 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             )}
 
             {/* Accomplishments */}
-            {(candidate.certifications || candidate.awards || candidate.clubsCommittees || candidate.competitiveExams || candidate.academicAchievements) && (
+            {(['certifications','awards','clubsCommittees','competitiveExams','academicAchievements']
+              .some(f => candidate[f] && candidate[f] !== 'null' && String(candidate[f]).trim())) && (
               <div className="bg-gradient-to-br from-white to-yellow-50 rounded-lg shadow-sm border p-6 card-hover">
                 <h2 className="text-xl font-semibold mb-4">Accomplishments</h2>
                 <div className="space-y-4">
-                  {candidate.certifications && (
-                    <div>
-                      <h3 className="font-medium mb-2">Certifications</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.certifications}</p>
-                    </div>
-                  )}
-                  {candidate.awards && (
-                    <div>
-                      <h3 className="font-medium mb-2">Awards</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.awards}</p>
-                    </div>
-                  )}
-                  {candidate.clubsCommittees && (
-                    <div>
-                      <h3 className="font-medium mb-2">Club & Committees</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.clubsCommittees}</p>
-                    </div>
-                  )}
-                  {candidate.competitiveExams && (
-                    <div>
-                      <h3 className="font-medium mb-2">Competitive Exams</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.competitiveExams}</p>
-                    </div>
-                  )}
-                  {candidate.academicAchievements && (
-                    <div>
-                      <h3 className="font-medium mb-2">Academic Achievements</h3>
-                      <p className="text-gray-700 whitespace-pre-line">{candidate.academicAchievements}</p>
-                    </div>
-                  )}
+                  {[['certifications','Certifications'],['awards','Awards'],['clubsCommittees','Clubs & Committees'],['competitiveExams','Competitive Exams'],['academicAchievements','Academic Achievements']]
+                    .filter(([f]) => candidate[f] && candidate[f] !== 'null' && String(candidate[f]).trim())
+                    .map(([f, label]) => (
+                      <div key={f}>
+                        <h3 className="font-medium mb-2">{label}</h3>
+                        <p className="text-gray-700 whitespace-pre-line">{candidate[f]}</p>
+                      </div>
+                    ))}
                 </div>
               </div>
             )}

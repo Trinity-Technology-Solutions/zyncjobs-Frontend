@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
-import { API_ENDPOINTS } from '../config/env';
 import { accountAPI } from '../api/account';
 
 
@@ -40,54 +39,47 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     }));
   };
 
-  const handleEmailUpdate = (e: React.FormEvent) => {
+  const handleEmailUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (emailForm.newEmail !== emailForm.confirmEmail) {
-      setNotification({
-        type: 'error',
-        message: 'Email addresses do not match',
-        isVisible: true
-      });
+      setNotification({ type: 'error', message: 'Email addresses do not match', isVisible: true });
       return;
     }
-    
-    const updatedUser = { ...user, email: emailForm.newEmail };
-    setUser(updatedUser);
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-    setEmailForm({ newEmail: '', confirmEmail: '' });
-    setNotification({
-      type: 'success',
-      message: 'Email updated successfully!',
-      isVisible: true
-    });
+    const userId = accountAPI.getUserIdFromStorage();
+    if (!userId) {
+      setNotification({ type: 'error', message: 'Could not identify user. Please log in again.', isVisible: true });
+      return;
+    }
+    const result = await accountAPI.changeEmail(userId, emailForm.newEmail);
+    if (result.success) {
+      const updatedUser = { ...user, email: emailForm.newEmail };
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setEmailForm({ newEmail: '', confirmEmail: '' });
+    }
+    setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
   };
 
-  const handlePasswordUpdate = (e: React.FormEvent) => {
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setNotification({
-        type: 'error',
-        message: 'New passwords do not match',
-        isVisible: true
-      });
+      setNotification({ type: 'error', message: 'New passwords do not match', isVisible: true });
       return;
     }
-    
     if (passwordForm.newPassword.length < 6) {
-      setNotification({
-        type: 'error',
-        message: 'Password must be at least 6 characters long',
-        isVisible: true
-      });
+      setNotification({ type: 'error', message: 'Password must be at least 6 characters long', isVisible: true });
       return;
     }
-
-    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-    setNotification({
-      type: 'success',
-      message: 'Password updated successfully!',
-      isVisible: true
-    });
+    const userId = accountAPI.getUserIdFromStorage();
+    if (!userId) {
+      setNotification({ type: 'error', message: 'Could not identify user. Please log in again.', isVisible: true });
+      return;
+    }
+    const result = await accountAPI.changePassword(userId, passwordForm.currentPassword, passwordForm.newPassword);
+    if (result.success) {
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+    }
+    setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
   };
 
   const handleDeleteAccount = async () => {
@@ -345,7 +337,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                 </div>
 
                 {/* Manage Account Section */}
-                <div>
+                <div className="border-b">
                   <button
                     onClick={() => toggleSection('manage')}
                     className="w-full flex items-center justify-between p-6 text-left hover:bg-gray-50 transition-colors"
@@ -381,6 +373,29 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                       </div>
                     </div>
                   )}
+                </div>
+
+                {/* Logout Section */}
+                <div>
+                  <div className="flex items-center justify-between p-6">
+                    <div className="flex items-center">
+                      <LogOut className="w-5 h-5 text-gray-400 mr-3" />
+                      <div>
+                        <h3 className="font-medium text-gray-900">Logout</h3>
+                        <p className="text-sm text-gray-500">Sign out of your account</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        if (onLogout) onLogout();
+                        onNavigate('home');
+                      }}
+                      className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

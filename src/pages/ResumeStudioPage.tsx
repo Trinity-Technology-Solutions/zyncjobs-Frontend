@@ -35,7 +35,7 @@ const features = [
     bg: 'bg-green-50',
     border: 'border-green-200',
     btn: 'bg-green-600 hover:bg-green-700',
-    page: 'ai-resume-builder',
+    page: 'resume-score',
   },
   {
     icon: <BookOpen className="w-8 h-8 text-orange-600" />,

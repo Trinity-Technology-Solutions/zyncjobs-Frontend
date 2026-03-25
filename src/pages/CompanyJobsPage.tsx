@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, DollarSign, Clock, ArrowLeft, Users, TrendingUp, Eye } from 'lucide-react';
+import { MapPin, Briefcase, IndianRupee, Clock, ArrowLeft, Users, TrendingUp, Eye } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -194,7 +194,7 @@ const CompanyJobsPage = ({
                         </div>
                         {job.salary && (
                           <div className="flex items-center text-gray-600 text-sm">
-                            <DollarSign className="w-4 h-4 mr-2" />
+                            <IndianRupee className="w-4 h-4 mr-2" />
                             <span>{job.salary}</span>
                           </div>
                         )}

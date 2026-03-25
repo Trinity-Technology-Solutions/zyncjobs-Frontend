@@ -7,11 +7,13 @@ interface ResumeModalProps {
   onClose: () => void;
 }
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const BACKEND_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace('/api', '');
 
 const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClose }) => {
   const [resume, setResume] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && applicationId) {
@@ -23,10 +25,21 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
     try {
       setLoading(true);
       setError(null);
+      setPdfBlobUrl(null);
       const response = await fetch(`${API_BASE_URL}/resume-viewer/${applicationId}`);
       if (!response.ok) throw new Error('Failed to load resume');
       const data = await response.json();
       setResume(data);
+      if (data.resume?.fileUrl) {
+        const fullUrl = data.resume.fileUrl.startsWith('http')
+          ? data.resume.fileUrl
+          : `${BACKEND_BASE_URL}${data.resume.fileUrl}`;
+        const pdfRes = await fetch(fullUrl);
+        if (pdfRes.ok) {
+          const blob = await pdfRes.blob();
+          setPdfBlobUrl(URL.createObjectURL(blob));
+        }
+      }
     } catch (err: any) {
       setError(err.message || 'Failed to load resume');
     } finally {
@@ -34,14 +47,12 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
     }
   };
 
-  const handleDownload = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/resume-viewer/download/${applicationId}`);
-      if (!response.ok) throw new Error('Failed to download');
-      const data = await response.json();
-      window.open(data.fileUrl, '_blank');
-    } catch (err) {
-      setError('Failed to download resume');
+  const handleDownload = () => {
+    if (pdfBlobUrl) {
+      const a = document.createElement('a');
+      a.href = pdfBlobUrl;
+      a.download = resume?.resume?.fileName || 'resume.pdf';
+      a.click();
     }
   };
 
@@ -49,7 +60,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold">{resume?.candidateName ? `Resume - ${resume.candidateName}` : 'Resume'}</h2>
@@ -65,18 +76,24 @@ const ResumeModal: React.FC<ResumeModalProps> = ({ applicationId, isOpen, onClos
           {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">{error}</div>}
 
           {resume && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="flex flex-col gap-4">
               {/* PDF Viewer */}
-              <div className="lg:col-span-2">
+              <div className="w-full">
                 <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  {resume.resume?.fileUrl ? (
+                  {pdfBlobUrl ? (
                     <iframe
-                      src={resume.resume.fileUrl}
+                      src={`${pdfBlobUrl}#toolbar=0&navpanes=0&view=FitH&zoom=page-fit`}
                       width="100%"
-                      height="600"
+                      height="500"
                       title="Resume"
                       className="w-full"
+                      style={{ minHeight: '500px' }}
                     />
+                  ) : resume.resume?.fileUrl ? (
+                    <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50">
+                      <span className="text-4xl mb-3">📄</span>
+                      <p className="text-sm">Unable to preview. <a href={resume.resume.fileUrl.startsWith('http') ? resume.resume.fileUrl : `${BACKEND_BASE_URL}${resume.resume.fileUrl}`} target="_blank" rel="noreferrer" className="text-blue-600 underline">Open PDF</a></p>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50">
                       <span className="text-4xl mb-3">📄</span>

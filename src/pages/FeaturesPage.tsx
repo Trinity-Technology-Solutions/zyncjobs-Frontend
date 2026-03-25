@@ -21,7 +21,7 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
       description: 'Take skill assessments in JavaScript, Python, React and more. Get scored results and showcase your expertise to employers.',
       icon: <Brain className="w-8 h-8 text-green-600" />,
       status: 'implemented',
-      action: () => onNavigate('skill-assessments')
+      action: () => onNavigate('skill-assessment')
     },
     {
       title: 'Interview Scheduling',
@@ -35,7 +35,7 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
       description: 'Fully responsive design with mobile-first approach, touch-friendly interface, and bottom navigation for mobile devices.',
       icon: <Smartphone className="w-8 h-8 text-orange-600" />,
       status: 'implemented',
-      action: () => window.alert('Mobile optimization is active! Try resizing your browser or viewing on mobile.')
+      action: () => onNavigate('job-listings')
     }
   ];
 

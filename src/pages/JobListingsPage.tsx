@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin, Filter, Briefcase, Clock, DollarSign, X, Bookmark, BookmarkCheck, TrendingUp } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -7,21 +8,30 @@ import LocationRadiusSearch from '../components/LocationRadiusSearch';
 import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
-import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription, formatDetailedTime, getPostingFreshness } from '../utils/textUtils';
+import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 
-const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: { 
-  onNavigate?: (page: string) => void;
+const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
+  onNavigate?: (page: string, data?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
   onLogout?: () => void;
   searchParams?: { searchTerm?: string; location?: string; experience?: string; category?: string; categoryTerms?: string[] };
 }) => {
-  const [searchTerm, setSearchTerm] = useState(searchParams?.searchTerm || '');
-  const [location, setLocation] = useState(searchParams?.location || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams?.category || '');
-  const [categoryTerms, setCategoryTerms] = useState<string[]>(searchParams?.categoryTerms || []);
+  const [searchTerm, setSearchTerm] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return initialSearch?.searchTerm || p.get('q') || '';
+  });
+  const [location, setLocation] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return initialSearch?.location || p.get('location') || '';
+  });
+  const [selectedCategory, setSelectedCategory] = useState(() => {
+    const p = new URLSearchParams(window.location.search);
+    return initialSearch?.category || p.get('category') || '';
+  });
+  const [categoryTerms, setCategoryTerms] = useState<string[]>(initialSearch?.categoryTerms || []);
   const [jobs, setJobs] = useState<any[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +56,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
   const [filterOptions, setFilterOptions] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreJobs, setHasMoreJobs] = useState(true);
-  const [activeTab, setActiveTab] = useState<'search' | 'recommended'>('search');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'search' | 'recommended'>(
+    searchParams.get('tab') === 'recommended' ? 'recommended' : 'search'
+  );
   const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
   const [statsCompanies, setStatsCompanies] = useState<number>(0);
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
@@ -102,22 +115,21 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
 
   const loadResumeSkillsFromBackend = async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) throw new Error('no token');
+      localStorageMigration.setToken(token);
       const skills = await localStorageMigration.getResumeSkills();
-      setResumeSkills(skills);
-    } catch (error) {
-      console.error('Error loading resume skills from backend:', error);
-      // Fallback to localStorage
-      try {
-        const resumeData = localStorage.getItem('resumeData');
-        if (resumeData) {
-          const parsed = JSON.parse(resumeData);
-          if (parsed.skills && Array.isArray(parsed.skills)) {
-            setResumeSkills(parsed.skills);
-          }
-        }
-      } catch (fallbackError) {
-        console.error('Error loading resume skills from localStorage:', fallbackError);
+      if (skills.length > 0) { setResumeSkills(skills); return; }
+    } catch {}
+    // fallback to localStorage
+    try {
+      const resumeData = localStorage.getItem('resumeData');
+      if (resumeData) {
+        const parsed = JSON.parse(resumeData);
+        if (parsed.skills && Array.isArray(parsed.skills)) setResumeSkills(parsed.skills);
       }
+    } catch (e) {
+      console.error('Error loading resume skills from localStorage:', e);
     }
   };
 
@@ -328,7 +340,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
     // Filter by work mode
     if (filters.workMode.length > 0) {
       filtered = filtered.filter(job => {
-        const jobText = `${job.type} ${job.location} ${job.description}`.toLowerCase();
+        const jobText = `${job.type} ${job.location} ${job.description} ${job.workMode || ''}`.toLowerCase();
         return filters.workMode.some(mode => {
           if (mode === 'Remote') return jobText.includes('remote');
           if (mode === 'Hybrid') return jobText.includes('hybrid');
@@ -337,7 +349,19 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
         });
       });
     }
-    
+
+    // Filter by freshness
+    if (filters.freshness) {
+      const now = Date.now();
+      const cutoff = filters.freshness === '24h'
+        ? now - 24 * 60 * 60 * 1000
+        : now - 7 * 24 * 60 * 60 * 1000;
+      filtered = filtered.filter(job => {
+        const posted = new Date(job.createdAt).getTime();
+        return posted >= cutoff;
+      });
+    }
+
     // Sort by creation date (newest first)
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     
@@ -354,11 +378,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       }
     } catch {}
     try {
-      const usersRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users`);
+      const usersRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/stats/counts`);
       if (usersRes.ok) {
-        const users = await usersRes.json();
-        const seekers = Array.isArray(users) ? users.filter((u: any) => u.type === 'candidate').length : 0;
-        setStatsJobSeekers(seekers);
+        const data = await usersRes.json();
+        setStatsJobSeekers(data.candidates || 0);
       }
     } catch {}
   };
@@ -370,13 +393,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
     fetchStats();
     
     const handleJobPosted = () => {
-      console.log('New job posted, refreshing job listings...');
       fetchJobs();
     };
     
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'lastJobPosted') {
-        console.log('Job posted detected, refreshing...');
         setTimeout(() => fetchJobs(), 500);
       }
     };
@@ -388,20 +409,18 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       window.removeEventListener('jobPosted', handleJobPosted);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, []);
+  }, [searchTerm, location, categoryTerms]);
   
   useEffect(() => {
-    if (searchParams?.searchTerm || searchParams?.location || searchParams?.category) {
-      setSearchTerm(searchParams.searchTerm || '');
-      setLocation(searchParams.location || '');
-      setSelectedCategory(searchParams.category || '');
-      setCategoryTerms(searchParams.categoryTerms || []);
-      console.log('Search params received:', searchParams);
-      fetchJobs();
-    } else {
-      fetchJobs();
+    if (initialSearch?.searchTerm || initialSearch?.location || initialSearch?.category) {
+      const term = initialSearch.searchTerm || '';
+      const loc = initialSearch.location || '';
+      setSearchTerm(term);
+      setLocation(loc);
+      setSelectedCategory(initialSearch.category || '');
+      setCategoryTerms(initialSearch.categoryTerms || []);
     }
-  }, [searchParams]);
+  }, [initialSearch]);
   
   useEffect(() => {
     if (jobs.length > 0) {
@@ -410,7 +429,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       }, 300);
       return () => clearTimeout(timeoutId);
     }
-  }, [performSearch, jobs]);
+  }, [performSearch, jobs, filters]);
   
   const handleApplyNow = (job: any) => {
     if (onNavigate) {
@@ -752,7 +771,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               </div>
             )}
             <button
-              onClick={() => setFilters(prev => ({ ...prev, freshness: '24h' }))}
+              onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '24h' ? '' : '24h' }))}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.freshness === '24h' 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -762,7 +781,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               Last 24 hours
             </button>
             <button
-              onClick={() => setFilters(prev => ({ ...prev, freshness: '7d' }))}
+              onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '7d' ? '' : '7d' }))}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.freshness === '7d' 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -788,13 +807,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       </div>
 
       {/* Job Listings */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {activeTab === 'search' && <LocationRadiusSearch onSearch={handleLocationSearch} />}
         
         {activeTab === 'recommended' ? (
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-gray-900 mb-6">Recommended Jobs for You</h2>
-            <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} />
+            <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} onNavigate={onNavigate} />
           </div>
         ) : (
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
@@ -809,8 +828,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                     Trending Jobs
                   </h3>
                   <div className="space-y-3">
-                    {trending.map((job: any) => (
-                      <div key={job._id} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => onNavigate && onNavigate(`job-detail/${job._id}`)}>
+                    {trending.map((job: any, idx: number) => (
+                      <div key={job._id || job.id || idx} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => { const jid = job._id || job.id; if (jid && onNavigate) onNavigate(`job-detail/${jid}`); }}>
+
                         <h4 className="font-medium text-sm">{job.jobTitle}</h4>
                         <p className="text-xs text-gray-600">{job.company}</p>
                         <p className="text-xs text-gray-500">{job.views} views</p>
@@ -1002,8 +1022,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
           
           {/* Right Content - Job Results */}
           <div className="lg:col-span-3">
-            <div className="mb-6">
-              <p className="text-gray-600">
+            <div className="mb-3">
+              <p className="text-gray-600 text-sm">
                 {loading ? 'Searching...' : (
                   `${filteredJobs.length} results` +
                   (filteredJobs.length > 0 ? ` (${Math.floor(filteredJobs.length * 0.6)} new)` : '')
@@ -1056,9 +1076,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                 >
                   <option value="">All Ranges</option>
-                  <option value="50k-100k">$50k - $100k</option>
-                  <option value="100k-150k">$100k - $150k</option>
-                  <option value="150k+">$150k+</option>
+                  <option value="50k-100k">₹50k - ₹100k</option>
+                  <option value="100k-150k">₹100k - ₹150k</option>
+                  <option value="150k+">₹150k+</option>
                 </select>
               </div>
             </div>
@@ -1084,61 +1104,43 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-start mb-3">
-                    <div className="flex-shrink-0 w-14 h-14 mr-4">
-                      <div className="w-14 h-14 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                        <img 
-                          src={getSafeCompanyLogo(job)}
-                          alt={`${job.company} logo`}
-                          className="w-12 h-12 object-contain"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            const company = job.company || 'Company';
-                            
-                            // Special handling for Trinity Technology Solutions
-                            if (company.toLowerCase().includes('trinity')) {
-                              img.src = '/images/company-logos/trinity-logo.png';
-                              return;
-                            }
-                            
-                            // Fallback to letter avatar
-                            const initials = company.split(' ').map(n => n[0]).join('').toUpperCase();
-                            img.src = `data:image/svg+xml,${encodeURIComponent(`
-                              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-                                <rect width="48" height="48" fill="#3B82F6" rx="8"/>
-                                <text x="24" y="30" text-anchor="middle" fill="white" font-family="Arial" font-size="16" font-weight="bold">${initials}</text>
-                              </svg>
-                            `)}`;
-                          }}
-                        />
-                      </div>
-                    </div>
-                    
                     <div className="flex-1">
-                      <h3 
+                      {/* Company logo + name row */}
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
+                          <img
+                            src={getSafeCompanyLogo(job)}
+                            alt={`${job.company} logo`}
+                            className="w-8 h-8 object-contain"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              const name = job.company || '';
+                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                            }}
+                          />
+                        </div>
+                        <span className="text-blue-600 font-semibold text-base">{job.company}</span>
+                      </div>
+
+                      {/* Job title */}
+                      <h3
                         className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail', { 
-                          jobTitle: job.title || job.jobTitle, 
-                          jobId: job._id || job.id,
-                          companyName: job.company,
-                          jobData: job
-                        })}
+                        onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
                       >
                         {decodeHtmlEntities(job.title || job.jobTitle)}
                       </h3>
-                      <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-3">
-                        <span>🏢</span>
-                        {job.company}
-                      </p>
-                      
+
                       <div className="flex flex-wrap items-center gap-3 mb-3">
                         <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
                           <MapPin className="w-4 h-4 text-gray-600" />
                           <span className="text-sm font-medium text-gray-700">{job.location}</span>
                         </div>
-                        <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                          <DollarSign className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
-                        </div>
+                        {formatSalary(job.salary) && (
+                          <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                          </div>
+                        )}
                         {job.type && (
                           <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
                             <Briefcase className="w-4 h-4 text-blue-600" />
@@ -1146,35 +1148,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                           </div>
                         )}
                         <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-lg">
-                          <Clock className="w-3 h-3 text-purple-500" />
-                          <span className="text-xs font-medium text-purple-600">
-                            {formatDate(job.createdAt)}
-                          </span>
-                          {getPostingFreshness(job.createdAt) === 'new' && (
-                            <span className="ml-1 bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full font-bold">
-                              NEW
-                            </span>
-                          )}
+                          <span className="text-xs font-medium text-purple-600">{formatDate(job.createdAt)}</span>
                         </div>
-                        {/* Employer ID and Position ID */}
-                        {job.employerId && (
-                          <div className="flex items-center gap-1 bg-blue-50 px-2 py-1 rounded-lg">
-                            <span className="text-xs font-medium text-blue-600">EID: {job.employerId}</span>
-                          </div>
-                        )}
-                        {job.positionId && (
-                          <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
-                            <span className="text-xs font-medium text-green-600">PID: {job.positionId}</span>
-                          </div>
+                        {getPostingFreshness(job.createdAt) === 'new' && (
+                          <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">NEW</span>
                         )}
                       </div>
 
                       {job.description && (
                         <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                           <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                            {job.description && job.description.length > 300 
-                              ? `${formatJobDescription(decodeHtmlEntities(job.description).substring(0, 300), typeof job.salary === 'object' ? job.salary.currency : undefined)}...` 
-                              : formatJobDescription(decodeHtmlEntities(job.description || ''), typeof job.salary === 'object' ? job.salary.currency : undefined)}
+                            {decodeHtmlEntities(job.description.replace(/<[^>]+>/g, '')).substring(0, 250)}{job.description.length > 250 ? '...' : ''}
                           </p>
                         </div>
                       )}
@@ -1184,7 +1168,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
 
                 <div className="flex flex-col items-end space-y-2 ml-4">
                   {user?.type === 'candidate' && (
-                    <button 
+                    <button
                       onClick={() => handleSaveJob(job)}
                       className={`flex items-center space-x-1 px-4 py-2 rounded-lg border-2 transition-colors shadow-sm ${
                         savedJobs.includes(job._id || job.id)
@@ -1192,37 +1176,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
                           : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                       }`}
                     >
-                      {savedJobs.includes(job._id || job.id) ? (
-                        <BookmarkCheck className="w-4 h-4" />
-                      ) : (
-                        <Bookmark className="w-4 h-4" />
-                      )}
+                      {savedJobs.includes(job._id || job.id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
                       <span className="text-sm font-semibold">{savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}</span>
                     </button>
                   )}
-                  <div className="flex space-x-2">
-                    <button 
-                      onClick={() => {
-                        console.log('🔗 Share button clicked for job:', job);
-                        
-                      }}
-                      className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-1 shadow-sm"
-                    >
-                      
-                      <span>Share</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate && onNavigate('job-detail', { 
-                        jobTitle: job.title || job.jobTitle, 
-                        jobId: job._id || job.id,
-                        companyName: job.company,
-                        jobData: job
-                      })}
-                      className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm"
-                    >
-                      View Details
-                    </button>
-                  </div>
+
+                  <button
+                    onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
+                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
+                  >
+                    View Details
+                  </button>
                 </div>
               </div>
             </div>
@@ -1246,7 +1210,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams }: {
       </div>
       
       <Footer onNavigate={onNavigate} />
-      
+
       {/* Floating Back Button */}
       <BackButton 
         onClick={() => onNavigate ? onNavigate('home') : window.history.back()}

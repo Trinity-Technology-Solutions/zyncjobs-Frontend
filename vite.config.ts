@@ -6,6 +6,10 @@ export default defineConfig({
   plugins: [react()],
   server: {
     historyApiFallback: true,
+    proxy: {
+      '/api': 'http://localhost:5000',
+      '/uploads': 'http://localhost:5000',
+    },
   },
   preview: {
     historyApiFallback: true,
