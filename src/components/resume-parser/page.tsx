@@ -627,15 +627,20 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                     const employment = firstExp ? {
                       companyName: firstExp.company || '',
                       designation: firstExp.jobTitle || '',
-                      description: firstExp.descriptions?.join(' ') || '',
-                      startYear: '', endYear: '', currentlyWorking: false
+                      description: firstExp.descriptions?.join('\n') || '',
+                      startMonth: firstExp.date?.split(' ')[0] || '',
+                      startYear: firstExp.date?.split(' ').slice(-1)[0] || '',
+                      endMonth: '',
+                      endYear: '',
+                      currentlyWorking: firstExp.date?.toLowerCase().includes('present') || false
                     } : currentUser.employment;
 
                     const educationCollege = firstEdu ? {
                       college: firstEdu.school || '',
                       degree: firstEdu.degree || '',
-                      passingYear: firstEdu.date || '',
-                      courseType: '', percentage: ''
+                      passingYear: firstEdu.date?.match(/\d{4}/)?.[0] || firstEdu.date || '',
+                      courseType: 'Full Time',
+                      percentage: ''
                     } : currentUser.educationCollege;
 
                     const skills = resume.skills.featuredSkills.map((s: any) => s.skill);

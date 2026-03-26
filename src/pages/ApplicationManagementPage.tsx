@@ -5,7 +5,7 @@ import BackButton from '../components/BackButton';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
-import { Zap, X, CheckCircle, XCircle, MinusCircle, Search } from 'lucide-react';
+import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, Download } from 'lucide-react';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -33,6 +33,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
   const [expandedAppId, setExpandedAppId] = useState<string | null>(null);
+  const [bulkDownloading, setBulkDownloading] = useState(false);
 
   const filteredApplications = useMemo(() => {
     return applications.filter(app => {
@@ -246,6 +247,29 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
     }
   };
 
+  const downloadAllResumes = async () => {
+    const appsWithResume = filteredApplications.filter(app => app.resumeUrl && app.resumeUrl !== 'resume_from_quick_apply');
+    if (!appsWithResume.length) {
+      alert('No resumes available for the current filtered applicants.');
+      return;
+    }
+    setBulkDownloading(true);
+    for (let i = 0; i < appsWithResume.length; i++) {
+      const app = appsWithResume[i];
+      const url = app.resumeUrl.startsWith('http') ? app.resumeUrl : `${import.meta.env.VITE_API_URL || '/api'}/${app.resumeUrl.replace(/^\//, '')}`;
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${(app.candidateName || 'candidate').replace(/\s+/g, '_')}_resume.pdf`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      // Small delay to avoid browser blocking multiple downloads
+      await new Promise(r => setTimeout(r, 600));
+    }
+    setBulkDownloading(false);
+  };
+
   const getStatusColor = (status: string) => {
     return 'bg-gray-100 text-gray-700 border border-gray-300';
   };
@@ -294,13 +318,23 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
             </p>
           </div>
           {applications.length > 0 && (
-            <button
-              onClick={runAIShortlist}
-              className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md whitespace-nowrap"
-            >
-              <Zap className="w-4 h-4 text-yellow-300" />
-              AI Auto-Shortlist
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={downloadAllResumes}
+                disabled={bulkDownloading}
+                className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-green-700 transition-all shadow-md whitespace-nowrap disabled:opacity-60"
+              >
+                <Download className="w-4 h-4" />
+                {bulkDownloading ? 'Downloading...' : `Download All Resumes (${filteredApplications.filter(a => a.resumeUrl && a.resumeUrl !== 'resume_from_quick_apply').length})`}
+              </button>
+              <button
+                onClick={runAIShortlist}
+                className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all shadow-md whitespace-nowrap"
+              >
+                <Zap className="w-4 h-4 text-yellow-300" />
+                AI Auto-Shortlist
+              </button>
+            </div>
           )}
         </div>
 

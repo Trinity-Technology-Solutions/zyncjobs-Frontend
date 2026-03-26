@@ -9,7 +9,8 @@ interface LatestJobsProps {
 }
 
 interface Job {
-  _id: string;
+  id?: string;
+  _id?: string;
   jobTitle: string;
   company: string;
   companyLogo?: string;
@@ -21,8 +22,11 @@ interface Job {
     min: number;
     max: number;
     currency: string;
-    period: string;
+    period?: string;
   };
+  salaryMin?: number;
+  salaryMax?: number;
+  currency?: string;
   createdAt: string;
 }
 
@@ -41,7 +45,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
       });
       
       if (response.ok) {
-        setJobs(prev => prev.filter(job => job._id !== jobId));
+        setJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Job deleted successfully!" } }));
       } else {
         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to delete job. Please try again." } }));
@@ -89,9 +93,25 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   };
 
   const getTimeAgo = (dateString: string) => {
+    if (!dateString) return 'Recently';
+    
     const date = new Date(dateString);
     const now = new Date();
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.log('Invalid date:', dateString);
+      return 'Recently';
+    }
+    
     const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    console.log('Date calculation:', {
+      dateString,
+      date: date.toISOString(),
+      now: now.toISOString(),
+      diffInMinutes
+    });
     
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
@@ -101,6 +121,12 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
     
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) return `${diffInWeeks}w ago`;
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    if (diffInMonths < 12) return `${diffInMonths}mo ago`;
     
     return 'Recently';
   };
@@ -136,7 +162,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
               {jobs.map((job) => (
-                <div key={job._id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+                <div key={job._id || job.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center mb-4">
                       <div className="bg-blue-100 w-16 h-16 rounded-lg flex items-center justify-center p-2 mr-4">
                         <img 
@@ -183,7 +209,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         <button
                           onClick={() => onNavigate && onNavigate('job-detail', { 
                             jobTitle: job.jobTitle, 
-                            jobId: job._id,
+                            jobId: job._id || job.id,
                             companyName: job.company,
                             jobData: job
                           })}
@@ -193,7 +219,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         </button>
                         {user?.email === job.postedBy && (
                           <button
-                            onClick={() => deleteJob(job._id)}
+                            onClick={() => deleteJob(job._id || job.id || '')}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                           >
                             Delete
@@ -202,7 +228,10 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                       <div className="text-right">
                         <span className="font-semibold text-gray-900 text-sm">
-                          {formatSalary(job.salary)}
+                          {job.salary ? formatSalary(job.salary) : 
+                           job.salaryMin && job.salaryMax ? 
+                           `${job.currency || 'INR'} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}` : 
+                           'Salary not specified'}
                         </span>
                       </div>
                     </div>

@@ -1,6 +1,5 @@
 import { API_ENDPOINTS } from '../config/env';
 
-const API_BASE_URL = API_ENDPOINTS.USERS.replace('/users', ''); // Get base API URL
 
 export interface LoginData {
   email: string;

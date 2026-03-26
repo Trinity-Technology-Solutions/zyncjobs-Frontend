@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, MapPin, ChevronDown } from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import { API_ENDPOINTS } from '../config/env';
 import { useHeroSection } from '../store/useHeroSection';
 import { strapiAPI } from '../api/strapi';
@@ -128,7 +128,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
 
   const subtitle = heroData?.subtitle || 'We Have 208,000+ Live Jobs';
   const title = heroData?.title || 'Your Dream Job Is Waiting For You';
-  const description = heroData?.description || 'Type your keyword, then click search to find your perfect job.';
+  const description = heroData?.description || 'AI career platform for jobs, skills, interview prep, and ATS-ready resumes.';
   const buttonText = heroData?.buttonText || 'Find Job';
   const heroImage = heroData?.heroImage?.url ? strapiAPI.getImageUrl(heroData.heroImage.url) : '/images/women.png';
 
