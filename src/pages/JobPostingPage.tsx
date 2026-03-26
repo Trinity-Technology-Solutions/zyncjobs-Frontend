@@ -149,7 +149,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     hiringTimeline: '',
     numberOfPeople: 0,
     workAuth: parsedData?.workAuth || [],
-    jobType: parsedData?.jobType || [],
+    jobType: parsedData?.jobType && Array.isArray(parsedData.jobType) ? parsedData.jobType : (parsedData?.jobType ? [parsedData.jobType] : []),
     payType: 'Range',
     minSalary: (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0) ? parsedData.minSalary : '',
     maxSalary: (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) ? parsedData.maxSalary : '',
@@ -192,7 +192,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
 
   const [salaryModified, setSalaryModified] = useState(false);
-  const [salaryFocused, setSalaryFocused] = useState(null);
+  const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
 
   const updateJobData = (field: keyof JobData, value: any) => {
     setJobData(prev => ({ ...prev, [field]: value }));
@@ -1227,7 +1227,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         // Step 2 is removed - no validation needed
         break;
       case 3:
-        if (jobData.jobType.length === 0) return { isValid: false, message: 'At least one job type is required' };
+        if (!Array.isArray(jobData.jobType) || jobData.jobType.length === 0) {
+          return { isValid: false, message: 'At least one job type is required' };
+        }
         break;
       case 4:
         // Salary section is now optional
@@ -2293,7 +2295,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             <div className="flex justify-between items-center py-3 border-b border-gray-200">
               <span className="text-gray-600">Job type</span>
               <div className="flex items-center space-x-2">
-                <span className="text-gray-800">{jobData.jobType.join(', ')}</span>
+                <span className="text-gray-800">{Array.isArray(jobData.jobType) ? jobData.jobType.join(', ') : jobData.jobType}</span>
                 <button className="text-blue-600 hover:text-blue-700">✏️</button>
               </div>
             </div>
@@ -2371,6 +2373,29 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       return;
     }
 
+    // Test backend connectivity first
+    try {
+      console.log('Testing backend connectivity...');
+      const testResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/test`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log('Backend test response status:', testResponse.status);
+      if (!testResponse.ok) {
+        console.warn('Backend test failed, but continuing with job post...');
+      }
+    } catch (error) {
+      console.error('Backend connectivity test failed:', error);
+      setNotification({
+        type: 'error',
+        message: 'Main backend server (port 5000) appears to be offline. Please start the backend server on http://localhost:5000',
+        isVisible: true
+      });
+      return;
+    }
+
     // Map experienceRange to experienceLevel enum
     const mapExperienceLevel = (range: string): string => {
       if (range.includes('0-1') || range.includes('1-2')) return 'Entry';
@@ -2388,16 +2413,39 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
     
+    // Format jobType as simple string - let backend handle PostgreSQL conversion
+    const formatJobType = (field: any): string => {
+      if (Array.isArray(field)) {
+        const cleanArray = field.filter(item => item && item.trim && item.trim() !== '');
+        return cleanArray.length > 0 ? cleanArray[0] : 'Full-time'; // Take first item as string
+      }
+      if (field && typeof field === 'string' && field.trim() !== '') {
+        return field.trim();
+      }
+      return 'Full-time'; // Default
+    };
+
+    // Format arrays as JSON arrays for backend processing
+    const formatArrayField = (field: any): any[] => {
+      if (Array.isArray(field)) {
+        return field.filter(item => item && item.trim && item.trim() !== '');
+      }
+      if (field && typeof field === 'string' && field.trim() !== '') {
+        return [field.trim()];
+      }
+      return [];
+    };
+
     const jobPostData = {
       jobTitle: jobData.jobTitle,
       company: user?.companyName || jobData.companyName || 'Your Company',
       companyLogo: logoUrl,
       location: jobData.jobLocation,
-      jobType: jobData.jobType.length > 0 ? jobData.jobType[0] : 'Full-time',
+      jobType: formatArrayField(jobData.jobType), // Try JSON array format
       description: jobData.jobDescription,
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join('\n') : jobData.responsibilities,
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,
-      skills: jobData.skills,
+      skills: formatArrayField(jobData.skills), // JSON array
       experienceLevel: mapExperienceLevel(jobData.experienceRange),
       // Only include salary if user actually set custom values
       ...(shouldIncludeSalary && {
@@ -2408,7 +2456,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
         }
       }),
-      benefits: jobData.benefits,
+      benefits: formatArrayField(jobData.benefits), // JSON array
       // Use the currently logged-in user's email
       postedBy: user.email,
       employerEmail: user.email,
@@ -2420,7 +2468,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       positionId: generatePositionId()
     };
     
-    console.log('Posting job for user:', user.email, jobPostData);
+    console.log('Posting job for user:', user.email);
+    console.log('JobType being sent:', jobPostData.jobType, 'Type:', typeof jobPostData.jobType);
+    console.log('Benefits being sent:', jobPostData.benefits, 'Type:', typeof jobPostData.benefits, 'IsArray:', Array.isArray(jobPostData.benefits));
+    console.log('Skills being sent:', jobPostData.skills, 'Type:', typeof jobPostData.skills, 'IsArray:', Array.isArray(jobPostData.skills));
+    console.log('Full payload:', JSON.stringify(jobPostData, null, 2));
     
     try {
       const response = await fetch(API_ENDPOINTS.JOBS, {
@@ -2467,7 +2519,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           hiringTimeline: '',
           numberOfPeople: 0,
           workAuth: [],
-          jobType: [],
+          jobType: [], // Ensure this is an array
           payType: 'Range',
           minSalary: '',
           maxSalary: '',
@@ -2492,19 +2544,27 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         }, 2000);
       } else {
         const errorText = await response.text();
-        console.error('Job posting failed:', errorText);
+        console.error('Job posting failed with status:', response.status);
+        console.error('Error response:', errorText);
+        console.error('Request payload was:', JSON.stringify(jobPostData, null, 2));
+        
         let errorMessage = 'Failed to post job';
         
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || errorJson.message || errorMessage;
-        } catch (e) {
-          errorMessage = errorText || errorMessage;
+        if (!errorText || errorText.trim() === '') {
+          // Empty response - likely backend issue
+          errorMessage = `Backend server error (${response.status}). Please check if the backend server is running and the /api/jobs endpoint is available.`;
+        } else {
+          try {
+            const errorJson = JSON.parse(errorText);
+            errorMessage = errorJson.error || errorJson.message || errorMessage;
+          } catch (e) {
+            errorMessage = errorText || errorMessage;
+          }
         }
         
         setNotification({
           type: 'error',
-          message: errorMessage,
+          message: `Job posting failed: ${errorMessage}`,
           isVisible: true
         });
       }

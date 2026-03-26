@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
 import aiService from '../services/aiService';
 import Notification from '../components/Notification';
 import { useToast } from '../hooks/useToast';
+import { getVersions, saveVersion, deleteVersion, updateVersionName, formatSavedAt, type ResumeVersion } from '../services/resumeVersioning';
 
 class TemplateErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean}> {
   constructor(props: {children: React.ReactNode}) {
@@ -256,17 +257,50 @@ const LivePreview: React.FC<{ data: ResumeData; template: string }> = ({ data, t
 const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, onLogout, template }) => {
   const { toast, showToast, hideToast } = useToast();
   const selectedTemplate = (template || 'london').toLowerCase();
-  const [activeTab, setActiveTab] = useState<string>('contacts');
-  const [showAdditional, setShowAdditional] = useState(false);
-  const [skillInput, setSkillInput] = useState('');
-  const [isGenerating, setIsGenerating] = useState<{[key: string]: boolean}>({});
 
-  // Pre-fill from localStorage profile
+  // Pre-fill from localStorage profile — must be before any state that uses it
   const prefill = (() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }
   })();
   const prefillNameParts = (prefill.name || '').trim().split(/\s+/);
-  const prefillName = prefillNameParts;
+
+  const [activeTab, setActiveTab] = useState<string>('contacts');
+  const [showAdditional, setShowAdditional] = useState(false);
+  const [skillInput, setSkillInput] = useState('');
+  const [isGenerating, setIsGenerating] = useState<{[key: string]: boolean}>({});
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState<ResumeVersion[]>([]);
+  const [editingVersionId, setEditingVersionId] = useState<string | null>(null);
+  const [editingVersionName, setEditingVersionName] = useState('');
+  const userEmail = prefill.email || 'guest';
+
+  useEffect(() => {
+    setVersions(getVersions(userEmail));
+  }, []);
+
+  const handleSaveVersion = () => {
+    const name = `${resumeData.jobTitle || 'Resume'} — ${selectedTemplate}`;
+    const v = saveVersion(userEmail, { name, template: selectedTemplate, data: resumeData });
+    setVersions(getVersions(userEmail));
+    showToast(`Version "${v.name}" saved!`, 'success');
+  };
+
+  const handleLoadVersion = (v: ResumeVersion) => {
+    setResumeData(v.data);
+    setShowVersions(false);
+    showToast(`Loaded "${v.name}"`, 'success');
+  };
+
+  const handleDeleteVersion = (id: string) => {
+    deleteVersion(userEmail, id);
+    setVersions(getVersions(userEmail));
+  };
+
+  const handleRenameVersion = (id: string) => {
+    updateVersionName(userEmail, id, editingVersionName);
+    setVersions(getVersions(userEmail));
+    setEditingVersionId(null);
+  };
 
   const [resumeData, setResumeData] = useState<ResumeData>({
     firstName: prefillNameParts[0] || '',
@@ -303,6 +337,40 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
         }))
       : [{ degree: '', school: '', location: '', start: '', end: '', description: '' }]
   });
+
+  // Industry templates prefill
+  const INDUSTRY_TEMPLATES: Record<string, Partial<typeof resumeData>> = {
+    'Software Engineer': {
+      jobTitle: 'Software Engineer',
+      summary: 'Results-driven Software Engineer with experience building scalable web applications. Proficient in React, Node.js, and cloud technologies. Passionate about clean code and agile development.',
+      skills: ['JavaScript', 'React', 'Node.js', 'TypeScript', 'Git', 'REST APIs', 'SQL', 'Docker'],
+    },
+    'Data Analyst': {
+      jobTitle: 'Data Analyst',
+      summary: 'Detail-oriented Data Analyst with expertise in transforming complex datasets into actionable insights. Skilled in Python, SQL, and data visualization tools.',
+      skills: ['Python', 'SQL', 'Tableau', 'Power BI', 'Excel', 'Pandas', 'Data Visualization', 'Statistics'],
+    },
+    'Marketing Manager': {
+      jobTitle: 'Marketing Manager',
+      summary: 'Creative Marketing Manager with a track record of driving brand growth through digital campaigns, content strategy, and data-driven decision making.',
+      skills: ['Digital Marketing', 'SEO/SEM', 'Google Analytics', 'Social Media', 'Content Strategy', 'Email Marketing', 'CRM'],
+    },
+    'Product Manager': {
+      jobTitle: 'Product Manager',
+      summary: 'Strategic Product Manager experienced in leading cross-functional teams to deliver user-centric products. Strong background in agile methodologies and product roadmapping.',
+      skills: ['Product Roadmap', 'Agile/Scrum', 'User Research', 'Jira', 'A/B Testing', 'Stakeholder Management', 'Figma'],
+    },
+    'Finance Analyst': {
+      jobTitle: 'Financial Analyst',
+      summary: 'Analytical Finance professional with expertise in financial modeling, budgeting, and investment analysis. CFA candidate with strong Excel and ERP skills.',
+      skills: ['Financial Modeling', 'Excel', 'SAP', 'Budgeting', 'Forecasting', 'Accounting', 'Power BI', 'Bloomberg'],
+    },
+    'UI/UX Designer': {
+      jobTitle: 'UI/UX Designer',
+      summary: 'User-focused UI/UX Designer with a passion for creating intuitive digital experiences. Proficient in Figma and design systems with a strong portfolio of web and mobile projects.',
+      skills: ['Figma', 'Adobe XD', 'Sketch', 'Prototyping', 'User Research', 'Wireframing', 'Design Systems', 'CSS'],
+    },
+  };
 
   const resumeScore = Math.min(100, [
     resumeData.firstName && resumeData.lastName ? 15 : 0,
@@ -596,13 +664,82 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
       
       {/* Back to Templates Button */}
       <div style={{ backgroundColor: "white", borderBottom: "1px solid #e5e7eb" }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ padding: "15px 0" }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ padding: "12px 0", display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <BackButton 
             onClick={() => onNavigate && onNavigate('resume-templates')}
             text="Back to Templates"
             className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
           />
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {/* Industry Templates */}
+            <div style={{ position: 'relative' }}>
+              <select
+                onChange={(e) => {
+                  if (!e.target.value) return;
+                  const tpl = INDUSTRY_TEMPLATES[e.target.value];
+                  if (tpl) setResumeData(prev => ({ ...prev, ...tpl }));
+                  e.target.value = '';
+                }}
+                style={{ padding: '7px 12px', border: '1.5px solid #d1d5db', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', backgroundColor: 'white', color: '#374151' }}
+              >
+                <option value="">🏭 Industry Template</option>
+                {Object.keys(INDUSTRY_TEMPLATES).map(k => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+            {/* Save Version */}
+            <button
+              onClick={handleSaveVersion}
+              style={{ padding: '7px 14px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500' }}
+            >
+              💾 Save Version
+            </button>
+            {/* Load Version */}
+            <button
+              onClick={() => setShowVersions(v => !v)}
+              style={{ padding: '7px 14px', background: versions.length > 0 ? '#f59e0b' : '#e5e7eb', color: versions.length > 0 ? 'white' : '#9ca3af', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500' }}
+            >
+              📂 Versions ({versions.length})
+            </button>
+          </div>
         </div>
+
+        {/* Versions Panel */}
+        {showVersions && (
+          <div style={{ borderTop: '1px solid #e5e7eb', backgroundColor: '#fafafa', padding: '12px 24px' }}>
+            {versions.length === 0 ? (
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: 0 }}>No saved versions yet. Click "Save Version" to save your current resume.</p>
+            ) : (
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                {versions.map(v => (
+                  <div key={v.id} style={{ border: '1.5px solid #e5e7eb', borderRadius: '8px', padding: '10px 14px', backgroundColor: 'white', minWidth: '200px', maxWidth: '260px' }}>
+                    {editingVersionId === v.id ? (
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                        <input
+                          value={editingVersionName}
+                          onChange={e => setEditingVersionName(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && handleRenameVersion(v.id)}
+                          style={{ flex: 1, padding: '4px 8px', border: '1px solid #3b82f6', borderRadius: '4px', fontSize: '12px' }}
+                          autoFocus
+                        />
+                        <button onClick={() => handleRenameVersion(v.id)} style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', fontSize: '11px', cursor: 'pointer' }}>✓</button>
+                      </div>
+                    ) : (
+                      <p style={{ fontSize: '13px', fontWeight: '600', color: '#111827', margin: '0 0 2px', cursor: 'pointer' }}
+                        onDoubleClick={() => { setEditingVersionId(v.id); setEditingVersionName(v.name); }}>
+                        {v.name}
+                      </p>
+                    )}
+                    <p style={{ fontSize: '11px', color: '#9ca3af', margin: '0 0 8px' }}>{formatSavedAt(v.savedAt)} · {v.template}</p>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button onClick={() => handleLoadVersion(v)} style={{ flex: 1, padding: '5px', background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe', borderRadius: '5px', fontSize: '11px', cursor: 'pointer', fontWeight: '500' }}>Load</button>
+                      <button onClick={() => handleDeleteVersion(v.id)} style={{ padding: '5px 8px', background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>🗑</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{ display: "flex", height: "calc(100vh - 140px)" }}>

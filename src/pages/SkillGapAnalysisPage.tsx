@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Search, CheckCircle, XCircle, BookOpen, TrendingUp, Loader, Zap } from 'lucide-react';
+import { ArrowLeft, Search, CheckCircle, XCircle, BookOpen, TrendingUp, Loader, Zap, Brain, Target } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { API_ENDPOINTS } from '../config/env';
+import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
+import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -25,6 +27,8 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
   const [loadingResources, setLoadingResources] = useState<Record<string, boolean>>({});
   const [careerPath, setCareerPath] = useState<CareerPath | null>(null);
   const [loadingCareerPath, setLoadingCareerPath] = useState(false);
+  const [jobMatchResults, setJobMatchResults] = useState<JobMatchResult[]>([]);
+  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
 
   useEffect(() => {
     const loadSkills = async () => {

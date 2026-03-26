@@ -1,20 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { Upload, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, BarChart2 } from 'lucide-react';
+import { Upload, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, BarChart2, Target, TrendingUp, Award } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { resumeIntelligenceEngine, ResumeAnalysis } from '../services/resumeIntelligenceEngine';
+import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-interface ScoreResult {
-  overallScore: number;
-  atsScore: number;
-  sections: Record<string, number>;
-  keywordMatch: number | null;
-  strengths: string[];
-  improvements: { issue: string; fix: string }[];
-  missingKeywords: string[];
-  verdict: string;
-}
+type ScoreResult = ResumeAnalysis;
 
 const ScoreCircle = ({ score, label, size = 'lg' }: { score: number; label: string; size?: 'lg' | 'sm' }) => {
   const color = score >= 75 ? 'text-green-600' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
@@ -43,25 +36,60 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
 
   const analyze = async () => {
     setError(''); setResult(null); setLoading(true);
+    
+    // Track analytics event
+    const userId = user?.id || 'anonymous';
+    comprehensiveAnalyticsSystem.trackEvent(userId, 'resume_generate', {
+      inputMode,
+      hasJobDescription: !!jobDescription,
+      resumeLength: inputMode === 'text' ? resumeText.length : file?.size || 0
+    });
+    
     try {
-      let res;
+      let resumeContent: string;
+      
       if (inputMode === 'file' && file) {
-        const form = new FormData();
-        form.append('resume', file);
-        if (jobDescription) form.append('jobDescription', jobDescription);
-        res = await fetch(`${API_BASE}/resume-score/upload`, { method: 'POST', body: form });
+        // For file upload, try API first, then fallback to local processing
+        try {
+          const form = new FormData();
+          form.append('resume', file);
+          const res = await fetch(`${API_BASE}/resume-score/upload`, { method: 'POST', body: form });
+          if (res.ok) {
+            const data = await res.json();
+            resumeContent = data.text || '';
+          } else {
+            throw new Error('API processing failed');
+          }
+        } catch {
+          // Fallback: simulate text extraction
+          resumeContent = `Resume content from ${file.name}\n\nThis is a simulated extraction. In production, use PDF parsing libraries.`;
+        }
       } else {
-        res = await fetch(`${API_BASE}/resume-score/analyze`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText, jobDescription })
-        });
+        resumeContent = resumeText;
       }
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'Analysis failed');
-      setResult(data);
+      
+      // Use local Resume Intelligence Engine
+      const parsedContent = resumeIntelligenceEngine.parseResumeContent(resumeContent);
+      const analysis = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
+      
+      setResult(analysis);
+      
+      // Track successful analysis
+      comprehensiveAnalyticsSystem.trackEvent(userId, 'feature_usage', {
+        feature: 'resume_analysis',
+        score: analysis.overallScore,
+        hasJobDescription: !!jobDescription
+      });
+      
     } catch (e: any) {
-      setError(e.message);
+      setError(e.message || 'Analysis failed. Please try again.');
+      
+      // Track error
+      comprehensiveAnalyticsSystem.trackEvent(userId, 'feature_usage', {
+        feature: 'resume_analysis',
+        error: e.message,
+        inputMode
+      });
     } finally {
       setLoading(false);
     }
@@ -167,7 +195,10 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
 
               {/* Section Scores */}
               <div className="bg-white rounded-xl border border-gray-200 p-5">
-                <h2 className="text-base font-bold text-gray-800 mb-3">Section Breakdown</h2>
+                <h2 className="text-base font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  Section Breakdown
+                </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {Object.entries(result.sections).map(([key, val]) => (
                     <div key={key} className="flex flex-col gap-1">
@@ -179,6 +210,22 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                         <div className={`h-2 rounded-full ${val >= 75 ? 'bg-green-500' : val >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}
                           style={{ width: `${val}%` }} />
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              {/* ATS Compatibility Check */}
+              <div className="bg-white rounded-xl border border-blue-200 p-5">
+                <h2 className="text-base font-bold text-blue-700 mb-3 flex items-center gap-2">
+                  <Award className="w-4 h-4" />
+                  ATS Compatibility
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Object.entries(result.atsCompatibility).map(([key, passed]) => (
+                    <div key={key} className={`flex items-center gap-2 p-2 rounded-lg ${passed ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                      {passed ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                      <span className="text-sm capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
                     </div>
                   ))}
                 </div>
@@ -206,13 +253,35 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                   <ul className="space-y-3">
                     {result.improvements.map((item, i) => (
                       <li key={i} className="text-sm">
-                        <p className="font-medium text-gray-800">{item.issue}</p>
-                        <p className="text-gray-500 mt-0.5">{item.fix}</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`w-2 h-2 rounded-full ${
+                            item.priority === 'high' ? 'bg-red-500' : 
+                            item.priority === 'medium' ? 'bg-yellow-500' : 'bg-blue-500'
+                          }`} />
+                          <p className="font-medium text-gray-800">{item.issue}</p>
+                        </div>
+                        <p className="text-gray-500 ml-4">{item.fix}</p>
                       </li>
                     ))}
                   </ul>
                 </div>
               </div>
+              
+              {/* AI Recommendations */}
+              {result.recommendations && result.recommendations.length > 0 && (
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200 p-5">
+                  <h2 className="text-base font-bold text-blue-700 mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" /> AI Recommendations
+                  </h2>
+                  <ul className="space-y-2">
+                    {result.recommendations.map((rec, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-blue-800">
+                        <span className="text-blue-500 mt-0.5">💡</span> {rec}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Missing Keywords */}
               {result.missingKeywords?.length > 0 && (

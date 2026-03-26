@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RoleGuard from '../components/RoleGuard';
-import { Send, Bot, User, Sparkles, RefreshCw } from 'lucide-react';
+import { Send, Bot, User, Sparkles, RefreshCw, Brain, Target, TrendingUp, BookOpen, DollarSign, Users, BarChart3 } from 'lucide-react';
 import { API_BASE_URL } from '../config/env';
+import { multiAgentCareerCoachingSystem, AgentType, UserProfile } from '../services/multiAgentCareerCoachingSystem';
+import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 
 interface CareerCoachPageProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -14,15 +16,28 @@ interface CareerCoachPageProps {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  agentType?: AgentType;
+  recommendations?: any[];
+  followUpActions?: any[];
 }
 
+const AGENT_CONFIGS = {
+  'career-planner': { icon: Target, color: 'blue', name: 'Career Planner' },
+  'skill-advisor': { icon: Brain, color: 'purple', name: 'Skill Advisor' },
+  'interview-coach': { icon: Users, color: 'green', name: 'Interview Coach' },
+  'resume-expert': { icon: BookOpen, color: 'orange', name: 'Resume Expert' },
+  'salary-negotiator': { icon: DollarSign, color: 'emerald', name: 'Salary Coach' },
+  'networking-guide': { icon: Users, color: 'pink', name: 'Networking Guide' },
+  'industry-analyst': { icon: BarChart3, color: 'indigo', name: 'Industry Analyst' }
+};
+
 const QUICK_PROMPTS = [
-  '🎯 How do I plan my career path?',
-  '📄 How to write an ATS-friendly resume?',
-  '💬 Tips for interview preparation',
-  '📈 How to identify my skill gaps?',
-  '💰 How to negotiate salary?',
-  '🔍 How to find jobs faster?',
+  { text: '🎯 Plan my career path', agent: 'career-planner' as AgentType },
+  { text: '📄 Improve my resume', agent: 'resume-expert' as AgentType },
+  { text: '💬 Prepare for interviews', agent: 'interview-coach' as AgentType },
+  { text: '📈 Identify skill gaps', agent: 'skill-advisor' as AgentType },
+  { text: '💰 Negotiate salary', agent: 'salary-negotiator' as AgentType },
+  { text: '🔗 Build my network', agent: 'networking-guide' as AgentType },
 ];
 
 const SYSTEM_PROMPT = `You are ZyncJobs AI Career Coach — a friendly, expert career advisor helping job seekers in India and globally. You give concise, actionable advice on:

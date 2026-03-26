@@ -1,11 +1,9 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Camera, ChevronDown, Info, TrendingUp, Star, Edit, FileText, Search, Bell, MessageSquare, Plus, X } from 'lucide-react';
+import { TrendingUp, Star, Edit, FileText, Search, X } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
-import JobAlertsManager from '../components/JobAlertsManager';
-import MistralJobRecommendations from '../components/MistralJobRecommendations';
 import CandidateNotificationBell from '../components/CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { API_ENDPOINTS } from '../config/env';
@@ -21,13 +19,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(() => searchParams.get('tab') || 'Profile');
   const [completionPercentage, setCompletionPercentage] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
     isVisible: boolean;
   }>({ type: 'success', message: '', isVisible: false });
-  const [showNotifications, setShowNotifications] = useState(false);
+  const [, setShowNotifications] = useState(false);
   const [showNotifTooltip, setShowNotifTooltip] = useState(true);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [activityData, setActivityData] = useState<any>(null);
@@ -46,6 +44,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [jobTitles, setJobTitles] = useState<any[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
 
   const candidateEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return undefined; } })();
   const { notifications: appNotifications, unreadCount, markRead, markAllRead, clearAll } =
@@ -146,7 +145,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           company: 'ZyncJobs',
           message: 'No activity yet. Start applying to jobs!',
           time: 'Now',
-          icon: '??',
+          icon: '',
         });
       }
 
@@ -847,7 +846,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               <div className="lg:col-span-3">
                 {!readOnly && (
                 <>{/* Save All Button */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
+                {!profileSaved && <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
                   <div>
                     <h3 className="font-semibold text-blue-900 mb-1">Save Your Profile</h3>
                     <p className="text-sm text-blue-700">Click the button below to save all your profile changes permanently</p>
@@ -867,7 +866,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             phone: user?.phone,
                             jobTitle: user?.jobTitle,
                             education: user?.education,
-                            profilePhoto: user?.profilePhoto,
+                            // profilePhoto excluded — saved separately via upload endpoint to avoid base64 corrupting JSON
                             profileFrame: user?.profileFrame,
                             profileSummary: user?.profileSummary,
                             skills: user?.skills,
@@ -893,6 +892,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             message: 'All profile details saved successfully!',
                             isVisible: true
                           });
+                          setProfileSaved(true);
                         } else {
                           setNotification({
                             type: 'error',
@@ -913,7 +913,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   >
                     Save All Changes
                   </button>
-                </div></>
+                </div>}
+                </>
                 )}
 
                 {/* Profile Header Card */}
@@ -1360,7 +1361,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div>
                           <h3 className="font-semibold text-gray-900">{user.employment.designation} at {user.employment.companyName}</h3>
                           <p className="text-gray-500 text-sm">
-                            {user.employment.startMonth} {user.employment.startYear} - {user.employment.currentlyWorking ? 'Present' : `${user.employment.endMonth} ${user.employment.endYear}`}
+                            {[user.employment.startMonth, user.employment.startYear].filter(Boolean).join(" ")}{(user.employment.startMonth || user.employment.startYear) ? " - " : ""}{user.employment.currentlyWorking ? "Present" : [user.employment.endMonth, user.employment.endYear].filter(Boolean).join(" ")}
                             {user.employment.experienceYears || user.employment.experienceMonths ? ` � ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
                           </p>
                         </div>
