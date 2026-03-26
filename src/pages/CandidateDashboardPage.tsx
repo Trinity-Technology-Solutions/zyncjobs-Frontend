@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Camera, ChevronDown, Info, TrendingUp, Star, Edit, FileText, Search, Bell, MessageSquare, Plus, X } from 'lucide-react';
 import Notification from '../components/Notification';
@@ -426,29 +426,25 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   };
 
   const calculateProfileCompletion = (userData: any) => {
-    let completed = 0;
-    const fields = [
-      'name', 'email', 'phone', 'location', 'gender', 'birthday',
-      'profilePhoto', 'profileSummary', 'skills', 'languages',
-      'education', 'employment', 'projects', 'resume'
+    const checks = [
+      { w: 10, ok: () => !!userData.name?.trim() },
+      { w: 5,  ok: () => !!userData.email?.trim() },
+      { w: 5,  ok: () => !!userData.phone?.trim() },
+      { w: 5,  ok: () => !!userData.location?.trim() },
+      { w: 5,  ok: () => !!userData.gender?.trim() },
+      { w: 5,  ok: () => !!userData.birthday },
+      { w: 10, ok: () => !!userData.profilePhoto?.trim() },
+      { w: 10, ok: () => (userData.profileSummary?.trim()?.length ?? 0) > 10 },
+      { w: 10, ok: () => Array.isArray(userData.skills) && userData.skills.length > 0 },
+      { w: 5,  ok: () => Array.isArray(userData.languages) ? userData.languages.length > 0 : !!(userData.languages?.trim?.()) },
+      { w: 10, ok: () => { const e = userData.educationCollege || userData.education; if (!e) return false; if (typeof e === 'string') return e.trim().length > 0; return !!(e.college?.trim() || e.degree?.trim()); } },
+      { w: 10, ok: () => { const e = userData.employment; return !!(e && typeof e === 'object' && (e.companyName?.trim() || e.designation?.trim())); } },
+      { w: 5,  ok: () => { const p = userData.projects; return !!(p && typeof p === 'object' && p.projectName?.trim()); } },
+      { w: 5,  ok: () => !!(userData.resume || userData.resumeUrl) },
     ];
-
-    const hasValue = (val: any): boolean => {
-      if (val === null || val === undefined || val === '') return false;
-      if (typeof val === 'string') return val.trim().length > 0;
-      if (Array.isArray(val)) return val.length > 0 && val.some(item =>
-        typeof item === 'object'
-          ? Object.values(item).some(v => v && String(v).trim().length > 0)
-          : !!item
-      );
-      if (typeof val === 'object') return Object.values(val).some(v => v && String(v).trim().length > 0);
-      return false;
-    };
-
-    fields.forEach(field => { if (hasValue(userData[field])) completed += 1; });
-
-    const percentage = Math.round((completed / fields.length) * 100);
-    setCompletionPercentage(percentage);
+    const total = checks.reduce((s, c) => s + c.w, 0);
+    const earned = checks.reduce((s, c) => s + (c.ok() ? c.w : 0), 0);
+    setCompletionPercentage(Math.round((earned / total) * 100));
   };
 
   const fetchApplications = async (userEmail: string) => {
@@ -465,27 +461,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchRecommendedJobs = async (userData: any) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=10`);
+      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=1000`);
       if (response.ok) {
         const allJobs = await response.json();
         let filtered = allJobs;
-        if (userData.skills && Array.isArray(userData.skills) && userData.skills.length > 0) {
+        const rawSkills = userData.skills || userData.keySkills || [];
+        const userSkills: string[] = Array.isArray(rawSkills)
+          ? rawSkills.map((s: any) => (typeof s === 'string' ? s : s?.skill || s?.name || '').toLowerCase()).filter(Boolean)
+          : [];
+        if (userSkills.length > 0) {
           const matchedJobs = allJobs.filter((job: any) => {
-            const jobSkills = (job.skills || job.requiredSkills || []).map((s: string) => s.toLowerCase());
-            return userData.skills.some((skill: string) => 
-              jobSkills.some((jSkill: string) => 
-                jSkill.includes(skill.toLowerCase()) || skill.toLowerCase().includes(jSkill)
-              )
+            const jobSkills = (job.skills || job.requiredSkills || []).map((s: any) =>
+              (typeof s === 'string' ? s : s?.skill || s?.name || '').toLowerCase()
+            ).filter(Boolean);
+            const jobTitle = (job.jobTitle || job.title || '').toLowerCase();
+            const jobDesc = (job.description || job.jobDescription || '').toLowerCase();
+            return userSkills.some((skill: string) =>
+              jobSkills.some((js: string) => js.includes(skill) || skill.includes(js)) ||
+              jobTitle.includes(skill) || jobDesc.includes(skill)
             );
           });
           filtered = matchedJobs.length > 0 ? matchedJobs : allJobs;
         }
-        setRecommendedJobs(filtered.slice(0, 3));
+        setRecommendedJobs(filtered.slice(0, 5));
       }
     } catch (error) {
       console.error('Error fetching recommended jobs:', error);
     }
   };
+
+  // Re-run when user skills update from profile load
+  useEffect(() => {
+    if (user && (user.skills?.length > 0 || user.keySkills?.length > 0)) {
+      fetchRecommendedJobs(user);
+    }
+  }, [JSON.stringify(user?.skills), JSON.stringify(user?.keySkills)]);
 
   return (
     <>
@@ -1586,15 +1596,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               });
                               const result = await uploadRes.json();
                               if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                              const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: result.fileUrl };
-                              const updatedUser = { ...user, resume: resumeData, resumeUrl: result.fileUrl };
+                              const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? /uploads/+result.filename : null);
+                              const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
+                              const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
                               await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: result.fileUrl })
+                                body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
                               });
                               setNotification({ type: 'success', message: 'Resume updated successfully!', isVisible: true });
                             } catch (error: any) {
@@ -1638,15 +1649,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             });
                             const result = await uploadRes.json();
                             if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                            const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: result.fileUrl };
-                            const updatedUser = { ...user, resume: resumeData, resumeUrl: result.fileUrl };
+                            const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? /uploads/+result.filename : null);
+                            const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
+                            const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                             setUser(updatedUser);
                             localStorage.setItem('user', JSON.stringify(updatedUser));
                             calculateProfileCompletion(updatedUser);
                             await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: result.fileUrl })
+                              body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
                             });
                             setNotification({ type: 'success', message: 'Resume uploaded successfully!', isVisible: true });
                           } catch (error: any) {

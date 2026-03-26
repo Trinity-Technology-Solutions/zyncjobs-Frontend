@@ -654,7 +654,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                           </div>
                           <div className="mt-4 lg:mt-0 lg:ml-6">
                             <button 
-                              onClick={() => onNavigate('candidate-response-detail', { application })}
+                              onClick={() => { const jobId = application.jobId ? (typeof application.jobId === 'string' ? application.jobId : (application.jobId?._id || application.jobId?.id)) : ''; if (jobId) sessionStorage.setItem('selectedJobId', jobId); sessionStorage.setItem('selectedJobTitle', application.jobTitle || application.jobId?.jobTitle || application.jobId?.title || 'Job Position'); onNavigate('application-management'); }}
                               className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
                             >
                               View Details

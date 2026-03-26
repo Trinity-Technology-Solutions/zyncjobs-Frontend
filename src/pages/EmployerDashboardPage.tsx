@@ -50,6 +50,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [savedCandidates, setSavedCandidates] = useState<any[]>([]);
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [selectedResumeAppId, setSelectedResumeAppId] = useState<string | null>(null);
+  const [selectedResumeUrl, setSelectedResumeUrl] = useState<string | null>(null);
+  const [selectedResumeCandidateName, setSelectedResumeCandidateName] = useState<string | null>(null);
+  const [selectedResumeCandidateEmail, setSelectedResumeCandidateEmail] = useState<string | null>(null);
   const [appFilterJob, setAppFilterJob] = useState('all');
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
@@ -221,9 +224,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
   // Add effect to refresh data when component becomes visible
   useEffect(() => {
+    let lastRefresh = 0;
     const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        console.log('Dashboard became visible, refreshing data...');
+      const now = Date.now();
+      if (!document.hidden && user && now - lastRefresh > 300000) {
+        lastRefresh = now;
         fetchDashboardData(user);
       }
     };
@@ -234,12 +239,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
   // Add effect to refresh data when returning to dashboard
   useEffect(() => {
-    const handleFocus = () => {
-      if (user) {
-        console.log('Window focused, refreshing dashboard data...');
-        fetchDashboardData(user);
-      }
-    };
+    const handleFocus = () => {}; // removed aggressive refetch
     
     const handleJobDeleted = () => {
       if (user) {
@@ -283,8 +283,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const allJobs = await jobsRes.json();
           console.log('Dashboard - All jobs:', allJobs.length);
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
-            const matchesEmail = job.postedBy === userEmail;
-            console.log(`Job: ${job.jobTitle} at ${job.company}, matchesEmail: ${matchesEmail}`);
+            const email = userEmail?.toLowerCase().trim();
+            const matchesEmail = job.postedBy?.toLowerCase().trim() === email || job.employerEmail?.toLowerCase().trim() === email;
             return matchesEmail;
           }) : [];
           console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
@@ -362,7 +362,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setApplications([]);
       }
 
-      // Fetch Interviews (with error handling)
+      // Fetch Interviews (non-critical, fail silently)
       try {
         const interviewsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`);
         if (interviewsRes.ok) {
@@ -400,39 +400,33 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           setInterviews(filteredInterviews);
           dashboardStats.interviews = filteredInterviews.length;
         } else {
-          console.warn('Interviews API returned error:', interviewsRes.status);
           setInterviews([]);
         }
-      } catch (error) {
-        console.error('Error fetching interviews:', error);
+      } catch {
         setInterviews([]);
       }
 
-      // Fetch Dashboard Stats (with error handling)
+      // Fetch Dashboard Stats (non-critical, fail silently)
       try {
         const statsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
           dashboardStats = { ...dashboardStats, ...stats };
-        } else {
-          console.warn('Stats API returned error:', statsRes.status);
         }
-      } catch (error) {
-        console.error('Error fetching stats:', error);
+      } catch {
+        // non-critical — use locally computed stats
       }
       setDashboardStats(dashboardStats);
 
-      // Fetch Recent Activity (with error handling)
+      // Fetch Recent Activity (non-critical, fail silently)
       try {
         const activityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
         if (activityRes.ok) {
           const activity = await activityRes.json();
           recentActivity = activity;
-        } else {
-          console.warn('Activity API returned error:', activityRes.status);
         }
-      } catch (error) {
-        console.error('Error fetching activity:', error);
+      } catch {
+        // non-critical — fallback to local activity below
       }
       
       // If no activity from API, create from local jobs
@@ -1218,6 +1212,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   onClick={() => {
                                     const appId = application._id || application.id;
                                     setSelectedResumeAppId(appId);
+                                    setSelectedResumeUrl(application.resumeUrl || null);
+                                    setSelectedResumeCandidateName(application.candidateName || null);
+                                    setSelectedResumeCandidateEmail(application.candidateEmail || null);
                                     setShowResumeModal(true);
                                   }}
                                   className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
@@ -1687,9 +1684,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <div className="flex gap-2">
                             <button 
                               onClick={() => {
-                                if (notification.type === 'application') setActiveMenu('applications');
-                                else if (notification.type === 'interview') setActiveMenu('interviews');
-                                else if (notification.type === 'job') onNavigate('my-jobs');
+                                if (notification.type === 'application') {
+                                  const candidateName = notification.data?.candidateName || notification.data?.candidateEmail || '';
+                                  if (candidateName) setAppSearch(candidateName);
+                                  setActiveMenu('applications');
+                                } else if (notification.type === 'interview') {
+                                  setActiveMenu('interviews');
+                                } else if (notification.type === 'job') {
+                                  onNavigate('my-jobs');
+                                }
                               }}
                               className="text-xs font-medium text-blue-600 border border-blue-600 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
                             >
@@ -1839,7 +1842,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       <ResumeModal
         applicationId={selectedResumeAppId}
         isOpen={showResumeModal}
-        onClose={() => { setShowResumeModal(false); setSelectedResumeAppId(null); }}
+        onClose={() => { setShowResumeModal(false); setSelectedResumeAppId(null); setSelectedResumeUrl(null); setSelectedResumeCandidateName(null); setSelectedResumeCandidateEmail(null); }}
+        resumeUrl={selectedResumeUrl || undefined}
+        candidateName={selectedResumeCandidateName || undefined}
+        candidateEmail={selectedResumeCandidateEmail || undefined}
       />
 
       {/* Toast notification */}

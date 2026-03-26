@@ -81,9 +81,26 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       const employerApplications = applications.filter((app: any) => 
         app.employerEmail === userEmail
       );
+
+      // Resolve job titles for applications that don't have jobTitle directly
+      const appsWithTitles = await Promise.all(
+        employerApplications.map(async (app: any) => {
+          if (app.jobTitle) return app;
+          const jobId = app.jobId?._id || app.jobId?.id || (typeof app.jobId === 'string' ? app.jobId : null);
+          if (!jobId) return app;
+          try {
+            const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+            if (jobRes.ok) {
+              const jobData = await jobRes.json();
+              return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Unknown Position' };
+            }
+          } catch { /* ignore */ }
+          return app;
+        })
+      );
       
       // Process applications to add AI scores and rejection status
-      const processedCandidates = employerApplications.map((app: any) => {
+      const processedCandidates = appsWithTitles.map((app: any) => {
         // Calculate AI scores based on application data
         const skillsMatch = calculateSkillsMatch(app);
         const experienceMatch = calculateExperienceMatch(app);
@@ -504,11 +521,11 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
                             </div>
                             <div>
                               <h4 className="font-medium text-gray-900">{candidate.name}</h4>
+                              <p className="text-sm text-blue-700 font-semibold">📋 {candidate.jobTitle || 'Unknown Position'}</p>
                               <p className="text-sm text-gray-500">{candidate.email}</p>
                               <p className="text-xs text-gray-400">
                                 Applied: {new Date(candidate.appliedAt).toLocaleDateString()}
                               </p>
-                              <p className="text-xs text-blue-600">{candidate.jobTitle}</p>
                             </div>
                           </div>
                         </div>
