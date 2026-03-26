@@ -113,7 +113,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         recentActivity.push({
           type: 'application',
           company: app.jobId?.company || 'Company',
-          message: `Applied for ${app.jobId?.jobTitle || 'a position'} � ${app.status}`,
+          message: `Applied for ${app.jobId?.jobTitle || 'a position'}  ${app.status}`,
           time: timeAgo(app.createdAt),
           icon: statusIcons[app.status] || '??',
         });
@@ -258,7 +258,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 if (!url) return '';
                 if (url.startsWith('data:')) return url;
                 if (url.startsWith('http')) {
-                  // Extract just the path � proxy will handle the host
+                  // Extract just the path  proxy will handle the host
                   try { return new URL(url).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch { return url; }
                 }
                 const base = (import.meta.env.VITE_API_URL || '').replace('/api', ''); return url.startsWith('/') ? `${base}${url}` : `${base}/${url}`;
@@ -734,7 +734,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               }
                             </span>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{job.company} � {job.location}</p>
+                          <p className="text-xs text-gray-600 mb-2">{job.company}  {job.location}</p>
                           {job.salary && (
                             <p className="text-xs text-green-600 font-medium mb-2">
                               {typeof job.salary === 'object' 
@@ -990,75 +990,76 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           </p>
                           {user?.educationCollege?.college && (
                             <p className="text-gray-500 text-sm mb-3">
-                              {user.educationCollege.degree ? `${user.educationCollege.degree} � ` : ''}{user.educationCollege.college}
+                              {user.educationCollege.degree ? `${user.educationCollege.degree}  ` : ''}{user.educationCollege.college}
                             </p>
                           )}
                           
                           {/* Contact Info */}
                           <div className="flex items-center space-x-6 text-sm text-gray-600 mb-3">
-                            <div className="flex items-center space-x-1">
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <button 
+                              onClick={() => {
+                                setActiveModal('personalDetails');
+                                setModalData({
+                                  name: user?.name || '',
+                                  gender: user?.gender || '',
+                                  birthday: user?.birthday || '',
+                                  location: user?.location || '',
+                                  phone: user?.phone || '',
+                                  jobTitle: user?.jobTitle || '',
+                                  education: user?.education || ''
+                                });
+                              }}
+                              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            >
+                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                               </svg>
-                              {user?.location ? (
-                                <span>{user.location}</span>
-                              ) : (
-                                <button 
-                                  onClick={() => {
-                                    setActiveModal('personalDetails');
-                                    setModalData({
-                                      name: user?.name || '',
-                                      gender: user?.gender || '',
-                                      birthday: user?.birthday || '',
-                                      location: user?.location || '',
-                                      phone: user?.phone || '',
-                                      jobTitle: user?.jobTitle || '',
-                                      education: user?.education || ''
-                                    });
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800"
-                                >
-                                  Add location
-                                </button>
-                              )}
-                            </div>
-                            <div className="flex items-center space-x-1">
+                              <span>{user?.location || 'Add Location'}</span>
+                            </button>
+<button 
+                              onClick={() => {
+                                setActiveModal('personalDetails');
+                                setModalData({
+                                  name: user?.name || '',
+                                  gender: user?.gender || '',
+                                  birthday: user?.birthday || '',
+                                  location: user?.location || '',
+                                  phone: user?.phone || '',
+                                  jobTitle: user?.jobTitle || '',
+                                  education: user?.education || ''
+                                });
+                              }}
+                              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                               </svg>
-                              {user?.phone ? (
-                                <span>{user.phone}</span>
-                              ) : (
-                                <button 
-                                  onClick={() => {
-                                    setActiveModal('personalDetails');
-                                    setModalData({
-                                      name: user?.name || '',
-                                      gender: user?.gender || '',
-                                      birthday: user?.birthday || '',
-                                      location: user?.location || '',
-                                      phone: user?.phone || '',
-                                      jobTitle: user?.jobTitle || '',
-                                      education: user?.education || ''
-                                    });
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800"
-                                >
-                                  Add phone
-                                </button>
-                              )}
-                              {user?.phone && <span className="text-green-500">?</span>}
-                            </div>
-                            <div className="flex items-center space-x-1">
+                              <span>{user?.phone || 'Add Phone'}</span>
+                            </button>
+
+
+<button 
+                              onClick={() => {
+                                setActiveModal('personalDetails');
+                                setModalData({
+                                  name: user?.name || '',
+                                  gender: user?.gender || '',
+                                  birthday: user?.birthday || '',
+                                  location: user?.location || '',
+                                  phone: user?.phone || '',
+                                  jobTitle: user?.jobTitle || '',
+                                  education: user?.education || ''
+                                });
+                              }}
+                              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                            >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                               </svg>
-                              <span>{user?.email ? `${user.email.substring(0, 15)}...` : 'Add email'}</span>
-                              {user?.email && <span className="text-green-500">?</span>}
-                            </div>
+                              <span>{user?.email || 'Add Email'}</span>
+                            </button>
                           </div>
-                          
                           {/* Action Links */}
                           <div className="flex items-center space-x-4 text-sm">
                             <button 
@@ -1081,6 +1082,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               </svg>
                               <span>{user?.gender || 'Add Gender'}</span>
                             </button>
+
+
                             <button 
                               onClick={() => {
                                 setActiveModal('personalDetails');
@@ -1096,9 +1099,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               }}
                               className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a4 4 0 118 0v4m-4 6v6m-4-6h8" />
-                              </svg>
+
+
+                              <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+<path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM5 7V5h14v2H5zm2 4h10v2H7zm0 4h10v2H7z"></path>
+</svg>
                               <span>{user?.birthday ? new Date(user.birthday).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Add birthday'}</span>
                             </button>
                           </div>
@@ -1194,7 +1199,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <h3 className="font-semibold text-gray-900">{user.educationCollege.degree} from {user.educationCollege.college}</h3>
-                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType} � {user.educationCollege.percentage} � Graduated in {user.educationCollege.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationCollege.courseType}  {user.educationCollege.percentage}  Graduated in {user.educationCollege.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1215,7 +1220,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class XII - {user.educationClass12.board}</p>
-                            <p className="text-gray-500 text-sm">{user.educationClass12.percentage}% � {user.educationClass12.medium} Medium � Passed in {user.educationClass12.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationClass12.percentage}%  {user.educationClass12.medium} Medium  Passed in {user.educationClass12.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1244,7 +1249,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div className="flex items-start justify-between">
                           <div>
                             <p className="text-gray-700 font-medium">Class X - {user.educationClass10.board}</p>
-                            <p className="text-gray-500 text-sm">{user.educationClass10.percentage}% � {user.educationClass10.medium} Medium � Passed in {user.educationClass10.passingYear}</p>
+                            <p className="text-gray-500 text-sm">{user.educationClass10.percentage}%  {user.educationClass10.medium} Medium  Passed in {user.educationClass10.passingYear}</p>
                           </div>
                           <Edit 
                             onClick={() => {
@@ -1361,7 +1366,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <h3 className="font-semibold text-gray-900">{user.employment.designation} at {user.employment.companyName}</h3>
                           <p className="text-gray-500 text-sm">
                             {user.employment.startMonth} {user.employment.startYear} - {user.employment.currentlyWorking ? 'Present' : `${user.employment.endMonth} ${user.employment.endYear}`}
-                            {user.employment.experienceYears || user.employment.experienceMonths ? ` � ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
+                            {user.employment.experienceYears || user.employment.experienceMonths ? `  ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
                           </p>
                         </div>
                       </div>
@@ -1498,7 +1503,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <p className="text-gray-900 font-medium">{user.clubsCommittees.designation} at {user.clubsCommittees.clubName}</p>
                           <p className="text-gray-500 text-sm">
                             {user.clubsCommittees.startMonth} {user.clubsCommittees.startYear} - {user.clubsCommittees.currentlyWorking ? 'Present' : `${user.clubsCommittees.endMonth} ${user.clubsCommittees.endYear}`}
-                            {user.clubsCommittees.associatedEducation && ` � ${user.clubsCommittees.associatedEducation}`}
+                            {user.clubsCommittees.associatedEducation && `  ${user.clubsCommittees.associatedEducation}`}
                           </p>
                           <p className="text-gray-700 text-sm mt-1">{user.clubsCommittees.description}</p>
                           {user.clubsCommittees.mediaFile && (
@@ -1761,7 +1766,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{activity.message}</p>
-                            <p className="text-xs text-gray-500 mt-1">{activity.company} � {activity.time}</p>
+                            <p className="text-xs text-gray-500 mt-1">{activity.company}  {activity.time}</p>
                           </div>
                         </div>
                       ))}
@@ -1833,7 +1838,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               });
               if (uploadRes.ok) {
                 const data = await uploadRes.json();
-                // data.photoUrl is relative like /uploads/photos/xxx.jpg � strip /api from base
+                // data.photoUrl is relative like /uploads/photos/xxx.jpg  strip /api from base
                 photoUrl = data.photoUrl?.startsWith('http')
                   ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
                   : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
