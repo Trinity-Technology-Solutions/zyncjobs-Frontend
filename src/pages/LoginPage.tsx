@@ -53,7 +53,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         // Redirect to job application page
         onNavigate('job-application');
       } else {
-        onNavigate('dashboard');
+        onNavigate('home');
       }
       
     } catch (err) {
