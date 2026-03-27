@@ -15,7 +15,7 @@ interface Application {
   candidateEmail: string;
   candidatePhone?: string;
   coverLetter?: string;
-  status: 'applied' | 'reviewed' | 'shortlisted' | 'hired' | 'rejected' | 'withdrawn';
+  status: 'applied' | 'reviewed' | 'shortlisted' | 'hired' | 'rejected' | 'ai_rejected' | 'withdrawn';
   createdAt: string;
   isQuickApply?: boolean;
   withdrawnAt?: string;
@@ -97,6 +97,8 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
           const changed = data.filter((app: Application) => prev[app._id] && prev[app._id] !== app.status);
           if (changed.length > 0) {
             const app = changed[0];
+            // ai_rejected is internal — never notify candidate, wait for employer to confirm
+            if (app.status === 'ai_rejected') return;
             const statusLabels: Record<string, string> = {
               reviewed: 'is being reviewed',
               shortlisted: '— you have been shortlisted! 🎉',
@@ -256,8 +258,11 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
     }
   };
 
+  // ai_rejected is INTERNAL employer state — candidate always sees it as "applied"
+  const toDisplay = (s: string) => s === 'ai_rejected' ? 'applied' : s;
+
   const getStatusIcon = (status: string) => {
-    switch (status) {
+    switch (toDisplay(status)) {
       case 'applied': return <Clock className="w-4 h-4 text-blue-500" />;
       case 'reviewed': return <Eye className="w-4 h-4 text-yellow-500" />;
       case 'shortlisted': return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -269,7 +274,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (toDisplay(status)) {
       case 'applied': return 'bg-blue-100 text-blue-800 border-blue-200';
       case 'reviewed': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
       case 'shortlisted': return 'bg-green-100 text-green-800 border-green-200';
@@ -281,8 +286,8 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   };
 
   const getStatusMessage = (status: string) => {
-    switch (status) {
-      case 'applied': return 'Your application has been submitted';
+    switch (toDisplay(status)) {
+      case 'applied': return 'Your application has been submitted and is under review';
       case 'reviewed': return 'Application is being reviewed by employer';
       case 'shortlisted': return 'Congratulations! You\'ve been shortlisted';
       case 'hired': return 'Congratulations! You got the job';
@@ -292,13 +297,14 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
     }
   };
 
-  const filteredApplications = applications.filter(app => 
-    filter === 'all' || app.status === filter
+  // ai_rejected counts as 'applied' for candidate view
+  const filteredApplications = applications.filter(app =>
+    filter === 'all' || toDisplay(app.status) === filter
   );
 
   const statusCounts = {
     all: applications.length,
-    applied: applications.filter(app => app.status === 'applied').length,
+    applied: applications.filter(app => toDisplay(app.status) === 'applied').length,
     reviewed: applications.filter(app => app.status === 'reviewed').length,
     shortlisted: applications.filter(app => app.status === 'shortlisted').length,
     hired: applications.filter(app => app.status === 'hired').length,
@@ -441,16 +447,9 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             <h3 className="font-semibold text-lg text-gray-900">
                               {application.jobId?.jobTitle || 'Job Title Not Available'}
                             </h3>
-                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                              application.status === 'applied' ? 'bg-blue-100 text-blue-800' :
-                              application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-800' :
-                              application.status === 'shortlisted' ? 'bg-green-100 text-green-800' :
-                              application.status === 'hired' ? 'bg-purple-100 text-purple-800' :
-                              application.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
+                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(application.status)}`}>
                               {getStatusIcon(application.status)}
-                              <span className="ml-2">{application.status.charAt(0).toUpperCase() + application.status.slice(1)}</span>
+                              <span className="ml-2">{toDisplay(application.status).charAt(0).toUpperCase() + toDisplay(application.status).slice(1)}</span>
                             </div>
                             {scheduledAppIds.has(application._id) && (
                               <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 border border-indigo-200">
@@ -619,7 +618,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             </button>
                           </div>
                           
-                          {application.status === 'applied' && (
+                          {(application.status === 'applied' || application.status === 'ai_rejected') && (
                             <button
                               onClick={() => setWithdrawingApp(application._id)}
                               className="flex items-center justify-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-sm rounded hover:bg-red-50 transition-colors"

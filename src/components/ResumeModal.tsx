@@ -17,12 +17,19 @@ const buildFullUrl = (fileUrl: string) => {
   if (fileUrl.startsWith('http')) {
     try {
       const url = new URL(fileUrl);
-      return url.pathname + url.search;
+      // Keep absolute URL if it's an external host, otherwise use backend base
+      if (url.hostname !== window.location.hostname) return fileUrl;
+      return `${API_BASE_URL.replace('/api', '')}${url.pathname}${url.search}`;
     } catch {
       return fileUrl;
     }
   }
-  return fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  const path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  // Route /uploads through the backend base URL to avoid frontend router catching it
+  if (path.startsWith('/uploads')) {
+    return `${API_BASE_URL.replace('/api', '')}${path}`;
+  }
+  return path;
 };
 
 const ResumeModal: React.FC<ResumeModalProps> = ({
@@ -84,14 +91,13 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
       } else if (resume?.fileUrl) {
         fileUrl = buildFullUrl(resume.fileUrl);
       } else if (resume?.filename) {
-        fileUrl = `/uploads/${resume.filename}`;
+        fileUrl = buildFullUrl(`/uploads/${resume.filename}`);
       } else if (resume?.path) {
         fileUrl = buildFullUrl(resume.path);
       } else if (data.resumeUrl) {
         fileUrl = buildFullUrl(data.resumeUrl);
       } else if (resume?.name) {
-        // Last resort: try the original filename directly under /uploads
-        fileUrl = `/uploads/${resume.name}`;
+        fileUrl = buildFullUrl(`/uploads/${resume.name}`);
       }
 
       console.log('Resolved fileUrl:', fileUrl);

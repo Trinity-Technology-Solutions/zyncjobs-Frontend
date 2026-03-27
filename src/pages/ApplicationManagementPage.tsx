@@ -94,7 +94,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
     setAiRunning(true);
     await Promise.all(
       aiPreview.map(({ app, newStatus }) =>
-        updateApplicationStatus(app.id || app._id, newStatus)
+        updateApplicationStatus(app.id || app._id, newStatus === 'rejected' ? 'ai_rejected' : newStatus)
       )
     );
     setAiPreview(null);
@@ -374,6 +374,12 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
               {applications.filter(app => app.status === 'accepted').length}
             </p>
           </div>
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <h3 className="text-sm font-medium text-gray-500">AI Rejected</h3>
+            <p className="text-2xl font-bold text-orange-600">
+              {applications.filter(app => app.status === 'ai_rejected').length}
+            </p>
+          </div>
         </div>
 
         {/* Applications Table */}
@@ -404,6 +410,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                 <option value="reviewed">Reviewed</option>
                 <option value="shortlisted">Shortlisted</option>
                 <option value="accepted">Accepted</option>
+                <option value="ai_rejected">AI Rejected</option>
                 <option value="rejected">Rejected</option>
               </select>
             </div>
@@ -425,12 +432,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                           <span className="font-semibold text-gray-900 text-sm">{application.candidateName}</span>
                           <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
                             application.status === 'rejected' ? 'bg-red-100 text-red-700 border border-red-200' :
+                            application.status === 'ai_rejected' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
                             application.status === 'shortlisted' ? 'bg-green-100 text-green-700 border border-green-200' :
                             application.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
                             application.status === 'accepted' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
                             'bg-gray-100 text-gray-700 border border-gray-200'
                           }`}>
-                            {isRejected ? '❌ ' : ''}{application.status}
+                            {application.status === 'ai_rejected' ? '🤖 AI Rejected' : isRejected ? '❌ ' + application.status : application.status}
                           </span>
                         </div>
                         <div className="text-xs text-gray-500 mb-0.5">{application.candidateEmail}</div>
@@ -514,18 +522,35 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                           </button>
                         </div>
 
-                        <select
-                          value={application.status}
-                          onChange={(e) => updateApplicationStatus(appId, e.target.value)}
-                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 w-full"
-                          aria-label={`Update status for ${application.candidateName}`}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="reviewed">Reviewed</option>
-                          <option value="shortlisted">Shortlisted</option>
-                          <option value="accepted">Accepted</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
+                        {application.status === 'ai_rejected' ? (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => updateApplicationStatus(appId, 'rejected')}
+                              className="flex-1 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 font-semibold"
+                            >
+                              ✅ Confirm Reject
+                            </button>
+                            <button
+                              onClick={() => updateApplicationStatus(appId, 'reviewed')}
+                              className="flex-1 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 font-semibold"
+                            >
+                              ↩️ Override
+                            </button>
+                          </div>
+                        ) : (
+                          <select
+                            value={application.status}
+                            onChange={(e) => updateApplicationStatus(appId, e.target.value)}
+                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 w-full"
+                            aria-label={`Update status for ${application.candidateName}`}
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="reviewed">Reviewed</option>
+                            <option value="shortlisted">Shortlisted</option>
+                            <option value="accepted">Accepted</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        )}
                       </div>
                     </div>
                   </div>
