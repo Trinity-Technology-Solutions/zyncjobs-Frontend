@@ -224,9 +224,8 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
   };
 
   const deleteApplication = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this application?')) {
-      return;
-    }
+    const ok = await (window as any).confirmAsync('Are you sure you want to delete this application?');
+    if (!ok) return;
     try {
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${id}`, {
         method: 'DELETE',

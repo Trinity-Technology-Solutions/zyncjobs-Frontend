@@ -157,13 +157,24 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
           {!loading && (
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               {resumeFileUrl ? (
-                <iframe
-                  src={`${resumeFileUrl}#toolbar=0&navpanes=0&view=FitH`}
-                  width="100%"
-                  height="600"
-                  title="Resume"
-                  style={{ minHeight: '600px' }}
-                />
+                <>
+                  <iframe
+                    src={`${resumeFileUrl}#toolbar=0&navpanes=0&view=FitH`}
+                    width="100%"
+                    height="600"
+                    title="Resume"
+                    style={{ minHeight: '600px' }}
+                    onError={() => window.open(resumeFileUrl, '_blank')}
+                  />
+                  <div className="p-2 bg-gray-50 border-t text-center">
+                    <button
+                      onClick={() => window.open(resumeFileUrl, '_blank')}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      🔗 Can't see the PDF? Open in new tab
+                    </button>
+                  </div>
+                </>
               ) : noResume || (!loading && !error) ? (
                 <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50 p-6">
                   <span className="text-4xl mb-3">📄</span>

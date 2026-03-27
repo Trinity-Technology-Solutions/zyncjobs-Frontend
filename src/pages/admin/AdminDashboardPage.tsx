@@ -788,7 +788,8 @@ function JobsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
   };
 
   const deleteJob = async (jobId: string) => {
-    if (!confirm('Delete this job posting permanently?')) return;
+    const ok = await (window as any).confirmAsync('Delete this job posting permanently?');
+    if (!ok) return;
     setActionLoading(jobId + 'delete');
     try {
       await authFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' }, onUnauthorized);

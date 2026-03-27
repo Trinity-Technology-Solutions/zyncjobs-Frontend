@@ -24,8 +24,11 @@ class ErrorBoundary extends Component<Props, State> {
     if (import.meta.env.DEV) {
       console.error('Error caught by boundary:', error, errorInfo);
     }
-    // In production, send to error tracking service
   }
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: undefined });
+  };
 
   render() {
     if (this.state.hasError) {
@@ -34,12 +37,20 @@ class ErrorBoundary extends Component<Props, State> {
           <div className="text-center p-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h2>
             <p className="text-gray-600 mb-6">We're sorry, but something unexpected happened.</p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Reload Page
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={this.handleReset}
+                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => window.location.reload()}
+                className="border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50"
+              >
+                Reload Page
+              </button>
+            </div>
           </div>
         </div>
       );
