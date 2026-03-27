@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock } from 'lucide-react';
 import Header from '../components/Header';
@@ -133,82 +133,68 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
+  const clientFilter = useCallback((jobList: any[], term: string, loc: string) => {
+    return jobList.filter(job => {
+      const text = `${job.title || job.jobTitle || ''} ${job.description || ''} ${job.company || ''}`.toLowerCase();
+      const matchTerm = !term || text.includes(term.toLowerCase());
+      const matchLoc = !loc || (job.location || '').toLowerCase().includes(loc.toLowerCase());
+      return matchTerm && matchLoc;
+    });
+  }, []);
+
   // Fetch jobs from MongoDB with advanced search
-  const fetchJobs = async (page = 1, append = false) => {
+  const fetchJobs = useCallback(async (page = 1, append = false, overrideSearch?: { term?: string; loc?: string }) => {
     if (!append) setLoading(true);
+    const activeTerm = overrideSearch?.term !== undefined ? overrideSearch.term : searchTerm;
+    const activeLoc = overrideSearch?.loc !== undefined ? overrideSearch.loc : location;
     try {
       let url = API_ENDPOINTS.JOBS;
-      
-      console.log('🔍 API_ENDPOINTS.JOBS:', API_ENDPOINTS.JOBS);
-      console.log('🔍 API_ENDPOINTS.BASE_URL:', API_ENDPOINTS.BASE_URL);
-      
-      // Use advanced search if filters are applied or category is selected
-      if (searchTerm || location || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness || categoryTerms.length > 0) {
-        const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : searchTerm;
+
+      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness || categoryTerms.length > 0) {
+        const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : activeTerm;
         const searchParams = {
           query: searchQuery,
-          location: location,
+          location: activeLoc,
           jobType: filters.jobType ? [filters.jobType] : [],
           industry: filters.industry,
           companySize: filters.companySize,
           freshness: filters.freshness,
-          page: page,
+          page,
           limit: jobsPerPage
         };
-        
-        console.log('🔍 Using advanced search with params:', searchParams);
-        
+
         const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(searchParams)
         });
-        
+
         if (response.ok) {
           const data = await response.json();
-          const jobsArray = Array.isArray(data.jobs) ? data.jobs : [];
-          console.log('✅ Advanced search jobs received:', jobsArray.length);
-          
-          if (append) {
-            setJobs(prev => [...prev, ...jobsArray]);
-            setFilteredJobs(prev => [...prev, ...jobsArray]);
-          } else {
-            setJobs(jobsArray);
-            setFilteredJobs(jobsArray);
-          }
-          
-          setHasMoreJobs(jobsArray.length === jobsPerPage);
-        } else {
-          console.error('❌ Advanced search failed:', response.status, response.statusText);
-          if (!append) {
-            setJobs([]);
-            setFilteredJobs([]);
+          const jobsArray = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data) ? data : []);
+          if (jobsArray.length > 0) {
+            if (append) {
+              setJobs(prev => [...prev, ...jobsArray]);
+              setFilteredJobs(prev => [...prev, ...jobsArray]);
+            } else {
+              setJobs(jobsArray);
+              setFilteredJobs(jobsArray);
+            }
+            setHasMoreJobs(jobsArray.length === jobsPerPage);
+            return;
           }
         }
+        // Advanced search failed or returned empty — fall back to client-side filter
+        if (!append) setFilteredJobs(clientFilter(jobs, activeTerm, activeLoc));
       } else {
-        // Regular search
-        if (searchTerm || location) {
-          const params = new URLSearchParams();
-          if (searchTerm) params.append('q', searchTerm);
-          if (location) params.append('location', location);
-          params.append('page', page.toString());
-          params.append('limit', jobsPerPage.toString());
-          url = `${API_ENDPOINTS.JOBS}/search/query?${params}`;
-        } else {
-          url = `${API_ENDPOINTS.JOBS}?page=${page}&limit=${jobsPerPage}`;
-        }
-        
-        console.log('🔍 Fetching jobs from:', url);
+        url = `${API_ENDPOINTS.JOBS}?page=${page}&limit=${jobsPerPage}`;
         const response = await fetch(url);
-        
         if (response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
             const jobsData = await response.json();
-            console.log('✅ Jobs received:', jobsData.length);
-            const jobsArray = Array.isArray(jobsData) ? jobsData : [];
-            const sortedJobs = jobsArray.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-            
+            const jobsArray = Array.isArray(jobsData) ? jobsData : (Array.isArray(jobsData?.jobs) ? jobsData.jobs : []);
+            const sortedJobs = jobsArray.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
             if (append) {
               setJobs(prev => [...prev, ...sortedJobs]);
               setFilteredJobs(prev => [...prev, ...sortedJobs]);
@@ -216,33 +202,22 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               setJobs(sortedJobs);
               setFilteredJobs(sortedJobs);
             }
-            
             setHasMoreJobs(sortedJobs.length === jobsPerPage);
           } else {
-            console.error('❌ Non-JSON response received');
-            if (!append) {
-              setJobs([]);
-              setFilteredJobs([]);
-            }
+            if (!append) { setJobs([]); setFilteredJobs([]); }
           }
         } else {
-          console.error('❌ Jobs API failed:', response.status, response.statusText);
-          if (!append) {
-            setJobs([]);
-            setFilteredJobs([]);
-          }
+          console.error('❌ Jobs API failed:', response.status);
+          if (!append) { setJobs([]); setFilteredJobs([]); }
         }
       }
     } catch (error) {
       console.error('❌ Error fetching jobs:', error);
-      if (!append) {
-        setJobs([]);
-        setFilteredJobs([]);
-      }
+      if (!append) { setJobs([]); setFilteredJobs([]); }
     } finally {
       if (!append) setLoading(false);
     }
-  };
+  }, [searchTerm, location, filters, categoryTerms, jobsPerPage]);
 
   // Fetch filter options and trending jobs
   const fetchFilterOptions = async () => {
@@ -269,79 +244,27 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  // Search and filter function
-  const performSearch = useCallback(() => {
-    let filtered = [...jobs];
-    
-    // Search by term or category
-    if (searchTerm || categoryTerms.length > 0) {
-      filtered = filtered.filter(job => {
-        const jobText = `${job.title} ${job.description} ${job.company}`.toLowerCase();
-        
-        // If we have category terms, check if job matches any of them
-        if (categoryTerms.length > 0) {
-          const matchesCategory = categoryTerms.some(term => 
-            jobText.includes(term.toLowerCase())
-          );
-          if (matchesCategory) return true;
-        }
-        
-        // Also check regular search term
-        if (searchTerm) {
-          return jobText.includes(searchTerm.toLowerCase());
-        }
-        
-        return categoryTerms.length > 0; // If only category filtering, return category matches
-      });
-    }
-    
-    // Filter by location
-    if (location) {
-      filtered = filtered.filter(job => 
-        job.location?.toLowerCase().includes(location.toLowerCase())
+  const applyFilters = useCallback((updatedFilters: typeof filters, jobList: any[]) => {
+    let filtered = clientFilter(jobList, searchTerm, location);
+
+    if (updatedFilters.department.length > 0) {
+      filtered = filtered.filter(job =>
+        updatedFilters.department.includes(job.jobCategory || job.category || '')
       );
     }
-    
-    // Apply filters
-    if (filters.jobType) {
-      filtered = filtered.filter(job => job.type === filters.jobType);
-    }
-    
-    // Filter by department (based on job title/description)
-    if (filters.department.length > 0) {
+    if (updatedFilters.salaryRange) {
       filtered = filtered.filter(job => {
-        const jobText = `${job.title} ${job.description}`.toLowerCase();
-        return filters.department.some(dept => {
-          if (dept === 'Engineering - Software & QA') {
-            return jobText.includes('software') || jobText.includes('engineer') || jobText.includes('developer') || jobText.includes('qa');
-          }
-          if (dept === 'Sales & Business Development') {
-            return jobText.includes('sales') || jobText.includes('business') || jobText.includes('marketing');
-          }
-          if (dept === 'IT & Information Security') {
-            return jobText.includes('security') || jobText.includes('it ') || jobText.includes('system');
-          }
-          return false;
-        });
-      });
-    }
-    
-    // Filter by salary range
-    if (filters.salaryRange) {
-      filtered = filtered.filter(job => {
-        const salary = parseInt(job.salary?.replace(/[^0-9]/g, '') || '0');
-        if (filters.salaryRange === '0-3 Lakhs') return salary <= 300000;
-        if (filters.salaryRange === '3-6 Lakhs') return salary >= 300000 && salary <= 600000;
-        if (filters.salaryRange === '6-10 Lakhs') return salary >= 600000 && salary <= 1000000;
+        const salary = parseInt((job.salary || '').replace(/[^0-9]/g, '') || '0');
+        if (updatedFilters.salaryRange === '0-3 Lakhs') return salary <= 300000;
+        if (updatedFilters.salaryRange === '3-6 Lakhs') return salary >= 300000 && salary <= 600000;
+        if (updatedFilters.salaryRange === '6-10 Lakhs') return salary >= 600000 && salary <= 1000000;
         return true;
       });
     }
-    
-    // Filter by work mode
-    if (filters.workMode.length > 0) {
+    if (updatedFilters.workMode.length > 0) {
       filtered = filtered.filter(job => {
-        const jobText = `${job.type} ${job.location} ${job.description} ${job.workMode || ''}`.toLowerCase();
-        return filters.workMode.some(mode => {
+        const jobText = `${job.type || ''} ${job.location || ''} ${job.description || ''} ${job.workMode || ''}`.toLowerCase();
+        return updatedFilters.workMode.some(mode => {
           if (mode === 'Remote') return jobText.includes('remote');
           if (mode === 'Hybrid') return jobText.includes('hybrid');
           if (mode === 'Work from office') return !jobText.includes('remote') && !jobText.includes('hybrid');
@@ -349,24 +272,28 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         });
       });
     }
-
-    // Filter by freshness
-    if (filters.freshness) {
-      const now = Date.now();
-      const cutoff = filters.freshness === '24h'
-        ? now - 24 * 60 * 60 * 1000
-        : now - 7 * 24 * 60 * 60 * 1000;
+    if (updatedFilters.location.length > 0) {
+      filtered = filtered.filter(job =>
+        updatedFilters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
+      );
+    }
+    if (updatedFilters.industry.length > 0) {
       filtered = filtered.filter(job => {
-        const posted = new Date(job.createdAt).getTime();
-        return posted >= cutoff;
+        const jobText = `${job.title || ''} ${job.description || ''} ${job.industry || ''}`.toLowerCase();
+        return updatedFilters.industry.some(ind => jobText.includes(ind.toLowerCase()));
       });
     }
-
-    // Sort by creation date (newest first)
+    if (updatedFilters.jobType) {
+      filtered = filtered.filter(job => (job.type || '').toLowerCase() === updatedFilters.jobType.toLowerCase());
+    }
+    if (updatedFilters.freshness) {
+      const now = Date.now();
+      const cutoff = updatedFilters.freshness === '24h' ? now - 86400000 : now - 604800000;
+      filtered = filtered.filter(job => new Date(job.createdAt).getTime() >= cutoff);
+    }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    
     setFilteredJobs(filtered);
-  }, [searchTerm, location, jobs, filters, categoryTerms]);
+  }, [clientFilter, searchTerm, location]);
 
   const fetchStats = async () => {
     try {
@@ -391,25 +318,19 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     fetchFilterOptions();
     fetchTrending();
     fetchStats();
-    
-    const handleJobPosted = () => {
-      fetchJobs();
-    };
-    
+
+    const handleJobPosted = () => fetchJobs();
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'lastJobPosted') {
-        setTimeout(() => fetchJobs(), 500);
-      }
+      if (e.key === 'lastJobPosted') setTimeout(() => fetchJobs(), 500);
     };
-    
+
     window.addEventListener('jobPosted', handleJobPosted);
     window.addEventListener('storage', handleStorageChange);
-    
     return () => {
       window.removeEventListener('jobPosted', handleJobPosted);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [searchTerm, location, categoryTerms]);
+  }, [fetchJobs]);
   
   useEffect(() => {
     if (initialSearch?.searchTerm || initialSearch?.location || initialSearch?.category) {
@@ -423,13 +344,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   }, [initialSearch]);
   
   useEffect(() => {
-    if (jobs.length > 0) {
-      const timeoutId = setTimeout(() => {
-        performSearch();
-      }, 300);
-      return () => clearTimeout(timeoutId);
-    }
-  }, [performSearch, jobs, filters]);
+    if (jobs.length > 0) applyFilters(filters, jobs);
+  }, [jobs]);
   
   const handleApplyNow = (job: any) => {
     if (onNavigate) {
@@ -463,23 +379,19 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
   
   const handleFilterChange = (filterType: string, value: string) => {
-    if (filterType === 'department' || filterType === 'location' || filterType === 'workMode' || filterType === 'industry' || filterType === 'companySize') {
-      setFilters(prev => {
-        const currentArray = prev[filterType as keyof typeof prev] as string[];
-        const isSelected = currentArray.includes(value);
-        return {
-          ...prev,
-          [filterType]: isSelected 
-            ? currentArray.filter(item => item !== value)
-            : [...currentArray, value]
-        };
-      });
-    } else {
-      setFilters(prev => ({ ...prev, [filterType]: value }));
-    }
-    
-    // Trigger search when filters change
-    setTimeout(() => fetchJobs(), 100);
+    const arrayFilters = ['department', 'location', 'workMode', 'industry', 'companySize'];
+    setFilters(prev => {
+      const updated = arrayFilters.includes(filterType)
+        ? {
+            ...prev,
+            [filterType]: (prev[filterType as keyof typeof prev] as string[]).includes(value)
+              ? (prev[filterType as keyof typeof prev] as string[]).filter(i => i !== value)
+              : [...(prev[filterType as keyof typeof prev] as string[]), value]
+          }
+        : { ...prev, [filterType]: value };
+      applyFilters(updated, jobs);
+      return updated;
+    });
   };
 
   const getJobSuggestions = async (input: string): Promise<string[]> => {
@@ -493,7 +405,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const handleJobInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchTerm(value);
-    
     if (value.length >= 1) {
       const suggestions = await getJobSuggestions(value);
       setJobSuggestions(suggestions);
@@ -506,7 +417,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const handleLocationInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setLocation(value);
-    
     if (value.length >= 1) {
       const suggestions = await getLocationSuggestions(value);
       setLocationSuggestions(suggestions);
@@ -515,6 +425,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       setShowLocationSuggestions(false);
     }
   };
+
+  const handleSearch = () => fetchJobs(1, false, { term: searchTerm, loc: location });
 
   const selectJobSuggestion = (suggestion: string) => {
     setSearchTerm(suggestion);
@@ -694,7 +606,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 onChange={handleJobInputChange}
                 onFocus={() => searchTerm.length >= 1 && setShowJobSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowJobSuggestions(false), 200)}
-                onKeyPress={(e) => e.key === 'Enter' && fetchJobs()}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               {showJobSuggestions && jobSuggestions.length > 0 && (
@@ -721,7 +633,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 onChange={handleLocationInputChange}
                 onFocus={() => location.length >= 1 && setShowLocationSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
-                onKeyPress={(e) => e.key === 'Enter' && fetchJobs()}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                 className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
               />
               {showLocationSuggestions && locationSuggestions.length > 0 && (
@@ -741,7 +653,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               )}
             </div>
             <button 
-              onClick={() => fetchJobs()}
+              onClick={handleSearch}
               className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors" 
               title="Search jobs"
             >
@@ -761,7 +673,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     setSelectedCategory('');
                     setCategoryTerms([]);
                     setSearchTerm('');
-                    fetchJobs();
+                    fetchJobs(1, false, { term: '', loc: location });
                   }}
                   className="ml-1 hover:bg-blue-200 rounded-full p-1"
                   title="Clear category filter"
@@ -771,7 +683,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '24h' ? '' : '24h' }))}
+              onClick={() => {
+                const updated = { ...filters, freshness: filters.freshness === '24h' ? '' : '24h' };
+                setFilters(updated); applyFilters(updated, jobs);
+              }}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.freshness === '24h' 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -781,7 +696,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               Last 24 hours
             </button>
             <button
-              onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '7d' ? '' : '7d' }))}
+              onClick={() => {
+                const updated = { ...filters, freshness: filters.freshness === '7d' ? '' : '7d' };
+                setFilters(updated); applyFilters(updated, jobs);
+              }}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.freshness === '7d' 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -791,7 +709,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               This week
             </button>
             <button
-              onClick={() => setFilters(prev => ({ ...prev, workMode: prev.workMode.includes('Remote') ? prev.workMode.filter(m => m !== 'Remote') : [...prev.workMode, 'Remote'] }))}
+              onClick={() => {
+                const updated = { ...filters, workMode: filters.workMode.includes('Remote') ? filters.workMode.filter(m => m !== 'Remote') : [...filters.workMode, 'Remote'] };
+                setFilters(updated); applyFilters(updated, jobs);
+              }}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.workMode.includes('Remote') 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -844,37 +765,24 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">All Filters</h3>
               
-              {/* Department */}
+              {/* Department / Job Category */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Department</h4>
                 <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.department.includes('Engineering - Software & QA')}
-                      onChange={() => handleFilterChange('department', 'Engineering - Software & QA')}
-                    />
-                    <span className="text-sm">Engineering - Software & QA (34444)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.department.includes('Sales & Business Development')}
-                      onChange={() => handleFilterChange('department', 'Sales & Business Development')}
-                    />
-                    <span className="text-sm">Sales & Business Development (15502)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.department.includes('IT & Information Security')}
-                      onChange={() => handleFilterChange('department', 'IT & Information Security')}
-                    />
-                    <span className="text-sm">IT & Information Security (5116)</span>
-                  </label>
+                  {Array.from(new Set(jobs.map(j => j.jobCategory || j.category).filter(Boolean))).map(cat => (
+                    <label key={cat} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="mr-2"
+                        checked={filters.department.includes(cat)}
+                        onChange={() => handleFilterChange('department', cat)}
+                      />
+                      <span className="text-sm">{cat} ({jobs.filter(j => (j.jobCategory || j.category) === cat).length})</span>
+                    </label>
+                  ))}
+                  {jobs.every(j => !j.jobCategory && !j.category) && (
+                    <p className="text-xs text-gray-400 italic">No categories available</p>
+                  )}
                 </div>
               </div>
               

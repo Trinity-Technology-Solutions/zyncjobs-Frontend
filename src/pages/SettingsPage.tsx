@@ -85,7 +85,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
   const handleDeleteAccount = async () => {
     console.log('🗑️ Delete account clicked');
     
-    if (window.confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+    const confirmed = await (window as any).confirmAsync('Are you sure you want to delete your account? This action cannot be undone.');
+    if (confirmed) {
       console.log('✅ User confirmed deletion');
       
       try {

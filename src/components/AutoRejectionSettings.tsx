@@ -139,15 +139,16 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       
       setCandidateDetails(processedCandidates);
       
-      // Update analytics based on real data
+      // Update analytics based on real data — these are PREVIEW counts only, no DB change
       const totalApps = processedCandidates.length;
-      const autoRejected = processedCandidates.filter((c: any) => c.status === 'auto-rejected').length;
+      // "wouldReject" = candidates who WOULD be flagged IF employer runs AI Auto-Shortlist
+      const wouldReject = processedCandidates.filter((c: any) => c.status === 'auto-rejected').length;
       const skillsIssues = processedCandidates.filter((c: any) => c.reason === 'skillsMismatch').length;
       const experienceIssues = processedCandidates.filter((c: any) => c.reason === 'insufficientExperience').length;
       
       setAnalytics({
         totalApplications: totalApps,
-        autoRejected: autoRejected,
+        autoRejected: wouldReject,
         rejectionReasons: {
           skillsMismatch: skillsIssues,
           insufficientExperience: experienceIssues,
@@ -253,11 +254,10 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       });
 
       if (response.ok) {
-        const result = await response.json();
-        const msg = result.autoRejectedCount > 0
-          ? `Settings saved! ${result.autoRejectedCount} existing application(s) auto-rejected.`
-          : 'Auto-rejection settings saved successfully!';
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: String(msg) } }));
+        // Settings saved — do NOT auto-reject existing applications here.
+        // AI rejection only happens when employer manually triggers "AI Auto-Shortlist"
+        // in ApplicationManagementPage, then reviews and confirms each rejection.
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'AI auto-rejection settings saved. These will apply when you run AI Auto-Shortlist on applications.' } }));
       } else {
         throw new Error('API save failed');
       }
@@ -426,10 +426,18 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
 
       {/* Analytics Preview */}
       <div className="bg-gray-50 rounded-lg p-4 mb-6">
-        <div className="flex items-center mb-3">
-          <BarChart3 className="w-5 h-5 text-gray-600 mr-2" />
-          <h3 className="text-sm font-medium text-gray-900">Rejection Analytics</h3>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center">
+            <BarChart3 className="w-5 h-5 text-gray-600 mr-2" />
+            <h3 className="text-sm font-medium text-gray-900">Rejection Analytics Preview</h3>
+          </div>
+          <span className="text-xs text-orange-600 bg-orange-50 border border-orange-200 px-2 py-1 rounded-full font-medium">
+            📄 Preview only — no applications changed
+          </span>
         </div>
+        <p className="text-xs text-gray-500 mb-3">
+          Shows how many candidates <strong>would be flagged</strong> if you run AI Auto-Shortlist with current settings. Click a card to see who.
+        </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div 
             className="cursor-pointer hover:bg-white p-2 rounded transition-colors"
@@ -445,8 +453,8 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
             className="cursor-pointer hover:bg-white p-2 rounded transition-colors"
             onClick={() => showCandidateList('auto-rejected')}
           >
-            <span className="text-gray-500">Auto-Rejected</span>
-            <div className="font-semibold text-red-600 flex items-center">
+            <span className="text-gray-500">Would Be Flagged</span>
+            <div className="font-semibold text-orange-600 flex items-center">
               {analytics.autoRejected}
               <Eye className="w-3 h-3 ml-1 text-gray-400" />
             </div>
@@ -491,7 +499,10 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">{modalData.type}</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">{modalData.type}</h3>
+                <p className="text-xs text-orange-600 mt-1">Preview only — these candidates have NOT been rejected. Run AI Auto-Shortlist in Application Management to take action.</p>
+              </div>
               <button
                 onClick={() => setShowModal(false)}
                 className="text-gray-400 hover:text-gray-600"
@@ -550,13 +561,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
                           </div>
                           
                           <div className="text-right">
-                            <div className="text-sm text-gray-500">Status</div>
+                            <div className="text-sm text-gray-500">Preview Status</div>
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              candidate.status === 'auto-rejected' 
-                                ? 'bg-red-100 text-red-800' 
+                              candidate.status === 'auto-rejected'
+                                ? 'bg-orange-100 text-orange-800'
                                 : 'bg-green-100 text-green-800'
                             }`}>
-                              {candidate.status === 'auto-rejected' ? 'Rejected' : 'Pending'}
+                              {candidate.status === 'auto-rejected' ? '⚠️ Would be flagged' : '✅ Passes threshold'}
                             </span>
                           </div>
                           

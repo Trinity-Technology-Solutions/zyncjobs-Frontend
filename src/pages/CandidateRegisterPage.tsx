@@ -106,13 +106,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
       if (errorMsg.includes('already exists')) {
         setError('This email is already registered. Please sign in instead.');
         showToast('This email is already registered. Please sign in instead.', 'warning');
-        
-        // Show login option
-        setTimeout(() => {
-          if (confirm('This email is already registered. Would you like to sign in instead?')) {
-            onNavigate('login');
-          }
-        }, 1000);
+        setTimeout(async () => {
+          const yes = await (window as any).confirmAsync('This email is already registered. Would you like to sign in instead?');
+          if (yes) onNavigate('login');
+        }, 500);
       } else {
         setError(errorMsg);
         showToast(errorMsg, 'error');

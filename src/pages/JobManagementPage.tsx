@@ -101,7 +101,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   };
 
   const handleDeleteJob = async (jobId: string) => {
-    if (window.confirm('Are you sure you want to delete this job posting?')) {
+    const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
+    if (ok) {
       try {
         const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}`, {
           method: 'DELETE'
@@ -339,12 +340,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   </button>
                   
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (selectedJobs.length === 0) {
                         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to close" } }));
                         return;
                       }
-                      if (window.confirm(`Close ${selectedJobs.length} job(s)?`)) {
+                      const ok = await (window as any).confirmAsync(`Close ${selectedJobs.length} job(s)?`);
+                      if (ok) {
                         console.log('Closing jobs:', selectedJobs);
                         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `${selectedJobs.length} job(s) closed successfully` } }));
                         setSelectedJobs([]);

@@ -211,9 +211,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const deleteJob = async (jobId: string) => {
-    if (!confirm('Are you sure you want to delete this job posting?')) {
-      return;
-    }
+    const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
+    if (!ok) return;
     
     try {
       const response = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {

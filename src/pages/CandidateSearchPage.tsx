@@ -72,7 +72,11 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     fetch(`${API_ENDPOINTS.JOBS}`)
       .then(r => r.ok ? r.json() : [])
       .then((jobs: any[]) => {
-        const mine = jobs.filter(j => j.postedBy === user.email);
+        const email = user.email.toLowerCase();
+        const mine = jobs.filter(j =>
+          (j.postedBy || '').toLowerCase() === email ||
+          (j.employerEmail || '').toLowerCase() === email
+        );
         setEmployerJobs(mine);
         if (mine.length > 0) setSelectedJob(mine[0]);
       })
@@ -80,48 +84,55 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   }, [user]);
 
   // AI scoring function — pure frontend, no extra API call
-  const computeAIScore = (candidate: Candidate, job: any | null): Omit<Candidate, keyof Candidate> & { aiScore: number; matchedSkills: string[]; missingSkills: string[]; fitLabel: Candidate['fitLabel'] } => {
-    if (!job) {
-      // No job selected — score based on profile completeness
-      const fields = ['skills', 'experience', 'location', 'profileSummary', 'education', 'employment', 'certifications', 'languages'];
-      const filled = fields.filter(f => {
+  const computeAIScore = (candidate: Candidate, job: any | null): { aiScore: number; matchedSkills: string[]; missingSkills: string[]; fitLabel: Candidate['fitLabel'] } => {
+    try {
+      if (!job) {
+        const fields = ['skills', 'experience', 'location', 'profileSummary', 'education', 'employment', 'certifications', 'languages'];
+        const filled = fields.filter(f => {
+          const v = (candidate as any)[f];
+          return v && (Array.isArray(v) ? v.length > 0 : String(v).trim().length > 0);
+        }).length;
+        const score = Math.round((filled / fields.length) * 100);
+        return { aiScore: score, matchedSkills: [], missingSkills: [], fitLabel: score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : score >= 30 ? 'Fair' : 'Low' };
+      }
+
+      const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: string) => String(s || '').toLowerCase().trim());
+      const candSkills: string[] = (Array.isArray(candidate.skills) ? candidate.skills : []).map(s => String(s || '').toLowerCase().trim());
+
+      const matched = jobSkills.filter(js => candSkills.some(cs => cs.includes(js) || js.includes(cs)));
+      const missing = jobSkills.filter(js => !candSkills.some(cs => cs.includes(js) || js.includes(cs)));
+
+      const skillScore = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 70 : 35;
+      const profileFields = ['experience', 'location', 'profileSummary', 'education'];
+      const profileScore = profileFields.filter(f => {
         const v = (candidate as any)[f];
-        return v && (Array.isArray(v) ? v.length > 0 : String(v).trim().length > 0);
-      }).length;
-      const score = Math.round((filled / fields.length) * 100);
-      return { aiScore: score, matchedSkills: [], missingSkills: [], fitLabel: score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : score >= 30 ? 'Fair' : 'Low' };
+        return v && String(v).trim().length > 0;
+      }).length / profileFields.length * 30;
+
+      const total = Math.round(skillScore + profileScore);
+      const fitLabel: Candidate['fitLabel'] = total >= 75 ? 'Excellent' : total >= 50 ? 'Good' : total >= 30 ? 'Fair' : 'Low';
+
+      const origMatched = (Array.isArray(job.skills) ? job.skills : []).filter((_: string, i: number) => matched.includes(jobSkills[i]));
+      const origMissing = (Array.isArray(job.skills) ? job.skills : []).filter((_: string, i: number) => missing.includes(jobSkills[i]));
+
+      return { aiScore: total, matchedSkills: origMatched, missingSkills: origMissing, fitLabel };
+    } catch {
+      return { aiScore: 0, matchedSkills: [], missingSkills: [], fitLabel: 'Low' };
     }
-
-    const jobSkills: string[] = (job.skills || []).map((s: string) => s.toLowerCase().trim());
-    const candSkills: string[] = (candidate.skills || []).map(s => s.toLowerCase().trim());
-
-    const matched = jobSkills.filter(js => candSkills.some(cs => cs.includes(js) || js.includes(cs)));
-    const missing = jobSkills.filter(js => !candSkills.some(cs => cs.includes(js) || js.includes(cs)));
-
-    // Skill match weight: 70%, profile completeness: 30%
-    const skillScore = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 70 : 35;
-    const profileFields = ['experience', 'location', 'profileSummary', 'education'];
-    const profileScore = profileFields.filter(f => {
-      const v = (candidate as any)[f];
-      return v && String(v).trim().length > 0;
-    }).length / profileFields.length * 30;
-
-    const total = Math.round(skillScore + profileScore);
-    const fitLabel: Candidate['fitLabel'] = total >= 75 ? 'Excellent' : total >= 50 ? 'Good' : total >= 30 ? 'Fair' : 'Low';
-
-    // Return original skill names (not lowercased)
-    const origMatched = (job.skills || []).filter((_: string, i: number) => matched.includes(jobSkills[i]));
-    const origMissing = (job.skills || []).filter((_: string, i: number) => missing.includes(jobSkills[i]));
-
-    return { aiScore: total, matchedSkills: origMatched, missingSkills: origMissing, fitLabel };
   };
 
   // Scored + sorted candidates
   const scoredCandidates = useMemo(() => {
-    const withScores = candidates.map(c => ({ ...c, ...computeAIScore(c, selectedJob) }));
-    if (sortBy === 'ai_score') return [...withScores].sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
-    if (sortBy === 'skills') return [...withScores].sort((a, b) => (b.matchedSkills?.length ?? 0) - (a.matchedSkills?.length ?? 0));
-    return [...withScores].sort((a, b) => (getCandidateName(a)).localeCompare(getCandidateName(b)));
+    try {
+      const withScores = candidates.map(c => ({ ...c, ...computeAIScore(c, selectedJob) }));
+      if (sortBy === 'ai_score') return [...withScores].sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
+      if (sortBy === 'skills') return [...withScores].sort((a, b) => (b.matchedSkills?.length ?? 0) - (a.matchedSkills?.length ?? 0));
+      return [...withScores].sort((a, b) =>
+        (getCandidateName(a) || '').localeCompare(getCandidateName(b) || '')
+      );
+    } catch {
+      return candidates;
+    }
   }, [candidates, selectedJob, sortBy]);
 
   useEffect(() => {
@@ -155,39 +166,42 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       if (selectedLocation) params.append('location', selectedLocation);
       params.append('page', page.toString());
       params.append('limit', candidatesPerPage.toString());
-      
-      // Try to fetch from profiles endpoint first (has complete data)
-      let response = await fetch(`${API_ENDPOINTS.BASE_URL}/profiles?${params}`);
-      
-      // Fallback to candidates endpoint if profiles not available
-      if (!response.ok) {
-        response = await fetch(`${API_ENDPOINTS.BASE_URL}/candidates?${params}`);
-      }
-      
-      if (response.ok) {
-        const data = await response.json();
-        const candidatesArray = Array.isArray(data) ? data : data.candidates || data.profiles || [];
-        
-        // Filter out employer/admin accounts - only show candidates
-        const filteredCandidates = candidatesArray.filter((c: any) => 
-          c.userType !== 'employer' && c.userType !== 'admin' && c.type !== 'employer'
-        );
-        
-        if (append) {
-          setCandidates(prev => [...prev, ...filteredCandidates]);
-        } else {
-          setCandidates(filteredCandidates);
-          if (!searchTerm && !selectedSkill && !selectedLocation) {
-            setTotalCandidates(filteredCandidates.length);
+
+      // Try users endpoint with role=candidate filter first
+      let candidatesArray: any[] = [];
+      const endpoints = [
+        `${API_ENDPOINTS.BASE_URL}/users?role=candidate&${params}`,
+        `${API_ENDPOINTS.BASE_URL}/profiles?${params}`,
+        `${API_ENDPOINTS.BASE_URL}/candidates?${params}`,
+      ];
+
+      for (const url of endpoints) {
+        try {
+          const res = await fetch(url);
+          if (res.ok) {
+            const data = await res.json();
+            const arr = Array.isArray(data) ? data : data.candidates || data.profiles || data.users || [];
+            if (arr.length > 0) { candidatesArray = arr; break; }
           }
-        }
-        
-        setHasMoreCandidates(filteredCandidates.length === candidatesPerPage);
-        setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
-      } else {
-        console.error('Failed to fetch candidates');
-        if (!append) setCandidates([]);
+        } catch {}
       }
+
+      // Filter out employer/admin accounts
+      const filtered = candidatesArray.filter((c: any) =>
+        !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || '')
+      );
+
+      if (append) {
+        setCandidates(prev => [...prev, ...filtered]);
+      } else {
+        setCandidates(filtered);
+        if (!searchTerm && !selectedSkill && !selectedLocation) {
+          setTotalCandidates(filtered.length);
+        }
+      }
+
+      setHasMoreCandidates(filtered.length === candidatesPerPage);
+      setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
     } catch (error) {
       console.error('Error fetching candidates:', error);
       if (!append) setCandidates([]);
@@ -486,12 +500,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                   </button>
                 ))}
               </div>
-              {/* Summary */}
-              {selectedJob && (
-                <div className="text-xs text-white/80 ml-auto">
-                  {scoredCandidates.filter(c => (c.aiScore ?? 0) >= 70).length} excellent matches · {scoredCandidates.filter(c => (c.aiScore ?? 0) >= 50 && (c.aiScore ?? 0) < 70).length} good fits
-                </div>
-              )}
+              {/* Summary — always visible */}
+              <div className="text-xs text-white/80 ml-auto">
+                {scoredCandidates.filter(c => (c.aiScore ?? 0) >= 70).length} excellent matches · {scoredCandidates.filter(c => (c.aiScore ?? 0) >= 50 && (c.aiScore ?? 0) < 70).length} good fits
+              </div>
             </div>
           </div>
 

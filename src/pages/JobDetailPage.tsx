@@ -209,23 +209,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${userEmail}&jobId=${jobId}`);
-      if (response.ok) {
-        const data = await response.json();
-        const list: any[] = Array.isArray(data) ? data : (data.applications || []);
-        const userApplication = list.find((app: any) => {
-          const jobMatch = app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId;
-          const emailMatch = app.candidateEmail?.toLowerCase() === userEmail.toLowerCase();
-          return jobMatch && emailMatch;
-        });
-        if (userApplication) {
-          setHasApplied(true);
-          setApplicationStatus(userApplication.status);
-        } else {
-          setHasApplied(false);
-          setApplicationStatus('');
-        }
-      }
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(userEmail)}&jobId=${jobId}`);
+      if (!response.ok) return;
+      const data = await response.json();
+      const list: any[] = Array.isArray(data) ? data : (data.applications || []);
+      const userApplication = list.find((app: any) => {
+        const jobMatch = app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId;
+        const emailMatch = app.candidateEmail?.toLowerCase() === userEmail.toLowerCase();
+        return jobMatch && emailMatch;
+      });
+      setHasApplied(!!userApplication);
+      setApplicationStatus(userApplication?.status || '');
     } catch (error) {
       console.error('Error checking application status:', error);
     }
@@ -279,11 +273,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       }
 
       // Find the withdrawn application and update it directly
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(user.email)}`);
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(user.email)}`);
       if (response.ok) {
         const applications = await response.json();
-        const withdrawnApp = applications.find((app: { jobId: { _id: any; }; status: string; }) => 
-          app.jobId._id === (job._id || jobId) && app.status === 'withdrawn'
+        const withdrawnApp = applications.find((app: { jobId: { _id: any; }; candidateEmail: string; status: string; }) => 
+          (app.jobId._id === (job._id || jobId)) && 
+          app.candidateEmail?.toLowerCase() === user.email.toLowerCase() &&
+          app.status === 'withdrawn'
         );
         
         if (withdrawnApp) {
@@ -400,6 +396,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <div className="flex items-center space-x-2">
                       <Briefcase className="w-4 h-4" />
                       <span>{job.type}</span>
+                    </div>
+                  )}
+                  {(job.jobCategory || job.category) && (
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                        {job.jobCategory || job.category}
+                      </span>
                     </div>
                   )}
                   <div className="flex items-center space-x-2">
@@ -611,6 +614,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <span className="font-medium">Company:</span>
                     <span>{job.employerCompany || jobPoster?.company || job.company}</span>
                   </div>
+                  {(job.jobCategory || job.category) && (
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">Category:</span>
+                      <span className="text-blue-600">{job.jobCategory || job.category}</span>
+                    </div>
+                  )}
                   {/* Employer ID and Position ID - Enhanced Display */}
                   {(() => {
                     const displayEmployerId = getDisplayEmployerId(job, jobPoster);

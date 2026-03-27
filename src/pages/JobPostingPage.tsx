@@ -155,9 +155,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   };
 
   const [jobData, setJobData] = useState<JobData>({
-    jobTitle: editJob?.jobTitle || editJob?.title || parsedData?.jobTitle || '',
-    locationType: editJob?.locationType || 'In person',
-    jobLocation: editJob?.location || editJob?.jobLocation || parsedData?.jobLocation || '',
+    jobTitle: parsedData?.jobTitle || '',
+    locationType: 'In person',
+    jobLocation: parsedData?.jobLocation || '',
     expandCandidateSearch: false,
     experienceRange: editJob?.experienceRange || parsedData?.experienceRange || '',
     country: editJob?.country || '',
@@ -169,22 +169,22 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     reportingManager: editJob?.reportingManager || parsedData?.reportingManager || '',
     hiringTimeline: '',
     numberOfPeople: 0,
-    workAuth: editJob?.workAuth || parsedData?.workAuth || [],
-    jobType: editJob?.type ? (Array.isArray(editJob.type) ? editJob.type : [editJob.type]) : (parsedData?.jobType && Array.isArray(parsedData.jobType) ? parsedData.jobType : (parsedData?.jobType ? [parsedData.jobType] : [])),
+    workAuth: parsedData?.workAuth || [],
+    jobType: parsedData?.jobType && Array.isArray(parsedData.jobType) ? parsedData.jobType : (parsedData?.jobType ? [parsedData.jobType] : []),
     payType: 'Range',
-    minSalary: getSalaryMin(editJob) || (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0 ? parsedData.minSalary : ''),
-    maxSalary: getSalaryMax(editJob) || (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0 ? parsedData.maxSalary : ''),
-    payRate: editJob?.salary?.period === 'monthly' ? 'per month' : editJob?.salary?.period === 'hourly' ? 'per hour' : parsedData?.payRate || 'per year',
+    minSalary: (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0) ? parsedData.minSalary : '',
+    maxSalary: (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) ? parsedData.maxSalary : '',
+    payRate: parsedData?.payRate || 'per year',
     currency: parsedData?.currency || 'INR',
-    benefits: editJob?.benefits || parsedData?.benefits || [],
-    jobDescription: editJob?.description || editJob?.jobDescription || parsedData?.jobDescription || '',
-    responsibilities: editJob?.responsibilities ? (typeof editJob.responsibilities === 'string' ? editJob.responsibilities.split('\n').filter(Boolean) : editJob.responsibilities) : (parsedData?.responsibilities || []),
-    requirements: editJob?.requirements ? (typeof editJob.requirements === 'string' ? editJob.requirements.split('\n').filter(Boolean) : editJob.requirements) : (parsedData?.requirements || []),
-    skills: editJob?.skills || parsedData?.skills || [],
-    educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
+    benefits: parsedData?.benefits || [],
+    jobDescription: parsedData?.jobDescription || '',
+    responsibilities: parsedData?.responsibilities || [],
+    requirements: parsedData?.requirements || [],
+    skills: parsedData?.skills || [],
+    educationLevel: parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: editJob?.company || editJob?.companyName || '',
-    companyLogo: editJob?.companyLogo || '',
+    companyName: '',
+    companyLogo: '',
     companyId: ''
   });
 
@@ -212,7 +212,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
 
-  const [salaryModified, setSalaryModified] = useState(false);
+  const [salaryModified, setSalaryModified] = useState(() => {
+    const min = parsedData?.minSalary || parsedData?.salary?.min;
+    const max = parsedData?.maxSalary || parsedData?.salary?.max;
+    return !!(min && max && parseInt(String(min)) > 0 && parseInt(String(max)) > 0);
+  });
   const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
 
   const updateJobData = (field: keyof JobData, value: any) => {
@@ -270,12 +274,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     }
   }, [parsedData, mode]);
 
-  // Set salaryModified if parsedData or editJob has actual salary values
+  // Set salaryModified if parsedData has actual salary values
   useEffect(() => {
-    const hasEditSalary = editJob?.salary && (editJob.salary.min > 0 || editJob.salary.max > 0);
-    if (hasEditSalary ||
-        (parsedData?.minSalary && parsedData?.maxSalary &&
-        parseInt(parsedData.minSalary) > 0 && parseInt(parsedData.maxSalary) > 0)) {
+    if (parsedData?.minSalary && parsedData?.maxSalary &&
+        parseInt(parsedData.minSalary) > 0 && parseInt(parsedData.maxSalary) > 0) {
       setSalaryModified(true);
     }
   }, [parsedData]);
@@ -2396,29 +2398,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       return;
     }
 
-    // Test backend connectivity first
-    try {
-      console.log('Testing backend connectivity...');
-      const testResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/test`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        }
-      });
-      console.log('Backend test response status:', testResponse.status);
-      if (!testResponse.ok) {
-        console.warn('Backend test failed, but continuing with job post...');
-      }
-    } catch (error) {
-      console.error('Backend connectivity test failed:', error);
-      setNotification({
-        type: 'error',
-        message: 'Main backend server (port 5000) appears to be offline. Please start the backend server on http://localhost:5000',
-        isVisible: true
-      });
-      return;
-    }
-
     // Map experienceRange to experienceLevel enum
     const mapExperienceLevel = (range: string): string => {
       if (range.includes('0-1') || range.includes('1-2')) return 'Entry';
@@ -2488,7 +2467,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       // Include employer ID from user data
       employerId: user.employerId || 'EID0001', // Fallback to 'EID0001' if not set
       // Generate a sequential position ID
-      positionId: generatePositionId()
+      positionId: generatePositionId(),
+      jobCategory: jobData.jobCategory || ''
     };
     
     console.log('Posting job for user:', user.email);
@@ -2498,8 +2478,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     console.log('Full payload:', JSON.stringify(jobPostData, null, 2));
     
     try {
-      const response = await fetch(isEditMode ? `${API_ENDPOINTS.JOBS}/${editJobId}` : API_ENDPOINTS.JOBS, {
-        method: isEditMode ? 'PUT' : 'POST',
+      const response = await fetch(API_ENDPOINTS.JOBS, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
@@ -2511,10 +2491,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         sessionStorage.removeItem('editJobData');
         setNotification({
           type: 'success',
-          message: isEditMode ? 'Job updated successfully! ✅' : 'Job posted successfully! 🎉',
+          message: `Job posted successfully! 🎉`,
           isVisible: true
         });
-        console.log(isEditMode ? 'Job Updated:' : 'Job Posted by:', user.email, result);
+        console.log('Job Posted by:', user.email, result);
         
         // Trigger event to refresh latest jobs
         window.dispatchEvent(new CustomEvent('jobPosted', { detail: result }));
@@ -2632,9 +2612,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             
             <div className="text-center">
               <h1 className="text-3xl font-bold text-gray-800">
-                {currentStep === 1 && (isEditMode ? 'Edit Job Basics' : mode === 'parse' ? 'Review Parsed Job' : 'Add job basics')}
-                {currentStep === 3 && (isEditMode ? 'Edit Job Details' : 'Add job details')}
-                {currentStep === 4 && (isEditMode ? 'Edit Pay and Benefits' : 'Add pay and benefits')}
+                {currentStep === 1 && (mode === 'parse' ? 'Review Parsed Job' : 'Add job basics')}
+                {currentStep === 3 && 'Add job details'}
+                {currentStep === 4 && 'Add pay and benefits'}
                 {currentStep === 5 && 'Qualifications'}
                 {currentStep === 6 && 'Describe the job'}
                 {currentStep === 7 && 'Review'}
