@@ -398,6 +398,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       <span>{job.type}</span>
                     </div>
                   )}
+                  {(job.jobCategory || job.category) && (
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                        {job.jobCategory || job.category}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2">
                     <span>{formatSalaryDisplay(job)}</span>
                   </div>
@@ -607,6 +614,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <span className="font-medium">Company:</span>
                     <span>{job.employerCompany || jobPoster?.company || job.company}</span>
                   </div>
+                  {(job.jobCategory || job.category) && (
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">Category:</span>
+                      <span className="text-blue-600">{job.jobCategory || job.category}</span>
+                    </div>
+                  )}
                   {/* Employer ID and Position ID - Enhanced Display */}
                   {(() => {
                     const displayEmployerId = getDisplayEmployerId(job, jobPoster);

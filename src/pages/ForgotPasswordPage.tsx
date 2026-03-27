@@ -22,7 +22,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
 
     try {
       console.log('📡 Making API call...');
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/forgot-password`, {
+      const response = await fetch(API_ENDPOINTS.FORGOT_PASSWORD, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
