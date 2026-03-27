@@ -1,0 +1,764 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/env';
+import { useSiteSettings } from '../store/useSiteSettings';
+import { useNavigation } from '../store/useNavigation';
+import { strapiAPI } from '../api/strapi';
+
+
+interface HeaderProps {
+  onNavigate?: (page: string) => void;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin'} | null;
+  onLogout?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
+  const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const careerDropdownRef = useRef<HTMLDivElement>(null);
+
+  const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
+  const { items: navItems, fetchNavigation } = useNavigation();
+
+  useEffect(() => {
+    console.log('Header - siteSettings:', siteSettings);
+    console.log('Header - logo URL:', siteSettings?.siteLogo?.url);
+  }, [siteSettings]);
+
+  useEffect(() => {
+    fetchNavigation();
+  }, []);
+
+  const handleLoginClick = () => {
+    setIsDropdownOpen(false);
+    if (onNavigate) {
+      onNavigate('login');
+    }
+  };
+
+  const handleRegisterClick = () => {
+    setIsDropdownOpen(false);
+    if (onNavigate) {
+      onNavigate('role-selection');
+    }
+  };
+
+  const handleEmployerLoginClick = () => {
+    setIsDropdownOpen(false);
+    if (onNavigate) {
+      onNavigate('employer-login');
+    }
+  };
+
+  const handleEmployersClick = () => {
+    if (onNavigate) {
+      onNavigate('employers');
+    }
+  };
+
+  const handleFindJobsClick = () => {
+    if (onNavigate) {
+      // Check if user is an employer
+      if (user?.type === 'employer') {
+        // Employer should go to candidate search
+        onNavigate('candidate-search');
+      } else {
+        // Anyone can browse job listings without login
+        onNavigate('job-listings');
+      }
+    }
+  };
+
+  const handleCompaniesClick = () => {
+    if (onNavigate) {
+      // Anyone can browse companies without login
+      onNavigate('companies');
+    }
+  };
+
+  const handleCareerResourcesClick = () => {
+    if (onNavigate) {
+      if (user?.type === 'employer') return; // employers cannot access career resources
+      if (user) {
+        onNavigate('career-resources');
+      } else {
+        onNavigate('register');
+      }
+    }
+  };
+
+
+
+
+
+  useEffect(() => {
+    fetchSiteSettings();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+      if (careerDropdownRef.current && !careerDropdownRef.current.contains(event.target as Node)) {
+        setIsCareerDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchProfileMetrics = async () => {
+      if (!user) return;
+      try {
+        const userData = localStorage.getItem('user');
+        if (!userData) return;
+        const parsedUser = JSON.parse(userData);
+        const userEmail = parsedUser.email;
+        if (!userEmail) return;
+
+        if (user.type === 'employer') {
+          const token = localStorage.getItem('token');
+          const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+          const [jobsRes, appsRes] = await Promise.all([
+            fetch(`${API_ENDPOINTS.JOBS}?limit=1000`, { headers }),
+            fetch(`${API_ENDPOINTS.APPLICATIONS}`, { headers }),
+          ]);
+          let jobsPosted = 0;
+          let applicationsReceived = 0;
+          if (jobsRes.ok) {
+            const d = await jobsRes.json();
+            const allJobs = Array.isArray(d) ? d : d.jobs || [];
+            jobsPosted = allJobs.filter((j: any) =>
+              j.postedBy === userEmail || j.employerEmail === userEmail
+            ).length;
+          }
+          if (appsRes.ok) {
+            const d = await appsRes.json();
+            const allApps = Array.isArray(d) ? d : d.applications || [];
+            applicationsReceived = allApps.filter((a: any) =>
+              a.employerEmail === userEmail
+            ).length;
+          }
+          setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
+        } else {
+          const [appsRes, interviewsRes] = await Promise.all([
+            fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`),
+            fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(userEmail)}`),
+          ]);
+          let apps: any[] = [];
+          let interviews: any[] = [];
+          if (appsRes.ok) { const d = await appsRes.json(); if (Array.isArray(d)) apps = d; }
+          if (interviewsRes.ok) { const d = await interviewsRes.json(); if (Array.isArray(d)) interviews = d; }
+          const recruiterActions = apps.filter((a: any) =>
+            ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
+          ).length + interviews.length;
+          const searchAppearances = apps.filter((a: any) =>
+            ['reviewed', 'shortlisted', 'hired'].includes(a.status)
+          ).length;
+          setProfileMetrics(prev => ({ ...prev, recruiterActions, searchAppearances }));
+        }
+      } catch (error) {
+        console.error('Error fetching profile metrics:', error);
+      }
+    };
+    
+    const fetchNotifications = async () => {
+      if (user) {
+        try {
+          const userData = localStorage.getItem('user');
+          if (userData) {
+            const parsedUser = JSON.parse(userData);
+            const userEmail = parsedUser.email;
+            
+            if (user.type === 'employer') {
+              // Fetch employer notifications
+              const [appsRes, jobsRes, interviewsRes] = await Promise.all([
+                fetch(API_ENDPOINTS.APPLICATIONS),
+                fetch(API_ENDPOINTS.JOBS),
+                fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
+              ]);
+              
+              const realNotifications = [];
+              
+              // Process applications
+              if (appsRes.ok) {
+                const appsData = await appsRes.json();
+                const allApps = appsData.applications || appsData || [];
+                const employerApps = allApps.filter((app: any) => app.employerEmail === userEmail);
+                const recentApps = employerApps.slice(0, 3);
+                
+                recentApps.forEach((app: any) => {
+                  realNotifications.push({
+                    id: `app_${app._id || app.id}`,
+                    type: 'application',
+                    title: 'New application received',
+                    message: `${app.candidateName || app.candidateEmail} applied for a position`,
+                    time: new Date(app.createdAt).toLocaleDateString() || '1d ago'
+                  });
+                });
+              }
+              
+              // Process interviews
+              if (interviewsRes.ok) {
+                const interviewsData = await interviewsRes.json();
+                const interviews = Array.isArray(interviewsData) ? interviewsData : [];
+                const upcomingInterviews = interviews.slice(0, 2);
+                
+                upcomingInterviews.forEach((interview: any) => {
+                  realNotifications.push({
+                    id: `interview_${interview._id}`,
+                    type: 'interview',
+                    title: 'Interview scheduled',
+                    message: `Interview with ${interview.candidateName || 'candidate'} scheduled`,
+                    time: new Date(interview.date).toLocaleDateString() || '1d ago'
+                  });
+                });
+              }
+              
+              // Process jobs
+              if (jobsRes.ok) {
+                const jobsData = await jobsRes.json();
+                const allJobs = Array.isArray(jobsData) ? jobsData : [];
+                const employerJobs = allJobs.filter((job: any) => job.postedBy === userEmail);
+                const recentJobs = employerJobs.slice(0, 2);
+                
+                recentJobs.forEach((job: any) => {
+                  realNotifications.push({
+                    id: `job_${job._id || job.id}`,
+                    type: 'job',
+                    title: 'Job posting active',
+                    message: `Your ${job.jobTitle || job.title} position is live`,
+                    time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || '2d ago'
+                  });
+                });
+              }
+              
+              setNotifications(realNotifications);
+            } else {
+              // For candidates, fetch different notifications
+              setNotifications([]);
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching notifications:', error);
+          setNotifications([]);
+        }
+      }
+    };
+    
+    fetchProfileMetrics();
+    fetchNotifications();
+    
+    // Listen for job deletion events to refresh metrics
+    const handleJobDeleted = () => {
+      console.log('Job deleted event received in Header, refreshing metrics...');
+      fetchProfileMetrics();
+      fetchNotifications();
+    };
+    
+    const handleWindowFocus = () => {
+      fetchProfileMetrics();
+      fetchNotifications();
+    };
+    
+    window.addEventListener('jobDeleted', handleJobDeleted);
+    window.addEventListener('focus', handleWindowFocus);
+    
+    // Set up periodic refresh for notifications
+    const notificationInterval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    
+    return () => {
+      window.removeEventListener('jobDeleted', handleJobDeleted);
+      window.removeEventListener('focus', handleWindowFocus);
+      clearInterval(notificationInterval);
+    };
+  }, [user]);
+
+  return (
+    <header className="bg-white shadow-lg sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between py-3">
+          <div className="flex-shrink-0">
+            <button 
+              onClick={() => onNavigate && onNavigate('home')}
+              className="flex items-center cursor-pointer"
+            >
+              <img 
+                src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
+                alt={siteSettings?.siteTitle || 'ZyncJobs'} 
+                className="h-20 w-auto"
+              />
+            </button>
+          </div>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center space-x-8 flex-1 justify-start ml-8">
+            {navItems.length > 0 ? (
+              navItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onNavigate && onNavigate(item.url)}
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                >
+                  {item.label}
+                </button>
+              ))
+            ) : (
+              <>
+                <button onClick={handleFindJobsClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                  {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
+                </button>
+                <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                  Companies
+                </button>
+              </>
+            )}
+
+            {user?.type === 'employer' ? (
+              <button
+                onClick={() => onNavigate && onNavigate('my-jobs')}
+                className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+              >
+                Posted Jobs
+              </button>
+            ) : (
+              <div className="relative" ref={careerDropdownRef}>
+                <button 
+                  onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
+                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                >
+                  <span>Career Resources</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isCareerDropdownOpen && (
+                  <div className="absolute left-0 mt-2 w-64 bg-gray-800 rounded-lg shadow-xl border border-gray-700 py-2 z-50">
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      🎨 Resume Studio
+                    </button>
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      💬 Interview Preparation
+                    </button>
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      🧭 Career Guidance
+                    </button>
+                    <button 
+                      onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('skill-assessment'); }}
+                      className="block w-full text-left px-4 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                    >
+                      ✅ Skill Check
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            <button 
+              onClick={() => {
+                if (user) {
+                  if (user.type === 'employer') {
+                    onNavigate && onNavigate('job-posting-selection');
+                  } else {
+                    onNavigate && onNavigate('my-jobs');
+                  }
+                } else {
+                  onNavigate && onNavigate('role-selection');
+                }
+              }}
+              className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+            >
+              {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
+            </button>
+
+          </nav>
+
+          {/* Right side items */}
+          <div className="hidden md:flex items-center space-x-4 ml-auto">
+
+            {/* Login/Register Dropdown */}
+            {user ? (
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center space-x-2 text-gray-900 hover:text-gray-600 transition-colors"
+                >
+                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {/* Slide-out Panel */}
+                {isDropdownOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setIsDropdownOpen(false)}></div>
+                    
+                    {/* Panel */}
+                    <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+                      {/* Header */}
+                      <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                        <h2 className="text-lg font-semibold text-gray-900">Profile</h2>
+                        <button 
+                          onClick={() => setIsDropdownOpen(false)}
+                          className="text-gray-400 hover:text-gray-600"
+                          title="Close profile panel"
+                          aria-label="Close profile panel"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="p-6 overflow-y-auto h-full pb-20">
+                        {/* User Info */}
+                        <div className="flex items-center space-x-4 mb-8">
+                          <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
+                            <span className="text-white font-semibold text-lg">
+                              {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-900 text-lg">{user.name}</p>
+                            <p className="text-sm text-gray-600 capitalize">{user.type}</p>
+                          </div>
+                        </div>
+                        
+                        {/* Profile Performance */}
+                        <div className="mb-6 bg-gray-50 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-base font-semibold text-gray-900">Your profile performance</h3>
+                            <span className="text-xs text-gray-500">Last 90 days</span>
+                          </div>
+                          <div className="flex gap-3">
+                            {user.type === 'employer' ? (
+                              <>
+                                <div className="flex-1 text-center bg-white rounded-lg p-2">
+                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.jobsPosted}</div>
+                                  <div className="text-xs text-gray-600">Jobs Posted</div>
+                                  <button 
+                                    onClick={() => {
+                                      setIsDropdownOpen(false);
+                                      onNavigate && onNavigate('my-jobs');
+                                    }}
+                                    className="text-blue-600 text-xs hover:underline font-medium"
+                                  >
+                                    View all
+                                  </button>
+                                </div>
+                                <div className="flex-1 text-center bg-white rounded-lg p-2">
+                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.applicationsReceived}</div>
+                                  <div className="text-xs text-gray-600">Applications Received</div>
+                                  <button 
+                                    onClick={() => {
+                                      setIsDropdownOpen(false);
+                                      onNavigate && onNavigate('dashboard');
+                                      // Trigger applications section after navigation
+                                      setTimeout(() => {
+                                        const event = new CustomEvent('showApplications');
+                                        window.dispatchEvent(event);
+                                      }, 100);
+                                    }}
+                                    className="text-blue-600 text-xs hover:underline font-medium"
+                                  >
+                                    View all
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex-1 text-center bg-white rounded-lg p-2">
+                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.recruiterActions}</div>
+                                  <div className="text-xs text-gray-600">Recruiter Actions</div>
+                                  <button 
+                                    onClick={() => {
+                                      setIsDropdownOpen(false);
+                                      onNavigate && onNavigate('recruiter-actions');
+                                    }}
+                                    className="text-blue-600 text-xs hover:underline font-medium"
+                                  >
+                                    View all
+                                  </button>
+                                </div>
+                                <div className="flex-1 text-center bg-white rounded-lg p-2">
+                                  <div className="text-xl font-bold text-gray-900">{profileMetrics.searchAppearances}</div>
+                                  <div className="text-xs text-gray-600">Search Appearances</div>
+                                  <button 
+                                    onClick={() => {
+                                      setIsDropdownOpen(false);
+                                      onNavigate && onNavigate('search-appearances');
+                                    }}
+                                    className="text-blue-600 text-xs hover:underline font-medium"
+                                  >
+                                    View all
+                                  </button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Menu Items */}
+                        <div className="space-y-2">
+                          <button 
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              onNavigate && onNavigate('dashboard');
+                            }} 
+                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <User className="w-5 h-5 mr-3 text-gray-500" />
+                            View & Update Profile
+                          </button>
+
+                          {(user.type === 'admin' || user.type === 'super_admin') && (
+                            <button
+                              onClick={() => {
+                                setIsDropdownOpen(false);
+                                onNavigate && onNavigate('admin/dashboard');
+                              }}
+                              className="flex items-center w-full text-left px-3 py-3 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors font-medium"
+                            >
+                              <Settings className="w-5 h-5 mr-3 text-purple-500" />
+                              Admin Dashboard
+                            </button>
+                          )}
+                          
+                          {user?.name === 'ZyncJobs Admin' && (
+                            <>
+                              <button 
+                                onClick={() => {
+                                  setIsDropdownOpen(false);
+                                  onNavigate && onNavigate('job-moderation');
+                                }} 
+                                className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                              >
+                                <Settings className="w-5 h-5 mr-3 text-gray-500" />
+                                Job Moderation
+                              </button>
+                              <button 
+                                onClick={() => {
+                                  setIsDropdownOpen(false);
+                                  onNavigate && onNavigate('resume-moderation');
+                                }} 
+                                className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                              >
+                                <Settings className="w-5 h-5 mr-3 text-gray-500" />
+                                Resume Moderation
+                              </button>
+                            </>
+                          )}
+                          
+                          {user.type !== 'employer' && (
+                            <button 
+                              onClick={() => {
+                                setIsDropdownOpen(false);
+                                onNavigate && onNavigate('job-listings');
+                              }} 
+                              className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              <Search className="w-5 h-5 mr-3 text-gray-500" />
+                              Recommended Jobs
+                            </button>
+                          )}
+                          
+                          <button 
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              if (user.type === 'employer') {
+                                onNavigate && onNavigate('job-posting-selection');
+                              } else {
+                                onNavigate && onNavigate('my-jobs');
+                              }
+                            }} 
+                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <Building className="w-5 h-5 mr-3 text-gray-500" />
+                            {user.type === 'employer' ? 'Job Posting' : 'My Jobs'}
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              if (user.type === 'employer') {
+                                // For employers, go to dashboard and show alerts section
+                                onNavigate && onNavigate('dashboard');
+                                // Trigger alerts section after navigation
+                                setTimeout(() => {
+                                  const event = new CustomEvent('showAlerts');
+                                  window.dispatchEvent(event);
+                                }, 100);
+                              } else {
+                                // For candidates, go to alerts page
+                                onNavigate && onNavigate('alerts');
+                              }
+                            }} 
+                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <svg className="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM11 19H6a2 2 0 01-2-2V7a2 2 0 012-2h5m5 0v6" />
+                            </svg>
+                            Alerts
+                          </button>
+                          
+                          <hr className="my-3" />
+                          
+                          <button 
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              onNavigate && onNavigate('settings');
+                            }} 
+                            className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          >
+                            <svg className="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Settings
+                          </button>
+                          
+                          <button 
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              onLogout && onLogout();
+                            }} 
+                            className="flex items-center w-full text-left px-3 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <svg className="w-5 h-5 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                            </svg>
+                            Logout
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="relative" ref={dropdownRef}>
+                <button 
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 transition-colors"
+                >
+                  <span>Login/Register</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
+                    <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                      Login
+                    </button>
+                    <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                      Register
+                    </button>
+                    <hr className="my-1" />
+                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
+                    <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                      For Employers / Post Jobs
+                    </button>
+                    <hr className="my-1" />
+                    <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('admin/login'); }} className="block w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
+                      Admin? Login here
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden flex-shrink-0">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="text-gray-900 hover:text-gray-600 transition-colors"
+            >
+              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden py-4 border-t border-gray-600">
+            <div className="space-y-4">
+              <button onClick={handleFindJobsClick} className="block text-left text-white hover:text-gray-300 font-medium">
+                {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
+              </button>
+              <button onClick={handleCompaniesClick} className="block text-left text-white hover:text-gray-300 font-medium">
+                Companies
+              </button>
+              <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-white hover:text-gray-300 font-medium">
+                Skill Assessments
+              </button>
+              {user?.type !== 'employer' && (
+                <div className="space-y-2">
+                  <p className="text-white font-medium">Career Resources</p>
+                  <div className="pl-4 space-y-2">
+                    <button onClick={() => onNavigate && onNavigate('resume-studio')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      🎨 Resume Studio
+                    </button>
+                    <button onClick={() => onNavigate && onNavigate('interview-tips')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      💬 Interview Preparation
+                    </button>
+                    <button onClick={() => onNavigate && onNavigate('career-coach')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      🧭 Career Guidance
+                    </button>
+                    <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-gray-300 hover:text-white text-sm">
+                      ✅ Skill Check
+                    </button>
+                  </div>
+                </div>
+              )}
+              {user?.type === 'employer' && (
+                <button onClick={() => onNavigate && onNavigate('my-jobs')} className="block text-left text-white hover:text-gray-300 font-medium">
+                  Posted Jobs
+                </button>
+              )}
+              <button 
+                onClick={() => {
+                  if (user) {
+                    if (user.type === 'employer') {
+                      onNavigate && onNavigate('job-posting-selection');
+                    } else {
+                      onNavigate && onNavigate('my-jobs');
+                    }
+                  } else {
+                    onNavigate && onNavigate('role-selection');
+                  }
+                }}
+                className="block text-left text-white hover:text-gray-300 font-medium"
+              >
+                {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
+              </button>
+              <div className="pt-4 border-t border-gray-600 space-y-3">
+                <button className="flex items-center space-x-2 text-white hover:text-gray-300 font-medium">
+                  <User className="w-4 h-4" />
+                  <span>Login/Register</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+};
+
+export default Header;
