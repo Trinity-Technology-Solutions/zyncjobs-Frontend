@@ -306,10 +306,19 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
             </div>
 
               <div className="relative">
+                <style>{`
+                  @keyframes hero-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+                  @keyframes hero-spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
+                  .hero-orbit-inner { animation: hero-spin 20s linear infinite; }
+                  .hero-orbit-outer { animation: hero-spin-rev 30s linear infinite; }
+                  .hero-icon-counter-inner { animation: hero-spin-rev 20s linear infinite; }
+                  .hero-icon-counter-outer { animation: hero-spin 30s linear infinite; }
+                `}</style>
+
                 {/* Dotted Circle Background */}
                 <div className="absolute inset-0 flex items-center justify-center -mt-12">
                   {/* Inner orbit circle */}
-                  <div className="w-[22rem] h-[22rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.4)', animation: 'spin 20s linear infinite'}}>
+                  <div className="hero-orbit-inner w-[22rem] h-[22rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.4)'}}>
                     {[
                       { emoji: '🤖', angle: 0 },
                       { emoji: '✨', angle: 90 },
@@ -321,12 +330,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                         className="absolute"
                         style={{
                           top: '50%', left: '50%',
-                          transform: `rotate(${angle}deg) translate(11rem) rotate(-${angle}deg)`,
+                          width: '2.5rem', height: '2.5rem',
                           marginTop: '-1.25rem', marginLeft: '-1.25rem',
-                          animation: `counter-spin-inner 20s linear infinite`,
+                          transform: `rotate(${angle}deg) translate(11rem)`,
                         }}
                       >
-                        <div className="w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-blue-100" style={{fontSize: '1.4rem'}}>
+                        <div className="hero-icon-counter-inner w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-blue-100" style={{fontSize: '1.4rem'}}>
                           {emoji}
                         </div>
                       </div>
@@ -334,7 +343,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                   </div>
 
                   {/* Outer orbit circle */}
-                  <div className="w-[33rem] h-[33rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.3)', animation: 'spin 30s linear infinite reverse'}}>
+                  <div className="hero-orbit-outer w-[33rem] h-[33rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.3)'}}>
                     {[
                       { emoji: '🎨', label: 'Resume Studio', angle: 0 },
                       { emoji: '💬', label: 'Interview Preparation', angle: 72 },
@@ -347,12 +356,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                         className="absolute"
                         style={{
                           top: '50%', left: '50%',
-                          transform: `rotate(${angle}deg) translate(16.5rem) rotate(-${angle}deg)`,
+                          width: '2.5rem', height: '2.5rem',
                           marginTop: '-1.25rem', marginLeft: '-1.25rem',
-                          animation: `counter-spin-outer 30s linear infinite`,
+                          transform: `rotate(${angle}deg) translate(16.5rem)`,
                         }}
                       >
-                        <div className="w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200" style={{fontSize: '1.4rem'}}>
+                        <div className="hero-icon-counter-outer w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200" style={{fontSize: '1.4rem'}}>
                           {emoji}
                         </div>
                       </div>

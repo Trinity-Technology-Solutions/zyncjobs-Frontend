@@ -440,6 +440,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                             <button
                               onClick={() => {
+                                sessionStorage.setItem('editJobData', JSON.stringify(job));
                                 onNavigate('job-posting');
                                 setOpenMenuId(null);
                               }}
