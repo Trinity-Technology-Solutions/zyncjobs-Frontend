@@ -46,38 +46,21 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
   }, [jobId, user]);
 
   const checkIfAlreadyApplied = async () => {
-    if (!user?.email || !jobId) {
-      console.log('Skipping check - user email:', user?.email, 'jobId:', jobId);
-      return;
-    }
-    
+    if (!user?.email || !jobId) return;
     try {
-      console.log('Checking if applied - Email:', user.email, 'JobId:', jobId);
-      const url = `${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${user.email}&jobId=${jobId}`;
-      console.log('Fetch URL:', url);
-      
-      const response = await fetch(url);
-      console.log('Response status:', response.status);
-      
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${user.email}&jobId=${jobId}`);
       if (response.ok) {
         const data = await response.json();
-        console.log('Raw response data:', data);
-        
         const applications = Array.isArray(data) ? data : (data.applications || []);
-        console.log('Parsed applications:', applications);
-        
+        // Only count as "applied" if status is NOT withdrawn
+        // ai_rejected is an INTERNAL employer status — candidate still sees it as "applied"
         const alreadyApplied = applications.some((app: any) => {
           const jobMatch = app.jobId?._id === jobId || app.jobId === jobId;
           const emailMatch = app.candidateEmail === user.email;
-          const statusMatch = app.status !== 'withdrawn';
-          console.log('App check:', { jobId: app.jobId, jobMatch, emailMatch, statusMatch, status: app.status });
-          return jobMatch && emailMatch && statusMatch;
+          const notWithdrawn = app.status !== 'withdrawn';
+          return jobMatch && emailMatch && notWithdrawn;
         });
-        
-        console.log('Final result - Already applied:', alreadyApplied);
         setHasApplied(alreadyApplied);
-      } else {
-        console.log('Response not ok:', response.statusText);
       }
     } catch (error) {
       console.error('Error checking application status:', error);

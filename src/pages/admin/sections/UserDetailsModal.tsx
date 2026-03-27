@@ -52,7 +52,8 @@ export default function UserDetailsModal({ userId, onClose, onAction }: Props) {
   };
 
   const deleteUser = async () => {
-    if (!window.confirm('Permanently delete this user?')) return;
+    const ok = await (window as any).confirmAsync('Permanently delete this user?');
+    if (!ok) return;
     setActionLoading('delete');
     try {
       await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE', headers: authHeaders() });

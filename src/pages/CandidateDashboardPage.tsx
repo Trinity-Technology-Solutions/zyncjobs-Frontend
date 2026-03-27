@@ -717,51 +717,77 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 {/* AI Job Recommendations */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                   <div className="flex items-center gap-2 mb-4">
-
                     <h3 className="text-lg font-semibold text-gray-900">AI Job Suggestions</h3>
                   </div>
                   <div className="space-y-4">
                     {recommendedJobs.length > 0 ? (
-                      recommendedJobs.map((job, index) => (
-                        <div key={job.id || job._id || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
+                      recommendedJobs.map((job, index) => {
+                        const jobId = job._id || job.id;
+                        const userSkills: string[] = (Array.isArray(user?.skills) ? user.skills : []).map((s: any) => String(s || '').toLowerCase());
+                        const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: any) => String(s || '').toLowerCase());
+                        const matchCount = jobSkills.filter(js => userSkills.some(us => us.includes(js) || js.includes(us))).length;
+                        const matchPct = jobSkills.length > 0 ? Math.round((matchCount / jobSkills.length) * 100) : 0;
+                        const isSaved = (() => { try { return JSON.parse(localStorage.getItem('savedRecommendedJobs') || '[]').includes(jobId); } catch { return false; } })();
+                        return (
+                        <div key={jobId || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-gray-900 text-sm">{job.jobTitle || job.title}</h4>
-                            <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                              {user?.skills && job.skills ? 
-                                `${Math.min(95, Math.floor(Math.random() * 20) + 75)}% Match` : 
-                                'Recommended'
-                              }
-                            </span>
+                            <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                              {matchPct > 0 && (
+                                <span className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">{matchPct}% Match</span>
+                              )}
+                              <button
+                                onClick={() => {
+                                  const saved: string[] = (() => { try { return JSON.parse(localStorage.getItem('savedRecommendedJobs') || '[]'); } catch { return []; } })();
+                                  const updated = saved.includes(jobId) ? saved.filter(id => id !== jobId) : [...saved, jobId];
+                                  localStorage.setItem('savedRecommendedJobs', JSON.stringify(updated));
+                                  window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: saved.includes(jobId) ? 'Job removed from saved list' : 'Job saved successfully!' } }));
+                                  // Force re-render
+                                  setRecommendedJobs(prev => [...prev]);
+                                }}
+                                className={`p-1 rounded transition-colors ${isSaved ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                                title={isSaved ? 'Remove from saved' : 'Save job'}
+                              >
+                                <svg className="w-4 h-4" fill={isSaved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{job.company}  {job.location}</p>
+                          <p className="text-xs text-gray-600 mb-2">{job.company} · {job.location}</p>
                           {job.salary && (
                             <p className="text-xs text-green-600 font-medium mb-2">
-                              {typeof job.salary === 'object' 
-                                ? `₹${job.salary.min || ''} - ₹${job.salary.max || ''}` 
-                                : job.salary
-                              }
+                              {typeof job.salary === 'object'
+                                ? `₹${job.salary.min || ''} - ₹${job.salary.max || ''}`
+                                : job.salary}
                             </p>
                           )}
-                          {job.skills && job.skills.length > 0 && (
+                          {Array.isArray(job.skills) && job.skills.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-2">
                               {job.skills.slice(0, 3).map((skill: string, idx: number) => (
-                                <span key={idx} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{skill}</span>
+                                <span key={idx} className={`text-xs px-2 py-0.5 rounded ${
+                                  userSkills.some(us => us.includes(String(skill).toLowerCase()) || String(skill).toLowerCase().includes(us))
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-blue-100 text-blue-800'
+                                }`}>{skill}</span>
                               ))}
                             </div>
                           )}
                           <div className="flex justify-end pt-1.5 border-t border-gray-100">
                             <button
                               onClick={() => {
+                                if (!jobId) return;
                                 localStorage.setItem('selectedJob', JSON.stringify(job));
-                                onNavigate(`job-detail/${job._id || job.id}`);
+                                onNavigate(`job-detail/${jobId}`);
                               }}
                               className="text-xs text-blue-600 font-medium hover:text-blue-800"
                             >
-                              Apply Now
+                              Apply Now →
                             </button>
                           </div>
                         </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="text-center py-4 text-gray-500 text-sm">
                         <p>Complete your profile to get personalized job recommendations</p>
