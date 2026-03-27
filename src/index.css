@@ -130,7 +130,17 @@ h6 { font-size: 1rem; }
   100% { background-position: 0% 50%; }
 }
 
-/* Orbit counter-spin animations - keep emoji labels upright */
+/* Orbit spin and counter-spin animations */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(-360deg); }
+}
+
 @keyframes counter-spin-inner {
   from { transform: rotate(0deg); }
   to { transform: rotate(-360deg); }

@@ -50,15 +50,12 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
 
   useEffect(() => {
     fetchMatchingJobs();
-    // Load saved jobs from backend if user is logged in
     if (user?.email) {
       loadSavedJobsFromBackend();
     } else {
-      // Load from localStorage for non-logged users
-      const saved = localStorage.getItem('savedRecommendedJobs');
-      if (saved) {
-        setSavedJobs(JSON.parse(saved));
-      }
+      const userJobIdsKey = `savedJobs_${user?.name || 'user'}`;
+      const localIds: string[] = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
+      setSavedJobs(localIds);
     }
   }, [resumeSkills, location, user]);
 
@@ -89,57 +86,50 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   }, [jobs, filters]);
 
   const loadSavedJobsFromBackend = async () => {
+    const userName = user?.name || 'user';
+    const userJobIdsKey = `savedJobs_${userName}`;
+    const localIds: string[] = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
     try {
-      const savedJobIds = await localStorageMigration.getSavedRecommendedJobs();
-      setSavedJobs(savedJobIds);
-    } catch (error) {
-      console.error('Error loading saved jobs from backend:', error);
-      // Fallback to localStorage
-      const saved = localStorage.getItem('savedRecommendedJobs');
-      if (saved) {
-        setSavedJobs(JSON.parse(saved));
-      }
+      const backendIds = await localStorageMigration.getSavedRecommendedJobs();
+      setSavedJobs(Array.from(new Set([...backendIds, ...localIds])));
+    } catch {
+      setSavedJobs(localIds);
     }
   };
 
-  const handleSaveJob = async (jobId: string) => {
-    const isAlreadySaved = savedJobs.includes(jobId);
-    
-    if (user?.email) {
-      // Use backend API for logged-in users
-      try {
-        if (isAlreadySaved) {
-          const success = await localStorageMigration.removeSavedRecommendedJob(jobId);
-          if (success) {
-            setSavedJobs(prev => prev.filter(id => id !== jobId));
-          }
-        } else {
-          const job = jobs.find(j => j._id === jobId);
-          if (job) {
-            const success = await localStorageMigration.saveRecommendedJob(job);
-            if (success) {
-              setSavedJobs(prev => [...prev, jobId]);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error saving job to backend:', error);
-        // Fallback to localStorage
-        handleLocalStorageSave(jobId, isAlreadySaved);
-      }
+  const syncToMyJobs = (job: any, jobId: string, remove: boolean) => {
+    const userName = user?.name || 'user';
+    const userKey = `savedJobDetails_${userName}`;
+    const userJobIdsKey = `savedJobs_${userName}`;
+    const existing: any[] = JSON.parse(localStorage.getItem(userKey) || '[]');
+    const existingIds: string[] = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
+
+    if (remove) {
+      localStorage.setItem(userKey, JSON.stringify(existing.filter((j: any) => (j._id || j.id) !== jobId)));
+      localStorage.setItem(userJobIdsKey, JSON.stringify(existingIds.filter(id => id !== jobId)));
     } else {
-      // Use localStorage for non-logged users
-      handleLocalStorageSave(jobId, isAlreadySaved);
+      if (!existingIds.includes(jobId)) {
+        localStorage.setItem(userKey, JSON.stringify([...existing, job]));
+        localStorage.setItem(userJobIdsKey, JSON.stringify([...existingIds, jobId]));
+      }
     }
   };
 
-  const handleLocalStorageSave = (jobId: string, isAlreadySaved: boolean) => {
-    const updatedSavedJobs = isAlreadySaved
-      ? savedJobs.filter(id => id !== jobId)
-      : [...savedJobs, jobId];
-    
-    setSavedJobs(updatedSavedJobs);
-    localStorage.setItem('savedRecommendedJobs', JSON.stringify(updatedSavedJobs));
+  const handleSaveJob = (jobId: string) => {
+    const isAlreadySaved = savedJobs.includes(jobId);
+    const job = jobs.find((j: any) => (j._id || j.id) === jobId);
+
+    if (isAlreadySaved) {
+      setSavedJobs(prev => prev.filter(id => id !== jobId));
+      if (job) syncToMyJobs(job, jobId, true);
+      if (user?.email) localStorageMigration.removeSavedRecommendedJob(jobId).catch(() => {});
+    } else {
+      if (job) {
+        setSavedJobs(prev => [...prev, jobId]);
+        syncToMyJobs(job, jobId, false);
+        if (user?.email) localStorageMigration.saveRecommendedJob(job).catch(() => {});
+      }
+    }
   };
 
   const handleApplyNow = (job: any) => {
