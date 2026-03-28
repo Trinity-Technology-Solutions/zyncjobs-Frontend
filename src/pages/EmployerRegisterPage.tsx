@@ -229,7 +229,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Building2 className="w-8 h-8 text-green-600" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Join ZyncJobs as Employer</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Hire smarter. Build cooler teams</h2>
             <p className="text-gray-600">Start hiring top talent today</p>
           </div>
 

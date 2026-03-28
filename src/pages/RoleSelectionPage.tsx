@@ -27,7 +27,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
           {/* Header Section */}
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Where tech connects
+              Where tech meets talent
             </h1>
             <p className="text-lg text-gray-600 max-w-3xl mx-auto leading-relaxed">
               Be a part of the Zync community, where more than half of U.S. technology 
@@ -41,10 +41,10 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
             {/* Tech Professionals Card */}
             <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow flex flex-col h-full card-hover">
               <div className="text-center flex-1">
-                <h2 className="text-2xl font-bold text-teal-600 mb-4">Tech Professionals</h2>
+                <h2 className="text-2xl font-bold text-blue-600 mb-4">Tech Professionals</h2>
                 <div className="flex justify-center mb-6">
-                  <div className="w-32 h-32 bg-teal-50 rounded-full flex items-center justify-center">
-                    <User className="w-16 h-16 text-teal-600" />
+                  <div className="w-32 h-32 bg-blue-50 rounded-full flex items-center justify-center">
+                    <User className="w-16 h-16 text-blue-600" />
                   </div>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">
@@ -56,7 +56,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
               </div>
               <button
                 onClick={() => handleRoleSelection('candidate')}
-                className="w-full bg-teal-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-teal-700 transition-colors mt-auto"
+                className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors mt-auto"
               >
                 Create Candidate Profile
               </button>
@@ -65,10 +65,10 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
             {/* Employers & Recruiters Card */}
             <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-lg p-8 hover:shadow-xl transition-shadow flex flex-col h-full card-hover">
               <div className="text-center flex-1">
-                <h2 className="text-2xl font-bold text-red-600 mb-4">Employers & Recruiters</h2>
+                <h2 className="text-2xl font-bold text-orange-500 mb-4">Employers & Recruiters</h2>
                 <div className="flex justify-center mb-6">
-                  <div className="w-32 h-32 bg-red-50 rounded-full flex items-center justify-center">
-                    <Building className="w-16 h-16 text-red-600" />
+                  <div className="w-32 h-32 bg-orange-50 rounded-full flex items-center justify-center">
+                    <Building className="w-16 h-16 text-orange-500" />
                   </div>
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4">
@@ -80,7 +80,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
               </div>
               <button
                 onClick={() => handleRoleSelection('employer')}
-                className="w-full bg-red-600 text-white py-4 px-6 rounded-lg font-semibold hover:bg-red-700 transition-colors mt-auto"
+                className="w-full bg-orange-500 text-white py-4 px-6 rounded-lg font-semibold hover:bg-orange-600 transition-colors mt-auto"
               >
                 Create Employer Profile
               </button>
