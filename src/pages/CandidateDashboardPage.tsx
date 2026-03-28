@@ -508,51 +508,65 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         {/* Tab Navigation */}
         <div className="bg-white border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center space-x-8">
-              <BackButton 
-                onClick={() => onNavigate && onNavigate(readOnly ? 'dashboard' : 'home')}
-                text={readOnly ? 'Back' : 'Back to Home'}
-                className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors py-4 font-['IBM_Plex_Sans']"
-              />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-8">
+                <BackButton 
+                  onClick={() => onNavigate && onNavigate(readOnly ? 'dashboard' : 'home')}
+                  text={readOnly ? 'Back' : 'Back to Home'}
+                  className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors py-4 font-['IBM_Plex_Sans']"
+                />
+                {!readOnly && (
+                  <>
+                    <button 
+                      onClick={() => { setActiveTab('Profile'); setSearchParams({}); }}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                        activeTab === 'Profile' 
+                          ? 'border-black text-gray-900' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      View & Edit
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setActiveTab('Activity');
+                        setSearchParams({ tab: 'Activity' });
+                        if (user && !activityData) {
+                          fetchActivityInsights(user.email);
+                        }
+                      }}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                        activeTab === 'Activity' 
+                          ? 'border-black text-gray-900' 
+                          : 'border-transparent text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      Activity insights
+                    </button>
+                  </>
+                )}
+                {readOnly && (
+                  <span className="py-4 px-1 font-medium text-sm text-gray-900 font-['IBM_Plex_Sans']">Candidate Profile</span>
+                )}
+              </div>
               {!readOnly && (
-                <>
-                  <button 
-                    onClick={() => { setActiveTab('Profile'); setSearchParams({}); }}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
-                      activeTab === 'Profile' 
-                        ? 'border-black text-gray-900' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    View & Edit
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setActiveTab('Activity');
-                      setSearchParams({ tab: 'Activity' });
-                      if (user && !activityData) {
-                        fetchActivityInsights(user.email);
-                      }
-                    }}
-                    className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
-                      activeTab === 'Activity' 
-                        ? 'border-black text-gray-900' 
-                        : 'border-transparent text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    Activity insights
-                  </button>
-                </>
-              )}
-              {readOnly && (
-                <span className="py-4 px-1 font-medium text-sm text-gray-900 font-['IBM_Plex_Sans']">Candidate Profile</span>
+                <div className="py-2">
+                  <CandidateNotificationBell
+                    notifications={appNotifications}
+                    unreadCount={unreadCount}
+                    onMarkRead={markRead}
+                    onMarkAllRead={markAllRead}
+                    onClearAll={clearAll}
+                    onNavigate={onNavigate}
+                  />
+                </div>
               )}
             </div>
           </div>
         </div>
 
         {!readOnly && (
-        <div className="fixed top-20 right-4 z-50">
+        <div className="fixed top-20 right-4 z-50 hidden">
           <CandidateNotificationBell
             notifications={appNotifications}
             unreadCount={unreadCount}
@@ -727,7 +741,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: any) => String(s || '').toLowerCase());
                         const matchCount = jobSkills.filter(js => userSkills.some(us => us.includes(js) || js.includes(us))).length;
                         const matchPct = jobSkills.length > 0 ? Math.round((matchCount / jobSkills.length) * 100) : 0;
-                        const isSaved = (() => { try { return JSON.parse(localStorage.getItem('savedRecommendedJobs') || '[]').includes(jobId); } catch { return false; } })();
+                        const isSaved = (() => { try { const userName = user?.name || 'user'; return JSON.parse(localStorage.getItem(`savedJobs_${userName}`) || '[]').includes(jobId); } catch { return false; } })();
                         return (
                         <div key={jobId || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
                           <div className="flex justify-between items-start mb-2">
@@ -738,11 +752,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               )}
                               <button
                                 onClick={() => {
-                                  const saved: string[] = (() => { try { return JSON.parse(localStorage.getItem('savedRecommendedJobs') || '[]'); } catch { return []; } })();
-                                  const updated = saved.includes(jobId) ? saved.filter(id => id !== jobId) : [...saved, jobId];
-                                  localStorage.setItem('savedRecommendedJobs', JSON.stringify(updated));
-                                  window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: saved.includes(jobId) ? 'Job removed from saved list' : 'Job saved successfully!' } }));
-                                  // Force re-render
+                                  const userName = user?.name || 'user';
+                                  const userJobIdsKey = `savedJobs_${userName}`;
+                                  const userJobDetailsKey = `savedJobDetails_${userName}`;
+                                  const savedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem(userJobIdsKey) || '[]'); } catch { return []; } })();
+                                  const savedDetails: any[] = (() => { try { return JSON.parse(localStorage.getItem(userJobDetailsKey) || '[]'); } catch { return []; } })();
+                                  const isAlreadySaved = savedIds.includes(jobId);
+                                  if (isAlreadySaved) {
+                                    const updatedIds = savedIds.filter(id => id !== jobId);
+                                    const updatedDetails = savedDetails.filter((j: any) => (j._id || j.id) !== jobId);
+                                    localStorage.setItem(userJobIdsKey, JSON.stringify(updatedIds));
+                                    localStorage.setItem(userJobDetailsKey, JSON.stringify(updatedDetails));
+                                    window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Job removed from saved list' } }));
+                                  } else {
+                                    localStorage.setItem(userJobIdsKey, JSON.stringify([...savedIds, jobId]));
+                                    localStorage.setItem(userJobDetailsKey, JSON.stringify([...savedDetails, job]));
+                                    window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Job saved successfully!' } }));
+                                  }
                                   setRecommendedJobs(prev => [...prev]);
                                 }}
                                 className={`p-1 rounded transition-colors ${isSaved ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
