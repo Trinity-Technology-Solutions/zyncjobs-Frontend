@@ -1,0 +1,8 @@
+ font-medium text-gray-900 mb-3">Experience</h3>
+              {resume.workExperiences.map((exp: any, index: number) => (
+                <div key={index} className="border-l-4 border-blue-200 pl-4 mb-4">
+                  <h4 className="font-medium text-gray-900">{exp.jobTitle}</h4>
+                  <p className="text-blue-600">{exp.company}</p>
+                  <p className="text-sm text-gray-500">{exp.date}</p>
+                  <ul className="mt-1 space-y-1">
+                    {exp.descr
