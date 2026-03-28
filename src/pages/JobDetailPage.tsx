@@ -441,7 +441,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     ) : (
                       <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-6 py-3 rounded-lg font-semibold">
                         <CheckCircle className="w-4 h-4" />
-                        <span>Applied ({applicationStatus === 'withdrawn' ? '??????? ????????? ???????????????' : applicationStatus})</span>
+                        <span>Applied</span>
                       </div>
                     )
                   ) : (
@@ -803,7 +803,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     ) : (
                       <div className="flex items-center justify-center space-x-2 bg-green-100 text-green-800 py-3 rounded-lg font-semibold">
                         <CheckCircle className="w-5 h-5" />
-                        <span>Applied ({applicationStatus === 'withdrawn' ? '??????? ????????? ???????????????' : applicationStatus})</span>
+                        <span>Applied</span>
                       </div>
                     )
                   ) : (

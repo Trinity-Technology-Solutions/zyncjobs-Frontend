@@ -88,6 +88,7 @@ const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
+const RecommendedJobs = lazy(() => import('./components/RecommendedJobs'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -649,6 +650,22 @@ function App() {
           {/* ── Misc ── */}
           <Route path="/meeting-test" element={
             <WithLayout {...nav}><MeetingTest /></WithLayout>
+          } />
+
+          <Route path="/recommended-jobs" element={
+            <AuthGuard user={user} allowedRoles={['candidate']}>
+              <WithLayout {...nav}>
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                  <h1 className="text-2xl font-bold text-gray-900 mb-6">Recommended Jobs for You</h1>
+                  <RecommendedJobs
+                    resumeSkills={(() => { try { return JSON.parse(localStorage.getItem('resumeSkills') || '[]'); } catch { return []; } })()}
+                    location={(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').location || ''; } catch { return ''; } })()}
+                    user={user as any}
+                    onNavigate={handleNavigation}
+                  />
+                </div>
+              </WithLayout>
+            </AuthGuard>
           } />
 
           {/* ── Redirects for old paths ── */}

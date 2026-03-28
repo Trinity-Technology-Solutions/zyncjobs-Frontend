@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { FileText, CheckCircle, AlertCircle, Lightbulb, Download, Eye, ArrowLeft } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, Lightbulb, ArrowLeft } from 'lucide-react';
 
 interface ResumeHelpPageProps {
   onNavigate?: (page: string) => void;
@@ -176,7 +176,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
                     It analyzes job descriptions and suggests improvements to increase your chances of getting noticed.
                   </p>
                   <button
-                    onClick={() => onNavigate && onNavigate('ai-resume-builder')}
+                    onClick={() => onNavigate && onNavigate('resume-templates')}
                     className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
                     Try AI Resume Builder
@@ -264,20 +264,13 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
           <p className="text-lg text-blue-100 mb-8">
             Use our AI-powered resume builder to create a professional resume in minutes
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex justify-center">
             <button
-              onClick={() => onNavigate && onNavigate('ai-resume-builder')}
+              onClick={() => onNavigate && onNavigate('resume-templates')}
               className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-5 h-5" />
               Build Resume
-            </button>
-            <button
-              onClick={() => onNavigate && onNavigate('resume-templates')}
-              className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-blue-600 transition-colors flex items-center justify-center gap-2"
-            >
-              <Eye className="w-5 h-5" />
-              View Templates
             </button>
           </div>
         </div>

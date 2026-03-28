@@ -610,8 +610,8 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
               // Candidate Actions
               <>
                 <button 
-                  onClick={() => onNavigate && onNavigate('job-listings')}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+                  onClick={() => onNavigate && onNavigate('job-listings', { tab: 'recommended' })}
+                  className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
                   View All Recommended Jobs
                 </button>
@@ -689,12 +689,9 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                     window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Profile saved successfully!" } }));
                     onNavigate && onNavigate('dashboard');
                   }}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                  className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
                 >
                   Save Profile
-                </button>
-                <button className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors">
-                  Refine Preferences
                 </button>
               </>
             )}

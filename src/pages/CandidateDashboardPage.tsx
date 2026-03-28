@@ -830,10 +830,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                                ?? {app.jobId?.location || 'Remote'}
+                                {app.jobId?.location || 'Remote'}
                               </span>
                               <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
-                                ?? {app.jobId?.salary ? (
+                                {app.jobId?.salary ? (
                                   typeof app.jobId.salary === 'object'
                                     ? `₹${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
                                     : app.jobId.salary
