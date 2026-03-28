@@ -155,36 +155,43 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   };
 
   const [jobData, setJobData] = useState<JobData>({
-    jobTitle: parsedData?.jobTitle || '',
-    locationType: 'In person',
-    jobLocation: parsedData?.jobLocation || '',
+    jobTitle: editJob?.jobTitle || editJob?.title || parsedData?.jobTitle || '',
+    locationType: editJob?.locationType || 'In person',
+    jobLocation: editJob?.location || editJob?.jobLocation || parsedData?.jobLocation || '',
     expandCandidateSearch: false,
-    experienceRange: editJob?.experienceRange || parsedData?.experienceRange || '',
+    experienceRange: editJob?.experienceRange || editJob?.experience || parsedData?.experienceRange || '',
     country: editJob?.country || '',
     language: editJob?.language || '',
-    jobCategory: editJob?.jobCategory || parsedData?.jobCategory || '',
+    jobCategory: editJob?.jobCategory || editJob?.category || parsedData?.jobCategory || '',
     priority: editJob?.priority || parsedData?.priority || 'Medium',
     clientName: editJob?.clientName || parsedData?.clientName || '',
     jobCode: editJob?.jobCode || `JOB-${Date.now()}`,
     reportingManager: editJob?.reportingManager || parsedData?.reportingManager || '',
     hiringTimeline: '',
     numberOfPeople: 0,
-    workAuth: parsedData?.workAuth || [],
-    jobType: parsedData?.jobType && Array.isArray(parsedData.jobType) ? parsedData.jobType : (parsedData?.jobType ? [parsedData.jobType] : []),
+    workAuth: editJob?.workAuth || parsedData?.workAuth || [],
+    jobType: editJob?.type ? (Array.isArray(editJob.type) ? editJob.type : [editJob.type]) :
+             editJob?.jobType ? (Array.isArray(editJob.jobType) ? editJob.jobType : [editJob.jobType]) :
+             parsedData?.jobType && Array.isArray(parsedData.jobType) ? parsedData.jobType :
+             parsedData?.jobType ? [parsedData.jobType] : [],
     payType: 'Range',
-    minSalary: (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0) ? parsedData.minSalary : '',
-    maxSalary: (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) ? parsedData.maxSalary : '',
-    payRate: parsedData?.payRate || 'per year',
+    minSalary: getSalaryMin(editJob) || (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0 ? parsedData.minSalary : ''),
+    maxSalary: getSalaryMax(editJob) || (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0 ? parsedData.maxSalary : ''),
+    payRate: editJob?.salary?.period === 'monthly' ? 'per month' : editJob?.salary?.period === 'hourly' ? 'per hour' : parsedData?.payRate || 'per year',
     currency: parsedData?.currency || 'INR',
-    benefits: parsedData?.benefits || [],
-    jobDescription: parsedData?.jobDescription || '',
-    responsibilities: parsedData?.responsibilities || [],
-    requirements: parsedData?.requirements || [],
-    skills: parsedData?.skills || [],
-    educationLevel: parsedData?.educationLevel || "Bachelor's degree",
+    benefits: editJob?.benefits || parsedData?.benefits || [],
+    jobDescription: editJob?.jobDescription || editJob?.description || parsedData?.jobDescription || '',
+    responsibilities: editJob?.responsibilities
+      ? (Array.isArray(editJob.responsibilities) ? editJob.responsibilities : editJob.responsibilities.split('\n').filter(Boolean))
+      : parsedData?.responsibilities || [],
+    requirements: editJob?.requirements
+      ? (Array.isArray(editJob.requirements) ? editJob.requirements : editJob.requirements.split('\n').filter(Boolean))
+      : parsedData?.requirements || [],
+    skills: editJob?.skills || parsedData?.skills || [],
+    educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: '',
-    companyLogo: '',
+    companyName: editJob?.company || editJob?.companyName || '',
+    companyLogo: editJob?.companyLogo || '',
     companyId: ''
   });
 
@@ -213,8 +220,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
 
   const [salaryModified, setSalaryModified] = useState(() => {
-    const min = parsedData?.minSalary || parsedData?.salary?.min;
-    const max = parsedData?.maxSalary || parsedData?.salary?.max;
+    const min = getSalaryMin(editJob) || parsedData?.minSalary || parsedData?.salary?.min;
+    const max = getSalaryMax(editJob) || parsedData?.maxSalary || parsedData?.salary?.max;
     return !!(min && max && parseInt(String(min)) > 0 && parseInt(String(max)) > 0);
   });
   const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
@@ -2478,8 +2485,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     console.log('Full payload:', JSON.stringify(jobPostData, null, 2));
     
     try {
-      const response = await fetch(API_ENDPOINTS.JOBS, {
-        method: 'POST',
+      const url = isEditMode ? `${API_ENDPOINTS.JOBS}/${editJobId}` : API_ENDPOINTS.JOBS;
+      const method = isEditMode ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -2491,7 +2501,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         sessionStorage.removeItem('editJobData');
         setNotification({
           type: 'success',
-          message: `Job posted successfully! 🎉`,
+          message: isEditMode ? 'Job updated successfully! ✅' : 'Job posted successfully! 🎉',
           isVisible: true
         });
         console.log('Job Posted by:', user.email, result);

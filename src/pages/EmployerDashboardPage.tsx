@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -612,7 +612,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="font-medium">Dashboard Loading Issue</div>
               <div className="text-sm mt-1">{error}</div>
             </div>
-            <button onClick={() => setError(null)} className="ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">Ã—</button>
+            <button onClick={() => setError(null)} className="ml-4 text-red-500 hover:text-red-700 font-bold text-lg leading-none">&times;</button>
           </div>
         </div>
       )}
@@ -1817,7 +1817,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           }}
                           className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-lg leading-none ml-2"
                         >
-                          Ã—
+                          &times;
                         </button>
                       </div>
                     </div>
@@ -1831,7 +1831,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 onClick={() => { setShowNotifications(false); setActiveMenu('alerts'); }}
                 className="w-full text-center text-sm text-blue-600 hover:text-blue-800 font-medium"
               >
-                View all alerts â†’
+                View all alerts &rarr;
               </button>
             </div>
           </div>
