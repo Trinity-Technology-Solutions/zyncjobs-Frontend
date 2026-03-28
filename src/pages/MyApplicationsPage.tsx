@@ -337,6 +337,15 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Dashboard
+            </button>
+          </div>
+          <div className="flex items-center space-x-4">
             <div className="text-2xl">📊</div>
             <h1 className="text-2xl font-bold text-gray-900">My Applications</h1>
           </div>
@@ -590,32 +599,6 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             >
                               View Job
                             </button>
-                            <button 
-                              onClick={() => {
-                                const userData = JSON.parse(localStorage.getItem('user') || '{}');
-                                if (userData.resume) {
-                                  let resumeUrl = '';
-                                  if (userData.resume.filename) {
-                                    resumeUrl = `${API_ENDPOINTS.BASE_URL}/uploads/${userData.resume.filename}`;
-                                  } else if (userData.resume.url) {
-                                    resumeUrl = userData.resume.url.startsWith('http') ? userData.resume.url : `${API_ENDPOINTS.BASE_URL}${userData.resume.url}`;
-                                  }
-                                  if (resumeUrl) {
-                                    window.open(resumeUrl, '_blank');
-                                  } else {
-                                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Resume not found" } }));
-                                  }
-                                } else {
-                                  window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "No resume available" } }));
-                                }
-                              }}
-                              className="px-3 py-2 border border-gray-300 text-gray-700 text-sm rounded hover:bg-gray-50 transition-colors flex items-center"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              Resume
-                            </button>
                           </div>
                           
                           {(application.status === 'applied' || application.status === 'ai_rejected') && (
@@ -649,14 +632,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           )}
                         </div>
                         
-                        {/* Timeline button */}
-                        <button
-                          onClick={() => setShowTimeline(showTimeline === application._id ? null : application._id)}
-                          className="flex items-center space-x-1 px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                          <span>Timeline</span>
-                        </button>
+
                       </div>
                     </div>
                     

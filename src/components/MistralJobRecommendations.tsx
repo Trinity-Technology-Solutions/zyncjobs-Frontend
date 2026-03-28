@@ -109,13 +109,31 @@ const MatchCard: React.FC<{
       {/* Actions */}
       <div className="flex gap-2 pt-2 border-t border-gray-100">
         <button
-          onClick={() => onNavigate?.('job-detail', { jobId: job._id, jobData: job })}
+          onClick={() => {
+            const jobId = job._id || job.id;
+            localStorage.setItem('selectedJob', JSON.stringify(job));
+            if (jobId) {
+              window.location.href = `/job-detail?id=${jobId}`;
+            } else {
+              window.location.href = '/job-listings';
+            }
+          }}
           className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
         >
           View Details
         </button>
         <button
-          onClick={() => onNavigate?.('job-application', { jobId: job._id, job })}
+          onClick={() => {
+            localStorage.setItem('selectedJob', JSON.stringify(job));
+            sessionStorage.setItem('selectedJob', JSON.stringify({
+              _id: job._id,
+              jobTitle: job.jobTitle || job.title,
+              company: job.company,
+              location: job.location,
+              jobData: job
+            }));
+            window.location.href = '/job-application';
+          }}
           className="flex-1 border border-blue-600 text-blue-600 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors"
         >
           Apply Now
