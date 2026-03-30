@@ -63,7 +63,24 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [resumeSkills, setResumeSkills] = useState<Array<{ skill: string }>>([]);
   const [statsCompanies, setStatsCompanies] = useState<number>(0);
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const jobsPerPage = 10;
+
+  // Load applied jobs for candidate
+  useEffect(() => {
+    if (user?.type === 'candidate') {
+      const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+      const email = userData.email;
+      if (!email) return;
+      fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(email)}`)
+        .then(r => r.ok ? r.json() : [])
+        .then((apps: any[]) => {
+          const ids = new Set(apps.map((a: any) => a.jobId?._id || a.jobId?.id || a.jobId || '').filter(Boolean));
+          setAppliedJobIds(ids);
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   // Load saved jobs from backend if user is logged in
   useEffect(() => {
@@ -254,10 +271,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
     if (updatedFilters.salaryRange) {
       filtered = filtered.filter(job => {
-        const salary = parseInt((job.salary || '').replace(/[^0-9]/g, '') || '0');
-        if (updatedFilters.salaryRange === '0-3 Lakhs') return salary <= 300000;
-        if (updatedFilters.salaryRange === '3-6 Lakhs') return salary >= 300000 && salary <= 600000;
-        if (updatedFilters.salaryRange === '6-10 Lakhs') return salary >= 600000 && salary <= 1000000;
+        const salaryMin = typeof job.salary === 'object'
+          ? (job.salary?.min || job.salaryMin || 0)
+          : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
+        if (updatedFilters.salaryRange === '0-3 Lakhs') return salaryMin <= 300000;
+        if (updatedFilters.salaryRange === '3-6 Lakhs') return salaryMin >= 300000 && salaryMin <= 600000;
+        if (updatedFilters.salaryRange === '6-10 Lakhs') return salaryMin >= 600000 && salaryMin <= 1000000;
         return true;
       });
     }
@@ -1075,6 +1094,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 </div>
 
                 <div className="flex flex-col items-end space-y-2 ml-4">
+                  {user?.type === 'candidate' && appliedJobIds.has(job._id || job.id) && (
+                    <span className="flex items-center gap-1.5 bg-green-100 text-green-700 border border-green-300 px-3 py-1.5 rounded-lg text-sm font-semibold">
+                      ✅ Applied
+                    </span>
+                  )}
                   {user?.type === 'candidate' && (
                     <button
                       onClick={() => handleSaveJob(job)}

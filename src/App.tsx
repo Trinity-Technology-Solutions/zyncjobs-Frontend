@@ -674,13 +674,39 @@ function App() {
           {/* ── 404 ── */}
           <Route path="*" element={
             <WithLayout {...nav}>
-              <div className="min-h-[60vh] flex items-center justify-center">
-                <div className="text-center">
-                  <h1 className="text-6xl font-bold text-gray-200 mb-4">404</h1>
-                  <p className="text-xl text-gray-600 mb-6">Page not found</p>
-                  <button onClick={() => navigate('/')} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                    Go Home
-                  </button>
+              <div className="min-h-[80vh] flex items-center justify-center px-4">
+                <div className="text-center max-w-lg">
+                  <div className="relative mb-8">
+                    <div className="text-[120px] font-black text-gray-100 leading-none select-none">404</div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-white px-4">
+                        <div className="text-5xl mb-2">🔍</div>
+                      </div>
+                    </div>
+                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-3">Page Not Found</h1>
+                  <p className="text-gray-500 mb-8">The page you're looking for doesn't exist or has been moved.</p>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <button
+                      onClick={() => navigate('/')}
+                      className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium transition-colors"
+                    >
+                      🏠 Go Home
+                    </button>
+                    <button
+                      onClick={() => navigate('/job-listings')}
+                      className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                    >
+                      💼 Browse Jobs
+                    </button>
+                    <button
+                      onClick={() => window.history.back()}
+                      className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 font-medium transition-colors"
+                    >
+                      ← Go Back
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-8">If you think this is a mistake, <button onClick={() => navigate('/contact')} className="text-blue-500 hover:underline">contact support</button></p>
                 </div>
               </div>
             </WithLayout>

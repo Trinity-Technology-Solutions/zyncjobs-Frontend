@@ -58,7 +58,7 @@ export const authAPI = {
       } catch {
         error = { error: 'Registration failed' };
       }
-      throw new Error(error.error || 'User already exists with this email');
+      throw new Error(error.error || 'An account with this email already exists. Please login instead.');
     }
 
     const result = await response.json();
@@ -90,9 +90,9 @@ export const authAPI = {
       try {
         error = JSON.parse(errorText);
       } catch {
-        error = { error: 'Invalid login data' };
+        error = { error: 'Login failed' };
       }
-      throw new Error(error.error || 'Invalid login data');
+      throw new Error(error.error || 'Incorrect email or password. Please try again.');
     }
 
     const result = await response.json();

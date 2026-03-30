@@ -276,3 +276,134 @@
   .mobile-nav { display: none; }
   .mobile-filter-button { display: none; }
 }
+
+/* ===== GLOBAL RESPONSIVE FIXES ===== */
+
+/* Prevent horizontal overflow on all screens */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* Fix tables overflowing on mobile */
+@media (max-width: 768px) {
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix hero section on mobile */
+  .hero-section {
+    padding: 2rem 1rem !important;
+  }
+
+  /* Fix large headings on mobile */
+  h1 { font-size: 1.75rem !important; }
+  h2 { font-size: 1.5rem !important; }
+  h3 { font-size: 1.25rem !important; }
+
+  /* Fix modals on mobile */
+  .modal-content {
+    margin: 0.5rem !important;
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+  }
+
+  /* Fix grid layouts */
+  .grid-cols-2,
+  .grid-cols-3,
+  .grid-cols-4 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Fix flex layouts that break on mobile */
+  .flex-nowrap-mobile {
+    flex-wrap: wrap !important;
+  }
+
+  /* Fix padding on containers */
+  .container-padding {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  /* Fix job cards */
+  .job-card-actions {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Fix dashboard stats */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Fix long text overflow */
+  .truncate-mobile {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+
+  /* Fix buttons on mobile */
+  button, .btn {
+    min-height: 40px;
+  }
+
+  /* Fix inputs on mobile - prevent zoom on iOS */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Fix hero orbit animation on mobile */
+  .hero-orbit-inner,
+  .hero-orbit-outer {
+    display: none !important;
+  }
+
+  /* Fix partner logos on mobile */
+  .partners-section img {
+    height: 1.5rem !important;
+  }
+
+  /* Fix search form on mobile */
+  .search-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Fix sidebar on mobile */
+  .sidebar-mobile {
+    position: fixed !important;
+    left: -100% !important;
+    transition: left 0.3s ease !important;
+    z-index: 40 !important;
+  }
+
+  .sidebar-mobile.open {
+    left: 0 !important;
+  }
+}
+
+/* Tablet specific */
+@media (min-width: 641px) and (max-width: 1023px) {
+  h1 { font-size: 2rem !important; }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+}
+
+/* Fix for very small screens */
+@media (max-width: 380px) {
+  h1 { font-size: 1.5rem !important; }
+
+  .logo-img {
+    height: 3rem !important;
+  }
+
+  .nav-actions {
+    gap: 0.5rem !important;
+  }
+}

@@ -47,17 +47,17 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-orange-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-2xl mb-4">
-            <Shield className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-14 object-contain" />
           </div>
           <h1 className="text-3xl font-bold text-white">Admin Portal</h1>
-          <p className="text-slate-400 mt-1">ZyncJobs Control Center</p>
+          <p className="text-orange-300 mt-1">ZyncJobs Control Center</p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-orange-500/30">
           {error && (
             <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/40 text-red-200 rounded-lg px-4 py-3 mb-6 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -67,19 +67,19 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Admin Email</label>
+              <label className="block text-sm font-medium text-orange-200 mb-1.5">Admin Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="admin@zyncjobs.com"
-                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-orange-200 mb-1.5">Password</label>
               <div className="relative">
                 <input
                   type={showPw ? 'text' : 'password'}
@@ -87,10 +87,10 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
-                  className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 pr-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 pr-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <button type="button" onClick={() => setShowPw(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-300 hover:text-white">
                   {showPw ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
@@ -99,14 +99,14 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition-colors"
+              className="w-full bg-gradient-to-r from-orange-500 to-blue-600 hover:from-orange-600 hover:to-blue-700 disabled:opacity-60 text-white font-semibold py-3 rounded-lg transition-colors"
             >
               {loading ? 'Signing in...' : 'Sign In to Admin Panel'}
             </button>
           </form>
 
-          <p className="text-center text-slate-500 text-sm mt-6">
-            <button onClick={() => onNavigate('home')} className="hover:text-slate-300 transition-colors">
+          <p className="text-center text-orange-400/60 text-sm mt-6">
+            <button onClick={() => onNavigate('home')} className="hover:text-orange-300 transition-colors">
               ← Back to ZyncJobs
             </button>
           </p>
