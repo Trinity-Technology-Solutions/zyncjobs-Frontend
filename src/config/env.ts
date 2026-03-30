@@ -2,7 +2,9 @@
 // Only non-sensitive frontend configuration
 
 export const config = {
-  // API Configuration - Use Trinity Jobs Render endpoint
+  // API Configuration
+  // For local dev: uses /api (proxied by Vite to qaapi backend)
+  // For builds: set VITE_API_URL environment variable if needed
   API_URL: import.meta.env.VITE_API_URL || '/api',
   
   // App Configuration
@@ -44,6 +46,7 @@ export const API_ENDPOINTS = {
   
   // Chat
   CHAT: `${config.API_URL}/chat`,
+  MESSAGES: `${config.API_URL}/messages`,
   
   // AI Features
   GENERATE_JOB_DESCRIPTION: `${config.API_URL}/generate-job-description`,
