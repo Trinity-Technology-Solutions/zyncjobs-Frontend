@@ -29,6 +29,7 @@ const RoleSelectionModal = lazy(() => import('./components/RoleSelectionModal'))
 const RoleSelectionPage = lazy(() => import('./pages/RoleSelectionPage'));
 const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage'));
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
+const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
 const CompanyJobsPage = lazy(() => import('./pages/CompanyJobsPage'));
@@ -139,7 +140,7 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
       <div className="text-center px-6">
-        <div className="text-6xl mb-6">🔧</div>
+        <div className="text-6xl mb-6">??</div>
         <h1 className="text-3xl font-bold text-white mb-3">Under Maintenance</h1>
         <p className="text-gray-400 mb-6">We're making some improvements. Please check back soon.</p>
         <button onClick={onRetry} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2.5 rounded-lg text-sm font-medium transition-colors">
@@ -185,7 +186,7 @@ function App() {
     initializeEmployerIdCounter();
 
     const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('token')) return; // OAuth callback — handled by TokenHandler route
+    if (urlParams.get('token')) return; // OAuth callback ? handled by TokenHandler route
 
     const savedUser = localStorage.getItem('user');
     if (!savedUser) return;
@@ -257,11 +258,12 @@ function App() {
 
   const handleLogout = () => {
     setUser(null);
-    // Only remove auth-related keys — don't nuke unrelated browser storage
+    // Only remove auth-related keys ? don't nuke unrelated browser storage
     ['user', 'token', 'accessToken', 'refreshToken', 'adminToken', 'selectedJob'].forEach(k =>
       localStorage.removeItem(k)
     );
-    navigate('/');
+    sessionStorage.clear();
+    navigate('/', { replace: true });
   };
 
   const closeModals = () => {
@@ -276,7 +278,7 @@ function App() {
     navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
   };
 
-  // Legacy prop-based navigation — keeps existing page components working unchanged
+  // Legacy prop-based navigation ? keeps existing page components working unchanged
   const handleNavigation = (page: string, params?: any) => {
     closeModals();
 
@@ -343,7 +345,7 @@ function App() {
 
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
-          {/* ── Public home ── */}
+          {/* -- Public home -- */}
           <Route path="/" element={
             <div className="min-h-screen bg-white">
               <Header {...nav} />
@@ -359,7 +361,7 @@ function App() {
             </div>
           } />
 
-          {/* ── Auth ── */}
+          {/* -- Auth -- */}
           <Route path="/login" element={<LoginPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
           <Route path="/employer-login" element={
             <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
@@ -367,11 +369,12 @@ function App() {
           } />
           <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
           <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
+          <Route path="/employer-register-complete" element={<EmployerCompleteProfilePage onNavigate={handleNavigation} user={user as any} />} />
           <Route path="/role-selection" element={<RoleSelectionPage {...nav} />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigation} />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage onNavigate={handleNavigation} />} />
 
-          {/* ── Public browsing ── */}
+          {/* -- Public browsing -- */}
           <Route path="/job-listings" element={<JobListingsPage {...nav} searchParams={undefined} />} />
           <Route path="/job-detail" element={
             <WithLayout {...nav}>
@@ -405,7 +408,7 @@ function App() {
           <Route path="/resume-help" element={<ResumeHelpPage {...nav} />} />
           <Route path="/resume-view/:template" element={<ResumeViewerPage />} />
 
-          {/* ── Protected: any logged-in user ── */}
+          {/* -- Protected: any logged-in user -- */}
           <Route path="/dashboard" element={
             <AuthGuard user={user}>
               <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
@@ -564,7 +567,7 @@ function App() {
             </AuthGuard>
           } />
 
-          {/* ── Protected: employer only ── */}
+          {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={
             <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
               <WithLayout {...nav}>
@@ -627,7 +630,7 @@ function App() {
             </AuthGuard>
           } />
 
-          {/* ── Admin ── */}
+          {/* -- Admin -- */}
           <Route path="/admin/login" element={
             user && (user.type === 'admin' || user.type === 'super_admin')
               ? <Navigate to="/admin/dashboard" replace />
@@ -647,7 +650,7 @@ function App() {
             </AuthGuard>
           } />
 
-          {/* ── Misc ── */}
+          {/* -- Misc -- */}
           <Route path="/meeting-test" element={
             <WithLayout {...nav}><MeetingTest /></WithLayout>
           } />
@@ -668,10 +671,10 @@ function App() {
             </AuthGuard>
           } />
 
-          {/* ── Redirects for old paths ── */}
+          {/* -- Redirects for old paths -- */}
           <Route path="/employer-dashboard" element={<Navigate to="/dashboard" replace />} />
 
-          {/* ── 404 ── */}
+          {/* -- 404 -- */}
           <Route path="*" element={
             <WithLayout {...nav}>
               <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -680,7 +683,7 @@ function App() {
                     <div className="text-[120px] font-black text-gray-100 leading-none select-none">404</div>
                     <div className="absolute inset-0 flex items-center justify-center">
                       <div className="bg-white px-4">
-                        <div className="text-5xl mb-2">🔍</div>
+                        <div className="text-5xl mb-2">??</div>
                       </div>
                     </div>
                   </div>
@@ -691,19 +694,19 @@ function App() {
                       onClick={() => navigate('/')}
                       className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium transition-colors"
                     >
-                      🏠 Go Home
+                      ?? Go Home
                     </button>
                     <button
                       onClick={() => navigate('/job-listings')}
                       className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 font-medium transition-colors"
                     >
-                      💼 Browse Jobs
+                      ?? Browse Jobs
                     </button>
                     <button
                       onClick={() => window.history.back()}
                       className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg hover:bg-gray-50 font-medium transition-colors"
                     >
-                      ← Go Back
+                      ? Go Back
                     </button>
                   </div>
                   <p className="text-xs text-gray-400 mt-8">If you think this is a mistake, <button onClick={() => navigate('/contact')} className="text-blue-500 hover:underline">contact support</button></p>

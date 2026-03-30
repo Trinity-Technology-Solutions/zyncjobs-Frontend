@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -414,7 +414,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           dashboardStats = { ...dashboardStats, ...stats };
         }
       } catch {
-        // non-critical � use locally computed stats
+        // non-critical use locally computed stats
       }
       setDashboardStats(dashboardStats);
 
@@ -426,7 +426,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           recentActivity = activity;
         }
       } catch {
-        // non-critical � fallback to local activity below
+        // non-critical fallback to local activity below
       }
       
       // If no activity from API, create from local jobs
@@ -894,7 +894,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <>
               <div className="mb-6">
                 <h1 className="text-3xl font-bold text-gray-900">Employer Dashboard</h1>
-                <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} � here's your hiring overview</p>
+                <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
               </div>
 
               {/* ── Stat Cards ── */}
@@ -1195,7 +1195,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             
                             <div className="flex items-center gap-3 mb-3 flex-wrap">
                               <span className="text-sm text-gray-500">{application.candidateEmail}</span>
-                              <span className="text-gray-300">�</span>
+
                               <span className="text-sm text-gray-500">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             </div>
 
@@ -1383,9 +1383,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             
                             <div className="flex items-center gap-3 mb-3 flex-wrap text-sm text-gray-500">
                               <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                              <span className="text-gray-300">�</span>
+
                               <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{interview.time}</span>
-                              <span className="text-gray-300">�</span>
+
                               <span>{interview.candidateEmail}</span>
                             </div>
 

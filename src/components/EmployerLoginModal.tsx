@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, Building, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, Building, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { authAPI } from '../api/auth';
+
+const isEmployerRole = (role: string) =>
+  ['employer', 'recruiter', 'company'].includes(role?.toLowerCase?.() ?? '');
 
 interface EmployerLoginModalProps {
   isOpen: boolean;
@@ -16,6 +19,7 @@ const EmployerLoginModal: React.FC<EmployerLoginModalProps> = ({ isOpen, onClose
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [wrongRolePopup, setWrongRolePopup] = useState(false);
 
   if (!isOpen) return null;
 
@@ -27,12 +31,11 @@ const EmployerLoginModal: React.FC<EmployerLoginModalProps> = ({ isOpen, onClose
     try {
       const response = await authAPI.login({ email, password });
       
-      console.log('Employer login - API response userType:', response.user.userType);
-      
-      // Verify this is an employer account - REJECT candidates
-      if (response.user.userType !== 'employer') {
-        setError('This is a candidate account. Please use regular "Login" instead.');
+      const apiUserType = (response.user.userType || response.user.role || '') as string;
+      // Reject candidate accounts trying to use employer portal
+      if (!isEmployerRole(apiUserType)) {
         setLoading(false);
+        setWrongRolePopup(true);
         return;
       }
       
@@ -83,6 +86,35 @@ const EmployerLoginModal: React.FC<EmployerLoginModalProps> = ({ isOpen, onClose
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      {/* Wrong role popup */}
+      {wrongRolePopup && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+            <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-7 h-7 text-amber-500" />
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Candidate Account Detected</h3>
+            <p className="text-gray-600 text-sm mb-6">
+              This email is registered as a <strong>Candidate</strong> account and cannot access the Employer dashboard.
+              Please use <strong>Candidate Login</strong> instead.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setWrongRolePopup(false)}
+                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-50 text-sm font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { setWrongRolePopup(false); onClose(); onNavigate('login'); }}
+                className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 text-sm font-medium"
+              >
+                Go to Candidate Login
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative">
         <button
           onClick={onClose}
@@ -179,7 +211,7 @@ const EmployerLoginModal: React.FC<EmployerLoginModalProps> = ({ isOpen, onClose
             <button
               onClick={() => {
                 const baseUrl = import.meta.env.VITE_API_URL || '/api';
-                window.location.href = `${baseUrl}/auth/google?userType=employer`;
+                window.location.href = `${baseUrl}/auth/google?userType=employer&portal=employer`;
               }}
               className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >
