@@ -269,16 +269,45 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         updatedFilters.department.includes(job.jobCategory || job.category || '')
       );
     }
+    if (updatedFilters.experience) {
+      const expRanges: Record<string, { min: number; max: number }> = {
+        'Fresher (0-1 yrs)': { min: 0, max: 1 },
+        '1-3 yrs': { min: 1, max: 3 },
+        '3-5 yrs': { min: 3, max: 5 },
+        '5-8 yrs': { min: 5, max: 8 },
+        '8-10 yrs': { min: 8, max: 10 },
+        '10+ yrs': { min: 10, max: Infinity },
+      };
+      const range = expRanges[updatedFilters.experience];
+      if (range) {
+        filtered = filtered.filter(job => {
+          const exp = job.experienceRange || job.experience || '';
+          const nums = exp.match(/\d+/g)?.map(Number) || [];
+          if (!nums.length) return false;
+          const jobMin = Math.min(...nums);
+          const jobMax = nums.length > 1 ? Math.max(...nums) : nums[0];
+          return jobMin <= range.max && jobMax >= range.min;
+        });
+      }
+    }
     if (updatedFilters.salaryRange) {
-      filtered = filtered.filter(job => {
-        const salaryMin = typeof job.salary === 'object'
-          ? (job.salary?.min || job.salaryMin || 0)
-          : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
-        if (updatedFilters.salaryRange === '0-3 Lakhs') return salaryMin <= 300000;
-        if (updatedFilters.salaryRange === '3-6 Lakhs') return salaryMin >= 300000 && salaryMin <= 600000;
-        if (updatedFilters.salaryRange === '6-10 Lakhs') return salaryMin >= 600000 && salaryMin <= 1000000;
-        return true;
-      });
+      const salaryRanges: Record<string, { min: number; max: number }> = {
+        '0-3 Lakhs':   { min: 0,       max: 300000 },
+        '3-6 Lakhs':   { min: 300000,  max: 600000 },
+        '6-10 Lakhs':  { min: 600000,  max: 1000000 },
+        '10-15 Lakhs': { min: 1000000, max: 1500000 },
+        '15-25 Lakhs': { min: 1500000, max: 2500000 },
+        '25+ Lakhs':   { min: 2500000, max: Infinity },
+      };
+      const range = salaryRanges[updatedFilters.salaryRange];
+      if (range) {
+        filtered = filtered.filter(job => {
+          const salMin = typeof job.salary === 'object' ? (job.salary?.min || 0) : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
+          const salMax = typeof job.salary === 'object' ? (job.salary?.max || salMin) : salMin;
+          if (!salMin && !salMax) return false;
+          return salMin <= range.max && salMax >= range.min;
+        });
+      }
     }
     if (updatedFilters.workMode.length > 0) {
       filtered = filtered.filter(job => {
@@ -293,7 +322,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
     if (updatedFilters.location.length > 0) {
       filtered = filtered.filter(job =>
-        updatedFilters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
+        updatedFilters.location.some(loc => (job.location || '').trim() === loc)
       );
     }
     if (updatedFilters.industry.length > 0) {
@@ -303,7 +332,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       });
     }
     if (updatedFilters.jobType) {
-      filtered = filtered.filter(job => (job.type || '').toLowerCase() === updatedFilters.jobType.toLowerCase());
+      filtered = filtered.filter(job => {
+        const t = job.type || job.jobType;
+        const arr = Array.isArray(t) ? t : t ? [t] : [];
+        return arr.some((v: string) => v.toLowerCase() === updatedFilters.jobType.toLowerCase());
+      });
     }
     if (updatedFilters.freshness) {
       const now = Date.now();
@@ -783,94 +816,120 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               {/* Filters */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">All Filters</h3>
-              
+
               {/* Department / Job Category */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Department</h4>
-                <div className="space-y-2">
-                  {Array.from(new Set(jobs.map(j => j.jobCategory || j.category).filter(Boolean))).map(cat => (
-                    <label key={cat} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={filters.department.includes(cat)}
-                        onChange={() => handleFilterChange('department', cat)}
-                      />
-                      <span className="text-sm">{cat} ({jobs.filter(j => (j.jobCategory || j.category) === cat).length})</span>
-                    </label>
-                  ))}
-                  {jobs.every(j => !j.jobCategory && !j.category) && (
-                    <p className="text-xs text-gray-400 italic">No categories available</p>
-                  )}
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {[
+                    'Information Technology', 'Software Development', 'Data Science & Analytics',
+                    'Sales & Marketing', 'Finance & Accounting', 'Human Resources',
+                    'Operations', 'Customer Service', 'Healthcare', 'Engineering',
+                    'Education', 'Legal', 'Manufacturing', 'Retail', 'Other'
+                  ].map(cat => {
+                    const count = jobs.filter(j => (j.jobCategory || j.category) === cat).length;
+                    return (
+                      <label key={cat} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="mr-2"
+                          checked={filters.department.includes(cat)}
+                          onChange={() => handleFilterChange('department', cat)}
+                        />
+                        <span className="text-sm">{cat} ({count})</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
               
               {/* Experience */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Experience</h4>
-                <select 
-                  className="w-full border border-gray-300 rounded px-3 py-2"
-                  value={filters.experience}
-                  onChange={(e) => handleFilterChange('experience', e.target.value)}
-                >
-                  <option value="">Any</option>
-                  <option value="0-1 years">0-1 years</option>
-                  <option value="1-3 years">1-3 years</option>
-                  <option value="3-5 years">3-5 years</option>
-                  <option value="5+ years">5+ years</option>
-                </select>
+                <div className="space-y-2">
+                  {[
+                    { label: 'Fresher (0-1 yrs)', min: 0, max: 1 },
+                    { label: '1-3 yrs', min: 1, max: 3 },
+                    { label: '3-5 yrs', min: 3, max: 5 },
+                    { label: '5-8 yrs', min: 5, max: 8 },
+                    { label: '8-10 yrs', min: 8, max: 10 },
+                    { label: '10+ yrs', min: 10, max: Infinity },
+                  ].map(({ label, min, max }) => {
+                    const count = jobs.filter(j => {
+                      const exp = j.experienceRange || j.experience || '';
+                      const nums = exp.match(/\d+/g)?.map(Number) || [];
+                      if (!nums.length) return false;
+                      const jobMin = Math.min(...nums);
+                      const jobMax = nums.length > 1 ? Math.max(...nums) : nums[0];
+                      return jobMin <= max && jobMax >= min;
+                    }).length;
+                    return (
+                      <label key={label} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="mr-2"
+                          checked={filters.experience === label}
+                          onChange={() => handleFilterChange('experience', filters.experience === label ? '' : label)}
+                        />
+                        <span className="text-sm">{label} ({count})</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
-              
+
               {/* Salary */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Salary</h4>
                 <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.salaryRange === '0-3 Lakhs'}
-                      onChange={() => handleFilterChange('salaryRange', filters.salaryRange === '0-3 Lakhs' ? '' : '0-3 Lakhs')}
-                    />
-                    <span className="text-sm">0-3 Lakhs (3019)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.salaryRange === '3-6 Lakhs'}
-                      onChange={() => handleFilterChange('salaryRange', filters.salaryRange === '3-6 Lakhs' ? '' : '3-6 Lakhs')}
-                    />
-                    <span className="text-sm">3-6 Lakhs (18634)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.salaryRange === '6-10 Lakhs'}
-                      onChange={() => handleFilterChange('salaryRange', filters.salaryRange === '6-10 Lakhs' ? '' : '6-10 Lakhs')}
-                    />
-                    <span className="text-sm">6-10 Lakhs (25907)</span>
-                  </label>
+                  {[
+                    { label: '0-3 Lakhs', min: 0, max: 300000 },
+                    { label: '3-6 Lakhs', min: 300000, max: 600000 },
+                    { label: '6-10 Lakhs', min: 600000, max: 1000000 },
+                    { label: '10-15 Lakhs', min: 1000000, max: 1500000 },
+                    { label: '15-25 Lakhs', min: 1500000, max: 2500000 },
+                    { label: '25+ Lakhs', min: 2500000, max: Infinity },
+                  ].map(({ label, min, max }) => {
+                    const count = jobs.filter(j => {
+                      const salMin = typeof j.salary === 'object' ? (j.salary?.min || 0) : parseInt((j.salary || '').toString().replace(/[^0-9]/g, '') || '0');
+                      const salMax = typeof j.salary === 'object' ? (j.salary?.max || salMin) : salMin;
+                      if (!salMin && !salMax) return false;
+                      return salMin <= max && salMax >= min;
+                    }).length;
+                    if (count === 0) return null;
+                    return (
+                      <label key={label} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="mr-2"
+                          checked={filters.salaryRange === label}
+                          onChange={() => handleFilterChange('salaryRange', filters.salaryRange === label ? '' : label)}
+                        />
+                        <span className="text-sm">{label} ({count})</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
-              
+
               {/* Location */}
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Location</h4>
-                <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-2" />
-                    <span className="text-sm">Bengaluru (15212)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-2" />
-                    <span className="text-sm">Hyderabad (8126)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input type="checkbox" className="mr-2" />
-                    <span className="text-sm">Chennai (6997)</span>
-                  </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {Array.from(new Set(
+                    jobs.map(j => (j.location || '').trim()).filter(Boolean)
+                  )).sort().map(loc => (
+                    <label key={loc} className="flex items-center">
+                      <input
+                        type="checkbox"
+                        className="mr-2"
+                        checked={filters.location.includes(loc)}
+                        onChange={() => handleFilterChange('location', loc)}
+                      />
+                      <span className="text-sm">{loc} ({jobs.filter(j => (j.location || '').trim() === loc).length})</span>
+                    </label>
+                  ))}
+                  {jobs.length === 0 && <p className="text-xs text-gray-400 italic">No locations available</p>}
                 </div>
               </div>
               
@@ -878,38 +937,63 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Work mode</h4>
                 <div className="space-y-2">
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.workMode.includes('Work from office')}
-                      onChange={() => handleFilterChange('workMode', 'Work from office')}
-                    />
-                    <span className="text-sm">Work from office (37469)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.workMode.includes('Hybrid')}
-                      onChange={() => handleFilterChange('workMode', 'Hybrid')}
-                    />
-                    <span className="text-sm">Hybrid (3327)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input 
-                      type="checkbox" 
-                      className="mr-2" 
-                      checked={filters.workMode.includes('Remote')}
-                      onChange={() => handleFilterChange('workMode', 'Remote')}
-                    />
-                    <span className="text-sm">Remote (1052)</span>
-                  </label>
+                  {['Work from office', 'Hybrid', 'Remote'].map(mode => {
+                    const count = jobs.filter(job => {
+                      const text = `${job.type || ''} ${job.location || ''} ${job.description || ''} ${job.workMode || ''} ${job.locationType || ''}`.toLowerCase();
+                      if (mode === 'Remote') return text.includes('remote');
+                      if (mode === 'Hybrid') return text.includes('hybrid');
+                      return !text.includes('remote') && !text.includes('hybrid');
+                    }).length;
+                    return (
+                      <label key={mode} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          className="mr-2"
+                          checked={filters.workMode.includes(mode)}
+                          onChange={() => handleFilterChange('workMode', mode)}
+                        />
+                        <span className="text-sm">{mode} ({count})</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
-              
-              {/* Industry Filter */}
+                            {/* Job Type */}
               <div className="mb-6">
+                <h4 className="font-medium text-gray-900 mb-3">Job Type</h4>
+                <div className="space-y-2">
+                  {(() => {
+                    const allTypes = ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship'];
+                    const dynamicTypes = Array.from(new Set(
+                      jobs.flatMap(j => {
+                        const t = j.type || j.jobType;
+                        return Array.isArray(t) ? t : t ? [t] : [];
+                      }).map((t: string) => t.trim()).filter(Boolean)
+                    ));
+                    const types = Array.from(new Set([...allTypes, ...dynamicTypes]));
+                    return types.map(type => {
+                      const count = jobs.filter(j => {
+                        const t = j.type || j.jobType;
+                        const arr = Array.isArray(t) ? t : t ? [t] : [];
+                        return arr.some((v: string) => v.toLowerCase() === type.toLowerCase());
+                      }).length;
+                      return (
+                        <label key={type} className="flex items-center">
+                          <input
+                            type="checkbox"
+                            className="mr-2"
+                            checked={filters.jobType === type}
+                            onChange={() => handleFilterChange('jobType', filters.jobType === type ? '' : type)}
+                          />
+                          <span className="text-sm">{type} ({count})</span>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+              {/* Industry Filter */}
+              {/* <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Industry</h4>
                 <div className="space-y-2">
                   {['Technology', 'Healthcare', 'Finance', 'Education', 'Manufacturing'].map((industry) => (
@@ -924,10 +1008,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     </label>
                   ))}
                 </div>
-              </div>
+              </div> */}
               
               {/* Company Size Filter */}
-              <div className="mb-6">
+              {/* <div className="mb-6">
                 <h4 className="font-medium text-gray-900 mb-3">Company Size</h4>
                 <div className="space-y-2">
                   {['1-10', '11-50', '51-200', '201-500', '500+'].map((size) => (
@@ -942,7 +1026,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     </label>
                   ))}
                 </div>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
@@ -1068,10 +1152,40 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                             <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
                           </div>
                         )}
-                        {job.type && (
+                        {(() => { const t = job.type || job.jobType; const display = Array.isArray(t) ? t.join(', ') : t; return display ? (
                           <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
                             <Briefcase className="w-4 h-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-700">{job.type}</span>
+                            <span className="text-sm font-medium text-blue-700">{display}</span>
+                          </div>
+                        ) : null; })()}
+                        {job.locationType && (
+                          <div className="flex items-center gap-1 bg-cyan-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-medium text-cyan-700">{job.locationType}</span>
+                          </div>
+                        )}
+                        {(job.jobCategory || job.category) && (
+                          <div className="flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-medium text-indigo-700">{job.jobCategory || job.category}</span>
+                          </div>
+                        )}
+                        {(job.experienceRange || job.experience) && (
+                          <div className="flex items-center gap-1 bg-orange-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-medium text-orange-700">{job.experienceRange || job.experience}</span>
+                          </div>
+                        )}
+                        {job.country && (
+                          <div className="flex items-center gap-1 bg-gray-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-medium text-gray-600">{job.country}</span>
+                          </div>
+                        )}
+                        {(job.language?.length > 0 || job.languages?.length > 0) && (
+                          <div className="flex items-center gap-1 bg-teal-50 px-3 py-1.5 rounded-lg">
+                            <span className="text-sm font-medium text-teal-700">
+                              {(() => {
+                                const lang = job.language || job.languages;
+                                return Array.isArray(lang) ? lang.join(', ') : lang;
+                              })()}
+                            </span>
                           </div>
                         )}
                         <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-lg">
