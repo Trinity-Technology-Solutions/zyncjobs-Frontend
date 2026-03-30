@@ -154,6 +154,15 @@ h6 { font-size: 1rem; }
 /* Import mobile styles */
 @import './styles/mobile.css';
 
+/* Hide scrollbar for employer dashboard sidebar */
+.employer-sidebar::-webkit-scrollbar {
+  display: none;
+}
+.employer-sidebar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Admin sidebar custom scrollbar */
 .admin-sidebar-scroll::-webkit-scrollbar {
   width: 4px;
