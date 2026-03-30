@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, MapPin, Mail, Phone, Download, ExternalLink, Github, Globe, MessageCircle, Briefcase, GraduationCap, Star, User } from 'lucide-react';
 import DirectMessage from '../components/DirectMessage';
@@ -56,31 +57,35 @@ const safeStr = (v: any): string => {
 };
 
 const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onNavigate, onBack }) => {
+  const [searchParams] = useSearchParams();
   const [candidate, setCandidate] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showMessage, setShowMessage] = useState(false);
+  const [emailError, setEmailError] = useState('');
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+  // Get candidateId from URL params first, then prop, then sessionStorage
+  const effectiveCandidateId = searchParams.get('id') || candidateId || sessionStorage.getItem('viewCandidateId') || '';
 
   useEffect(() => {
     fetchCandidateProfile();
-    return () => { sessionStorage.removeItem('viewCandidateId'); };
-  }, [candidateId]);
+  }, [effectiveCandidateId]);
 
   const fetchCandidateProfile = async () => {
-    if (!candidateId || candidateId === 'undefined' || candidateId === 'null' || candidateId === '') {
+    if (!effectiveCandidateId || effectiveCandidateId === 'undefined' || effectiveCandidateId === 'null' || effectiveCandidateId === '') {
       setLoading(false);
       return;
     }
     try {
-      let response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(candidateId)}`);
-      if (!response.ok && candidateId?.includes('@')) {
-        response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile?email=${encodeURIComponent(candidateId)}`);
+      let response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(effectiveCandidateId)}`);
+      if (!response.ok && effectiveCandidateId?.includes('@')) {
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile?email=${encodeURIComponent(effectiveCandidateId)}`);
       }
-      if (!response.ok && !candidateId.includes('@')) {
-        response = await fetch(`${API_ENDPOINTS.BASE_URL}/users/${encodeURIComponent(candidateId)}`);
+      if (!response.ok && !effectiveCandidateId.includes('@')) {
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/users/${encodeURIComponent(effectiveCandidateId)}`);
       }
-      if (!response.ok && candidateId?.includes('@')) {
-        response = await fetch(`${API_ENDPOINTS.BASE_URL}/users?email=${encodeURIComponent(candidateId)}`);
+      if (!response.ok && effectiveCandidateId?.includes('@')) {
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/users?email=${encodeURIComponent(effectiveCandidateId)}`);
       }
 
       if (response.ok) {
@@ -93,6 +98,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           location: typeof data.location === 'string' ? data.location : '',
           skills: Array.isArray(data.skills) ? data.skills.map((s: any) => typeof s === 'string' ? s : s?.name || String(s)) : [],
           profilePhoto: data.profilePhoto || data.avatar,
+          resume: data.resume || data.resumeFile || data.resumePath || null,
           profileSummary: safeStr(data.profileSummary || data.bio || data.summary),
           education: safeStr(data.education),
           employment: safeStr(data.employment || data.experience),
@@ -105,8 +111,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       } else {
         const appData = (() => { try { return JSON.parse(sessionStorage.getItem('viewCandidateData') || '{}'); } catch { return {}; } })();
         setCandidate({
-          name: appData.name || (candidateId.includes('@') ? candidateId.split('@')[0] : candidateId),
-          email: candidateId.includes('@') ? candidateId : appData.email,
+          name: appData.name || (effectiveCandidateId.includes('@') ? effectiveCandidateId.split('@')[0] : effectiveCandidateId),
+          email: effectiveCandidateId.includes('@') ? effectiveCandidateId : appData.email,
           phone: appData.phone,
           skills: appData.skills || [],
         });
@@ -114,8 +120,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     } catch (error) {
       const appData = (() => { try { return JSON.parse(sessionStorage.getItem('viewCandidateData') || '{}'); } catch { return {}; } })();
       setCandidate({
-        name: appData.name || (candidateId.includes('@') ? candidateId.split('@')[0] : 'Candidate'),
-        email: candidateId.includes('@') ? candidateId : appData.email,
+        name: appData.name || (effectiveCandidateId.includes('@') ? effectiveCandidateId.split('@')[0] : 'Candidate'),
+        email: effectiveCandidateId.includes('@') ? effectiveCandidateId : appData.email,
         phone: appData.phone,
         skills: appData.skills || [],
       });
@@ -140,7 +146,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600 mb-2">Candidate profile not found</p>
-          <p className="text-xs text-gray-400 mb-4">ID: {candidateId}</p>
+          <p className="text-xs text-gray-400 mb-4">ID: {effectiveCandidateId}</p>
           <button onClick={onBack} className="text-blue-600 hover:text-blue-800">Go Back</button>
         </div>
       </div>
@@ -148,6 +154,24 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
   }
 
   const initials = candidate.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'C';
+
+  const handleSendEmail = async () => {
+    if (!candidate.email) {
+      setEmailError('No email address available');
+      return;
+    }
+    
+    try {
+      // Open mailto link which works directly
+      const subject = `Message from ${currentUser.name || 'an Employer'} at ZyncJobs`;
+      const body = `Hi ${candidate.name},\n\nI'm interested in discussing opportunities with you.\n\nBest regards,\n${currentUser.name || 'Employer'}`;
+      const mailtoLink = `mailto:${candidate.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.location.href = mailtoLink;
+    } catch (error) {
+      console.error('Error opening email:', error);
+      setEmailError('Error opening email');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -197,20 +221,27 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
               {/* Actions */}
               <div className="flex flex-wrap justify-center sm:justify-start gap-2">
                 <button onClick={() => setShowMessage(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!candidate.email}>
                   <MessageCircle className="w-4 h-4" />Send Message
                 </button>
                 {candidate.resume && (
-                  <button onClick={() => window.open(candidate.resume.url || `${API_ENDPOINTS.BASE_URL}/uploads/${candidate.resume.filename}`, '_blank')}
+                  <button onClick={() => {
+                    const resumeUrl = typeof candidate.resume === 'string' 
+                      ? candidate.resume 
+                      : (candidate.resume?.url || `${API_ENDPOINTS.BASE_URL}/uploads/${candidate.resume?.filename}`);
+                    if (resumeUrl) window.open(resumeUrl, '_blank');
+                  }}
                     className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                     <Download className="w-4 h-4" />Resume
                   </button>
                 )}
-                <button onClick={() => window.open(`mailto:${candidate.email}`, '_blank')}
+                <button onClick={handleSendEmail}
                   className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                   <Mail className="w-4 h-4" />Email
                 </button>
               </div>
+              {emailError && <p className="text-red-500 text-xs mt-2">{emailError}</p>}
             </div>
           </div>
         </div>
@@ -326,7 +357,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
       {showMessage && (
         <DirectMessage
-          candidateId={candidateId}
+          candidateId={effectiveCandidateId}
           candidateName={candidate.name}
           candidateEmail={candidate.email}
           employerId={currentUser.id || currentUser._id || 'employer'}

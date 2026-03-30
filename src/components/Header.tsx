@@ -31,6 +31,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   useEffect(() => {
     fetchNavigation();
+    fetchSiteSettings();
   }, []);
 
   const handleLoginClick = () => {
