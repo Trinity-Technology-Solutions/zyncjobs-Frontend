@@ -5,9 +5,9 @@ import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSa
 import Notification from '../components/Notification';
 
 const fmtNum = (n: number): string => {
-  if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
-  if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
-  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+  if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 0 : 1)}Cr`;
+  if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 0 : 1)}L`;
+  if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 0 : 1)}K`;
   return n.toString();
 };
 
@@ -15,7 +15,7 @@ const formatSalaryDisplay = (job: any): string => {
   // salary object from DB: { min, max, currency, period }
   if (job.salary && typeof job.salary === 'object' && (job.salary.min || job.salary.max)) {
     const s = formatSalary(job.salary);
-    if (s) return s + (job.salary.period ? ` ${job.salary.period}` : '');
+    if (s) return s + (job.salary.period ` ${job.salary.period}` : '');
   }
   // flat salaryMin/salaryMax fields
   const min = Number(job.salaryMin) || 0;
@@ -99,7 +99,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
         const params = new URLSearchParams(window.location.search);
         const urlJobId = params.get('id');
-        const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
+        const resolvedJobId = urlJobId || (jobId String(jobId) : '');
 
         console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId);
 
@@ -212,7 +212,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(userEmail)}&jobId=${jobId}`);
       if (!response.ok) return;
       const data = await response.json();
-      const list: any[] = Array.isArray(data) ? data : (data.applications || []);
+      const list: any[] = Array.isArray(data) data : (data.applications || []);
       const userApplication = list.find((app: any) => {
         const jobMatch = app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId;
         const emailMatch = app.candidateEmail?.toLowerCase() === userEmail.toLowerCase();
@@ -231,7 +231,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       if (!response.ok) return;
       const data = await response.json();
       console.log('SimilarJobs raw data:', typeof data, Array.isArray(data), JSON.stringify(data).substring(0, 200));
-      const allJobs: any[] = Array.isArray(data) ? data : (data.jobs || data.data || Object.values(data).find((v: any) => Array.isArray(v)) as any[] || []);
+      const allJobs: any[] = Array.isArray(data) data : (data.jobs || data.data || Object.values(data).find((v: any) => Array.isArray(v)) as any[] || []);
       console.log('SimilarJobs allJobs count:', allJobs.length);
       if (!allJobs.length) return;
 
@@ -257,7 +257,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         .sort((a: any, b: any) => b._score - a._score)
         .slice(0, 4);
 
-      const finalJobs = scored.length > 0 ? scored : others.slice(0, 4);
+      const finalJobs = scored.length > 0 scored : others.slice(0, 4);
       console.log('SimilarJobs final count:', finalJobs.length);
       setSimilarJobs(finalJobs);
     } catch (error) {
@@ -361,7 +361,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 }
               }
             }}
-            text={`Back to ${user?.type === 'employer' || user?.userType === 'employer' ? 'My Jobs' : 'Jobs'}`}
+            text={`Back to ${user?.type === 'employer' || user?.userType === 'employer' 'My Jobs' : 'Jobs'}`}
             className="mb-4"
           />
 
@@ -436,8 +436,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               {/* Apply buttons - Hide for employers */}
               {user?.type !== 'employer' && user?.userType !== 'employer' && (
                 <div className="flex items-center space-x-3">
-                  {hasApplied ? (
-                    applicationStatus === 'withdrawn' ? (
+                  {hasApplied (
+                    applicationStatus === 'withdrawn' (
                       <button 
                         onClick={handleReapply}
                         className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2"
@@ -494,7 +494,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         }}
                         className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                       >
-                        {user && (user.name || user.fullName) ? 'Apply with Cover Letter' : 'Login to Apply'}
+                        {user && (user.name || user.fullName) 'Apply with Cover Letter' : 'Login to Apply'}
                       </button>
                     </>
                   )}
@@ -505,53 +505,28 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         </div>
       </div>
 
-      {/* Job Header Image - Like Dice - Following same grid as content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-          {/* Left side - Banner Image */}
-          <div className="lg:col-span-2 h-64">
-            <div className="relative h-full bg-gray-900 overflow-hidden rounded-lg">
-              <img
-                src={job.jobHeaderImage || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop'}
-                alt={`${job.jobTitle || job.title} at ${job.company}`}
-                className="w-full h-full object-cover opacity-80"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-purple-900/50 rounded-lg"></div>
-            </div>
-          </div>
-          
-          {/* Right side - Company Logo Card */}
-          <div className="lg:col-span-1 h-64">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 text-center h-full flex flex-col justify-center">
-              <img
-                src={getCompanyLogo(job)}
-                alt={job.company}
-                className="w-36 h-36 object-contain mx-auto mb-4 rounded"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  if (!job.company?.toLowerCase().includes('trinity')) {
-                    img.src = '/images/zync-logo.svg';
-                  }
-                }}
-              />
-              <p className="text-xl font-bold text-gray-900">{job.company}</p>
-              <p className="text-sm text-gray-500 mt-1">Company</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
+      {/* Main grid: banner+description on left, logo+sidebar on right */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Job Description */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+
+          {/* Left col: Banner image + Job Description as ONE card */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              {/* Banner */}
+              <div className="relative h-64 bg-gray-900">
+                <img
+                  src={job.jobHeaderImage || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop'}
+                  alt={`${job.jobTitle || job.title} at ${job.company}`}
+                  className="w-full h-full object-cover opacity-80"
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    img.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+                  }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-purple-900/50"></div>
+              </div>
+              {/* Job Description directly below banner inside same card */}
+              <div className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
               <div className="text-gray-700 leading-relaxed mb-4">
                 {formatJobDescription(
@@ -630,7 +605,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   {/* Employer ID and Position ID - Enhanced Display */}
                   {(() => {
                     const displayEmployerId = getDisplayEmployerId(job, jobPoster);
-                    return displayEmployerId ? (
+                    return displayEmployerId (
                       <div className="flex items-center space-x-1">
                         <span className="font-medium text-gray-700">Employer ID:</span>
                         <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
@@ -647,12 +622,30 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   )}
                 </div>
               </div>
+              </div>
             </div>
-
           </div>
 
-          {/* Sidebar */}
+          {/* Right col: Company Logo Card + Sidebar */}
           <div className="space-y-6">
+            {/* Company Logo Card */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'200px'}}>
+              <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'4px'}}>
+                <img
+                  src={getCompanyLogo(job)}
+                  alt={job.company}
+                  style={{width:'160px', height:'80px', objectFit:'contain', display:'block'}}
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    if (!job.company?.toLowerCase().includes('trinity')) {
+                      img.src = '/images/zync-logo.svg';
+                    }
+                  }}
+                />
+                <p style={{fontSize:'18px', fontWeight:'700', color:'#111827', textAlign:'center', margin:'0', lineHeight:'1.3'}}>{job.company}</p>
+                <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0', lineHeight:'1.3'}}>Company</p>
+              </div>
+            </div>
             {/* Contact Job Poster */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact the Job Poster</h3>
@@ -704,7 +697,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Required Skills</h3>
               <div className="flex flex-wrap gap-2">
-                {Array.isArray(job.skills) ? job.skills.map((skill: string, index: number) => (
+                {Array.isArray(job.skills) job.skills.map((skill: string, index: number) => (
                   <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                     {skill}
                   </span>
@@ -720,8 +713,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
               <ul className="space-y-2">
-                {job.benefits && job.benefits.length > 0 ? (
-                  Array.isArray(job.benefits) ? job.benefits.map((benefit: string, index: number) => (
+                {job.benefits && job.benefits.length > 0 (
+                  Array.isArray(job.benefits) job.benefits.map((benefit: string, index: number) => (
                     <li key={index} className="flex items-start">
                       <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
                       <span className="text-gray-600 text-sm">{benefit}</span>
@@ -745,7 +738,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Similar Jobs</h3>
               <div className="space-y-3">
-                {similarJobs.length > 0 ? (
+                {similarJobs.length > 0 (
                   similarJobs.map((sj) => (
                     <div
                       key={sj._id || sj.id}
@@ -798,8 +791,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             {user?.type !== 'employer' && user?.userType !== 'employer' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex flex-col space-y-3">
-                  {hasApplied ? (
-                    applicationStatus === 'withdrawn' ? (
+                  {hasApplied (
+                    applicationStatus === 'withdrawn' (
                       <button 
                         onClick={handleReapply}
                         className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
@@ -859,7 +852,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         }}
                         className="w-full bg-gray-600 text-white py-3 rounded-lg font-semibold hover:bg-gray-700 transition-colors"
                       >
-                        {user && user.name ? 'Apply with Cover Letter' : 'Login to Apply'}
+                        {user && user.name 'Apply with Cover Letter' : 'Login to Apply'}
                       </button>
                     </>
                   )}

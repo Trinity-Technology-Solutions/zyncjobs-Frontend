@@ -12,6 +12,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [emailReadOnly, setEmailReadOnly] = useState(true);
+  const [passwordReadOnly, setPasswordReadOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -107,7 +109,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" autoComplete="off">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
@@ -116,7 +118,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                 placeholder="Enter your email"
-                autoComplete="email"
+                autoComplete="off"
+                readOnly={emailReadOnly}
+                onFocus={() => setEmailReadOnly(false)}
                 required
               />
             </div>
@@ -130,7 +134,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                   placeholder="Enter Password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
+                  readOnly={passwordReadOnly}
+                  onFocus={() => setPasswordReadOnly(false)}
                   required
                 />
               </div>
@@ -182,12 +188,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               </button>
             </p>
             
-            {/* Quick registration hint */}
-            <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-              <p className="text-sm text-blue-700">
-                💡 <strong>New user?</strong> Click "Sign up" to create your account with email: {email || 'your-email@example.com'}
-              </p>
-            </div>
           </div>
         </div>
       </div>

@@ -18,8 +18,26 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
   const [notifications, setNotifications] = useState<any[]>([]);
+  const [adminUnlocked, setAdminUnlocked] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Secret typed sequence: type 'zyncadmin' anywhere to reveal admin login
+  useEffect(() => {
+    const secret = 'zyncadmin';
+    let buffer = '';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      buffer += e.key.toLowerCase();
+      if (buffer.length > secret.length) buffer = buffer.slice(-secret.length);
+      if (buffer === secret) {
+        setAdminUnlocked(true);
+        setIsDropdownOpen(true);
+        buffer = '';
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
   const { items: navItems, fetchNavigation } = useNavigation();
@@ -675,9 +693,15 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                       For Employers / Post Jobs
                     </button>
                     <hr className="my-1" />
-                    <button onClick={() => { setIsDropdownOpen(false); onNavigate && onNavigate('admin/login'); }} className="block w-full text-left px-4 py-2 text-xs text-gray-400 hover:text-purple-600 hover:bg-purple-50 transition-colors">
-                      Admin? Login here
-                    </button>
+                    {adminUnlocked && (
+                      <button
+                        onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate && onNavigate('admin/login'); }}
+                        className="block w-full text-left px-4 py-2 text-sm font-semibold text-white bg-purple-600 hover:bg-purple-700 transition-colors rounded-b-lg flex items-center gap-2"
+                      >
+                        <Settings className="w-4 h-4" />
+                        Admin Portal
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

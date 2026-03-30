@@ -11,6 +11,8 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [emailReadOnly, setEmailReadOnly] = useState(true);
+  const [passwordReadOnly, setPasswordReadOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -65,7 +67,7 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
             <div>
               <label className="block text-sm font-medium text-orange-200 mb-1.5">Admin Email</label>
               <input
@@ -73,7 +75,10 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
-                placeholder="admin@zyncjobs.com"
+                autoComplete="off"
+                readOnly={emailReadOnly}
+                onFocus={() => setEmailReadOnly(false)}
+                placeholder="Enter your email"
                 className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
@@ -86,7 +91,10 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  placeholder="••••••••"
+                  autoComplete="new-password"
+                  readOnly={passwordReadOnly}
+                  onFocus={() => setPasswordReadOnly(false)}
+                  placeholder="Enter your password"
                   className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 pr-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <button type="button" onClick={() => setShowPw(p => !p)}
