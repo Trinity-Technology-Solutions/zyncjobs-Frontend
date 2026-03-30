@@ -127,6 +127,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
       
       const fetchedApplications = await response.json();
       console.log('✅ Applications fetched:', fetchedApplications.length);
+      if (fetchedApplications.length > 0) console.log('📋 Sample application fields:', Object.keys(fetchedApplications[0]), fetchedApplications[0]);
       
       // Transform applications to include job details
       const applicationsWithJobDetails = await Promise.all(
@@ -484,7 +485,19 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                       <div className="flex flex-col gap-2 shrink-0 min-w-[160px]">
                         <div className="flex flex-wrap gap-1">
                           <button
-                            onClick={() => { sessionStorage.setItem('viewCandidateId', application.candidateEmail || ''); onNavigate('candidate-profile-view'); }}
+                            onClick={() => {
+                            const app = application;
+                            const cid = app.candidateEmail || app.candidateId || '';
+                            if (!cid) { alert('No candidate email found for this application.'); return; }
+                            sessionStorage.setItem('viewCandidateId', cid);
+                            sessionStorage.setItem('viewCandidateData', JSON.stringify({
+                              name: app.candidateName,
+                              email: app.candidateEmail,
+                              phone: app.candidatePhone,
+                              skills: app.skills || [],
+                            }));
+                            onNavigate('candidate-profile-view');
+                          }}
                             className="text-indigo-600 border border-indigo-200 px-2 py-1 rounded text-xs hover:bg-indigo-50"
                           >
                             👤 Profile

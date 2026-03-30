@@ -144,7 +144,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
             <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
               <Building2 className="w-8 h-8 text-blue-600" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Join ZyncJobs</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Join the ZyncJobs network</h2>
             <p className="text-gray-600">Create your candidate account</p>
           </div>
 

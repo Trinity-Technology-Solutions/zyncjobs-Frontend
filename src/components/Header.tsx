@@ -8,7 +8,7 @@ import { strapiAPI } from '../api/strapi';
 
 interface HeaderProps {
   onNavigate?: (page: string) => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin'} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
   onLogout?: () => void;
 }
 
@@ -184,7 +184,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`)
               ]);
               
-              const realNotifications = [];
+              const realNotifications: Array<{id: string; type: string; title: string; message: string; time: string}> = [];
               
               // Process applications
               if (appsRes.ok) {
@@ -568,7 +568,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             <button 
                               onClick={() => {
                                 setIsDropdownOpen(false);
-                                onNavigate && onNavigate('job-listings', { tab: 'recommended' });
+                                onNavigate && onNavigate('job-listings');
                               }} 
                               className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                             >
@@ -696,62 +696,43 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-600">
-            <div className="space-y-4">
-              <button onClick={handleFindJobsClick} className="block text-left text-white hover:text-gray-300 font-medium">
+          <div className="md:hidden py-4 border-t border-gray-200 bg-white">
+            <div className="space-y-1">
+              <button onClick={() => { handleFindJobsClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">
                 {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
               </button>
-              <button onClick={handleCompaniesClick} className="block text-left text-white hover:text-gray-300 font-medium">
+              <button onClick={() => { handleCompaniesClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">
                 Companies
               </button>
-              <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-white hover:text-gray-300 font-medium">
-                Skill Assessments
-              </button>
               {user?.type !== 'employer' && (
-                <div className="space-y-2">
-                  <p className="text-white font-medium">Career Resources</p>
-                  <div className="pl-4 space-y-2">
-                    <button onClick={() => onNavigate && onNavigate('resume-studio')} className="block text-left text-gray-300 hover:text-white text-sm">
-                      🎨 Resume Studio
-                    </button>
-                    <button onClick={() => onNavigate && onNavigate('interview-tips')} className="block text-left text-gray-300 hover:text-white text-sm">
-                      💬 Interview Preparation
-                    </button>
-                    <button onClick={() => onNavigate && onNavigate('career-coach')} className="block text-left text-gray-300 hover:text-white text-sm">
-                      🧭 Career Guidance
-                    </button>
-                    <button onClick={() => onNavigate && onNavigate('skill-assessment')} className="block text-left text-gray-300 hover:text-white text-sm">
-                      ✅ Skill Check
-                    </button>
-                  </div>
-                </div>
+                <>
+                  <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Career Resources</p>
+                  <button onClick={() => { onNavigate && onNavigate('resume-studio'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">🎨 Resume Studio</button>
+                  <button onClick={() => { onNavigate && onNavigate('interview-tips'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">💬 Interview Prep</button>
+                  <button onClick={() => { onNavigate && onNavigate('career-coach'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">🧭 Career Guidance</button>
+                  <button onClick={() => { onNavigate && onNavigate('skill-assessment'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">✅ Skill Check</button>
+                </>
               )}
               {user?.type === 'employer' && (
-                <button onClick={() => onNavigate && onNavigate('my-jobs')} className="block text-left text-white hover:text-gray-300 font-medium">
-                  Posted Jobs
-                </button>
+                <button onClick={() => { onNavigate && onNavigate('my-jobs'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">Posted Jobs</button>
               )}
-              <button 
-                onClick={() => {
-                  if (user) {
-                    if (user.type === 'employer') {
-                      onNavigate && onNavigate('job-posting-selection');
-                    } else {
-                      onNavigate && onNavigate('my-jobs');
-                    }
-                  } else {
-                    onNavigate && onNavigate('role-selection');
-                  }
-                }}
-                className="block text-left text-white hover:text-gray-300 font-medium"
-              >
+              <button onClick={() => { if (user) { onNavigate && onNavigate(user.type === 'employer' ? 'job-posting-selection' : 'my-jobs'); } else { onNavigate && onNavigate('role-selection'); } setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">
                 {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
               </button>
-              <div className="pt-4 border-t border-gray-600 space-y-3">
-                <button className="flex items-center space-x-2 text-white hover:text-gray-300 font-medium">
-                  <User className="w-4 h-4" />
-                  <span>Login/Register</span>
-                </button>
+              <div className="pt-3 border-t border-gray-200 mt-2">
+                {user ? (
+                  <>
+                    <button onClick={() => { onNavigate && onNavigate('dashboard'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">👤 My Profile</button>
+                    <button onClick={() => { onNavigate && onNavigate('settings'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">⚙️ Settings</button>
+                    <button onClick={() => { onLogout && onLogout(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium">🚪 Logout</button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={() => { handleLoginClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-blue-600 hover:bg-blue-50 rounded-lg font-medium">Login</button>
+                    <button onClick={() => { handleRegisterClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">Register</button>
+                    <button onClick={() => { handleEmployerLoginClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">For Employers</button>
+                  </>
+                )}
               </div>
             </div>
           </div>

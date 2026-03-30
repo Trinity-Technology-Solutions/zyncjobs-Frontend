@@ -587,7 +587,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               <div className="lg:col-span-1">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-                  <div className="space-y-3">
+                  <div className="space-y-1">
                     <button 
                       onClick={() => onNavigate('job-listings')}
                       className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
@@ -640,6 +640,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <span className="text-gray-700">Settings</span>
                     </button>
                   </div>
+                </div>
+
+                {/* Stats between Quick Actions and Followed Companies */}
+                <div className="grid grid-cols-3 gap-2 mb-6">
+                  {[
+                    { label: 'Applications', value: applications.length, bg: 'bg-blue-600', onClick: () => onNavigate('my-applications') },
+                    { label: 'Shortlisted', value: applications.filter((a: any) => a.status === 'shortlisted').length, bg: 'bg-green-600', onClick: () => onNavigate('my-applications') },
+                    { label: 'Interviews', value: applications.filter((a: any) => ['reviewed','hired','shortlisted'].includes(a.status)).length, bg: 'bg-orange-500', onClick: () => onNavigate('interviews') },
+                  ].map(stat => (
+                    <button key={stat.label} onClick={stat.onClick}
+                      className={`${stat.bg} text-white rounded-xl p-3 text-center hover:opacity-90 transition-opacity`}>
+                      <div className="text-xl font-bold">{stat.value}</div>
+                      <div className="text-xs font-medium opacity-90 leading-tight mt-0.5">{stat.label}</div>
+                    </button>
+                  ))}
                 </div>
 
                 {/* Followed Companies Section */}
@@ -1755,7 +1770,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">???</span>
+                            <svg width="100" height="100" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4ZM12 20C9.33 20 6.94 18.66 5.5 16.63C5.53 14.47 9.83 13.3 12 13.3C14.17 13.3 18.47 14.47 18.5 16.63C17.06 18.66 14.67 20 12 20Z" fill="currentColor"/>
+</svg>
+
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1769,7 +1787,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">??</span>
+                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <circle cx="11" cy="11" r="8"></circle>
+  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+</svg>
+
+
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1783,7 +1806,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">??</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+</svg>
+
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1797,7 +1823,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <span className="text-lg">??</span>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="2"/>
+  <path d="M2 18C2 15.2386 4.23858 13 7 13H7C9.76142 13 12 15.2386 12 18V20H2V18Z" stroke="currentColor" strokeWidth="2"/>
+  <circle cx="17" cy="7" r="3" stroke="currentColor" strokeWidth="2"/>
+  <path d="M12 18C12 15.2386 14.2386 13 17 13H17C19.7614 13 22 15.2386 22 18V20H12V18Z" stroke="currentColor" strokeWidth="2"/>
+</svg>
+
                           </div>
                         </div>
                         <div className="ml-4">
@@ -1814,9 +1846,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     <div className="space-y-4">
                       {activityData.recentActivity.map((activity: any, index: number) => (
                         <div key={index} className="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-                          <div className="flex-shrink-0">
-                            <span className="text-2xl">{activity.icon}</span>
-                          </div>
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" xmlns="http://www.w3.org/2000/svg">
+  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+  <path d="M3 3v5h5"/>
+  <path d="M12 7v5l4 2"/>
+</svg>
+
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{activity.message}</p>
                             <p className="text-xs text-gray-500 mt-1">{activity.company}  {activity.time}</p>

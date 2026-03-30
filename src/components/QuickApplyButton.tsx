@@ -154,7 +154,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       if (response.status === 401) {
         const data = await response.json();
         if (data.code === 'TOKEN_EXPIRED') {
-          activeToken = await refreshAccessToken();
+          activeToken = await refreshAccessToken() ?? '';
           if (!activeToken) {
             window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Session expired. Please login again." } }));
             return;

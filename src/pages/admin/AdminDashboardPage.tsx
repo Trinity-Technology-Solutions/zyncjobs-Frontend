@@ -225,7 +225,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 
   const statCards = stats ? [
     {
-      label: 'Total Users', value: stats.users.total.toLocaleString(), icon: Users, color: 'bg-purple-500',
+      label: 'Total Users', value: stats.users.total.toLocaleString(), icon: Users, color: 'bg-blue-600',
       breakdown: [
         { label: 'Candidates', val: stats.users.totalCandidates },
         { label: 'Employers',  val: stats.users.totalEmployers },
@@ -234,7 +234,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       ]
     },
     {
-      label: 'Total Jobs', value: stats.jobs.total.toLocaleString(), icon: Briefcase, color: 'bg-cyan-500',
+      label: 'Total Jobs', value: stats.jobs.total.toLocaleString(), icon: Briefcase, color: 'bg-orange-500',
       breakdown: [
         { label: 'Active',   val: stats.jobs.active },
         { label: 'Pending',  val: stats.jobs.pending },
@@ -291,12 +291,12 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
         </div>
       )}
 
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0`}>
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-800">
-          <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shrink-0">
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 bg-gray-900 border-r border-orange-500/20 flex flex-col shrink-0`}>
+        <div className="flex items-center gap-3 px-4 py-5 border-b border-orange-500/20">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center shrink-0">
             <LayoutDashboard className="w-4 h-4" />
           </div>
-          {sidebarOpen && <span className="font-bold text-lg">ZyncAdmin</span>}
+          {sidebarOpen && <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 object-contain" />}
         </div>
 
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto admin-sidebar-scroll">
@@ -313,7 +313,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
               return (
                 <React.Fragment key={id}>
                   {showDivider && (
-                    <p className="px-3 pt-4 pb-1 text-xs font-semibold text-purple-400/70 uppercase tracking-wider">
+                    <p className="px-3 pt-4 pb-1 text-xs font-semibold text-blue-400/70 uppercase tracking-wider">
                       {sectionLabels[section]}
                     </p>
                   )}
@@ -322,7 +322,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                     title={!sidebarOpen ? label : undefined}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150
                       ${activeNav === id
-                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/40'
+                        ? 'bg-gradient-to-r from-blue-600 to-orange-500 text-white shadow-lg shadow-blue-900/40'
                         : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                   >
                     <Icon className="w-4 h-4 shrink-0" />
@@ -331,7 +331,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                     )}
                     {sidebarOpen && badge > 0 && (
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center
-                        ${id === 'notifications' ? 'bg-red-500 text-white' : 'bg-purple-500/80 text-white'}`}>
+                        ${id === 'notifications' ? 'bg-red-500 text-white' : 'bg-blue-500/80 text-white'}`}>
                         {badge > 99 ? '99+' : badge}
                       </span>
                     )}
@@ -342,7 +342,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
           })()}
         </nav>
 
-        <div className="border-t border-gray-800 p-2">
+        <div className="border-t border-orange-500/20 p-2">
           <button
             onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors group"
@@ -354,7 +354,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-gray-900 border-b border-gray-800 px-6 py-4 flex items-center justify-between shrink-0">
+        <header className="bg-gray-900 border-b border-orange-500/20 px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
             <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white">
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -373,7 +373,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
               <button onClick={() => setShowBell(o => !o)} className="relative text-gray-400 hover:text-white">
                 <Bell className="w-5 h-5" />
                 {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-purple-500 rounded-full text-[10px] flex items-center justify-center font-bold">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full text-[10px] flex items-center justify-center font-bold">
                     {notifications.length > 9 ? '9+' : notifications.length}
                   </span>
                 )}
@@ -396,7 +396,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
             {/* User Menu Dropdown */}
             <div className="relative" ref={userMenuRef}>
               <button onClick={() => setShowUserMenu(o => !o)} className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-sm font-bold">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-full flex items-center justify-center text-sm font-bold">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="text-sm text-gray-300 hidden sm:block">{user.name}</span>
@@ -439,7 +439,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 function OverviewSection({ loading, stats, growth, quickStats }: { loading: boolean; stats: OverviewStats | null; growth: GrowthPoint[]; quickStats: QuickStat }) {
   const cards = stats ? [
     {
-      label: 'Total Users', value: stats.users.total.toLocaleString(), icon: Users, color: 'bg-purple-500',
+      label: 'Total Users', value: stats.users.total.toLocaleString(), icon: Users, color: 'bg-blue-600',
       breakdown: [
         { label: 'Candidates', val: stats.users.totalCandidates },
         { label: 'Employers',  val: stats.users.totalEmployers },
@@ -449,7 +449,7 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
       ]
     },
     {
-      label: 'Total Jobs', value: stats.jobs.total.toLocaleString(), icon: Briefcase, color: 'bg-cyan-500',
+      label: 'Total Jobs', value: stats.jobs.total.toLocaleString(), icon: Briefcase, color: 'bg-orange-500',
       breakdown: [
         { label: 'Active',     val: stats.jobs.active },
         { label: 'Pending',    val: stats.jobs.pending },
@@ -519,18 +519,18 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
           <h2 className="text-sm font-semibold text-gray-300 mb-1">Jobs & Applications Trend</h2>
-          <p className="text-xs text-gray-500 mb-4">Purple = Jobs &nbsp;|&nbsp; Blue = Applications</p>
+          <p className="text-xs text-gray-500 mb-4">Blue = Jobs &nbsp;|&nbsp; Orange = Applications</p>
           {loading ? <div className="h-52 bg-gray-800 rounded-lg animate-pulse" /> : (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={growth}>
                 <defs>
                   <linearGradient id="gJobs" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="gApps" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -538,8 +538,8 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
                 <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} label={{ value: 'Count', angle: -90, position: 'insideLeft', fill: '#6b7280', fontSize: 11 }} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Area type="monotone" dataKey="jobs" stroke="#8b5cf6" fill="url(#gJobs)" strokeWidth={2} />
-                <Area type="monotone" dataKey="applications" stroke="#06b6d4" fill="url(#gApps)" strokeWidth={2} />
+                <Area type="monotone" dataKey="jobs" stroke="#2563eb" fill="url(#gJobs)" strokeWidth={2} />
+                <Area type="monotone" dataKey="applications" stroke="#f97316" fill="url(#gApps)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -556,8 +556,8 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
                   <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="candidates" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="employers" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="candidates" fill="#2563eb" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="employers" fill="#f97316" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -688,7 +688,7 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                             value={role}
                             disabled={!!actionLoading}
                             onChange={e => changeRole(id, e.target.value)}
-                            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+                            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                           >
                             <option value="admin">Admin</option>
                             <option value="super_admin">Super Admin</option>
@@ -809,7 +809,7 @@ function JobsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-purple-500"
+            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
@@ -915,8 +915,8 @@ function AnalyticsSection({ growth, stats }: { growth: GrowthPoint[]; stats: Ove
               <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip contentStyle={{ backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8 }} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="candidates" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="employers" fill="#10b981" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="candidates" fill="#2563eb" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="employers" fill="#f97316" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -925,8 +925,8 @@ function AnalyticsSection({ growth, stats }: { growth: GrowthPoint[]; stats: Ove
           {stats ? (
             <div className="space-y-3">
               {[
-                { label: 'Total Candidates', val: stats.users.totalCandidates, color: 'bg-purple-500' },
-                { label: 'Total Employers',  val: stats.users.totalEmployers,  color: 'bg-emerald-500' },
+                { label: 'Total Candidates', val: stats.users.totalCandidates, color: 'bg-blue-600' },
+                { label: 'Total Employers',  val: stats.users.totalEmployers,  color: 'bg-orange-500' },
                 { label: 'Active Jobs',      val: stats.jobs.active,           color: 'bg-cyan-500' },
                 { label: 'Pending Jobs',     val: stats.jobs.pending,          color: 'bg-amber-500' },
                 { label: 'Total Applications', val: stats.applications.total,  color: 'bg-rose-500' },
@@ -988,7 +988,7 @@ function ReportsSection({ stats }: { stats: OverviewStats | null }) {
                 <td className="px-6 py-3 text-right text-gray-300">{typeof today === 'number' ? today.toLocaleString() : today}</td>
                 <td className="px-6 py-3 text-right text-gray-300">{typeof week === 'number' ? week.toLocaleString() : week}</td>
                 <td className="px-6 py-3 text-right text-gray-300">{typeof month === 'number' ? month.toLocaleString() : month}</td>
-                <td className="px-6 py-3 text-right text-purple-400 font-semibold">{typeof total === 'number' ? total.toLocaleString() : total}</td>
+                <td className="px-6 py-3 text-right text-blue-400 font-semibold">{typeof total === 'number' ? total.toLocaleString() : total}</td>
               </tr>
             ))}
           </tbody>

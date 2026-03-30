@@ -62,11 +62,11 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
 
   useEffect(() => {
     const savedCompany = localStorage.getItem('selectedCompany');
-    if (!savedCompany) return;
+    if (!savedCompany || !user?.email) return;
     try {
       const companyData = JSON.parse(savedCompany);
-      const id = companyData._id || companyData.name;
-      fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(id)}/follow-status?userEmail=${encodeURIComponent(user?.email || '')}`)
+      const id = encodeURIComponent(companyData.name || companyData._id);
+      fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
         .then(r => r.ok ? r.json() : null)
         .then(data => {
           if (data) { setIsFollowing(data.isFollowing || false); setFollowersCount(data.followersCount || 0); }
@@ -85,6 +85,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           await fetchCompanyJobs(companyData.name);
           const companyReviews = await fetchCompanyReviews(companyData.name);
           setReviews(companyReviews);
+          // Load follow status after company is set
+          if (user?.email) {
+            const id = encodeURIComponent(companyData.name);
+            fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
+              .then(r => r.ok ? r.json() : null)
+              .then(data => { if (data) { setIsFollowing(data.isFollowing || false); setFollowersCount(data.followersCount || 0); } })
+              .catch(() => {});
+          }
         } catch (error) {
           console.error('Error parsing company data:', error);
         }
@@ -135,10 +143,12 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please login to follow companies' } }));
       return;
     }
-    const id = company?._id || company?.name || '';
+    // Use company name as the stable identifier (companies.json has no _id)
+    const id = encodeURIComponent(company?.name || company?._id || '');
+    if (!id) return;
     const action = isFollowing ? 'unfollow' : 'follow';
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(id)}/${action}`, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail: user.email, userName: user.name }),
@@ -147,6 +157,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         const data = await response.json();
         setIsFollowing(!isFollowing);
         setFollowersCount(data.followersCount ?? (isFollowing ? Math.max(0, followersCount - 1) : followersCount + 1));
+      } else {
+        console.error('Follow failed:', response.status, await response.text());
       }
     } catch (error) {
       console.error('Follow error:', error);

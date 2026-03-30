@@ -417,113 +417,60 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
 
 
   const downloadResume = async (format: 'pdf' | 'docx') => {
+    const name = `${resumeData.firstName || 'Resume'}_${resumeData.lastName || ''}`;
     try {
       if (format === 'pdf') {
-        const resumeElement = document.querySelector('[data-resume-content]');
-        if (resumeElement) {
-          // Lazy load PDF libraries
-          const [html2canvas, { default: jsPDF }] = await Promise.all([
-            import('html2canvas').then(m => m.default),
-            import('jspdf')
-          ]);
-          
-          // Generate PDF from the resume element
-          const canvas = await html2canvas(resumeElement as HTMLElement, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff'
-          });
-          
-          const imgData = canvas.toDataURL('image/png');
-          const pdf = new jsPDF('p', 'mm', 'a4');
-          
-          const imgWidth = 210; // A4 width in mm
-          const pageHeight = 295; // A4 height in mm
-          const imgHeight = (canvas.height * imgWidth) / canvas.width;
-          let heightLeft = imgHeight;
-          
-          let position = 0;
-          
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-          
-          while (heightLeft >= 0) {
-            position = heightLeft - imgHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
-          }
-          
-          pdf.save(`${resumeData.firstName}_${resumeData.lastName}_Resume.pdf`);
-        } else {
-          showToast('Resume template not found. Please try again.', 'error');
+        const resumeElement = document.querySelector('[data-resume-content]') as HTMLElement;
+        if (!resumeElement) {
+          showToast('Resume preview not found. Please wait for it to load.', 'error');
+          return;
         }
-      } else if (format === 'docx') {
-        // Create a Word-compatible HTML file
-        const htmlContent = `
-          <!DOCTYPE html>
-          <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'>
-          <head>
-            <meta charset="utf-8">
-            <title>Resume - ${resumeData.firstName} ${resumeData.lastName}</title>
-            <!--[if gte mso 9]>
-            <xml>
-              <w:WordDocument>
-                <w:View>Print</w:View>
-                <w:Zoom>90</w:Zoom>
-                <w:DoNotPromptForConvert/>
-                <w:DoNotShowInsertionsAndDeletions/>
-              </w:WordDocument>
-            </xml>
-            <![endif]-->
-            <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; margin: 40px; }
-              h1 { color: #2c3e50; margin-bottom: 5px; }
-              h2 { color: #34495e; margin-bottom: 10px; }
-              h3 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 5px; }
-            </style>
-          </head>
-          <body>
-            <h1>${resumeData.firstName} ${resumeData.lastName}</h1>
-            <h2>${resumeData.jobTitle}</h2>
-            <p><strong>Email:</strong> ${resumeData.email} | <strong>Phone:</strong> ${resumeData.phone}</p>
-            <p><strong>Location:</strong> ${resumeData.city}, ${resumeData.country}</p>
-            
-            <h3>Professional Summary</h3>
-            <p>${resumeData.summary}</p>
-            
-            <h3>Experience</h3>
-            <h4>${resumeData.role} - ${resumeData.company}</h4>
-            <p>${resumeData.workDescription.replace(/\n/g, '<br>')}</p>
-            
-            <h3>Education</h3>
-            ${resumeData.education.map(edu => `
-              <h4>${edu.degree} - ${edu.school}</h4>
-              <p><strong>Location:</strong> ${edu.location}</p>
-              ${edu.description ? `<p>${edu.description}</p>` : ''}
-            `).join('')}
-            
-            <h3>Skills</h3>
-            <p>${resumeData.skills.join(', ')}</p>
-          </body>
-          </html>
-        `;
-        
+        showToast('Generating PDF... please wait', 'info');
+        const [html2canvas, { default: jsPDF }] = await Promise.all([
+          import('html2canvas').then(m => m.default),
+          import('jspdf')
+        ]);
+        const canvas = await html2canvas(resumeElement, {
+          scale: 3,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+          windowWidth: resumeElement.scrollWidth,
+          windowHeight: resumeElement.scrollHeight,
+        });
+        const imgData = canvas.toDataURL('image/jpeg', 0.98);
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageW = 210;
+        const pageH = 297;
+        const imgH = (canvas.height * pageW) / canvas.width;
+        let y = 0;
+        while (y < imgH) {
+          if (y > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, -y, pageW, imgH);
+          y += pageH;
+        }
+        pdf.save(`${name}_Resume.pdf`);
+        showToast('PDF downloaded successfully! ✅', 'success');
+      } else {
+        const htmlContent = `<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'><head><meta charset="utf-8"><title>Resume</title><style>body{font-family:Arial,sans-serif;line-height:1.6;margin:40px;color:#111}h1{font-size:24px;margin-bottom:4px}h2{font-size:14px;color:#555;margin-bottom:8px}h3{font-size:13px;border-bottom:1px solid #333;padding-bottom:4px;margin-top:16px;text-transform:uppercase;letter-spacing:1px}p{margin:4px 0;font-size:12px}.contact{font-size:12px;color:#555}</style></head><body><h1>${resumeData.firstName} ${resumeData.lastName}</h1><h2>${resumeData.jobTitle}</h2><p class="contact">${[resumeData.email, resumeData.phone, resumeData.city && resumeData.country ? `${resumeData.city}, ${resumeData.country}` : resumeData.city || resumeData.country].filter(Boolean).join(' | ')}</p>${resumeData.summary ? `<h3>Summary</h3><p>${resumeData.summary}</p>` : ''}${resumeData.experience.some(e => e.company || e.role) ? `<h3>Experience</h3>${resumeData.experience.filter(e => e.company || e.role).map(e => `<p><strong>${e.role}${e.company ? ` — ${e.company}` : ''}</strong>${e.start ? ` (${e.start}${e.end ? ` – ${e.end}` : ''})` : ''}</p>${e.details.filter(Boolean).map(d => `<p style="margin-left:16px">• ${d}</p>`).join('')}`).join('')}` : ''}${resumeData.education.some(e => e.school || e.degree) ? `<h3>Education</h3>${resumeData.education.filter(e => e.school || e.degree).map(e => `<p><strong>${e.degree}${e.school ? ` — ${e.school}` : ''}</strong>${e.start ? ` (${e.start}${e.end ? ` – ${e.end}` : ''})` : ''}</p>`).join('')}` : ''}${resumeData.skills.length > 0 ? `<h3>Skills</h3><p>${resumeData.skills.join(' · ')}</p>` : ''}</body></html>`;
         const blob = new Blob([htmlContent], { type: 'application/msword' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${resumeData.firstName}_${resumeData.lastName}_Resume.doc`;
+        a.download = `${name}_Resume.doc`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
-        showToast('Word document downloaded! You can open it in Microsoft Word.', 'success');
+        showToast('Word document downloaded! Open in Microsoft Word. ✅', 'success');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Download error:', error);
-      showToast('Download failed. Please try again.', 'error');
+      if (error?.message?.includes('html2canvas') || error?.message?.includes('jspdf')) {
+        showToast('PDF library failed to load. Check your internet connection and try again.', 'error');
+      } else {
+        showToast('Download failed. Please try again or use a different browser.', 'error');
+      }
     }
   };
 
@@ -699,6 +646,21 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
               style={{ padding: '7px 14px', background: versions.length > 0 ? '#f59e0b' : '#e5e7eb', color: versions.length > 0 ? 'white' : '#9ca3af', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500' }}
             >
               📂 Versions ({versions.length})
+            </button>
+            {/* Quick Download Buttons */}
+            <button
+              onClick={() => downloadResume('pdf')}
+              style={{ padding: '7px 14px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '5px' }}
+              title="Download as PDF"
+            >
+              📄 PDF
+            </button>
+            <button
+              onClick={() => downloadResume('docx')}
+              style={{ padding: '7px 14px', background: '#16a34a', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '5px' }}
+              title="Download as Word Document"
+            >
+              📝 DOCX
             </button>
           </div>
         </div>

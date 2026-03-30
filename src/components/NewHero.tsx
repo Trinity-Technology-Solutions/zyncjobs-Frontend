@@ -155,7 +155,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
                     i === 0 ? part : <><span key="dream" className="text-blue-600">Dream</span>{part}</>
                   ))}
                 </h1>
-                <h6 className="text-lg text-gray-600 leading-relaxed">
+                <h6 className="text-base text-gray-600 leading-relaxed whitespace-nowrap">
                   {description}
                 </h6>
               </div>

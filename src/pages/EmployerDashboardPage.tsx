@@ -1,5 +1,5 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
-import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -12,7 +12,7 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { useToast } from '../hooks/useToast';
+import { useToast, ToastType } from '../hooks/useToast';
 import NotificationComponent from '../components/Notification';
 
 interface EmployerDashboardPageProps {
@@ -414,7 +414,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           dashboardStats = { ...dashboardStats, ...stats };
         }
       } catch {
-        // non-critical — use locally computed stats
+        // non-critical � use locally computed stats
       }
       setDashboardStats(dashboardStats);
 
@@ -426,7 +426,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           recentActivity = activity;
         }
       } catch {
-        // non-critical — fallback to local activity below
+        // non-critical � fallback to local activity below
       }
       
       // If no activity from API, create from local jobs
@@ -509,7 +509,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(company)}&size=40&background=6366f1&color=ffffff&bold=true`;
   };
 
-  // â”€â”€ Analytics helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Analytics helpers ──────────────────────────────────────────────
   const analyticsRange = useMemo(() => {
     // Last 7 days labels
     return Array.from({ length: 7 }, (_, i) => {
@@ -570,7 +570,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   ], [applications]);
 
   const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
-  // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ────────────────────────────────────────────────────────────────────
 
   const stats = [
     { 
@@ -607,7 +607,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50 max-w-md">
           <div className="flex items-start">
-            <span className="mr-2 mt-0.5">âš ï¸</span>
+            <span className="mr-2 mt-0.5">⚠️</span>
             <div className="flex-1">
               <div className="font-medium">Dashboard Loading Issue</div>
               <div className="text-sm mt-1">{error}</div>
@@ -667,14 +667,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <Briefcase className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium text-sm">Job Management</span>
           </button>
-          
-          <button
-            onClick={() => onNavigate('settings')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <User className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">My Profile</span>
-          </button>
 
           <button
             onClick={() => setActiveMenu('applications')}
@@ -721,6 +713,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 {jobs.length}
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setActiveMenu('team')}
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
+              activeMenu === 'team' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Users className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium text-sm">Team</span>
           </button>
 
           <button
@@ -892,10 +894,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <>
               <div className="mb-6">
                 <h1 className="text-3xl font-bold text-gray-900">Employer Dashboard</h1>
-                <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} — here's your hiring overview</p>
+                <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} � here's your hiring overview</p>
               </div>
 
-              {/* â”€â”€ Stat Cards â”€â”€ */}
+              {/* ── Stat Cards ── */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 {stats.map((stat, index) => (
                   <div key={index} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
@@ -912,9 +914,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 ))}
               </div>
 
-              {/* â”€â”€ Row 1: Applications Over Time + Funnel â”€â”€ */}
+              {/* ── Row 1: Applications Over Time + Funnel ── */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                {/* Area chart â€“ applications last 7 days */}
+                {/* Area chart – applications last 7 days */}
                 <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
                     <div>
@@ -969,7 +971,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
               </div>
 
-              {/* â”€â”€ Row 2: Funnel + Top Jobs â”€â”€ */}
+              {/* ── Row 2: Funnel + Top Jobs ── */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 {/* Hiring Funnel */}
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -1012,7 +1014,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
               </div>
 
-              {/* â”€â”€ Row 3: Quick Actions + Recent Activity â”€â”€ */}
+              {/* ── Row 3: Quick Actions + Recent Activity ── */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Quick Actions */}
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
@@ -1175,7 +1177,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   {application.candidateName || application.candidateEmail}
                                 </h3>
                                 <p className="text-base text-blue-700 font-semibold flex items-center gap-1">
-                                  <span>💼</span>
+                                  <Briefcase className="w-4 h-4" />
                                   Applied for: {application.jobTitle || 'Job Position'}
                                 </p>
                               </div>
@@ -1193,7 +1195,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             
                             <div className="flex items-center gap-3 mb-3 flex-wrap">
                               <span className="text-sm text-gray-500">{application.candidateEmail}</span>
-                              <span className="text-gray-300">·</span>
+                              <span className="text-gray-300">�</span>
                               <span className="text-sm text-gray-500">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                             </div>
 
@@ -1219,13 +1221,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   }}
                                   className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
                                 >
-                                  <span>📄</span>
+                                  <FileText className="w-4 h-4" />
                                   <span>View Resume</span>
                                 </button>
                               </div>
                             ) : (
                               <div className="mb-3">
-                                <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded-lg">📄 Resume not available</span>
+                                <span className="text-gray-500 text-sm bg-gray-100 px-3 py-1 rounded-lg flex items-center gap-1"><FileText className="w-4 h-4" /> Resume not available</span>
                               </div>
                             )}
                           </div>
@@ -1320,9 +1322,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 closeConfirm();
                               });
                             }}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md"
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md flex items-center gap-2"
                           >
-                            🗑️ Delete
+                            <Trash2 className="w-4 h-4" />
+                            Delete
                           </button>
                         </div>
                       </div>
@@ -1364,7 +1367,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   {interview.candidateName || 'Candidate'}
                                 </h3>
                                 <p className="text-base text-purple-700 font-semibold flex items-center gap-1">
-                                  <span>💼</span>
+                                  <Briefcase className="w-4 h-4" />
                                   {interview.jobTitle || 'Interview'}
                                 </p>
                               </div>
@@ -1379,10 +1382,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             </div>
                             
                             <div className="flex items-center gap-3 mb-3 flex-wrap text-sm text-gray-500">
-                              <span>📅 {new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                              <span className="text-gray-300">·</span>
-                              <span>🕐 {interview.time}</span>
-                              <span className="text-gray-300">·</span>
+                              <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              <span className="text-gray-300">�</span>
+                              <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{interview.time}</span>
+                              <span className="text-gray-300">�</span>
                               <span>{interview.candidateEmail}</span>
                             </div>
 
@@ -1394,7 +1397,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   rel="noopener noreferrer"
                                   className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
                                 >
-                                  <span>🔗</span>
+                                  <Video className="w-4 h-4" />
                                   <span>Join Meeting</span>
                                 </a>
                               </div>
@@ -1460,9 +1463,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 closeConfirm();
                               });
                             }}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md"
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md flex items-center gap-2"
                           >
-                            🗑️ Delete
+                            <Trash2 className="w-4 h-4" />
+                            Delete
                           </button>
                         </div>
                       </div>
@@ -1738,6 +1742,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </button>
               </div>
             </>
+          ) : activeMenu === 'team' ? (
+            <TeamSection employerEmail={user?.email} companyName={companyName} showToast={showToast} />
           ) : activeMenu === 'auto-rejection' ? (
             <>
               <h1 className="text-3xl font-bold text-gray-900 mb-8">AI Auto-Rejection Settings</h1>
@@ -1886,5 +1892,216 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   );
 };
 
-export default EmployerDashboardPage;
 
+// ── Team Section Component ──────────────────────────────────────────────
+
+type TeamRole = 'Owner' | 'Recruiter' | 'Viewer';
+interface TeamMember { id: string; memberEmail: string; memberName: string; role: TeamRole; status: 'active' | 'pending'; createdAt: string; }
+
+const ROLE_PERMISSIONS: Record<TeamRole, string[]> = {
+  Owner: ['Post Jobs', 'Manage Applications', 'Invite Members', 'Remove Members', 'Change Roles', 'View Analytics'],
+  Recruiter: ['Post Jobs', 'Manage Applications', 'View Analytics'],
+  Viewer: ['View Analytics'],
+};
+
+const TeamSection: React.FC<{ employerEmail: string; companyName: string; showToast: (message: string, type?: ToastType) => void }> = ({ employerEmail, companyName, showToast }) => {
+  const API_BASE = import.meta.env.VITE_API_URL || '/api';
+  const [members, setMembers] = React.useState<TeamMember[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [inviteEmail, setInviteEmail] = React.useState('');
+  const [inviteRole, setInviteRole] = React.useState<TeamRole>('Recruiter');
+  const [inviteName, setInviteName] = React.useState('');
+  const [showInvite, setShowInvite] = React.useState(false);
+  const [selectedRole, setSelectedRole] = React.useState<TeamRole | null>(null);
+
+  const fetchMembers = React.useCallback(async () => {
+    try {
+      const res = await fetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const hasOwner = data.some((m: TeamMember) => m.memberEmail === employerEmail && m.role === 'Owner');
+        if (!hasOwner) {
+          await fetch(`${API_BASE}/team`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employerId: employerEmail, memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active' })
+          });
+          const res2 = await fetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
+          if (res2.ok) setMembers(await res2.json());
+          else setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
+        } else {
+          setMembers(data);
+        }
+      } else {
+        console.error('Team API error:', res.status, res.statusText);
+        // Set fallback owner on API error
+        setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
+      }
+    } catch (e) { 
+      console.error('Team fetch error:', e);
+      // Set fallback owner on network error
+      setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
+    }
+    finally { setLoading(false); }
+  }, [employerEmail, API_BASE]);
+
+  React.useEffect(() => { fetchMembers(); }, [fetchMembers]);
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) { showToast('Enter a valid email address', 'error'); return; }
+    if (members.find(m => m.memberEmail === inviteEmail.trim())) { showToast('This email is already in the team', 'error'); return; }
+    try {
+      const res = await fetch(`${API_BASE}/team`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole })
+      });
+      if (res.ok) {
+        await fetchMembers();
+        setInviteEmail(''); setInviteName(''); setShowInvite(false);
+        showToast(`${inviteEmail} invited as ${inviteRole}`, 'success');
+      } else {
+        const err = await res.json();
+        showToast(err.error || 'Failed to invite', 'error');
+      }
+    } catch { showToast('Network error', 'error'); }
+  };
+
+  const handleRoleChange = async (id: string, role: TeamRole) => {
+    try {
+      const res = await fetch(`${API_BASE}/team/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      if (res.ok) { await fetchMembers(); showToast('Role updated', 'success'); }
+    } catch { showToast('Failed to update role', 'error'); }
+  };
+
+  const handleRemove = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/team/${id}`, { method: 'DELETE' });
+      if (res.ok) { await fetchMembers(); showToast('Member removed', 'success'); }
+    } catch { showToast('Failed to remove member', 'error'); }
+  };
+
+  const roleColors: Record<TeamRole, string> = {
+    Owner: 'bg-blue-100 text-blue-700 border-blue-200',
+    Recruiter: 'bg-orange-100 text-orange-700 border-orange-200',
+    Viewer: 'bg-gray-100 text-gray-600 border-gray-200',
+  };
+
+  if (loading) return <div className="flex justify-center py-16"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+
+  return (
+    <>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
+          <p className="text-gray-500 text-sm mt-1">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
+        </div>
+        <button onClick={() => setShowInvite(true)}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+          <UserPlus className="w-4 h-4" /> Invite Member
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {(Object.entries(ROLE_PERMISSIONS) as [TeamRole, string[]][]).map(([role, perms]) => (
+          <div key={role} onClick={() => setSelectedRole(selectedRole === role ? null : role)}
+            className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
+              selectedRole === role ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'
+            }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${roleColors[role]}`}>{role}</span>
+              <span className="text-xs text-gray-400">{members.filter(m => m.role === role).length} member{members.filter(m => m.role === role).length !== 1 ? 's' : ''}</span>
+            </div>
+            <ul className="space-y-1">
+              {perms.map(p => <li key={p} className="text-xs text-gray-600 flex items-center gap-1"><span className="text-green-500">✓</span>{p}</li>)}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900">Members</h2>
+        </div>
+        <div className="divide-y divide-gray-100">
+          {members.map(member => (
+            <div key={member.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-orange-400 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                {member.memberName.charAt(0).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 text-sm truncate">{member.memberName}</p>
+                <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
+              </div>
+              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : roleColors[member.role]
+              }`}>
+                {member.status === 'pending' ? '⏳ Pending' : member.role}
+              </span>
+              {member.memberEmail !== employerEmail ? (
+                <div className="flex items-center gap-2">
+                  <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
+                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white">
+                    <option value="Recruiter">Recruiter</option>
+                    <option value="Viewer">Viewer</option>
+                    <option value="Owner">Owner</option>
+                  </select>
+                  <button onClick={() => handleRemove(member.id)}
+                    className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <span className="text-xs text-gray-400 italic">You</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {showInvite && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="text-lg font-bold text-gray-900">Invite Team Member</h3>
+              <button onClick={() => setShowInvite(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)}
+                  placeholder="John Doe" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="recruiter@company.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select value={inviteRole} onChange={e => setInviteRole(e.target.value as TeamRole)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                  <option value="Recruiter">Recruiter — Can post jobs & manage applications</option>
+                  <option value="Viewer">Viewer — View only access</option>
+                  <option value="Owner">Owner — Full access</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowInvite(false)}
+                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+              <button onClick={handleInvite}
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Send Invite</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default EmployerDashboardPage;
