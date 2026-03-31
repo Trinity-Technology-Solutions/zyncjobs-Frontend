@@ -194,7 +194,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             <p className="text-gray-600 mt-2">Manage your job postings and track responses</p>
           </div>
           <button
-            onClick={() => onNavigate('job-posting')}
+            onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting'); }}
             className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
             <Plus className="w-5 h-5" />
@@ -305,7 +305,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             </p>
             {jobs.length === 0 && (
               <button
-                onClick={() => onNavigate('job-posting')}
+                onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting'); }}
                 className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
               >
                 Post Your First Job

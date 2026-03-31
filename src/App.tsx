@@ -574,7 +574,7 @@ function App() {
             <AuthGuard user={user}>
               <WithLayout {...nav}>
                 <CandidateProfileView
-                  candidateId={sessionStorage.getItem('viewCandidateId') || ''}
+                  candidateId={new URLSearchParams(location.search).get('id') || sessionStorage.getItem('viewCandidateId') || ''}
                   onNavigate={handleNavigation}
                   onBack={() => window.history.back()}
                 />

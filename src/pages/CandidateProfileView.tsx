@@ -110,18 +110,20 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         });
       } else {
         const appData = (() => { try { return JSON.parse(sessionStorage.getItem('viewCandidateData') || '{}'); } catch { return {}; } })();
+        const fallbackEmail = effectiveCandidateId.includes('@') ? effectiveCandidateId : appData.email || '';
         setCandidate({
           name: appData.name || (effectiveCandidateId.includes('@') ? effectiveCandidateId.split('@')[0] : effectiveCandidateId),
-          email: effectiveCandidateId.includes('@') ? effectiveCandidateId : appData.email,
+          email: fallbackEmail,
           phone: appData.phone,
           skills: appData.skills || [],
         });
       }
     } catch (error) {
       const appData = (() => { try { return JSON.parse(sessionStorage.getItem('viewCandidateData') || '{}'); } catch { return {}; } })();
+      const fallbackEmail = effectiveCandidateId.includes('@') ? effectiveCandidateId : appData.email || '';
       setCandidate({
         name: appData.name || (effectiveCandidateId.includes('@') ? effectiveCandidateId.split('@')[0] : 'Candidate'),
-        email: effectiveCandidateId.includes('@') ? effectiveCandidateId : appData.email,
+        email: fallbackEmail,
         phone: appData.phone,
         skills: appData.skills || [],
       });
