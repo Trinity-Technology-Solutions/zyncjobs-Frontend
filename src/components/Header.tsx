@@ -27,6 +27,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const secret = import.meta.env.VITE_ADMIN_SECRET as string;
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.key) return;
       buffer += e.key.toLowerCase();
       if (buffer.length > secret.length) buffer = buffer.slice(-secret.length);
       if (buffer === secret) {

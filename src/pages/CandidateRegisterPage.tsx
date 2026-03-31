@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building2 } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
@@ -37,6 +37,9 @@ interface CandidateRegisterPageProps {
 }
 
 const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigate }) => {
+  useEffect(() => {
+    if (localStorage.getItem('user')) onNavigate('dashboard');
+  }, []);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -261,6 +264,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
             <button
               type="button"
               onClick={() => {
+                if (localStorage.getItem('user')) {
+                  showToast('You are already logged in!', 'warning');
+                  return;
+                }
                 window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate`;
               }}
               className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors card-hover"

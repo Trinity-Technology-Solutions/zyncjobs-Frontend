@@ -9,7 +9,7 @@ interface NewHeroProps {
   user?: {name: string, type: 'candidate' | 'employer'} | null;
 }
 
-const NewHero: React.FC<NewHeroProps> = ({ onNavigate, user }) => {
+const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [location, setLocation] = useState('');
   const [allJobTitles, setAllJobTitles] = useState<string[]>([]);

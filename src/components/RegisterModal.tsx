@@ -253,6 +253,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
 
             <button
               onClick={() => {
+                if (localStorage.getItem('user')) {
+                  showToast('You are already logged in!', 'warning');
+                  return;
+                }
                 const baseUrl = import.meta.env.VITE_API_URL || '/api';
                 window.location.href = `${baseUrl}/auth/google?userType=candidate`;
               }}
