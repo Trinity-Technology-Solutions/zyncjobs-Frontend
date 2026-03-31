@@ -93,33 +93,25 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
         userType: 'employer',
         employerId: employerId
       });
-      
-      const successMsg = 'Employer account created successfully! You can now sign in.';
+
+      const isVerified = response.verificationStatus === 'verified';
+      const successMsg = isVerified
+        ? '✅ Account created and verified! Redirecting to sign in...'
+        : '⏳ Account created! Your account is pending admin verification. You will be notified once approved.';
       setSuccess(successMsg);
-      showToast(successMsg, 'success');
+      showToast(successMsg, isVerified ? 'success' : 'warning');
       
-      // Store user data with employer ID if registration returns user data
       if (response.user) {
-        // Ensure employer ID is included
-        if (!response.user.employerId) {
-          response.user.employerId = employerId;
-        }
+        if (!response.user.employerId) response.user.employerId = employerId;
         localStorage.setItem('user', JSON.stringify(response.user));
       }
       
-      // Clear form
-      setFormData({
-        name: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        companyName: ''
-      });
+      setFormData({ name: '', email: '', password: '', confirmPassword: '', companyName: '' });
       
-      // Redirect to sign-in page after 2 seconds
+      // Only redirect verified employers immediately; pending wait longer
       setTimeout(() => {
         onNavigate('employer-login');
-      }, 2000);
+      }, isVerified ? 2000 : 4000);
       
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Registration failed';
