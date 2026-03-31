@@ -394,7 +394,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
             <button
               type="button"
               onClick={() => {
-                localStorage.setItem('googleAuthPortal', 'employer');
                 window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/employer`;
               }}
               className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
