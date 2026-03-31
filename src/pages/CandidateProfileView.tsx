@@ -12,46 +12,44 @@ interface CandidateProfileViewProps {
 
 // Safely convert any value to a displayable string
 const safeStr = (v: any): string => {
-  if (!v) return '';
+  if (v === null || v === undefined) return '';
   if (typeof v === 'string') {
-    // Try to parse JSON string
     try {
       const parsed = JSON.parse(v);
-      return safeStr(parsed);
+      if (typeof parsed === 'object') return safeStr(parsed);
+      return v;
     } catch {}
     return v;
   }
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
   if (Array.isArray(v)) {
     return v.map(item => safeStr(item)).filter(Boolean).join('\n');
   }
   if (typeof v === 'object') {
-    // Object with numeric keys = char array (stringify back to string)
     const keys = Object.keys(v);
     const numericKeys = keys.filter(k => !isNaN(Number(k)));
-    const namedKeys = keys.filter(k => isNaN(Number(k)));
-
-    if (numericKeys.length > namedKeys.length) {
-      // Reconstruct string from char indices
+    if (numericKeys.length > keys.length / 2) {
       const str = numericKeys.sort((a, b) => Number(a) - Number(b)).map(k => v[k]).join('');
-      // Try to parse the reconstructed string
-      try {
-        const parsed = JSON.parse(str);
-        return safeStr(parsed);
-      } catch {}
+      try { return safeStr(JSON.parse(str)); } catch {}
       return str;
     }
-
-    // Named object — format as readable text
     const parts: string[] = [];
     if (v.companyName || v.company) parts.push(`🏢 ${v.companyName || v.company}`);
     if (v.roleTitle || v.title || v.position || v.role) parts.push(`💼 ${v.roleTitle || v.title || v.position || v.role}`);
+    if (v.startYear || v.startMonth) parts.push(`📅 ${[v.startMonth, v.startYear].filter(Boolean).join('/')} - ${[v.endMonth, v.endYear].filter(Boolean).join('/') || 'Present'}`);
     if (v.experienceYears || v.years) parts.push(`⏱ ${v.experienceYears || v.years} years`);
-    if (v.description && v.description !== '-') parts.push(v.description);
+    if (v.description && v.description !== '-') parts.push(String(v.description));
     if (v.degree) parts.push(`🎓 ${v.degree}`);
     if (v.institution || v.school || v.college) parts.push(`🏫 ${v.institution || v.school || v.college}`);
     if (v.year || v.graduationYear) parts.push(`📅 ${v.year || v.graduationYear}`);
-    if (v.name && !v.companyName) parts.push(v.name);
-    return parts.join('\n') || JSON.stringify(v);
+    if (v.examName) parts.push(`📝 ${v.examName}`);
+    if (v.name && !v.companyName) parts.push(String(v.name));
+    if (parts.length > 0) return parts.join('\n');
+    // fallback — convert all values to string
+    return Object.entries(v)
+      .filter(([, val]) => val !== null && val !== undefined && val !== '')
+      .map(([key, val]) => `${key}: ${typeof val === 'object' ? JSON.stringify(val) : val}`)
+      .join(', ');
   }
   return String(v);
 };
@@ -62,7 +60,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
   const [loading, setLoading] = useState(true);
   const [showMessage, setShowMessage] = useState(false);
   const [emailError, setEmailError] = useState('');
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
 
   // Get candidateId from URL params first, then prop, then sessionStorage
   const effectiveCandidateId = searchParams.get('id') || candidateId || sessionStorage.getItem('viewCandidateId') || '';
@@ -153,7 +151,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     );
   }
 
-  const initials = candidate.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) || 'C';
+  const initials = (candidate.name || 'C').split(' ').map((n: string) => n?.[0] || '').join('').toUpperCase().slice(0, 2) || 'C';
 
   const handleSendEmail = async () => {
     if (!candidate.email) {

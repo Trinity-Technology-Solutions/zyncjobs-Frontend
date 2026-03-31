@@ -11,6 +11,7 @@ type MismatchInfo = {
   intendedPortal: string;
   correctPortal: string;
   correctRoute: string;
+  isNewUser?: boolean;
 };
 
 const isEmployerRole = (role: string) =>
@@ -46,11 +47,32 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
 
           const accountIsEmployer = isEmployerRole(userRole);
           const portalIsEmployer = intendedPortal === 'employer';
+          const isNewUser = userData.isNewUser === true || userData.createdNow === true;
 
-          // Role mismatch: employer account tried candidate portal, or vice-versa
-          if (accountIsEmployer !== portalIsEmployer) {
+          // New user used wrong portal — ask them to re-register via correct portal
+          if (isNewUser && accountIsEmployer !== portalIsEmployer) {
+            // Delete the wrongly created account by calling delete API
+            fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${userData._id || userData.id}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+            }).catch(() => {});
+
+            localStorage.removeItem('token');
+            localStorage.removeItem('accessToken');
             window.history.replaceState({}, document.title, window.location.pathname);
-            // Clear tokens — don't log them in
+            setMismatch({
+              actualRole: portalIsEmployer ? 'Candidate' : 'Employer',
+              intendedPortal: portalIsEmployer ? 'Employer' : 'Candidate',
+              correctPortal: portalIsEmployer ? 'Candidate Login' : 'Employer Login',
+              correctRoute: portalIsEmployer ? 'login' : 'employer-login',
+              isNewUser: true,
+            });
+            return;
+          }
+
+          // Existing user used wrong portal
+          if (!isNewUser && accountIsEmployer !== portalIsEmployer) {
+            window.history.replaceState({}, document.title, window.location.pathname);
             localStorage.removeItem('token');
             localStorage.removeItem('accessToken');
             setMismatch({
@@ -93,11 +115,22 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
           </div>
           <h2 className="text-xl font-bold text-gray-900 mb-2">Wrong Login Portal</h2>
           <p className="text-gray-600 text-sm mb-6">
-            This Google account is registered as a{' '}
-            <strong>{mismatch.actualRole}</strong> account. You tried signing in
-            through the <strong>{mismatch.intendedPortal}</strong> portal.
-            <br /><br />
-            Please use <strong>{mismatch.correctPortal}</strong> to continue.
+            {mismatch.isNewUser ? (
+              <>
+                You tried to sign up as an <strong>{mismatch.intendedPortal}</strong> but
+                this Google account doesn't match that portal.
+                <br /><br />
+                Please use <strong>{mismatch.correctPortal}</strong> to continue.
+              </>
+            ) : (
+              <>
+                This Google account is registered as a{' '}
+                <strong>{mismatch.actualRole}</strong> account. You tried signing in
+                through the <strong>{mismatch.intendedPortal}</strong> portal.
+                <br /><br />
+                Please use <strong>{mismatch.correctPortal}</strong> to continue.
+              </>
+            )}
           </p>
           <div className="flex flex-col gap-3">
             <button

@@ -27,6 +27,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const secret = 'zyncadmin';
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.key) return;
       buffer += e.key.toLowerCase();
       if (buffer.length > secret.length) buffer = buffer.slice(-secret.length);
       if (buffer === secret) {

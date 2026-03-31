@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff, Building, Building2 } from 'lucide-react';
 import { authAPI } from '../api/auth';
@@ -40,6 +40,9 @@ interface EmployerRegisterPageProps {
 }
 
 const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate, onLogin }) => {
+  useEffect(() => {
+    if (localStorage.getItem('user')) onNavigate('dashboard');
+  }, []);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -386,6 +389,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate,
             <button
               type="button"
               onClick={() => {
+                if (localStorage.getItem('user')) {
+                  showToast('You are already logged in!', 'warning');
+                  return;
+                }
                 window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/employer`;
               }}
               className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
