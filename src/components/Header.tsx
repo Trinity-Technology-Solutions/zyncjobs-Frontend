@@ -24,10 +24,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   // Secret typed sequence to reveal admin login
   useEffect(() => {
-    const secret = import.meta.env.VITE_ADMIN_SECRET as string;
+    const secret = 'zyncadmin';
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!e.key) return;
+      if (!e.key || e.key.length > 1) return;
       buffer += e.key.toLowerCase();
       if (buffer.length > secret.length) buffer = buffer.slice(-secret.length);
       if (buffer === secret) {
