@@ -11,8 +11,6 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [emailReadOnly, setEmailReadOnly] = useState(true);
-  const [passwordReadOnly, setPasswordReadOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -68,6 +66,10 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5" autoComplete="off">
+            {/* Hidden dummy inputs to prevent browser autofill */}
+            <input type="text" style={{ display: 'none' }} />
+            <input type="password" style={{ display: 'none' }} />
+
             <div>
               <label className="block text-sm font-medium text-orange-200 mb-1.5">Admin Email</label>
               <input
@@ -76,8 +78,6 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
                 onChange={e => setEmail(e.target.value)}
                 required
                 autoComplete="off"
-                readOnly={emailReadOnly}
-                onFocus={() => setEmailReadOnly(false)}
                 placeholder="Enter your email"
                 className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
@@ -92,8 +92,6 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
                   onChange={e => setPassword(e.target.value)}
                   required
                   autoComplete="new-password"
-                  readOnly={passwordReadOnly}
-                  onFocus={() => setPasswordReadOnly(false)}
                   placeholder="Enter your password"
                   className="w-full bg-white/10 border border-orange-500/30 rounded-lg px-4 py-3 pr-12 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />

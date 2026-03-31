@@ -22,9 +22,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Secret typed sequence: type 'zyncadmin' anywhere to reveal admin login
+  // Secret typed sequence to reveal admin login
   useEffect(() => {
-    const secret = 'zyncadmin';
+    const secret = import.meta.env.VITE_ADMIN_SECRET as string;
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
       buffer += e.key.toLowerCase();
