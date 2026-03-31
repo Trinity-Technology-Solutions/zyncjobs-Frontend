@@ -50,6 +50,7 @@ const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 const SkillDetailPage = lazy(() => import('./pages/SkillDetailPage'));
 const CareerResources = lazy(() => import('./components/CareerResources'));
 const CandidateDashboardPage = lazy(() => import('./pages/CandidateDashboardPage'));
+const CandidateMessagesPage = lazy(() => import('./pages/CandidateMessagesPage'));
 const EmployerDashboardPage = lazy(() => import('./pages/EmployerDashboardPage'));
 const SearchEngine = lazy(() => import('./components/SearchEngine'));
 const CompanyProfilePage = lazy(() => import('./pages/CompanyProfilePage'));
@@ -316,8 +317,16 @@ function App() {
       return;
     }
     if (page === 'candidate-profile-view') {
-      if (params?.candidateId) sessionStorage.setItem('viewCandidateId', params.candidateId);
-      navigate('/candidate-profile-view');
+      if (params?.candidateId) {
+        sessionStorage.setItem('viewCandidateId', params.candidateId);
+        navigate(`/candidate-profile-view?id=${encodeURIComponent(params.candidateId)}`);
+      } else {
+        navigate('/candidate-profile-view');
+      }
+      return;
+    }
+    if (page === 'candidate-messages') {
+      navigate('/candidate-messages');
       return;
     }
     navigate(`/${page}`);
@@ -419,6 +428,12 @@ function App() {
               ) : (
                 <WithLayout {...nav}><CandidateDashboardPage onNavigate={handleNavigation} /></WithLayout>
               )}
+            </AuthGuard>
+          } />
+
+          <Route path="/candidate-messages" element={
+            <AuthGuard user={user}>
+              <WithLayout {...nav}><CandidateMessagesPage onNavigate={handleNavigation} /></WithLayout>
             </AuthGuard>
           } />
 

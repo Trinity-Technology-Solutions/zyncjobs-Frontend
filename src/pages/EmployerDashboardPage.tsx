@@ -570,6 +570,39 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   ], [applications]);
 
   const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
+  
+  // ── Calculate dynamic percentage changes (last 30 days vs previous 30 days) ──
+  const calculatePercentageChange = (currentData: any[], field: string) => {
+    const now = new Date();
+    const last30days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const last60days = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+    const currentCount = currentData.filter(item => {
+      const date = new Date(item.createdAt || item.appliedAt || item.updatedAt || now);
+      return date >= last30days;
+    }).length;
+
+    const previousCount = currentData.filter(item => {
+      const date = new Date(item.createdAt || item.appliedAt || item.updatedAt || now);
+      return date >= last60days && date < last30days;
+    }).length;
+
+    if (previousCount === 0) return currentCount > 0 ? '+100%' : '0%';
+    const change = ((currentCount - previousCount) / previousCount) * 100;
+    return `${change >= 0 ? '+' : ''}${Math.round(change)}%`;
+  };
+
+  // Calculate dynamic percentages for each metric
+  const jobsPercentage = useMemo(() => calculatePercentageChange(jobs, 'createdAt'), [jobs]);
+  const applicationsPercentage = useMemo(() => calculatePercentageChange(applications, 'createdAt'), [applications]);
+  const interviewsPercentage = useMemo(() => {
+    const interviewed = applications.filter(a => ['interviewed','hired'].includes(a.status));
+    return calculatePercentageChange(interviewed, 'updatedAt');
+  }, [applications]);
+  const hiredPercentage = useMemo(() => {
+    const hired = applications.filter(a => a.status === 'hired');
+    return calculatePercentageChange(hired, 'updatedAt');
+  }, [applications]);
   // ────────────────────────────────────────────────────────────────────
 
   const stats = [
@@ -577,25 +610,33 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       label: 'Active Jobs', 
       value: dashboardStats?.activeJobs?.toString() || '0', 
       icon: Briefcase, 
-      color: 'text-blue-600' 
+      color: 'text-blue-600',
+      bgColor: 'bg-blue-50',
+      percentage: jobsPercentage
     },
     { 
       label: 'Applications', 
       value: dashboardStats?.applications?.toString() || '0', 
       icon: FileText, 
-      color: 'text-green-600' 
+      color: 'text-green-600',
+      bgColor: 'bg-green-50',
+      percentage: applicationsPercentage
     },
     { 
       label: 'Interviews', 
       value: dashboardStats?.interviews?.toString() || '0', 
       icon: Users, 
-      color: 'text-orange-600' 
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50',
+      percentage: interviewsPercentage
     },
     { 
       label: 'Hired', 
       value: dashboardStats?.hired?.toString() || '0', 
       icon: UserPlus, 
-      color: 'text-purple-600' 
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-50',
+      percentage: hiredPercentage
     }
   ];
 
@@ -899,19 +940,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
               {/* ── Stat Cards ── */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                {stats.map((stat, index) => (
-                  <div key={index} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-gray-500 text-xs mb-1">{stat.label}</p>
-                        <h3 className={`text-3xl font-bold ${stat.color}`}>{stat.value}</h3>
-                      </div>
-                      <div className="bg-gray-50 rounded-full p-3">
-                        <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                {stats.map((stat, index) => {
+                  const isPositive = !stat.percentage.startsWith('-');
+                  return (
+                    <div key={index} className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="text-gray-500 text-xs mb-2">{stat.label}</p>
+                          <h3 className={`text-3xl font-bold ${stat.color} mb-3`}>{stat.value}</h3>
+                          <div className={`flex items-center gap-1 text-xs font-semibold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                            <span>{stat.percentage}</span>
+                            <span className="text-gray-400 font-normal">from last month</span>
+                          </div>
+                        </div>
+                        <div className={`${stat.bgColor} rounded-full p-3`}>
+                          <stat.icon className={`w-6 h-6 ${stat.color}`} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* ── Row 1: Applications Over Time + Funnel ── */}
@@ -1015,7 +1063,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* ── Row 3: Quick Actions + Recent Activity ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 {/* Quick Actions */}
                 <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                   <h2 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h2>
@@ -1064,6 +1112,42 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             )}
                           </div>
                           <span className="text-xs text-gray-500 ml-4">{activity.time}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* New Applicants */}
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-base font-semibold text-gray-900">New Applicants</h2>
+                    <button onClick={() => setActiveMenu('applications')} className="text-blue-600 text-xs font-medium hover:text-blue-700">
+                      View All
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    {loading ? (
+                      <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>
+                    ) : applications.length === 0 ? (
+                      <div className="text-center py-8"><p className="text-gray-500 text-sm">No new applicants</p></div>
+                    ) : (
+                      applications.slice(0, 5).map((app, index) => (
+                        <div key={index} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50 p-2 rounded transition-colors">
+                          <div className="relative flex-shrink-0">
+                            {app.candidateProfilePicture ? (
+                              <img src={app.candidateProfilePicture} alt={app.candidateName} className="w-10 h-10 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                                {(app.candidateName || 'C').charAt(0).toUpperCase()}
+                              </div>
+                            )}
+                            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border border-white"></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-gray-900 font-medium text-sm truncate">{app.candidateName || 'Unknown'}</p>
+                            <p className="text-gray-500 text-xs truncate">{(app.jobTitle || 'Applied for job').substring(0, 25)}</p>
+                          </div>
                         </div>
                       ))
                     )}

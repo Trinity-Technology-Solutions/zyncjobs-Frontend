@@ -159,9 +159,15 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     locationType: editJob?.locationType || 'In person',
     jobLocation: editJob?.location || editJob?.jobLocation || parsedData?.jobLocation || '',
     expandCandidateSearch: false,
-    experienceRange: editJob?.experienceRange || editJob?.experience || parsedData?.experienceRange || '',
+    experienceRange: editJob?.experienceRange || editJob?.experience || editJob?.experienceLevel || parsedData?.experienceRange || '',
     country: editJob?.country || '',
-    language: editJob?.language || '',
+    language: (() => {
+      const lang = editJob?.language || editJob?.languages;
+      if (!lang) return [];
+      if (Array.isArray(lang)) return lang;
+      if (typeof lang === 'string' && lang.trim()) return lang.split(',').map((l: string) => l.trim()).filter(Boolean);
+      return [];
+    })(),
     jobCategory: editJob?.jobCategory || editJob?.category || parsedData?.jobCategory || '',
     priority: editJob?.priority || parsedData?.priority || 'Medium',
     clientName: editJob?.clientName || parsedData?.clientName || '',
@@ -2411,7 +2417,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       if (range.includes('2-3') || range.includes('3-5')) return 'Mid';
       if (range.includes('5-7') || range.includes('7-10')) return 'Senior';
       if (range.includes('10+')) return 'Lead';
-      return 'Mid';
+      return '';
     };
 
     // Get proper company logo - prioritize Trinity local logo
@@ -2450,7 +2456,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       company: user?.companyName || jobData.companyName || 'Your Company',
       companyLogo: logoUrl,
       location: jobData.jobLocation,
-      jobType: formatArrayField(jobData.jobType), // Try JSON array format
+      jobType: formatArrayField(jobData.jobType),
+      type: formatArrayField(jobData.jobType)[0] || 'Full-time',
       description: jobData.jobDescription,
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join('\n') : jobData.responsibilities,
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,
@@ -2475,7 +2482,12 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       employerId: user.employerId || 'EID0001', // Fallback to 'EID0001' if not set
       // Generate a sequential position ID
       positionId: generatePositionId(),
-      jobCategory: jobData.jobCategory || ''
+      jobCategory: jobData.jobCategory || '',
+      locationType: jobData.locationType || '',
+      language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
+      languages: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
+      country: jobData.country || '',
+      experienceRange: jobData.experienceRange || ''
     };
     
     console.log('Posting job for user:', user.email);

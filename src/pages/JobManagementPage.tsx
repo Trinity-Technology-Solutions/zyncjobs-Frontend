@@ -44,6 +44,23 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       const parsedUser = JSON.parse(userData);
       fetchEmployerJobs(parsedUser);
     }
+
+    const handleJobPosted = (e: Event) => {
+      const result = (e as CustomEvent).detail;
+      if (result && (result._id || result.id)) {
+        // Update the job in local state immediately with the returned data
+        setJobs(prev => prev.map(j =>
+          (j._id || j.id) === (result._id || result.id)
+            ? { ...j, ...result }
+            : j
+        ));
+      }
+      // Also re-fetch to ensure full sync
+      const ud = localStorage.getItem('user');
+      if (ud) fetchEmployerJobs(JSON.parse(ud));
+    };
+    window.addEventListener('jobPosted', handleJobPosted);
+    return () => window.removeEventListener('jobPosted', handleJobPosted);
   }, []);
 
   const fetchEmployerJobs = async (userData: any) => {
@@ -388,7 +405,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           )}
                         </div>
                         <div className="text-sm text-gray-600">
-                          {job.location} {job.company && `• ${job.company}`}
+                          {job.location} {job.company && `• ${job.company}`} {(job.jobCategory || job.category) && `• ${job.jobCategory || job.category}`} {job.locationType && `• ${job.locationType}`}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          {[job.country, (() => { const lang = job.language || job.languages; return Array.isArray(lang) ? lang.join(', ') : lang; })(), job.experienceRange || job.experience].filter(Boolean).join(' • ')}
                         </div>
                         <div className="text-xs text-gray-500">
                           {job.status === 'active' ? 'Active' : job.status || 'Active'}

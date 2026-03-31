@@ -392,10 +392,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <MapPin className="w-4 h-4" />
                     <span>{job.location}</span>
                   </div>
-                  {job.type && (
+                  {(job.type || job.jobType) && (
                     <div className="flex items-center space-x-2">
                       <Briefcase className="w-4 h-4" />
-                      <span>{job.type}</span>
+                      <span>{(() => { const t = job.type || job.jobType; return Array.isArray(t) ? t.join(', ') : t; })()}</span>
+                    </div>
+                  )}
+                  {job.locationType && (
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded-full text-xs font-medium">
+                        {job.locationType}
+                      </span>
                     </div>
                   )}
                   {(job.jobCategory || job.category) && (
@@ -410,7 +417,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   </div>
                   <div className="flex items-center space-x-2">
                     <Clock className="w-4 h-4" />
-                    <span>{formatExperience(job.experience || job.experienceLevel)} experience</span>
+                    <span>{formatExperience(job.experienceRange)} experience</span>
                   </div>
                 </div>
               </div>

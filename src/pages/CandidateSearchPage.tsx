@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { ArrowLeft, Search, Filter, MapPin, Star, Users, Code, Mail, Phone, Briefcase, TrendingUp, Zap, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Search, Filter, MapPin, Star, Users, Code, Mail, Phone, Briefcase, TrendingUp, Zap, ChevronDown, MessageCircle } from 'lucide-react';
 import CandidateProfileModal from '../components/CandidateProfileModal';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
+import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -65,6 +66,9 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [sortBy, setSortBy] = useState<'ai_score' | 'name' | 'skills'>('ai_score');
+  const [selectedCandidateForMessage, setSelectedCandidateForMessage] = useState<Candidate | null>(null);
+  
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
   // Fetch employer's posted jobs for AI job selector
   useEffect(() => {
@@ -683,6 +687,9 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                           <button onClick={() => { setScheduleCandidate(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <Users className="w-4 h-4 text-gray-400" /> Schedule Interview
                           </button>
+                          <button onClick={() => { setSelectedCandidateForMessage(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
+                            <MessageCircle className="w-4 h-4 text-gray-400" /> Send Message
+                          </button>
                           <button onClick={() => { navigator.clipboard.writeText(candidate.email || ''); window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Email copied!" } })); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy Email
                           </button>
@@ -771,6 +778,18 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           onClose={() => setScheduleCandidate(null)}
           onSuccess={() => setScheduleCandidate(null)}
         />
+      )}
+
+      {selectedCandidateForMessage && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-96 overflow-hidden">
+            <DirectMessage
+              candidateId={selectedCandidateForMessage._id}
+              candidateName={getCandidateName(selectedCandidateForMessage)}
+              onClose={() => setSelectedCandidateForMessage(null)}
+            />
+          </div>
+        </div>
       )}
 
       <Footer onNavigate={onNavigate} />
