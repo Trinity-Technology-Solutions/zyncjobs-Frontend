@@ -152,7 +152,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                 </h5>
                 <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
                   {title.split('Dream').map((part, i) => (
-                    i === 0 ? part : <><span key="dream" className="text-blue-600">Dream</span>{part}</>
+                    i === 0 ? <span key={i}>{part}</span> : <span key={i}><span className="text-blue-600">Dream</span>{part}</span>
                   ))}
                 </h1>
                 <h6 className="text-base text-gray-600 leading-relaxed whitespace-nowrap">
