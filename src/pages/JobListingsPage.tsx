@@ -12,6 +12,7 @@ import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } fro
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
+import SalaryRangeSlider from '../components/SalaryRangeSlider';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -36,6 +37,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [salaryMin, setSalaryMin] = useState(0);
+  const [salaryMax, setSalaryMax] = useState(50);
+  const [expMin, setExpMin] = useState(0);
+  const [expMax, setExpMax] = useState(30);
+  const [locationSearch, setLocationSearch] = useState('');
+  const [showAllLocations, setShowAllLocations] = useState(false);
   const [filters, setFilters] = useState({
     jobType: '',
     salaryRange: '',
@@ -64,6 +71,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [statsCompanies, setStatsCompanies] = useState<number>(0);
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
+  const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const jobsPerPage = 10;
 
   // Load applied jobs for candidate
@@ -269,46 +277,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         updatedFilters.department.includes(job.jobCategory || job.category || '')
       );
     }
-    if (updatedFilters.experience) {
-      const expRanges: Record<string, { min: number; max: number }> = {
-        'Fresher (0-1 yrs)': { min: 0, max: 1 },
-        '1-3 yrs': { min: 1, max: 3 },
-        '3-5 yrs': { min: 3, max: 5 },
-        '5-8 yrs': { min: 5, max: 8 },
-        '8-10 yrs': { min: 8, max: 10 },
-        '10+ yrs': { min: 10, max: Infinity },
-      };
-      const range = expRanges[updatedFilters.experience];
-      if (range) {
-        filtered = filtered.filter(job => {
-          const exp = job.experienceRange || job.experience || '';
-          const nums = exp.match(/\d+/g)?.map(Number) || [];
-          if (!nums.length) return false;
-          const jobMin = Math.min(...nums);
-          const jobMax = nums.length > 1 ? Math.max(...nums) : nums[0];
-          return jobMin <= range.max && jobMax >= range.min;
-        });
-      }
-    }
-    if (updatedFilters.salaryRange) {
-      const salaryRanges: Record<string, { min: number; max: number }> = {
-        '0-3 Lakhs':   { min: 0,       max: 300000 },
-        '3-6 Lakhs':   { min: 300000,  max: 600000 },
-        '6-10 Lakhs':  { min: 600000,  max: 1000000 },
-        '10-15 Lakhs': { min: 1000000, max: 1500000 },
-        '15-25 Lakhs': { min: 1500000, max: 2500000 },
-        '25+ Lakhs':   { min: 2500000, max: Infinity },
-      };
-      const range = salaryRanges[updatedFilters.salaryRange];
-      if (range) {
-        filtered = filtered.filter(job => {
-          const salMin = typeof job.salary === 'object' ? (job.salary?.min || 0) : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
-          const salMax = typeof job.salary === 'object' ? (job.salary?.max || salMin) : salMin;
-          if (!salMin && !salMax) return false;
-          return salMin <= range.max && salMax >= range.min;
-        });
-      }
-    }
+    // experience filtered via expMin/expMax slider directly
+
     if (updatedFilters.workMode.length > 0) {
       filtered = filtered.filter(job => {
         const jobText = `${job.type || ''} ${job.location || ''} ${job.description || ''} ${job.workMode || ''}`.toLowerCase();
@@ -322,7 +292,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
     if (updatedFilters.location.length > 0) {
       filtered = filtered.filter(job =>
-        updatedFilters.location.some(loc => (job.location || '').trim() === loc)
+        updatedFilters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
       );
     }
     if (updatedFilters.industry.length > 0) {
@@ -365,11 +335,34 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     } catch {}
   };
 
+  const fetchCompanyLogos = async (jobList: any[]) => {
+    try {
+      const res = await fetch(API_ENDPOINTS.COMPANIES);
+      if (!res.ok) return;
+      const data = await res.json();
+      const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+      const map: Record<string, string> = {};
+      companies.forEach((c: any) => {
+        const name = (c.name || c.companyName || '').toLowerCase();
+        const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
+        if (name && logo) map[name] = logo;
+      });
+      // Also check job.companyLogo field directly
+      jobList.forEach((j: any) => {
+        const name = (j.company || '').toLowerCase();
+        const logo = j.companyLogo || j.logoUrl || '';
+        if (name && logo && !map[name]) map[name] = logo;
+      });
+      setCompanyLogos(map);
+    } catch {}
+  };
+
   useEffect(() => {
     fetchJobs();
     fetchFilterOptions();
     fetchTrending();
     fetchStats();
+    fetchCompanyLogos([]);
 
     const handleJobPosted = () => fetchJobs();
     const handleStorageChange = (e: StorageEvent) => {
@@ -396,7 +389,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   }, [initialSearch]);
   
   useEffect(() => {
-    if (jobs.length > 0) applyFilters(filters, jobs);
+    if (jobs.length > 0) {
+      applyFilters(filters, jobs);
+      fetchCompanyLogos(jobs);
+    }
   }, [jobs]);
   
   const handleApplyNow = (job: any) => {
@@ -845,91 +841,117 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               
               {/* Experience */}
               <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Experience</h4>
-                <div className="space-y-2">
-                  {[
-                    { label: 'Fresher (0-1 yrs)', min: 0, max: 1 },
-                    { label: '1-3 yrs', min: 1, max: 3 },
-                    { label: '3-5 yrs', min: 3, max: 5 },
-                    { label: '5-8 yrs', min: 5, max: 8 },
-                    { label: '8-10 yrs', min: 8, max: 10 },
-                    { label: '10+ yrs', min: 10, max: Infinity },
-                  ].map(({ label, min, max }) => {
-                    const count = jobs.filter(j => {
-                      const exp = j.experienceRange || j.experience || '';
+                <h4 className="font-medium text-gray-900 mb-1">Experience (Years)</h4>
+                <div className="flex justify-between text-xs text-blue-600 font-semibold mb-3">
+                  <span>{expMin} Yrs</span>
+                  <span>{expMax >= 30 ? '30+ Yrs' : `${expMax} Yrs`}</span>
+                </div>
+                <SalaryRangeSlider
+                  min={expMin}
+                  max={expMax}
+                  onChange={(mn, mx) => {
+                    setExpMin(mn);
+                    setExpMax(mx);
+                    setFilteredJobs(jobs.filter(job => {
+                      const exp = job.experienceRange || job.experience || '';
                       const nums = exp.match(/\d+/g)?.map(Number) || [];
-                      if (!nums.length) return false;
+                      if (!nums.length) return true;
                       const jobMin = Math.min(...nums);
                       const jobMax = nums.length > 1 ? Math.max(...nums) : nums[0];
-                      return jobMin <= max && jobMax >= min;
-                    }).length;
-                    return (
-                      <label key={label} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="mr-2"
-                          checked={filters.experience === label}
-                          onChange={() => handleFilterChange('experience', filters.experience === label ? '' : label)}
-                        />
-                        <span className="text-sm">{label} ({count})</span>
-                      </label>
-                    );
-                  })}
+                      const rMax = mx >= 30 ? Infinity : mx;
+                      return jobMin <= rMax && jobMax >= mn;
+                    }));
+                  }}
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-2">
+                  <span>0</span><span>5</span><span>10</span><span>15</span><span>20</span><span>30+</span>
                 </div>
+                {(expMin > 0 || expMax < 30) && (
+                  <button onClick={() => { setExpMin(0); setExpMax(30); applyFilters(filters, jobs); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
+                )}
               </div>
 
               {/* Salary */}
               <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Salary</h4>
-                <div className="space-y-2">
-                  {[
-                    { label: '0-3 Lakhs', min: 0, max: 300000 },
-                    { label: '3-6 Lakhs', min: 300000, max: 600000 },
-                    { label: '6-10 Lakhs', min: 600000, max: 1000000 },
-                    { label: '10-15 Lakhs', min: 1000000, max: 1500000 },
-                    { label: '15-25 Lakhs', min: 1500000, max: 2500000 },
-                    { label: '25+ Lakhs', min: 2500000, max: Infinity },
-                  ].map(({ label, min, max }) => {
-                    const count = jobs.filter(j => {
-                      const salMin = typeof j.salary === 'object' ? (j.salary?.min || 0) : parseInt((j.salary || '').toString().replace(/[^0-9]/g, '') || '0');
-                      const salMax = typeof j.salary === 'object' ? (j.salary?.max || salMin) : salMin;
-                      if (!salMin && !salMax) return false;
-                      return salMin <= max && salMax >= min;
-                    }).length;
-                    if (count === 0) return null;
-                    return (
-                      <label key={label} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          className="mr-2"
-                          checked={filters.salaryRange === label}
-                          onChange={() => handleFilterChange('salaryRange', filters.salaryRange === label ? '' : label)}
-                        />
-                        <span className="text-sm">{label} ({count})</span>
-                      </label>
-                    );
-                  })}
+                <h4 className="font-medium text-gray-900 mb-1">Salary (LPA)</h4>
+                <div className="flex justify-between text-xs text-blue-600 font-semibold mb-3">
+                  <span>{salaryMin} LPA</span>
+                  <span>{salaryMax >= 50 ? '50+ LPA' : `${salaryMax} LPA`}</span>
                 </div>
+                <SalaryRangeSlider
+                  min={salaryMin}
+                  max={salaryMax}
+                  onChange={(mn, mx) => {
+                    setSalaryMin(mn);
+                    setSalaryMax(mx);
+                    const rMin = mn * 100000;
+                    const rMax = mx >= 50 ? Infinity : mx * 100000;
+                    setFilteredJobs(jobs.filter(job => {
+                      const s = typeof job.salary === 'object' ? (job.salary?.min || 0) : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
+                      const sMax = typeof job.salary === 'object' ? (job.salary?.max || s) : s;
+                      if (!s && !sMax) return true;
+                      return s <= rMax && sMax >= rMin;
+                    }));
+                  }}
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-2">
+                  <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50+</span>
+                </div>
+                {(salaryMin > 0 || salaryMax < 50) && (
+                  <button onClick={() => { setSalaryMin(0); setSalaryMax(50); applyFilters(filters, jobs); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
+                )}
               </div>
 
               {/* Location */}
               <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Location</h4>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {Array.from(new Set(
-                    jobs.map(j => (j.location || '').trim()).filter(Boolean)
-                  )).sort().map(loc => (
-                    <label key={loc} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        className="mr-2"
-                        checked={filters.location.includes(loc)}
-                        onChange={() => handleFilterChange('location', loc)}
-                      />
-                      <span className="text-sm">{loc} ({jobs.filter(j => (j.location || '').trim() === loc).length})</span>
-                    </label>
-                  ))}
-                  {jobs.length === 0 && <p className="text-xs text-gray-400 italic">No locations available</p>}
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium text-gray-900">
+                    Location {filters.location.length > 0 && <span className="text-blue-600">({filters.location.length})</span>}
+                  </h4>
+                  {filters.location.length > 0 && (
+                    <button onClick={() => { const u = { ...filters, location: [] }; setFilters(u); applyFilters(u, jobs); }} className="text-xs text-blue-600 hover:underline">Clear</button>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search Location"
+                  value={locationSearch}
+                  onChange={e => setLocationSearch(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg mb-2 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <div className="space-y-1.5">
+                  {(() => {
+                    const jobLocs = Array.from(new Set(jobs.map(j => (j.location || '').trim()).filter(Boolean))).sort();
+                    const filtered = locationSearch
+                      ? jobLocs.filter(l => l.toLowerCase().includes(locationSearch.toLowerCase()))
+                      : jobLocs;
+                    const visible = showAllLocations ? filtered : filtered.slice(0, 6);
+                    return (
+                      <>
+                        {visible.map(loc => {
+                          const count = jobs.filter(j => (j.location || '').toLowerCase().includes(loc.toLowerCase())).length;
+                          return (
+                            <label key={loc} className="flex items-center gap-2 cursor-pointer group">
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 accent-blue-600"
+                                checked={filters.location.includes(loc)}
+                                onChange={() => handleFilterChange('location', loc)}
+                              />
+                              <span className="text-sm text-gray-700 group-hover:text-blue-600 flex-1">{loc}</span>
+                              <span className="text-xs text-gray-400">({count})</span>
+                            </label>
+                          );
+                        })}
+                        {filtered.length > 6 && !locationSearch && (
+                          <button onClick={() => setShowAllLocations(v => !v)} className="text-xs text-blue-600 hover:underline mt-1 font-medium">
+                            {showAllLocations ? 'View less' : `View more (${filtered.length - 6}+)`}
+                          </button>
+                        )}
+                        {filtered.length === 0 && <p className="text-xs text-gray-400 italic">No locations found</p>}
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               
@@ -1120,7 +1142,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       <div className="flex items-center gap-3 mb-2">
                         <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                           <img
-                            src={getSafeCompanyLogo(job)}
+                            src={companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job)}
                             alt={`${job.company} logo`}
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
