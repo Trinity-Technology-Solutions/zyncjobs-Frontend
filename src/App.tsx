@@ -137,6 +137,16 @@ const ResumeEditorWrapper: React.FC<{
   return <ResumeEditorPage onNavigate={onNavigate} user={user} onLogout={onLogout} template={template} />;
 };
 
+// Wrapper that reads ?id= reactively from URL for CandidateProfileView
+const CandidateProfileViewWrapper: React.FC<{
+  onNavigate: (page: string, data?: any) => void;
+  onBack: () => void;
+}> = ({ onNavigate, onBack }) => {
+  const [searchParams] = useSearchParams();
+  const candidateId = searchParams.get('id') || sessionStorage.getItem('viewCandidateId') || '';
+  return <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={onBack} />;
+};
+
 function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -317,11 +327,13 @@ function App() {
       return;
     }
     if (page === 'candidate-profile-view') {
-      if (params?.candidateId) {
-        sessionStorage.setItem('viewCandidateId', params.candidateId);
-        navigate(`/candidate-profile-view?id=${encodeURIComponent(params.candidateId)}`);
+      const cid = params?.candidateId || '';
+      if (cid) {
+        sessionStorage.setItem('viewCandidateId', cid);
+        navigate(`/candidate-profile-view?id=${encodeURIComponent(cid)}`);
       } else {
-        navigate('/candidate-profile-view');
+        const stored = sessionStorage.getItem('viewCandidateId') || '';
+        navigate(stored ? `/candidate-profile-view?id=${encodeURIComponent(stored)}` : '/candidate-profile-view');
       }
       return;
     }
@@ -573,11 +585,7 @@ function App() {
           <Route path="/candidate-profile-view" element={
             <AuthGuard user={user}>
               <WithLayout {...nav}>
-                <CandidateProfileView
-                  candidateId={new URLSearchParams(location.search).get('id') || sessionStorage.getItem('viewCandidateId') || ''}
-                  onNavigate={handleNavigation}
-                  onBack={() => window.history.back()}
-                />
+                <CandidateProfileViewWrapper onNavigate={handleNavigation} onBack={() => window.history.back()} />
               </WithLayout>
             </AuthGuard>
           } />

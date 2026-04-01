@@ -4,6 +4,120 @@ import { API_ENDPOINTS } from '../config/env';
 import { useHeroSection } from '../store/useHeroSection';
 import { strapiAPI } from '../api/strapi';
 
+const COMPANIES = [
+  { name: 'Birlasoft',   logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'LTIMindtree',logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'Saksoft',    logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'L&T',        logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'Cognizant',  logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'Accenture',  logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+];
+
+const CompanyMarquee: React.FC = () => {
+  const [paused, setPaused] = useState(false);
+  const [clicked, setClicked] = useState<string | null>(null);
+  // Duplicate list for seamless loop
+  const items = [...COMPANIES, ...COMPANIES];
+
+  const handleLogoClick = (name: string) => {
+    if (clicked === name) {
+      // second click on same logo → resume
+      setClicked(null);
+      setPaused(false);
+    } else {
+      setClicked(name);
+      setPaused(true);
+    }
+  };
+
+  // Click outside marquee → resume
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setPaused(false);
+        setClicked(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div className="bg-white py-6 border-t border-gray-100" ref={ref}>
+      <style>{`
+        @keyframes marquee-rtl {
+          0%   { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .marquee-track {
+          display: flex;
+          width: max-content;
+          animation: marquee-rtl 22s linear infinite;
+        }
+        .marquee-track.paused {
+          animation-play-state: paused;
+        }
+      `}</style>
+      <p className="text-center text-sm text-gray-500 uppercase tracking-widest mb-4 font-semibold">Trusted by top companies</p>
+      <div className="overflow-hidden">
+        <div className={`marquee-track${paused ? ' paused' : ''}`}>
+          {items.map((c, i) => (
+            <button
+              key={`${c.name}-${i}`}
+              onClick={() => handleLogoClick(c.name)}
+              title={clicked === c.name ? 'Click to resume' : c.name}
+              className={`flex flex-col items-center justify-center mx-8 gap-2 group focus:outline-none transition-transform ${
+                clicked === c.name ? 'scale-110' : 'hover:scale-105'
+              }`}
+              style={{ minWidth: '90px' }}
+            >
+              <div className={`relative w-14 h-14 rounded-xl border flex items-center justify-center bg-white shadow-sm transition-all ${
+                clicked === c.name
+                  ? 'border-blue-500 shadow-blue-200 shadow-md ring-2 ring-blue-400'
+                  : 'border-gray-200 group-hover:border-blue-300 group-hover:shadow-md'
+              }`}>
+                <img
+                  src={c.logo}
+                  alt={c.name}
+                  className="w-10 h-10 object-contain"
+                  onError={e => {
+                    const img = e.currentTarget;
+                    img.style.display = 'none';
+                    const span = img.nextElementSibling as HTMLElement;
+                    if (span) span.style.display = 'flex';
+                  }}
+                />
+                {/* Fallback letter avatar */}
+                <span
+                  className="w-10 h-10 rounded-lg bg-blue-600 text-white font-bold text-lg items-center justify-center"
+                  style={{ display: 'none' }}
+                >
+                  {c.name[0]}
+                </span>
+                {clicked === c.name && (
+                  <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                    <span className="w-2 h-2 bg-white rounded-full" />
+                  </span>
+                )}
+              </div>
+              <span className={`text-xs font-medium transition-colors ${
+                clicked === c.name ? 'text-blue-600' : 'text-gray-500 group-hover:text-gray-700'
+              }`}>{c.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      {paused && (
+        <p className="text-center text-xs text-blue-500 mt-3 animate-pulse">
+          ⏸ Paused — click the logo again or click outside to resume
+        </p>
+      )}
+    </div>
+  );
+};
+
 interface NewHeroProps {
   onNavigate?: (page: string, data?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
@@ -379,19 +493,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Partners Section */}
-      <div className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-center items-center space-x-12">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg" alt="Google" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg" alt="Microsoft" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg" alt="Amazon" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/7/7b/Meta_Platforms_Inc._logo.svg" alt="Meta" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" alt="Apple" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
-            <img src="https://upload.wikimedia.org/wikipedia/commons/0/08/Netflix_2015_logo.svg" alt="Netflix" className="h-8 opacity-70 hover:opacity-100 transition-opacity" />
-          </div>
-        </div>
-      </div>
+      {/* Partners Marquee Section */}
+      <CompanyMarquee />
     </>
   );
 };

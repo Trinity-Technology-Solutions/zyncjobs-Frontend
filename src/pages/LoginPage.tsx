@@ -89,15 +89,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50">
       <Header onNavigate={onNavigate} />
 
       <div className="flex items-center justify-center py-12 px-4">
         <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-lg w-full max-w-md p-8">
           <div className="text-center mb-8">
-            <div className="bg-gradient-to-r from-red-600 to-pink-600 text-white w-16 h-16 rounded flex items-center justify-center mx-auto mb-6 font-bold text-2xl shadow-lg">
-              Z
-            </div>
+            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-12 mx-auto mb-6 object-contain" />
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Welcome</h2>
             <p className="text-gray-600 text-center">
               Log in to continue
@@ -120,7 +118,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter your email"
                 autoComplete="off"
                 readOnly={emailReadOnly}
@@ -136,7 +134,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter Password"
                   autoComplete="new-password"
                   readOnly={passwordReadOnly}
@@ -148,7 +146,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-sm text-teal-600 hover:text-teal-700 flex items-center space-x-1 ml-auto"
+                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1 ml-auto"
                 >
                   <span>Show Password</span>
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -159,7 +157,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-teal-600 to-cyan-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing In...' : 'Sign In'}
             </button>
@@ -168,7 +166,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
           <div className="mt-6 text-center">
             <button
               onClick={() => onNavigate('forgot-password')}
-              className="text-purple-600 hover:text-purple-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium"
             >
               Forgot Password?
             </button>
@@ -216,7 +214,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                   console.log('Calling onNavigate with role-selection');
                   onNavigate('role-selection');
                 }}
-                className="text-teal-600 hover:text-teal-700 font-semibold"
+                className="text-blue-600 hover:text-blue-700 font-semibold"
               >
                 Sign up
               </button>
@@ -230,3 +228,4 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
 };
 
 export default LoginPage;
+

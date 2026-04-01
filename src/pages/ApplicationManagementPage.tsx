@@ -489,14 +489,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({
                             const app = application;
                             const cid = app.candidateEmail || app.candidateId || '';
                             if (!cid) { alert('No candidate email found for this application.'); return; }
-                            sessionStorage.setItem('viewCandidateId', cid);
                             sessionStorage.setItem('viewCandidateData', JSON.stringify({
                               name: app.candidateName,
                               email: app.candidateEmail,
                               phone: app.candidatePhone,
                               skills: app.skills || [],
                             }));
-                            onNavigate('candidate-profile-view');
+                            onNavigate('candidate-profile-view', { candidateId: cid });
                           }}
                             className="text-indigo-600 border border-indigo-200 px-2 py-1 rounded text-xs hover:bg-indigo-50"
                           >

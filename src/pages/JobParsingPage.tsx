@@ -73,10 +73,14 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       const d = result.data;
 
       const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
+      const jobLocation = d.location || extractLocation(description);
+      const country = d.country || await inferCountryFromCity(API_BASE, jobLocation);
+
       return {
         jobTitle:        d.jobTitle        || extractJobTitle(description),
         companyName:     '',
-        jobLocation:     d.location        || extractLocation(description),
+        jobLocation,
+        country,
         jobType:         d.jobType         ? [d.jobType] : extractJobType(description),
         experienceRange: normalizeExperienceRange(d.experienceRange) || extractExperience(description),
         skills:          d.skills?.length  ? d.skills   : extractSkills(description),
@@ -98,10 +102,14 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
     } catch (error) {
       console.warn('Backend parse failed, using regex fallback:', error);
       const fallbackSalary = extractSalaryIfNumeric(description);
+      const jobLocation = extractLocation(description);
+      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const country = await inferCountryFromCity(API_BASE, jobLocation);
       return {
         jobTitle:        extractJobTitle(description),
         companyName:     '',
-        jobLocation:     extractLocation(description),
+        jobLocation,
+        country,
         jobType:         extractJobType(description),
         experienceRange: extractExperience(description),
         skills:          extractSkills(description),
@@ -120,6 +128,17 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
         reportingManager: extractReportingManager(description),
         workAuth:        extractWorkAuth(description)
       };
+    }
+  };
+
+  const inferCountryFromCity = async (apiBase: string, city: string): Promise<string> => {
+    if (!city || city === 'Remote') return '';
+    try {
+      const res = await fetch(`${apiBase}/api/locations/city-country/${encodeURIComponent(city)}`);
+      const data = await res.json();
+      return data.country || '';
+    } catch {
+      return '';
     }
   };
 

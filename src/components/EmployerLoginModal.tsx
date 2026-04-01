@@ -107,7 +107,7 @@ const EmployerLoginModal: React.FC<EmployerLoginModalProps> = ({ isOpen, onClose
               </button>
               <button
                 onClick={() => { setWrongRolePopup(false); onClose(); onNavigate('login'); }}
-                className="flex-1 bg-teal-600 text-white py-2 rounded-lg hover:bg-teal-700 text-sm font-medium"
+                className="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
               >
                 Go to Candidate Login
               </button>

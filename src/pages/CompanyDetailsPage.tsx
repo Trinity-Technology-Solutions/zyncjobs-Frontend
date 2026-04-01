@@ -184,6 +184,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     setReviewError('');
     if (!isCandidate) { setReviewError('Only candidates can submit reviews.'); return; }
     if (!reviewForm.title.trim() || !reviewForm.review.trim()) { setReviewError('Please fill in all fields.'); return; }
+    if (reviewForm.review.trim().length < 20) { setReviewError('Review must be at least 20 characters.'); return; }
+    if (reviewForm.review.trim().length > 500) { setReviewError('Review must not exceed 500 characters.'); return; }
     setSubmittingReview(true);
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews`, {
@@ -518,7 +520,22 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Review</label>
-                    <textarea value={reviewForm.review} onChange={(e) => setReviewForm({ ...reviewForm, review: e.target.value })} placeholder="Share your experience..." rows={5} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                    <textarea
+                      value={reviewForm.review}
+                      onChange={(e) => setReviewForm({ ...reviewForm, review: e.target.value })}
+                      placeholder="Share your experience..."
+                      rows={5}
+                      maxLength={500}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                    <div className="flex justify-between text-xs mt-1">
+                      <span className={reviewForm.review.length > 0 && reviewForm.review.length < 20 ? 'text-red-500' : 'text-gray-400'}>
+                        {reviewForm.review.length < 20 ? `Min 20 characters (${20 - reviewForm.review.length} more)` : ''}
+                      </span>
+                      <span className={reviewForm.review.length >= 480 ? 'text-orange-500' : 'text-gray-400'}>
+                        {reviewForm.review.length}/500
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-3 pt-4">
                     <button onClick={submitReview} disabled={submittingReview} className="flex-1 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50">
