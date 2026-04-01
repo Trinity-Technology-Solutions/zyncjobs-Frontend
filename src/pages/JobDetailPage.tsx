@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
+import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import Notification from '../components/Notification';
@@ -54,6 +55,7 @@ interface JobDetailPageProps {
 
 const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }) => {
   const [job, setJob] = useState<any>(null);
+  const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
   const [jobPoster, setJobPoster] = useState<any>(null);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,25 +69,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   };
 
   const getCompanyLogo = (app: any) => {
-    const company = app.company || app.companyName || 'Company';
-    
-    // For Trinity companies, use specific Trinity logo
-    if (company.toLowerCase().includes('trinity')) {
-      return '/images/trinity-logo.webp';
-    }
-    
-    // For Google, use a working Google logo URL
-    if (company.toLowerCase().includes('google')) {
-      return 'https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png';
-    }
-    
-    // For other major companies, use simple fallback
-    if (company.toLowerCase().includes('microsoft')) {
-      return 'https://img-prod-cms-rt-microsoft-com.akamaized.net/cms/api/am/imageFileData/RE1Mu3b?ver=5c31';
-    }
-    
-    // Default fallback to ZyncJobs logo (NOT for Trinity)
-    return '/images/zync-logo.svg';
+    if (companyLogoUrl) return companyLogoUrl;
+    return getSafeCompanyLogo(app);
   };
 
   useEffect(() => {
@@ -130,6 +115,24 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
         const jobData = jobResult;
         setJob(jobData);
+
+        // Fetch company logo from companies API
+        try {
+          const companyName = jobData.company || '';
+          if (companyName) {
+            const compRes = await fetch(`${API_ENDPOINTS.COMPANIES}?name=${encodeURIComponent(companyName)}`);
+            if (compRes.ok) {
+              const compData = await compRes.json();
+              const companies: any[] = Array.isArray(compData) ? compData : (compData.companies || compData.data || []);
+              const match = companies.find((c: any) =>
+                (c.name || '').toLowerCase() === companyName.toLowerCase() ||
+                (c.companyName || '').toLowerCase() === companyName.toLowerCase()
+              );
+              const logoUrl = match?.logo || match?.logoUrl || match?.imageUrl || match?.image || '';
+              if (logoUrl) setCompanyLogoUrl(logoUrl);
+            }
+          }
+        } catch {}
 
         if (user?.email && (jobData.id || jobData._id)) {
           await checkApplicationStatus(jobData.id || jobData._id, user.email);
