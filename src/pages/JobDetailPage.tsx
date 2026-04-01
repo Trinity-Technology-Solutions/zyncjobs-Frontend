@@ -646,53 +646,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0', lineHeight:'1.3'}}>Company</p>
               </div>
             </div>
-            {/* Contact Job Poster */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact the Job Poster</h3>
-              <div className="flex items-center space-x-3 mb-4">
-                <img
-                  src={getCompanyLogo(job)}
-                  alt={jobPoster?.name || job.company}
-                  className="w-12 h-12 rounded-full object-contain border border-gray-200 bg-white p-1"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    // Don't change Trinity logo on error - keep trying Trinity logo
-                    if (!job.company?.toLowerCase().includes('trinity')) {
-                      img.src = '/images/zync-logo.svg';
-                    }
-                  }}
-                />
-                <div>
-                  <p className="font-semibold text-gray-900">
-                    {jobPoster?.name || job.employerName || 'Hiring Manager'}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    {jobPoster?.company || job.employerCompany || job.company}
-                  </p>
-                  <p className="text-sm text-gray-500">Recruiter</p>
-                  <p className="text-xs text-gray-400">Posting for: {job.company}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => {
-                  if (jobPoster && (jobPoster.id || jobPoster._id)) {
-                    // Navigate to employer profile page
-                    onNavigate('employer-profile', { 
-                      employerId: jobPoster.id || jobPoster._id,
-                      employerData: jobPoster 
-                    });
-                  } else {
-                    // Show modal with available employer info
-                    showNotif('Full employer profile not available for this employer.', 'info');
-                  }
-                }}
-                className="text-blue-600 hover:text-blue-700 font-medium text-sm flex items-center transition-colors"
-              >
-                View Profile
-                <span className="ml-1">?</span>
-              </button>
-            </div>
-
             {/* Skills */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Required Skills</h3>
