@@ -27,6 +27,7 @@ export default {
         },
       },
       animation: {
+        'fade-in': 'fadeIn 0.3s ease-out',
         'gradient': 'gradient 8s linear infinite',
         'float': 'float 6s ease-in-out infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
@@ -59,6 +60,10 @@ export default {
         'border-beam': {
           '0%': { 'offset-distance': '0%' },
           '100%': { 'offset-distance': '100%' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
       boxShadow: {

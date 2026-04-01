@@ -42,6 +42,8 @@ const ResumeReadyPage = lazy(() => import('./pages/ResumeReadyPage'));
 const ResumeViewerPage = lazy(() => import('./pages/ResumeViewerPage'));
 const InterviewTipsPage = lazy(() => import('./pages/InterviewTipsPage'));
 const CareerCoachPage = lazy(() => import('./pages/CareerCoachPage'));
+const CandidateRankingPage = lazy(() => import('./pages/CandidateRankingPage'));
+const AIRecruiterAssistant = lazy(() => import('./pages/AIRecruiterAssistant'));
 const CandidateSearchPage = lazy(() => import('./pages/CandidateSearchPage'));
 const JobPostingPage = lazy(() => import('./pages/JobPostingPage'));
 const JobPostingSelectionPage = lazy(() => import('./pages/JobPostingSelectionPage'));
@@ -445,7 +447,12 @@ function App() {
 
           <Route path="/candidate-messages" element={
             <AuthGuard user={user}>
-              <WithLayout {...nav}><CandidateMessagesPage onNavigate={handleNavigation} /></WithLayout>
+              <div className="flex flex-col" style={{height: '100dvh'}}>
+                <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+                <div className="flex-1 min-h-0 overflow-hidden">
+                  <CandidateMessagesPage onNavigate={handleNavigation} />
+                </div>
+              </div>
             </AuthGuard>
           } />
 
@@ -505,6 +512,14 @@ function App() {
             <AuthGuard user={user} allowedRoles={['candidate']}>
               <CareerCoachPage {...nav} />
             </AuthGuard>
+          } />
+
+          <Route path="/candidate-ranking" element={
+            <CandidateRankingPage onNavigate={nav.onNavigate} user={user} />
+          } />
+
+          <Route path="/ai-recruiter" element={
+            <AIRecruiterAssistant onNavigate={nav.onNavigate} user={user} />
           } />
 
           <Route path="/skill-gap-analysis" element={

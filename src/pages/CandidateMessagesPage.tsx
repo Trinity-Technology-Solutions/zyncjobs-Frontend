@@ -43,9 +43,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
 
   // Auto-scroll to latest message
   const scrollToBottom = () => {
-    setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }, 0);
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
   };
 
   useEffect(() => {
@@ -228,13 +226,13 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   }
 
   return (
-    <div className="flex h-screen bg-white overflow-hidden">
+    <div className="flex bg-white" style={{height: '100%', overflow: 'hidden', minHeight: 0}}>
       {/* Sidebar - Conversations List */}
-      <div className={`${sidebarOpen ? 'w-full sm:w-96' : 'hidden'} sm:flex flex-col bg-white border-r border-gray-200`}>
+      <div className={`${sidebarOpen ? 'w-full' : 'hidden'} sm:flex flex-col bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden`} style={{width: '360px', minWidth: '360px'}}>
         {/* Header */}
-        <div className="p-4 border-b border-gray-100 sticky top-0">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">Messages</h1>
+        <div className="px-4 py-3 border-b border-gray-100 bg-white">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-xl font-bold text-gray-900">Messages</h1>
             <button
               onClick={() => setSidebarOpen(false)}
               className="sm:hidden p-2 hover:bg-gray-100 rounded-lg"
@@ -242,10 +240,9 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
               <X className="w-5 h-5" />
             </button>
           </div>
-
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-3 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search conversations..."
@@ -318,9 +315,9 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
 
       {/* Main Chat Area */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-h-0">
           {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between sticky top-0 z-10">
+          <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
@@ -363,77 +360,77 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
-            {messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">💬</span>
+          <div className="flex-1 overflow-y-auto bg-white">
+            <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col justify-end min-h-full">
+              {messages.length === 0 ? (
+                <div className="flex items-center justify-center flex-1">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <span className="text-3xl">💬</span>
+                    </div>
+                    <p className="text-gray-600 font-medium">No messages yet</p>
+                    <p className="text-sm text-gray-500">Start the conversation by sending a message!</p>
                   </div>
-                  <p className="text-gray-600 font-medium">No messages yet</p>
-                  <p className="text-sm text-gray-500">Start the conversation by sending a message!</p>
                 </div>
-              </div>
-            ) : (
-              <>
-                {messages.map((msg, idx) => {
-                  const isOwn = msg.senderId === candidateId;
-                  return (
-                    <div key={msg._id || idx} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-xs lg:max-w-md xl:max-w-lg px-4 py-2 rounded-lg ${
-                        isOwn
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}>
-                        <p className="text-sm break-words">{msg.message}</p>
-                        <div className={`flex items-center justify-end gap-1 mt-1 ${
-                          isOwn ? 'text-blue-100' : 'text-gray-500'
-                        } text-xs`}>
-                          <span>{formatMessageTime(msg.createdAt)}</span>
-                          {isOwn && (
-                            <CheckCheck className="w-3 h-3" />
-                          )}
+              ) : (
+                <div className="space-y-3">
+                  {messages.map((msg, idx) => {
+                    const isOwn = msg.senderId === candidateId;
+                    return (
+                      <div key={msg._id || idx} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-sm px-3 py-2 rounded-2xl ${
+                          isOwn
+                            ? 'bg-blue-600 text-white rounded-br-sm'
+                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                        }`}>
+                          <p className="text-sm break-words">{msg.message}</p>
+                          <div className={`flex items-center justify-end gap-1 mt-0.5 ${
+                            isOwn ? 'text-blue-100' : 'text-gray-400'
+                          } text-xs`}>
+                            <span>{formatMessageTime(msg.createdAt)}</span>
+                            {isOwn && <CheckCheck className="w-3 h-3" />}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </>
-            )}
+                    );
+                  })}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-gray-200 bg-white sticky bottom-0">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-3">
-                {error}
+          <div className="border-t border-gray-200 bg-white py-3 flex-shrink-0">
+            <div className="max-w-2xl mx-auto px-4">
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-2">
+                  {error}
+                </div>
+              )}
+              <div className="flex gap-2 items-center">
+                <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex-shrink-0">
+                  <Paperclip className="w-5 h-5" />
+                </button>
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && !sendingMessage) handleSendMessage();
+                  }}
+                  placeholder="Write a message..."
+                  disabled={sendingMessage}
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!newMessage.trim() || sendingMessage}
+                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                >
+                  <Send className="w-5 h-5" />
+                </button>
               </div>
-            )}
-            <div className="flex gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
-                <Paperclip className="w-5 h-5" />
-              </button>
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && !sendingMessage) {
-                    handleSendMessage();
-                  }
-                }}
-                placeholder="Write a message..."
-                disabled={sendingMessage}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              />
-              <button
-                onClick={handleSendMessage}
-                disabled={!newMessage.trim() || sendingMessage}
-                className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>
