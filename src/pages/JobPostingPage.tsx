@@ -160,7 +160,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     jobLocation: editJob?.location || editJob?.jobLocation || parsedData?.jobLocation || '',
     expandCandidateSearch: false,
     experienceRange: editJob?.experienceRange || editJob?.experience || editJob?.experienceLevel || parsedData?.experienceRange || '',
-    country: editJob?.country || '',
+    country: editJob?.country || parsedData?.country || '',
     language: (() => {
       const lang = editJob?.language || editJob?.languages;
       if (!lang) return [];
@@ -307,14 +307,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   useEffect(() => {
     const fetchCountries = async () => {
       try {
-        console.log('Fetching countries...');
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/countries`);
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/countries`);
         const data = await response.json();
-        console.log('Countries data:', data);
         setCountries(data.countries || []);
       } catch (error) {
-        console.error('Error fetching countries:', error);
-        // Fallback to basic countries if API fails
         setCountries(['India', 'United States', 'United Kingdom', 'Canada', 'Australia']);
       }
     };
@@ -370,7 +366,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     return ['Software Developer', 'Marketing Manager', 'Sales Representative', 'Data Analyst', 'Product Manager', 'Business Analyst', 'Project Manager', 'Operations Manager'];
   };
 
-  // AI-powered location suggestions
   const handleLocationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     updateJobData('jobLocation', value);
@@ -381,20 +376,16 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       try {
         const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/search/${encodeURIComponent(value)}`);
         const data = await response.json();
-        console.log('Location API response:', data);
         
         if (data.locations && data.locations.length > 0) {
           setLocationSuggestions(data.locations);
           setShowLocationSuggestions(true);
         } else {
-          // Fallback to basic locations if API fails
           const fallbackLocations = getFallbackLocations(value);
           setLocationSuggestions(fallbackLocations);
           setShowLocationSuggestions(fallbackLocations.length > 0);
         }
       } catch (error) {
-        console.error('Location suggestions failed:', error);
-        // Fallback to basic locations if API fails
         const fallbackLocations = getFallbackLocations(value);
         setLocationSuggestions(fallbackLocations);
         setShowLocationSuggestions(fallbackLocations.length > 0);
@@ -405,6 +396,20 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       setShowLocationSuggestions(false);
       setLocationSuggestions([]);
     }
+  };
+
+  const handleLocationBlur = async (value: string) => {
+    // Small delay so onMouseDown on dropdown fires first
+    setTimeout(async () => {
+      setShowLocationSuggestions(false);
+      if (value && value !== 'Remote') {
+        try {
+          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(value)}`);
+          const data = await res.json();
+          if (data.country) updateJobData('country', data.country);
+        } catch {}
+      }
+    }, 150);
   };
 
   const getFallbackLocations = (input: string) => {
@@ -1048,10 +1053,18 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     setShowCountrySuggestions(false);
   };
 
-  const selectLocation = (location: string) => {
+  const selectLocation = async (location: string) => {
     updateJobData('jobLocation', location);
     setShowLocationSuggestions(false);
     setLocationSuggestions([]);
+    // Always auto-fill country from selected city
+    if (location && location !== 'Remote') {
+      try {
+        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(location)}`);
+        const data = await res.json();
+        if (data.country) updateJobData('country', data.country);
+      } catch {}
+    }
   };
 
   const addSkill = (skill: string) => {
@@ -1447,6 +1460,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               type="text"
               value={jobData.jobLocation}
               onChange={handleLocationChange}
+              onBlur={(e) => handleLocationBlur(e.target.value)}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. Chennai, Remote, Bangalore"
             />
@@ -1459,15 +1473,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           {showLocationSuggestions && locationSuggestions.length > 0 && (
             <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {locationSuggestions.map((location, index) => (
-                <button
+                <div
                   key={index}
-                  type="button"
-                  onClick={() => selectLocation(location)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group"
+                  onMouseDown={() => selectLocation(location)}
+                  className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group cursor-pointer"
                 >
                   <span>{location}</span>
-                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">📍 AI</span>
-                </button>
+                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">📍</span>
+                </div>
               ))}
             </div>
           )}
@@ -1585,13 +1598,40 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               <p className="text-gray-400 text-xs mt-1">Auto-extracted from job description</p>
             </>
           ) : (
-            <input
-              type="text"
-              value={jobData.experienceRange}
-              onChange={(e) => updateJobData('experienceRange', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="e.g. 2-5 years, 3+ years"
-            />
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-gray-500 text-sm mb-1">Years (0–40)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={40}
+                  value={(() => { const m = jobData.experienceRange.match(/^(\d+)/); return m ? m[1] : ''; })()}
+                  onChange={(e) => {
+                    const yrs = Math.min(40, Math.max(0, parseInt(e.target.value) || 0));
+                    const months = (() => { const m = jobData.experienceRange.match(/-(\d+)mo/); return m ? parseInt(m[1]) : 0; })();
+                    updateJobData('experienceRange', months > 0 ? `${yrs}yrs-${months}mo` : `${yrs}yrs`);
+                  }}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-gray-500 text-sm mb-1">Months (0–11)</label>
+                <input
+                  type="number"
+                  min={0}
+                  max={11}
+                  value={(() => { const m = jobData.experienceRange.match(/-(\d+)mo/); return m ? m[1] : ''; })()}
+                  onChange={(e) => {
+                    const mo = Math.min(11, Math.max(0, parseInt(e.target.value) || 0));
+                    const yrs = (() => { const m = jobData.experienceRange.match(/^(\d+)/); return m ? parseInt(m[1]) : 0; })();
+                    updateJobData('experienceRange', mo > 0 ? `${yrs}yrs-${mo}mo` : `${yrs}yrs`);
+                  }}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0"
+                />
+              </div>
+            </div>
           )}
         </div>
         

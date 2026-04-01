@@ -130,7 +130,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+    <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} />
       <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md mx-auto">
@@ -144,9 +144,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
 
         <div className="bg-white/90 backdrop-blur-md rounded-2xl shadow-2xl p-8 card-hover">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-              <Building2 className="w-8 h-8 text-blue-600" />
-            </div>
+            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 mx-auto mb-4 object-contain" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Join the ZyncJobs network</h2>
             <p className="text-gray-600">Create your candidate account</p>
           </div>
@@ -245,7 +243,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-red-600 to-pink-600 text-white py-3 rounded-lg font-semibold hover:shadow-glow transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-glow"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -287,7 +285,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
               Already have an account?{' '}
               <button
                 onClick={() => onNavigate('login')}
-                className="text-red-600 hover:text-red-700 font-semibold"
+                className="text-blue-600 hover:text-blue-700 font-semibold"
               >
                 Sign in
               </button>

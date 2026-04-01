@@ -116,9 +116,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
         <div className="p-8 relative">
           {loading && <FormLoading message="Authenticating..." />}
           <div className="text-center mb-8">
-            <div className="bg-red-600 text-white w-12 h-12 rounded flex items-center justify-center mx-auto mb-4 font-bold text-lg">
-              Z
-            </div>
+            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 mx-auto mb-4 object-contain" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome</h2>
             <p className="text-gray-600">Log in to continue</p>
           </div>
@@ -152,7 +150,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter Password"
                   required
                 />
@@ -161,7 +159,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-sm text-teal-600 hover:text-teal-700 flex items-center space-x-1 ml-auto"
+                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1 ml-auto"
                 >
                   <span>Show Password</span>
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -173,7 +171,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
               type="submit"
               loading={loading}
               loadingText="Signing In..."
-              className="w-full bg-teal-600 text-white py-3 rounded-lg font-semibold hover:bg-teal-700 transition-colors"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
             >
               Sign In
             </LoadingButton>
@@ -216,7 +214,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
                 onClose();
                 onNavigate('forgot-password');
               }}
-              className="text-purple-600 hover:text-purple-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium"
             >
               Forgot Password?
             </button>
@@ -235,7 +233,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
                   // Show role selection modal instead of direct register navigation
                   onNavigate('role-selection');
                 }}
-                className="text-teal-600 hover:text-teal-700 font-semibold"
+                className="text-blue-600 hover:text-blue-700 font-semibold"
               >
                 Sign up
               </button>
@@ -248,3 +246,4 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
 };
 
 export default LoginModal;
+

@@ -130,13 +130,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
 
         <div className="p-8">
           <div className="text-center mb-8">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 p-2">
-              <img 
-                src="/images/trinity-tech-logo.svg" 
-                alt="Trinity Technology" 
-                className="w-full h-full object-contain"
-              />
-            </div>
+            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 mx-auto mb-4 object-contain" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
             <p className="text-gray-600">Join thousands of tech professionals</p>
           </div>
