@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video } from 'lucide-react';
+import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -69,7 +69,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const { id, _id } = JSON.parse(userData);
         const userId = id || _id;
         if (!userId) return;
-        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/messages/conversations/${userId}`);
+        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/messages?candidateId=${encodeURIComponent(userId)}`);
         if (!res.ok) return;
         const convos = await res.json();
         // Enrich each conversation with the other party's info
@@ -695,7 +695,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       )}
 
       {/* Static Sidebar */}
-      <div className="bg-white border-r border-gray-200 flex flex-col flex-shrink-0" style={{width: '260px', height: '100vh', overflowY: 'hidden', overflowX: 'hidden', position: 'sticky', top: 0}}>
+      <div className="bg-white border-r border-gray-200 flex flex-col flex-shrink-0" style={{width: '260px', height: '100vh', overflowY: 'auto', overflowX: 'hidden', position: 'sticky', top: 0}}>
             {/* Profile header */}
             <div className="px-5 pt-4 pb-3 border-b border-gray-200">
               <BackButton onClick={() => window.history.back()} text="Back" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-2" />
@@ -728,7 +728,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <div className="px-4 py-3 border-b border-gray-100">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold text-gray-700">Messages</span>
-                <button onClick={() => onNavigate('messages')} className="text-blue-500 hover:text-blue-700">
+                <button onClick={() => onNavigate('candidate-messages')} className="text-blue-500 hover:text-blue-700">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
@@ -761,10 +761,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
 
             {/* Navigation */}
-            <nav className="py-1" style={{paddingLeft: '12px', paddingRight: '12px'}}>
+            <nav className="py-2" style={{paddingLeft: '12px', paddingRight: '12px'}}>
           <button
             onClick={() => setActiveMenu('dashboard')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'dashboard' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -775,8 +775,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           </button>
 
           <button
+            onClick={() => onNavigate('candidate-ranking')}
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+            <span className="font-medium text-sm">Candidate Ranking</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('ai-recruiter')}
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <Sparkles className="w-5 h-5 flex-shrink-0" />
+            <span className="font-medium text-sm">AI Recruiter</span>
+          </button>
+
+          <button
             onClick={() => onNavigate('job-management')}
-            className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <Briefcase className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium text-sm">Job Management</span>
@@ -784,7 +802,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => setActiveMenu('applications')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'applications' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -801,7 +819,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => setActiveMenu('interviews')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'interviews' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -818,7 +836,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => onNavigate('my-jobs')}
-            className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <Briefcase className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium text-sm">Posted Jobs</span>
@@ -831,7 +849,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => setActiveMenu('team')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'team' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -841,7 +859,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => setActiveMenu('auto-rejection')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'auto-rejection' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -851,7 +869,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => onNavigate('candidate-search')}
-            className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <Search className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium text-sm">Search Candidates</span>
@@ -859,7 +877,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => setActiveMenu('saved-candidates')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'saved-candidates' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -869,7 +887,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => setActiveMenu('alerts')}
-            className={`w-full flex items-center gap-3 px-2 py-1.5 rounded-lg transition-colors ${
+            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
               activeMenu === 'alerts' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
             }`}
           >
@@ -886,7 +904,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
           <button
             onClick={() => onNavigate('settings')}
-            className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
           >
             <Settings className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium text-sm">Account Settings</span>
@@ -897,7 +915,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               showToast('Account deletion coming soon.', 'info');
               closeConfirm();
             })}
-            className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
           >
             <Trash2 className="w-5 h-5 flex-shrink-0" />
             <span className="font-medium text-sm">Delete Account</span>
@@ -905,7 +923,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </nav>
 
 
-            <div className="py-3 border-t border-gray-200" style={{paddingLeft: '12px', paddingRight: '12px', paddingBottom: '20px', marginBottom: '16px'}}>
+            <div className="py-3 border-t border-gray-200" style={{paddingLeft: '12px', paddingRight: '12px', paddingBottom: '32px', marginBottom: '0'}}>
               <button
                 onClick={() => {
                   if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
@@ -1022,10 +1040,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 })}
               </div>
 
-              {/* ── Row 1: Applications Over Time + Funnel ── */}
+              {/* ── Row 1: Applications Over Time + Status Breakdown + Acquisitions ── */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                 {/* Area chart – applications last 7 days */}
-                <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h2 className="text-base font-semibold text-gray-900">Applications Received</h2>
@@ -1077,13 +1095,50 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     </ResponsiveContainer>
                   )}
                 </div>
+
+                {/* Acquisitions */}
+                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-semibold text-gray-900">Acquisitions</h2>
+                    <span className="text-xs text-blue-500 font-medium">This Month</span>
+                  </div>
+                  {(() => {
+                    const total = applications.length || 1;
+                    const acq = [
+                      { label:'Applications', count: applications.length, color:'#8b5cf6' },
+                      { label:'Shortlisted',  count: applications.filter(a=>['shortlisted','hired'].includes(a.status)).length, color:'#06b6d4' },
+                      { label:'On-hold',      count: applications.filter(a=>a.status==='reviewed').length, color:'#f59e0b' },
+                      { label:'Rejected',     count: applications.filter(a=>a.status==='rejected').length, color:'#ef4444' },
+                    ];
+                    return (
+                      <>
+                        <div className="flex h-2 rounded-full overflow-hidden mb-3">
+                          {acq.map((s,i) => <div key={i} style={{width:`${(s.count/total)*100}%`,background:s.color}} />)}
+                        </div>
+                        <div className="space-y-2">
+                          {acq.map((s,i) => (
+                            <div key={i} className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{background:s.color}}></span>
+                                <span className="text-xs text-gray-500">{s.label}</span>
+                              </div>
+                              <span className="text-xs font-bold text-gray-700">
+                                {applications.length > 0 ? `${Math.round((s.count/total)*100)}%` : '0%'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
 
-              {/* ── Row 2: Top Active Jobs + Acquisitions + New Applicants ── */}
+              {/* ── Row 2: Top Active Jobs + New Applicants + Recent Activity ── */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
                 {/* Top Active Jobs table */}
-                <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-base font-semibold text-gray-900">Top Active Jobs</h2>
                     <span className="text-xs text-blue-500 font-medium">Last 30 days</span>
@@ -1137,48 +1192,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   )}
                 </div>
 
-                {/* Right col: Acquisitions + New Applicants */}
+                {/* Right col: New Applicants + Recent Activity */}
                 <div className="flex flex-col gap-5">
 
-                  {/* Acquisitions */}
-                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-gray-900">Acquisitions</h2>
-                      <span className="text-xs text-blue-500 font-medium">This Month</span>
-                    </div>
-                    {(() => {
-                      const total = applications.length || 1;
-                      const acq = [
-                        { label:'Applications', count: applications.length, color:'#8b5cf6' },
-                        { label:'Shortlisted',  count: applications.filter(a=>['shortlisted','hired'].includes(a.status)).length, color:'#06b6d4' },
-                        { label:'On-hold',      count: applications.filter(a=>a.status==='reviewed').length, color:'#f59e0b' },
-                        { label:'Rejected',     count: applications.filter(a=>a.status==='rejected').length, color:'#ef4444' },
-                      ];
-                      return (
-                        <>
-                          <div className="flex h-2 rounded-full overflow-hidden mb-3">
-                            {acq.map((s,i) => <div key={i} style={{width:`${(s.count/total)*100}%`,background:s.color}} />)}
-                          </div>
-                          <div className="space-y-2">
-                            {acq.map((s,i) => (
-                              <div key={i} className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <span className="w-2.5 h-2.5 rounded-full" style={{background:s.color}}></span>
-                                  <span className="text-xs text-gray-500">{s.label}</span>
-                                </div>
-                                <span className="text-xs font-bold text-gray-700">
-                                  {applications.length > 0 ? `${Math.round((s.count/total)*100)}%` : '0%'}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-
                   {/* New Applicants */}
-                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex-1">
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
                     <div className="flex items-center justify-between mb-3">
                       <h2 className="text-base font-semibold text-gray-900">New Applicants</h2>
                       <span className="text-xs text-blue-500 font-medium">Today</span>
@@ -1207,65 +1225,36 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     )}
                   </div>
 
-                </div>
-              </div>
-
-              {/* ── Row 3: Quick Actions + Recent Activity ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                {/* Quick Actions */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <h2 className="text-base font-semibold text-gray-900 mb-4">Quick Actions</h2>
-                  <div className="space-y-3">
-                    <button onClick={() => onNavigate('job-posting-selection')} className="w-full flex items-center gap-3 p-4 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors text-left">
-                      <Plus className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                      <span className="font-medium text-gray-900">Post New Job</span>
-                    </button>
-                    <button onClick={() => onNavigate('job-management')} className="w-full flex items-center gap-3 p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left">
-                      <Briefcase className="w-5 h-5 text-purple-600 flex-shrink-0" />
-                      <span className="font-medium text-gray-900">Job Management</span>
-                    </button>
-                    <button onClick={() => onNavigate('candidate-search')} className="w-full flex items-center gap-3 p-4 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left">
-                      <Search className="w-5 h-5 text-green-600 flex-shrink-0" />
-                      <span className="font-medium text-gray-900">Search Candidates</span>
-                    </button>
-                    <button onClick={() => setActiveMenu('applications')} className="w-full flex items-center gap-3 p-4 bg-yellow-50 hover:bg-yellow-100 rounded-lg transition-colors text-left">
-                      <Folder className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                      <span className="font-medium text-gray-900">Manage Applications</span>
-                    </button>
-                    <button onClick={() => setActiveMenu('interviews')} className="w-full flex items-center gap-3 p-4 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors text-left">
-                      <MessageSquare className="w-5 h-5 text-orange-600 flex-shrink-0" />
-                      <span className="font-medium text-gray-900">Schedule Interview</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <h2 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h2>
-                  <div className="space-y-4">
-                    {loading ? (
-                      <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>
-                    ) : recentActivity.length === 0 ? (
-                      <div className="text-center py-8"><p className="text-gray-500 text-sm">No recent activity</p></div>
-                    ) : (
-                      recentActivity.map((activity, index) => (
-                        <div key={index} className="flex items-start justify-between py-3 border-b border-gray-100 last:border-b-0">
-                          <div className="flex-1">
-                            <p className="text-gray-900 font-medium text-sm">{activity.message}</p>
-                            {activity.details && (
-                              <p className="text-gray-600 text-xs mt-1">
-                                {activity.details.candidateName && `${activity.details.candidateName} - `}
-                                {activity.details.jobTitle}
-                              </p>
-                            )}
+                  {/* Recent Activity */}
+                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                    <h2 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h2>
+                    <div className="space-y-4">
+                      {loading ? (
+                        <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>
+                      ) : recentActivity.length === 0 ? (
+                        <div className="text-center py-8"><p className="text-gray-500 text-sm">No recent activity</p></div>
+                      ) : (
+                        recentActivity.map((activity, index) => (
+                          <div key={index} className="flex items-start justify-between py-3 border-b border-gray-100 last:border-b-0">
+                            <div className="flex-1">
+                              <p className="text-gray-900 font-medium text-sm">{activity.message}</p>
+                              {activity.details && (
+                                <p className="text-gray-600 text-xs mt-1">
+                                  {activity.details.candidateName && `${activity.details.candidateName} - `}
+                                  {activity.details.jobTitle}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-500 ml-4">{activity.time}</span>
                           </div>
-                          <span className="text-xs text-gray-500 ml-4">{activity.time}</span>
-                        </div>
-                      ))
-                    )}
+                        ))
+                      )}
+                    </div>
                   </div>
+
                 </div>
               </div>
+
             </>
           ) : activeMenu === 'applications' ? (
             <>

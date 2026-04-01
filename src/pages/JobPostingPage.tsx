@@ -1590,49 +1590,43 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         
         <div>
           <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
-          {mode === 'parse' ? (
-            <>
-              <div className="w-full border border-gray-200 rounded-lg px-4 py-3 bg-gray-50 text-gray-700">
-                {jobData.experienceRange || <span className="text-gray-400 italic">Will be extracted from job description</span>}
-              </div>
-              <p className="text-gray-400 text-xs mt-1">Auto-extracted from job description</p>
-            </>
-          ) : (
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-gray-500 text-sm mb-1">Years (0–40)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={40}
-                  value={(() => { const m = jobData.experienceRange.match(/^(\d+)/); return m ? m[1] : ''; })()}
-                  onChange={(e) => {
-                    const yrs = Math.min(40, Math.max(0, parseInt(e.target.value) || 0));
-                    const months = (() => { const m = jobData.experienceRange.match(/-(\d+)mo/); return m ? parseInt(m[1]) : 0; })();
-                    updateJobData('experienceRange', months > 0 ? `${yrs}yrs-${months}mo` : `${yrs}yrs`);
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0"
-                />
-              </div>
-              <div className="flex-1">
-                <label className="block text-gray-500 text-sm mb-1">Months (0–11)</label>
-                <input
-                  type="number"
-                  min={0}
-                  max={11}
-                  value={(() => { const m = jobData.experienceRange.match(/-(\d+)mo/); return m ? m[1] : ''; })()}
-                  onChange={(e) => {
-                    const mo = Math.min(11, Math.max(0, parseInt(e.target.value) || 0));
-                    const yrs = (() => { const m = jobData.experienceRange.match(/^(\d+)/); return m ? parseInt(m[1]) : 0; })();
-                    updateJobData('experienceRange', mo > 0 ? `${yrs}yrs-${mo}mo` : `${yrs}yrs`);
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0"
-                />
-              </div>
-            </div>
+          {mode === 'parse' && jobData.experienceRange && (
+            <p className="text-xs text-green-600 mb-2">✨ Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
           )}
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-gray-500 text-sm mb-1">Min Experience</label>
+              <select
+                value={jobData.experienceRange.split('-')[0]?.trim() || ''}
+                onChange={(e) => {
+                  const max = jobData.experienceRange.split('-')[1]?.trim() || '';
+                  updateJobData('experienceRange', max ? e.target.value + ' - ' + max : e.target.value);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Select</option>
+                {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(y => (
+                  <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="block text-gray-500 text-sm mb-1">Max Experience</label>
+              <select
+                value={jobData.experienceRange.split('-')[1]?.trim() || ''}
+                onChange={(e) => {
+                  const min = jobData.experienceRange.split('-')[0]?.trim() || '';
+                  updateJobData('experienceRange', min ? min + ' - ' + e.target.value : e.target.value);
+                }}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              >
+                <option value="">Select</option>
+                {[1,2,3,4,5,6,7,8,9,10,12,15,20,25].map(y => (
+                  <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
         
 
