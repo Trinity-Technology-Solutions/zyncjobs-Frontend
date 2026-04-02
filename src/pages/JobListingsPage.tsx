@@ -1229,29 +1229,28 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end space-y-2 ml-4">
+                <div className="flex flex-col items-stretch gap-2 ml-4 min-w-[130px]">
                   {user?.type === 'candidate' && appliedJobIds.has(job._id || job.id) && (
-                    <span className="flex items-center gap-1.5 bg-green-100 text-green-700 border border-green-300 px-3 py-1.5 rounded-lg text-sm font-semibold">
+                    <span className="flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg text-sm font-medium">
                       ✅ Applied
                     </span>
                   )}
                   {user?.type === 'candidate' && (
                     <button
                       onClick={() => handleSaveJob(job)}
-                      className={`flex items-center space-x-1 px-4 py-2 rounded-lg border-2 transition-colors shadow-sm ${
+                      className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
                         savedJobs.includes(job._id || job.id)
-                          ? 'bg-blue-100 border-blue-300 text-blue-700'
-                          : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                       }`}
                     >
                       {savedJobs.includes(job._id || job.id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                      <span className="text-sm font-semibold">{savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}</span>
+                      {savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}
                     </button>
                   )}
-
                   <button
                     onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
-                    className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center"
                   >
                     View Details
                   </button>
