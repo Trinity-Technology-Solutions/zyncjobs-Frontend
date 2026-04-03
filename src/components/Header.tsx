@@ -167,21 +167,16 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           }
           setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
         } else {
-          const [appsRes, interviewsRes] = await Promise.all([
-            fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(userEmail)}`),
-            fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(userEmail)}`),
-          ]);
-          let apps: any[] = [];
-          let interviews: any[] = [];
-          if (appsRes.ok) { const d = await appsRes.json(); if (Array.isArray(d)) apps = d; }
-          if (interviewsRes.ok) { const d = await interviewsRes.json(); if (Array.isArray(d)) interviews = d; }
-          const recruiterActions = apps.filter((a: any) =>
-            ['reviewed', 'shortlisted', 'rejected', 'hired'].includes(a.status)
-          ).length + interviews.length;
-          const searchAppearances = apps.filter((a: any) =>
-            ['reviewed', 'shortlisted', 'hired'].includes(a.status)
-          ).length;
-          setProfileMetrics(prev => ({ ...prev, recruiterActions, searchAppearances }));
+          // Fetch real analytics from backend
+          const analyticsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(userEmail)}?userType=candidate`);
+          if (analyticsRes.ok) {
+            const data = await analyticsRes.json();
+            setProfileMetrics(prev => ({
+              ...prev,
+              recruiterActions: data.recruiterActions || 0,
+              searchAppearances: data.searchAppearances || 0,
+            }));
+          }
         }
       } catch (error) {
         console.error('Error fetching profile metrics:', error);
@@ -588,7 +583,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             <button 
                               onClick={() => {
                                 setIsDropdownOpen(false);
-                                onNavigate && onNavigate('job-listings');
+                                onNavigate && onNavigate('job-listings', { tab: 'recommended' });
                               }} 
                               className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                             >

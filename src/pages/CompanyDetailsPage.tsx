@@ -143,10 +143,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please login to follow companies' } }));
       return;
     }
-    // Use company name as the stable identifier (companies.json has no _id)
     const id = encodeURIComponent(company?.name || company?._id || '');
     if (!id) return;
-    const action = isFollowing ? 'unfollow' : 'follow';
+    // Optimistic update
+    const newFollowing = !isFollowing;
+    const newCount = newFollowing ? followersCount + 1 : Math.max(0, followersCount - 1);
+    setIsFollowing(newFollowing);
+    setFollowersCount(newCount);
+    const action = newFollowing ? 'follow' : 'unfollow';
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/${action}`, {
         method: 'POST',
@@ -155,13 +159,15 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       });
       if (response.ok) {
         const data = await response.json();
-        setIsFollowing(!isFollowing);
-        setFollowersCount(data.followersCount ?? (isFollowing ? Math.max(0, followersCount - 1) : followersCount + 1));
+        setFollowersCount(data.followersCount ?? newCount);
       } else {
-        console.error('Follow failed:', response.status, await response.text());
+        // Revert on failure
+        setIsFollowing(!newFollowing);
+        setFollowersCount(followersCount);
       }
-    } catch (error) {
-      console.error('Follow error:', error);
+    } catch {
+      setIsFollowing(!newFollowing);
+      setFollowersCount(followersCount);
     }
   };
 
@@ -210,9 +216,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         if (company) setReviews(await fetchCompanyReviews(company.name));
         setTimeout(() => { setShowReviewModal(false); setReviewSuccess(false); }, 1500);
       } else {
-        setReviewError(data.error || 'Failed to submit review. Please try again.');
+        const errMsg = data.error || '';
+        if (errMsg.toLowerCase().includes('relation') || errMsg.toLowerCase().includes('does not exist') || response.status === 500) {
+          setReviewError('Review service is temporarily unavailable. Please try again later.');
+        } else {
+          setReviewError(errMsg || 'Failed to submit review. Please try again.');
+        }
       }
-    } catch (error) {
+    } catch {
       setReviewError('Network error. Please check your connection and try again.');
     } finally {
       setSubmittingReview(false);

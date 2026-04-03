@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Send, X, MessageCircle } from 'lucide-react';
+import { Send, X, MessageCircle, Paperclip } from 'lucide-react';
 
 interface DirectMessageProps {
   candidateId: string;
@@ -25,8 +25,35 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
   const [fetchLoading, setFetchLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversationId = [employerId, candidateId].sort().join('_');
+
+  const renderMessageContent = (message: string, isOwn: boolean) => {
+    try {
+      const parsed = JSON.parse(message);
+      if (parsed.__type === 'attachment') {
+        const isImage = parsed.mimeType?.startsWith('image/');
+        const linkClass = isOwn ? 'text-blue-100 underline' : 'text-blue-600 underline';
+        if (isImage) {
+          return (
+            <div>
+              <img src={parsed.data} alt={parsed.name} className="max-w-full max-h-40 rounded-lg mb-1 cursor-pointer" onClick={() => window.open(parsed.data, '_blank')} />
+              <a href={parsed.data} download={parsed.name} className={`text-xs ${linkClass} flex items-center gap-1`}>
+                <span>📎</span><span>{parsed.name}</span>
+              </a>
+            </div>
+          );
+        }
+        return (
+          <a href={parsed.data} download={parsed.name} className={`flex items-center gap-2 text-sm ${linkClass}`}>
+            <span>📎</span><span>{parsed.name}</span>
+          </a>
+        );
+      }
+    } catch {}
+    return <p>{message}</p>;
+  };
 
   useEffect(() => {
     fetchMessages();
@@ -50,6 +77,67 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
     } finally {
       setFetchLoading(false);
     }
+  };
+
+  const renderMessageContent = (message: string, isOwn: boolean) => {
+    if (message.startsWith('[') && message.includes('📎') && message.endsWith(']')) {
+      const name = message.replace(/^\[📎\s*/, '').replace(/\]$/, '');
+      return <span className="text-sm italic opacity-80">📎 {name} (legacy)</span>;
+    }
+    try {
+      const parsed = JSON.parse(message);
+      if (parsed.__type === 'attachment') {
+        const isImage = parsed.mimeType?.startsWith('image/');
+        if (isImage) {
+          return (
+            <div>
+              <img
+                src={parsed.data}
+                alt={parsed.name}
+                className="max-w-full max-h-40 rounded-lg cursor-pointer hover:opacity-90 block"
+                onClick={() => window.open(parsed.data, '_blank')}
+              />
+              <a href={parsed.data} download={parsed.name} className={`text-xs mt-1 flex items-center gap-1 underline ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}>
+                📎 {parsed.name}
+              </a>
+            </div>
+          );
+        }
+        return (
+          <a href={parsed.data} download={parsed.name} className={`flex items-center gap-2 text-sm underline font-medium ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}>
+            📎 {parsed.name}
+          </a>
+        );
+      }
+    } catch {}
+    return <p>{message}</p>;
+  };
+
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError('File must be under 5MB'); e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const attachment = JSON.stringify({ __type: 'attachment', name: file.name, mimeType: file.type, data: reader.result });
+      sendAttachment(attachment);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const sendAttachment = async (attachmentJson: string) => {
+    setLoading(true); setError('');
+    try {
+      const response = await fetch(`${API_ENDPOINTS.MESSAGES}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ senderId: employerId, receiverId: candidateId, senderName: employerName, receiverName: candidateName, receiverEmail: candidateEmail, message: attachmentJson, conversationId })
+      });
+      if (response.ok) { const sent = await response.json(); setMessages(prev => [...prev, sent]); }
+      else setError('Failed to send file');
+    } catch { setError('Error sending file'); }
+    finally { setLoading(false); }
   };
 
   const sendMessage = async () => {
@@ -134,21 +222,12 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
             </div>
           ) : (
             messages.map((msg) => (
-              <div
-                key={msg._id || Math.random()}
-                className={`flex ${msg.senderId === employerId ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
-                    msg.senderId === employerId
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
-                >
-                  <p>{msg.message}</p>
-                  <p className={`text-xs mt-1 ${
-                    msg.senderId === employerId ? 'text-blue-100' : 'text-gray-500'
-                  }`}>
+              <div key={msg._id || Math.random()} className={`flex ${msg.senderId === employerId ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-xs px-3 py-2 rounded-lg text-sm ${
+                  msg.senderId === employerId ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'
+                }`}>
+                  {renderMessageContent(msg.message, msg.senderId === employerId)}
+                  <p className={`text-xs mt-1 ${msg.senderId === employerId ? 'text-blue-100' : 'text-gray-500'}`}>
                     {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString() : 'Just now'}
                   </p>
                 </div>
@@ -159,7 +238,11 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
 
         {/* Message Input */}
         <div className="p-4 border-t">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx" onChange={handleFileAttach} />
+            <button onClick={() => fileInputRef.current?.click()} className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex-shrink-0" title="Attach file">
+              <Paperclip className="w-4 h-4" />
+            </button>
             <input
               type="text"
               value={newMessage}
@@ -174,11 +257,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
               disabled={loading || !newMessage.trim() || !candidateId}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {loading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
+              {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div> : <Send className="w-4 h-4" />}
             </button>
           </div>
         </div>
