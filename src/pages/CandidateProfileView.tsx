@@ -96,7 +96,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           location: typeof data.location === 'string' ? data.location : '',
           skills: Array.isArray(data.skills) ? data.skills.map((s: any) => typeof s === 'string' ? s : s?.name || String(s)) : [],
           profilePhoto: data.profilePhoto || data.avatar,
-          resume: data.resume || data.resumeFile || data.resumePath || null,
+          resume: data.resume || data.resumeFile || data.resumePath || (data.resumeUrl ? { url: data.resumeUrl, name: data.resumeUrl.split('/').pop() } : null),
           profileSummary: safeStr(data.profileSummary || data.bio || data.summary),
           education: safeStr(data.education),
           employment: safeStr(data.employment || data.experience),
@@ -227,10 +227,13 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                 </button>
                 {candidate.resume && (
                   <button onClick={() => {
-                    const resumeUrl = typeof candidate.resume === 'string' 
-                      ? candidate.resume 
-                      : (candidate.resume?.url || `${API_ENDPOINTS.BASE_URL}/uploads/${candidate.resume?.filename}`);
-                    if (resumeUrl) window.open(resumeUrl, '_blank');
+                    const r = candidate.resume;
+                    const resumeUrl = typeof r === 'string'
+                      ? r
+                      : (r?.url || r?.fileUrl || r?.path || (r?.filename ? `/uploads/${r.filename}` : null));
+                    if (!resumeUrl) return;
+                    const fullUrl = resumeUrl.startsWith('http') ? resumeUrl : `${(API_ENDPOINTS.BASE_URL || '').replace('/api', '')}${resumeUrl.startsWith('/') ? resumeUrl : '/' + resumeUrl}`;
+                    window.open(fullUrl, '_blank');
                   }}
                     className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                     <Download className="w-4 h-4" />Resume

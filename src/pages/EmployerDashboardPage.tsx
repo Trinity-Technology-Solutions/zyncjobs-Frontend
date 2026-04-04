@@ -679,7 +679,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex" style={{overflowX: 'hidden', maxWidth: '100vw'}}>
+    <div className="bg-gray-50 flex" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded z-50 max-w-md">
@@ -695,9 +695,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       )}
 
       {/* Static Sidebar */}
-      <div className="bg-white border-r border-gray-200 flex flex-col flex-shrink-0" style={{width: '260px', height: '100vh', overflowY: 'auto', overflowX: 'hidden', position: 'sticky', top: 0}}>
+      <div className="employer-sidebar flex flex-col flex-shrink-0" style={{width: '220px', minHeight: '100%', overflowY: 'visible', overflowX: 'hidden', position: 'sticky', top: 0, alignSelf: 'flex-start', marginLeft: '0px'}}>
             {/* Profile header */}
-            <div className="px-5 pt-4 pb-3 border-b border-gray-200">
+            <div className="px-5 pt-4 pb-3">
               <BackButton onClick={() => window.history.back()} text="Back" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-2" />
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
@@ -761,165 +761,49 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
 
             {/* Navigation */}
-            <nav className="py-2" style={{paddingLeft: '12px', paddingRight: '12px'}}>
-          <button
-            onClick={() => setActiveMenu('dashboard')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'dashboard' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="font-medium text-sm">Dashboard</span>
-          </button>
+            <nav className="py-2 flex flex-col">
+              {([
+                { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard') },
+                { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => onNavigate('candidate-ranking'), external: true },
+                { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('ai-recruiter'), external: true },
+                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('job-management'), external: true },
+                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('applications'), badge: applications.length || null },
+                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('interviews'), badge: interviews.length || null },
+                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('my-jobs'), external: true, badge: jobs.length || null },
+                { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('team') },
+                { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('auto-rejection') },
+                { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('candidate-search'), external: true },
+                { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('saved-candidates') },
+                { key: 'alerts',           label: 'Alerts',            icon: <Bell className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('alerts'), badge: notifications.length || null, badgeRed: true },
+                { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('settings'), external: true },
+              ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean }[]).map(item => {
+                const isActive = activeMenu === item.key;
+                return (
+                  <button key={item.key} onClick={item.action}
+                    style={{ fontSize: '13px' }}
+                    className={`w-full flex items-center gap-2.5 pl-4 pr-3 py-2 transition-all duration-150 text-left ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700 font-semibold border-l-[3px] border-blue-600'
+                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 border-l-[3px] border-transparent'
+                    }`}>
+                    <span className={`flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>{item.icon}</span>
+                    <span className="leading-tight flex-1 truncate" style={{ fontSize: '13px' }}>{item.label}</span>
+                    {item.badge ? (
+                      <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full font-bold flex items-center justify-center ${
+                        item.badgeRed ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'
+                      }`}>{item.badge}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
 
-          <button
-            onClick={() => onNavigate('candidate-ranking')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span className="font-medium text-sm">Candidate Ranking</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('ai-recruiter')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <Sparkles className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">AI Recruiter</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('job-management')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <Briefcase className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Job Management</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('applications')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'applications' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Applications</span>
-            {applications.length > 0 && (
-              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold ${
-                activeMenu === 'applications' ? 'bg-white text-blue-600' : 'bg-blue-100 text-blue-800'
-              }`}>
-                {applications.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('interviews')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'interviews' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <MessageSquare className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Interviews</span>
-            {interviews.length > 0 && (
-              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold ${
-                activeMenu === 'interviews' ? 'bg-white text-blue-600' : 'bg-blue-100 text-blue-800'
-              }`}>
-                {interviews.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => onNavigate('my-jobs')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <Briefcase className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Posted Jobs</span>
-            {jobs.length > 0 && (
-              <span className="ml-auto bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full font-semibold">
-                {jobs.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('team')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'team' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Users className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Team</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('auto-rejection')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'auto-rejection' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">AI Rejection</span>
-          </button>
-
-          <button
-            onClick={() => onNavigate('candidate-search')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <Search className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Search Candidates</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('saved-candidates')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'saved-candidates' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Bookmark className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Saved Candidates</span>
-          </button>
-
-          <button
-            onClick={() => setActiveMenu('alerts')}
-            className={`w-full flex items-center gap-3 px-2 py-2.5 rounded-lg transition-colors ${
-              activeMenu === 'alerts' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Bell className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Alerts</span>
-            {notifications.length > 0 && (
-              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-semibold ${
-                activeMenu === 'alerts' ? 'bg-white text-red-600' : 'bg-red-500 text-white'
-              }`}>
-                {notifications.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            onClick={() => onNavigate('settings')}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <Settings className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Account Settings</span>
-          </button>
-
-          <button
-            onClick={() => openConfirm('Delete Account', 'Once you delete your account, there is no going back. Are you certain?', () => {
-              showToast('Account deletion coming soon.', 'info');
-              closeConfirm();
-            })}
-            className="w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 className="w-5 h-5 flex-shrink-0" />
-            <span className="font-medium text-sm">Delete Account</span>
-          </button>
+              {/* Delete Account — separate danger item */}
+              <button onClick={() => openConfirm('Delete Account', 'Once you delete your account, there is no going back. Are you certain?', () => { showToast('Account deletion coming soon.', 'info'); closeConfirm(); })}
+                style={{ fontSize: '13px' }}
+                className="w-full flex items-center gap-2.5 pl-4 pr-3 py-2 text-red-400 hover:bg-red-50 hover:text-red-600 transition-all duration-150 text-left border-l-[3px] border-transparent mt-1">
+                <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
+                <span style={{ fontSize: '13px' }}>Delete Account</span>
+              </button>
             </nav>
 
 
@@ -937,16 +821,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto bg-gray-50" style={{minWidth: 0}}>
+      <div className="flex-1 bg-gray-50" style={{minWidth: 0}}>
         {/* Top bar */}
-        <div className="bg-white border-b border-gray-200 shadow-sm">
-          <div className="max-w-[1200px] mx-auto px-6 py-3 flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2 max-w-lg">
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input type="text" placeholder="Search here.." className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400" />
-            </div>
-          </div>
+        <div className="flex items-center justify-end gap-3 py-3" style={{paddingLeft: '40px', paddingRight: '40px'}}>
           <div className="flex items-center gap-3">
             <div className="relative">
               <button
@@ -980,57 +857,55 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               Post a Job
             </button>
           </div>
-          </div>
         </div>
 
 
         {/* Dashboard Content */}
-        <div className="py-6">
-          <div className="max-w-[1200px] mx-auto px-6">
+        <div className="pt-0 pb-2">
+          <div style={{paddingLeft: '40px', paddingRight: '40px'}}>
           {activeMenu === 'dashboard' ? (
             <>
-              <div className="mb-6">
+              <div className="mb-4">
                 <h1 className="text-3xl font-bold text-gray-900">Employer Dashboard</h1>
                 <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
               </div>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
 
               {/* ── Stat Cards ── */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="grid grid-cols-4 gap-5 mb-8">
                 {stats.map((stat, index) => {
                   const isPositive = !stat.percentage.startsWith('-');
                   const numericPct = parseInt(stat.percentage.replace(/[^0-9-]/g, '')) || 0;
                   const clampedPct = Math.min(Math.abs(numericPct), 100);
                   const isNumericPct = stat.percentage.includes('%');
-                  const radius = 28;
+                  const radius = 24;
                   const circumference = 2 * Math.PI * radius;
                   const fillRatio = isNumericPct ? clampedPct / 100 : 0.6;
                   const strokeDash = fillRatio * circumference;
                   const ringColors = ['#8b5cf6','#06b6d4','#f59e0b','#10b981'];
                   const ringColor = isPositive ? ringColors[index] : '#ef4444';
-                  // Format value like 12.2K
                   const numVal = parseInt(stat.value) || 0;
                   const displayVal = numVal >= 1000 ? `${(numVal/1000).toFixed(1)}K` : stat.value;
+                  const borderColors = ['border-t-violet-500','border-t-cyan-500','border-t-amber-500','border-t-emerald-500'];
                   return (
-                    <div key={index} className="bg-white rounded-xl px-5 py-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-2">{stat.label}</p>
+                    <div key={index} className={`bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-md transition-all`}>
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-3">{stat.label}</p>
                       <div className="flex items-center justify-between">
-                        <h3 className="text-3xl font-bold text-gray-900">{displayVal}</h3>
+                        <div>
+                          <h3 className="text-4xl font-bold text-gray-900 leading-none mb-1">{displayVal}</h3>
+                          <p className="text-xs font-medium" style={{ color: isPositive ? ringColor : '#ef4444' }}>
+                            {isNumericPct ? `${isPositive ? '▲' : '▼'} ${Math.abs(numericPct)}% vs last month` : stat.percentage}
+                          </p>
+                        </div>
                         <div className="relative flex-shrink-0">
-                          <svg width="68" height="68" viewBox="0 0 68 68">
-                            <circle cx="34" cy="34" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="5" />
-                            <circle
-                              cx="34" cy="34" r={radius} fill="none"
-                              stroke={ringColor} strokeWidth="5"
-                              strokeDasharray={`${strokeDash} ${circumference}`}
-                              strokeLinecap="round"
-                              transform="rotate(-90 34 34)"
-                            />
+                          <svg width="60" height="60" viewBox="0 0 60 60">
+                            <circle cx="30" cy="30" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="5" />
+                            <circle cx="30" cy="30" r={radius} fill="none" stroke={ringColor} strokeWidth="5"
+                              strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 30 30)" />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-xs font-bold" style={{ color: ringColor }}>
-                              {isNumericPct
-                                ? `${isPositive ? '+' : ''}${numericPct}%`
-                                : stat.percentage.replace(' this month', '')}
+                              {isNumericPct ? `${isPositive ? '+' : ''}${numericPct}%` : stat.percentage.replace(' this month', '')}
                             </span>
                           </div>
                         </div>
@@ -1040,68 +915,73 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 })}
               </div>
 
-              {/* ── Row 1: Applications Over Time + Status Breakdown + Acquisitions ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-                {/* Area chart – applications last 7 days */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
+              {/* ── Row 1: Charts ── */}
+              <div className="grid grid-cols-3 gap-5 mb-5">
+                {/* Area chart */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                  <div className="flex items-center justify-between mb-1">
                     <div>
-                      <h2 className="text-base font-semibold text-gray-900">Applications Received</h2>
-                      <p className="text-xs text-gray-400">Last 7 days</p>
+                      <h2 className="text-sm font-bold text-gray-900">Applications Received</h2>
+                      <p className="text-xs text-gray-400 mt-0.5">Last 7 days</p>
                     </div>
-                    <TrendingUp className="w-5 h-5 text-blue-500" />
+                    <TrendingUp className="w-4 h-4 text-blue-500" />
                   </div>
+                  <div className="flex-1 min-h-0">
                   {applications.length === 0 ? (
-                    <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No application data yet</div>
+                    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={150}>
-                      <AreaChart data={applicationsOverTime} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                    <ResponsiveContainer width="100%" height={160}>
+                      <AreaChart data={applicationsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
                         <defs>
                           <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
                         <Tooltip />
-                        <Area type="monotone" dataKey="applications" stroke="#3b82f6" fill="url(#appGrad)" strokeWidth={2} />
+                        <Area type="monotone" dataKey="applications" stroke="#8b5cf6" fill="url(#appGrad)" strokeWidth={2} />
                       </AreaChart>
                     </ResponsiveContainer>
                   )}
+                  </div>
                 </div>
 
-                {/* Application Status Donut */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
+                {/* Status Donut */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                  <div className="flex items-center justify-between mb-1">
                     <div>
-                      <h2 className="text-base font-semibold text-gray-900">Status Breakdown</h2>
-                      <p className="text-xs text-gray-400">All applications</p>
+                      <h2 className="text-sm font-bold text-gray-900">Status Breakdown</h2>
+                      <p className="text-xs text-gray-400 mt-0.5">All applications</p>
                     </div>
-                    <BarChart2 className="w-5 h-5 text-purple-500" />
+                    <BarChart2 className="w-4 h-4 text-purple-500" />
                   </div>
+                  <div className="flex-1 min-h-0">
                   {statusBreakdown.length === 0 ? (
-                    <div className="flex items-center justify-center h-48 text-gray-400 text-sm">No data yet</div>
+                    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
                   ) : (
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
-                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
                           {statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
                         </Pie>
                         <Tooltip />
-                        <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+                        <Legend iconSize={9} wrapperStyle={{ fontSize: 10 }} />
                       </PieChart>
                     </ResponsiveContainer>
                   )}
+                  </div>
                 </div>
 
                 {/* Acquisitions */}
-                <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base font-semibold text-gray-900">Acquisitions</h2>
-                    <span className="text-xs text-blue-500 font-medium">This Month</span>
+                    <h2 className="text-sm font-bold text-gray-900">Acquisitions</h2>
+                    <span className="text-xs text-violet-500 font-semibold bg-violet-50 px-2 py-0.5 rounded-full">This Month</span>
                   </div>
+                  <div className="flex-1">
                   {(() => {
                     const total = applications.length || 1;
                     const acq = [
@@ -1112,17 +992,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     ];
                     return (
                       <>
-                        <div className="flex h-2 rounded-full overflow-hidden mb-3">
+                        <div className="flex h-2.5 rounded-full overflow-hidden mb-4">
                           {acq.map((s,i) => <div key={i} style={{width:`${(s.count/total)*100}%`,background:s.color}} />)}
                         </div>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {acq.map((s,i) => (
                             <div key={i} className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full" style={{background:s.color}}></span>
-                                <span className="text-xs text-gray-500">{s.label}</span>
+                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:s.color}}></span>
+                                <span className="text-xs text-gray-600">{s.label}</span>
                               </div>
-                              <span className="text-xs font-bold text-gray-700">
+                              <span className="text-xs font-bold text-gray-800">
                                 {applications.length > 0 ? `${Math.round((s.count/total)*100)}%` : '0%'}
                               </span>
                             </div>
@@ -1131,129 +1011,92 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       </>
                     );
                   })()}
+                  </div>
                 </div>
               </div>
 
-              {/* ── Row 2: Top Active Jobs + New Applicants + Recent Activity ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-
-                {/* Top Active Jobs table */}
-                <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-base font-semibold text-gray-900">Top Active Jobs</h2>
-                    <span className="text-xs text-blue-500 font-medium">Last 30 days</span>
-                  </div>
-                  <div className="flex items-center gap-4 mb-4">
-                    {[{label:'Applications',color:'#8b5cf6'},{label:'Shortlisted',color:'#06b6d4'},{label:'Rejected',color:'#d1d5db'}].map(l => (
-                      <div key={l.label} className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded-full" style={{background:l.color}}></span>
-                        <span className="text-xs text-gray-500">{l.label}</span>
-                      </div>
-                    ))}
+              {/* ── Row 2: Bottom Cards ── */}
+              <div className="grid grid-cols-3 gap-5 mb-6">
+                {/* Top Jobs */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-bold text-gray-900">Top Active Jobs</h2>
+                    <span className="text-xs text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">Last 30 days</span>
                   </div>
                   {topJobs.length === 0 ? (
                     <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No jobs posted yet</div>
                   ) : (
-                    <table className="w-full">
-                      <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="text-left text-xs text-gray-400 font-medium pb-2">Job Title</th>
-                          <th className="text-right text-xs text-gray-400 font-medium pb-2">Applications</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {topJobs.slice(0,5).map((job, i) => {
-                          const jId = String(jobs[i]?.id || jobs[i]?._id || '');
-                          const shortlisted = applications.filter(a => {
-                            const aId = typeof a.jobId === 'object' ? String(a.jobId?._id || a.jobId?.id || '') : String(a.jobId || '');
-                            return aId === jId && ['shortlisted','hired'].includes(a.status);
-                          }).length;
-                          const rejected = applications.filter(a => {
-                            const aId = typeof a.jobId === 'object' ? String(a.jobId?._id || a.jobId?.id || '') : String(a.jobId || '');
-                            return aId === jId && a.status === 'rejected';
-                          }).length;
-                          const total = Math.max(job.applications, 1);
-                          return (
-                            <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                              <td className="py-3">
-                                <p className="text-sm font-medium text-gray-800 mb-1.5">{job.name}</p>
-                                <div className="flex h-1.5 w-44 rounded-full overflow-hidden bg-gray-100">
-                                  <div style={{width:`${(job.applications/total)*100}%`,background:'#8b5cf6'}} />
-                                  <div style={{width:`${(shortlisted/total)*100}%`,background:'#06b6d4'}} />
-                                  <div style={{width:`${(rejected/total)*100}%`,background:'#d1d5db'}} />
-                                </div>
-                              </td>
-                              <td className="py-3 text-right text-sm font-bold text-gray-900">{job.applications}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div className="space-y-3">
+                      {topJobs.slice(0,5).map((job, i) => {
+                        const jId = String(jobs[i]?.id || jobs[i]?._id || '');
+                        const total = Math.max(job.applications, 1);
+                        return (
+                          <div key={i}>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-xs font-medium text-gray-700 truncate flex-1 mr-2">{job.name}</p>
+                              <span className="text-xs font-bold text-gray-900">{job.applications}</span>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                              <div className="h-full rounded-full bg-violet-500" style={{width:`${(job.applications/total)*100}%`}} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 
-                {/* Right col: New Applicants + Recent Activity */}
-                <div className="flex flex-col gap-5">
-
-                  {/* New Applicants */}
-                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-base font-semibold text-gray-900">New Applicants</h2>
-                      <span className="text-xs text-blue-500 font-medium">Today</span>
-                    </div>
-                    {applications.length === 0 ? (
-                      <p className="text-xs text-gray-400 text-center py-4">No applicants yet</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {applications.slice(0,4).map((app,i) => (
-                          <div key={i} className="flex items-center gap-3">
-                            {app.candidateProfilePicture ? (
-                              <img src={app.candidateProfilePicture} alt={app.candidateName} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
-                            ) : (
-                              <div className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold"
-                                style={{background: PIE_COLORS[i % PIE_COLORS.length]}}>
-                                {(app.candidateName||'C').charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-gray-900 truncate">{app.candidateName||'Candidate'}</p>
-                              <p className="text-xs text-gray-400 truncate">Applied for {(app.jobTitle||'a position').substring(0,22)}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                {/* New Applicants */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-sm font-bold text-gray-900">New Applicants</h2>
+                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Today</span>
                   </div>
-
-                  {/* Recent Activity */}
-                  <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-                    <h2 className="text-base font-semibold text-gray-900 mb-4">Recent Activity</h2>
-                    <div className="space-y-4">
-                      {loading ? (
-                        <div className="text-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div></div>
-                      ) : recentActivity.length === 0 ? (
-                        <div className="text-center py-8"><p className="text-gray-500 text-sm">No recent activity</p></div>
-                      ) : (
-                        recentActivity.map((activity, index) => (
-                          <div key={index} className="flex items-start justify-between py-3 border-b border-gray-100 last:border-b-0">
-                            <div className="flex-1">
-                              <p className="text-gray-900 font-medium text-sm">{activity.message}</p>
-                              {activity.details && (
-                                <p className="text-gray-600 text-xs mt-1">
-                                  {activity.details.candidateName && `${activity.details.candidateName} - `}
-                                  {activity.details.jobTitle}
-                                </p>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-500 ml-4">{activity.time}</span>
+                  {applications.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {applications.slice(0,5).map((app,i) => (
+                        <div key={i} className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
+                            style={{background: PIE_COLORS[i % PIE_COLORS.length]}}>
+                            {(app.candidateName||'C').charAt(0).toUpperCase()}
                           </div>
-                        ))
-                      )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName||'Candidate'}</p>
+                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle||'a position').substring(0,24)}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
+                  )}
+                </div>
 
+                {/* Recent Activity */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <h2 className="text-sm font-bold text-gray-900 mb-4">Recent Activity</h2>
+                  {loading ? (
+                    <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-600"></div></div>
+                  ) : recentActivity.length === 0 ? (
+                    <p className="text-xs text-gray-400 text-center py-8">No recent activity</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentActivity.map((activity, index) => (
+                        <div key={index} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0">
+                          <div className="w-2 h-2 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-800">{activity.message}</p>
+                            {activity.details?.jobTitle && <p className="text-xs text-gray-400 truncate">{activity.details.jobTitle}</p>}
+                          </div>
+                          <span className="text-xs text-gray-400 whitespace-nowrap">{activity.time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
+
+              </div>{/* end white container */}
 
             </>
           ) : activeMenu === 'applications' ? (
@@ -1802,7 +1645,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               openConfirm('Remove Candidate', 'Remove this candidate from your saved list?', () => {
                                 const token = getToken();
                                 const recordId = candidate.id || candidate._id;
-                                fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${recordId}`, {
+                                const candidateId = candidate.candidateId;
+                                fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidateId}`, {
                                   method: 'DELETE',
                                   headers: { 'Authorization': `Bearer ${token}` }
                                 })

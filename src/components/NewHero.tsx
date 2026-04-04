@@ -20,7 +20,7 @@ const CompanyMarquee: React.FC = () => {
   const items = [...COMPANIES, ...COMPANIES];
 
   return (
-    <div className="bg-white py-6 border-t border-gray-100 -mt-12" ref={ref}>
+    <div className="bg-white py-6" ref={ref} style={{borderRadius: '40px 40px 0 0', marginTop: '-40px', position: 'relative', zIndex: 10}}>
       <style>{`
         @keyframes marquee-rtl {
           0%   { transform: translateX(0); }
@@ -65,7 +65,7 @@ const CompanyMarquee: React.FC = () => {
                   {c.name[0]}
                 </span>
               </div>
-              <span className="text-sm font-medium text-gray-600 group-hover:text-gray-800 transition-colors">{c.name}</span>
+
             </div>
           ))}
         </div>
@@ -206,22 +206,26 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   return (
     <>
       {/* Main Banner Section */}
-      <div className="relative bg-white">
-        <div className="absolute inset-0">
-          <div className="absolute top-20 right-20 w-96 h-96 bg-blue-100 rounded-full opacity-20"></div>
-          <div className="absolute bottom-20 left-20 w-64 h-64 bg-blue-200 rounded-full opacity-30"></div>
+      <div className="relative" style={{
+        background: 'linear-gradient(135deg, #0f0c29 0%, #1a1040 30%, #2d1b69 60%, #1e0a3c 100%)',
+      }}>
+        {/* Subtle radial glow blobs */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-10 left-1/4 w-96 h-96 rounded-full" style={{background: 'radial-gradient(circle, rgba(139,92,246,0.25) 0%, transparent 70%)'}}></div>
+          <div className="absolute bottom-10 right-1/4 w-80 h-80 rounded-full" style={{background: 'radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%)'}}></div>
+          <div className="absolute top-1/2 left-10 w-64 h-64 rounded-full" style={{background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%)'}}></div>
         </div>
-        
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{paddingTop: '4rem', paddingBottom: '0'}}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-end">
             
             {/* Left Content */}
-            <div className="space-y-8 -mt-8">
+            <div className="space-y-8 pb-16">
               <div className="space-y-6">
-                <h5 className="text-blue-600 font-semibold text-lg">
+                <h5 className="font-semibold text-lg" style={{color: '#a78bfa'}}>
                   {subtitle}
                 </h5>
-                <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 leading-tight">
+                <h1 className="text-4xl lg:text-6xl font-bold text-white leading-tight">
                   <style>{`
                     @keyframes letter-pop {
                       0% { opacity: 0; transform: translateY(20px); }
@@ -240,15 +244,15 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     return (
                       <span
                         key={i}
-                        className={`anim-letter${isBlue ? ' text-blue-600' : ''}`}
-                        style={{ animationDelay: `${i * 0.06}s` }}
+                        className={`anim-letter`}
+                        style={isBlue ? {color: '#f97316', animationDelay: `${i * 0.06}s`} : {animationDelay: `${i * 0.06}s`}}
                       >
                         {char === ' ' ? '\u00A0' : char}
                       </span>
                     );
                   })}
                 </h1>
-                <h6 className="text-base text-gray-600 leading-relaxed whitespace-nowrap">
+                <h6 className="text-base leading-relaxed whitespace-nowrap" style={{color: 'rgba(255,255,255,0.7)'}}>
                   <style>{`
                     @keyframes desc-letter-pop {
                       0% { opacity: 0; transform: translateY(10px); }
@@ -396,7 +400,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
               {/* Popular Searches */}
               <div className="flex flex-wrap items-center gap-2">
-                <h4 className="font-semibold text-gray-900">Popular Searches:</h4>
+                <h4 className="font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>Popular Searches:</h4>
                 <div className="flex flex-wrap gap-2">
                   {popularSearches.map((term) => (
                     <button
@@ -408,7 +412,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                           onNavigate('job-listings', { searchTerm: term, location });
                         }
                       }}
-                      className="text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                      className="hover:underline cursor-pointer" style={{color: '#a78bfa'}}
                     >
                       {term}
                     </button>
@@ -428,9 +432,9 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                 `}</style>
 
                 {/* Dotted Circle Background */}
-                <div className="absolute inset-0 flex items-center justify-center -mt-12">
+                <div className="absolute inset-0 flex items-center justify-center">
                   {/* Inner orbit circle */}
-                  <div className="hero-orbit-inner w-[22rem] h-[22rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.4)'}}>
+                  <div className="hero-orbit-inner w-[22rem] h-[22rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.6)'}}>
                     {[
                       { emoji: '🤖', angle: 0 },
                       { emoji: '✨', angle: 90 },
@@ -455,7 +459,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   </div>
 
                   {/* Outer orbit circle */}
-                  <div className="hero-orbit-outer w-[33rem] h-[33rem] rounded-full absolute" style={{border: '2px dashed rgba(30,30,30,0.3)'}}>
+                  <div className="hero-orbit-outer w-[33rem] h-[33rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.7)'}}>
                     {[
                       { emoji: '🎨', label: 'Resume Studio', angle: 0 },
                       { emoji: '💬', label: 'Interview Preparation', angle: 72 },
@@ -480,11 +484,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     ))}
                   </div>
                 </div>
-                
+
                 <img
                   src={heroImage}
                   alt="Professional woman"
-                  className="w-[26rem] h-[32rem] mx-auto object-contain relative z-10 -mt-12"
+                  className="w-full object-contain object-bottom relative z-10"
+                  style={{ maxHeight: '580px', display: 'block' }}
                 />
               </div>
           </div>

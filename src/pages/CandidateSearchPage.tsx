@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { ArrowLeft, Search, Filter, MapPin, Star, Users, Code, Mail, Phone, Briefcase, TrendingUp, Zap, ChevronDown, MessageCircle } from 'lucide-react';
+import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy } from 'lucide-react';
 import CandidateProfileModal from '../components/CandidateProfileModal';
-import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -50,27 +49,33 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [openContactMenu, setOpenContactMenu] = useState<string | null>(null);
-  const [scheduleCandidate, setScheduleCandidate] = useState<Candidate | null>(null);
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showSkillSuggestions, setShowSkillSuggestions] = useState(false);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [allSkills, setAllSkills] = useState<string[]>([]);
   const [allLocations, setAllLocations] = useState<string[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreCandidates, setHasMoreCandidates] = useState(true);
+  const [experienceFilter, setExperienceFilter] = useState('');
+  const [availabilityFilter, setAvailabilityFilter] = useState('');
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
-  const candidatesPerPage = 10;
-  // AI Insights state
   const [employerJobs, setEmployerJobs] = useState<any[]>([]);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [sortBy, setSortBy] = useState<'ai_score' | 'name' | 'skills'>('ai_score');
   const [selectedCandidateForMessage, setSelectedCandidateForMessage] = useState<Candidate | null>(null);
-  
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
 
-  // Fetch employer's posted jobs for AI job selector
+  // Close contact menu on outside click
+  useEffect(() => {
+    if (!openContactMenu) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-contact-menu]')) setOpenContactMenu(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openContactMenu]);
+
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   useEffect(() => {
     if (!user?.email) return;
     fetch(`${API_ENDPOINTS.JOBS}`)
@@ -125,10 +130,37 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     }
   };
 
-  // Scored + sorted candidates
+  // Client-side filtered + scored + sorted candidates
   const scoredCandidates = useMemo(() => {
     try {
-      const withScores = candidates.map(c => ({ ...c, ...computeAIScore(c, selectedJob) }));
+      const q = searchTerm.toLowerCase().trim();
+      const skillQ = selectedSkill.toLowerCase().trim();
+      const locQ = selectedLocation.toLowerCase().trim();
+
+      const filtered = candidates.filter(c => {
+        const name = (c.fullName || c.name || '').toLowerCase();
+        const title = (c.jobTitle || c.title || '').toLowerCase();
+        const email = (c.email || '').toLowerCase();
+        const summary = (c.profileSummary || '').toLowerCase();
+        const skills = (c.skills || []).map((s: string) => s.toLowerCase());
+        const location = (c.location || '').toLowerCase();
+        const experience = (c.experience || '').toLowerCase();
+        const availability = (c.availability || '').toLowerCase();
+
+        if (q && !name.includes(q) && !title.includes(q) && !email.includes(q) && !summary.includes(q) && !skills.some((s: string) => s.includes(q)))
+          return false;
+        if (skillQ && !skills.some((s: string) => s.includes(skillQ) || skillQ.includes(s)))
+          return false;
+        if (locQ && !location.includes(locQ))
+          return false;
+        if (experienceFilter && !experience.includes(experienceFilter.toLowerCase()))
+          return false;
+        if (availabilityFilter && !availability.includes(availabilityFilter.toLowerCase()))
+          return false;
+        return true;
+      });
+
+      const withScores = filtered.map(c => ({ ...c, ...computeAIScore(c, selectedJob) }));
       if (sortBy === 'ai_score') return [...withScores].sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
       if (sortBy === 'skills') return [...withScores].sort((a, b) => (b.matchedSkills?.length ?? 0) - (a.matchedSkills?.length ?? 0));
       return [...withScores].sort((a, b) =>
@@ -137,7 +169,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     } catch {
       return candidates;
     }
-  }, [candidates, selectedJob, sortBy]);
+  }, [candidates, searchTerm, selectedSkill, selectedLocation, experienceFilter, availabilityFilter, selectedJob, sortBy]);
 
   useEffect(() => {
     const loadSkillsAndLocations = async () => {      try {
@@ -160,25 +192,15 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     loadSkillsAndLocations();
   }, []);
 
-  const fetchCandidates = async (page = 1, append = false) => {
+  const fetchCandidates = useCallback(async () => {
     try {
-      if (!append) setLoading(true);
-      
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (selectedSkill) params.append('skill', selectedSkill);
-      if (selectedLocation) params.append('location', selectedLocation);
-      params.append('page', page.toString());
-      params.append('limit', candidatesPerPage.toString());
-
-      // Try users endpoint with role=candidate filter first
+      setLoading(true);
       let candidatesArray: any[] = [];
       const endpoints = [
-        `${API_ENDPOINTS.BASE_URL}/users?role=candidate&${params}`,
-        `${API_ENDPOINTS.BASE_URL}/profiles?${params}`,
-        `${API_ENDPOINTS.BASE_URL}/candidates?${params}`,
+        `${API_ENDPOINTS.BASE_URL}/users?role=candidate`,
+        `${API_ENDPOINTS.BASE_URL}/profiles`,
+        `${API_ENDPOINTS.BASE_URL}/candidates`,
       ];
-
       for (const url of endpoints) {
         try {
           const res = await fetch(url);
@@ -189,43 +211,26 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           }
         } catch {}
       }
-
-      // Filter out employer/admin accounts
-      const filtered = candidatesArray.filter((c: any) =>
-        !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || '')
-      );
-
-      if (append) {
-        setCandidates(prev => [...prev, ...filtered]);
-      } else {
-        setCandidates(filtered);
-        if (!searchTerm && !selectedSkill && !selectedLocation) {
-          setTotalCandidates(filtered.length);
-        }
-      }
-
-      setHasMoreCandidates(filtered.length === candidatesPerPage);
+      const filtered = candidatesArray
+        .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
+        .map((c: any) => ({ ...c, _id: c._id || c.id }));
+      setCandidates(filtered);
+      setTotalCandidates(filtered.length);
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
     } catch (error) {
       console.error('Error fetching candidates:', error);
-      if (!append) setCandidates([]);
+      setCandidates([]);
     } finally {
-      if (!append) setLoading(false);
+      setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => { fetchCandidates(); }, [fetchCandidates]);
 
   useEffect(() => {
-    fetchCandidates();
-  }, [searchTerm, selectedSkill, selectedLocation]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!searchTerm && !selectedSkill && !selectedLocation) {
-        fetchCandidates();
-      }
-    }, 30000);
+    const interval = setInterval(() => fetchCandidates(), 60000);
     return () => clearInterval(interval);
-  }, [searchTerm, selectedSkill, selectedLocation]);
+  }, [fetchCandidates]);
 
   const getAvatar = (name: string) => {
     return name ? name.split(' ').map((n: string) => n[0]).join('').toUpperCase() : 'NA';
@@ -254,13 +259,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     setSelectedCandidate(null);
   };
 
-  const handleLoadMoreCandidates = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchCandidates(nextPage, true);
-  };
-
-  return (
+return (
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
@@ -520,8 +519,8 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                   </div>
                 ) : (
                   <div>
-                    <span className="text-blue-600 font-bold">{candidates.length}</span>
-                    <span className="text-gray-600"> candidate{candidates.length !== 1 ? 's' : ''} found</span>
+                    <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
+                    <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
                     {(searchTerm || selectedSkill || selectedLocation) && (
                       <span className="ml-2 text-gray-500">
                         {searchTerm && ` matching "${searchTerm}"`}
@@ -540,7 +539,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
             <p className="text-gray-500 text-lg">Loading candidates...</p>
           </div>
-        ) : candidates.length === 0 ? (
+        ) : scoredCandidates.length === 0 ? (
           <div className="text-center py-16">
             <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-12 border border-gray-200">
               <Users className="w-20 h-20 text-gray-300 mx-auto mb-6" />
@@ -548,7 +547,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
                 {(searchTerm || selectedSkill || selectedLocation) 
                   ? 'No candidates match your current search criteria. Try adjusting your filters.' 
-                  : 'No candidates are currently registered. Be the first to join our talent pool!'}
+                  : 'No candidates are currently registered.'}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <button
@@ -556,6 +555,8 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                     setSearchTerm('');
                     setSelectedSkill('');
                     setSelectedLocation('');
+                    setExperienceFilter('');
+                    setAvailabilityFilter('');
                   }}
                   className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
                 >
@@ -670,7 +671,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                     >
                       View Profile
                     </button>
-                    <div className="relative">
+                    <div className="relative" data-contact-menu>
                       <button
                         onClick={() => setOpenContactMenu(openContactMenu === candidate._id ? null : candidate._id)}
                         className="flex items-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
@@ -680,18 +681,12 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openContactMenu === candidate._id ? 'rotate-180' : ''}`} />
                       </button>
                       {openContactMenu === candidate._id && (
-                        <div className="absolute bottom-full right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-10 mb-1 w-48 overflow-hidden">
-                          <button onClick={() => candidate.email && (window.location.href = `mailto:${candidate.email}`)} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
-                            <Mail className="w-4 h-4 text-gray-400" /> Send Email
-                          </button>
-                          <button onClick={() => { setScheduleCandidate(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
-                            <Users className="w-4 h-4 text-gray-400" /> Schedule Interview
-                          </button>
+                        <div className="absolute bottom-full right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 mb-1 w-48 overflow-hidden">
                           <button onClick={() => { setSelectedCandidateForMessage(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <MessageCircle className="w-4 h-4 text-gray-400" /> Send Message
                           </button>
                           <button onClick={() => { navigator.clipboard.writeText(candidate.email || ''); window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Email copied!" } })); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
-                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg> Copy Email
+                            <Copy className="w-4 h-4 text-gray-400" /> Copy Email
                           </button>
                           <button onClick={() => {
                             const userData = JSON.parse(localStorage.getItem('user') || '{}');
@@ -749,14 +744,9 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           </div>
         )}
 
-        {candidates.length > 0 && hasMoreCandidates && (
-          <div className="flex justify-center py-8">
-            <button
-              onClick={handleLoadMoreCandidates}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
-            >
-              Load More Candidates
-            </button>
+        {scoredCandidates.length > 0 && candidates.length > scoredCandidates.length && (
+          <div className="flex justify-center py-4">
+            <p className="text-sm text-gray-400">Showing {scoredCandidates.length} of {candidates.length} candidates</p>
           </div>
         )}
       </div>
@@ -768,28 +758,15 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         onClose={handleCloseModal}
       />
 
-      {scheduleCandidate && (
-        <ScheduleInterviewModal
-          application={{
-            candidateName: getCandidateName(scheduleCandidate),
-            candidateEmail: scheduleCandidate.email || '',
-            jobId: null,
-          }}
-          onClose={() => setScheduleCandidate(null)}
-          onSuccess={() => setScheduleCandidate(null)}
-        />
-      )}
-
       {selectedCandidateForMessage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md max-h-96 overflow-hidden">
-            <DirectMessage
-              candidateId={selectedCandidateForMessage._id}
-              candidateName={getCandidateName(selectedCandidateForMessage)}
-              onClose={() => setSelectedCandidateForMessage(null)}
-            />
-          </div>
-        </div>
+        <DirectMessage
+          candidateId={selectedCandidateForMessage._id}
+          candidateName={getCandidateName(selectedCandidateForMessage)}
+          candidateEmail={selectedCandidateForMessage.email || ''}
+          employerId={currentUser.id || ''}
+          employerName={currentUser.name || currentUser.fullName || ''}
+          onClose={() => setSelectedCandidateForMessage(null)}
+        />
       )}
 
       <Footer onNavigate={onNavigate} />

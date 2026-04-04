@@ -149,7 +149,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
           <p className="text-sm text-gray-600">Position: <span className="font-medium">{application.jobId?.jobTitle || application.jobId?.title}</span></p>
           {existingRounds.length > 0 && (
             <p className="text-sm text-gray-500 mt-1">
-              Completed rounds: <span className="font-medium">{existingRounds.join(', ')}</span>
+              Scheduled rounds: <span className="font-medium">{existingRounds.join(', ')}</span>
             </p>
           )}
         </div>

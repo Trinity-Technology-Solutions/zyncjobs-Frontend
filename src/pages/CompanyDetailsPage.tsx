@@ -85,7 +85,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           await fetchCompanyJobs(companyData.name);
           const companyReviews = await fetchCompanyReviews(companyData.name);
           setReviews(companyReviews);
-          // Load follow status after company is set
           if (user?.email) {
             const id = encodeURIComponent(companyData.name);
             fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
@@ -143,10 +142,13 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please login to follow companies' } }));
       return;
     }
-    // Use company name as the stable identifier (companies.json has no _id)
     const id = encodeURIComponent(company?.name || company?._id || '');
     if (!id) return;
-    const action = isFollowing ? 'unfollow' : 'follow';
+    const wasFollowing = isFollowing;
+    const prevCount = followersCount;
+    const action = wasFollowing ? 'unfollow' : 'follow';
+    setIsFollowing(!wasFollowing);
+    setFollowersCount(wasFollowing ? Math.max(0, prevCount - 1) : prevCount + 1);
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/${action}`, {
         method: 'POST',
@@ -155,19 +157,21 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       });
       if (response.ok) {
         const data = await response.json();
-        setIsFollowing(!isFollowing);
-        setFollowersCount(data.followersCount ?? (isFollowing ? Math.max(0, followersCount - 1) : followersCount + 1));
+        if (data.followersCount !== undefined) setFollowersCount(data.followersCount);
       } else {
-        console.error('Follow failed:', response.status, await response.text());
+        setIsFollowing(wasFollowing);
+        setFollowersCount(prevCount);
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to update follow status. Please try again.' } }));
       }
-    } catch (error) {
-      console.error('Follow error:', error);
+    } catch {
+      setIsFollowing(wasFollowing);
+      setFollowersCount(prevCount);
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error. Please try again.' } }));
     }
   };
 
   const deleteReview = async (reviewId: string) => {
-    const ok = await (window as any).confirmAsync('Delete this review?');
-    if (!ok) return;
+    if (!window.confirm('Delete this review?')) return;
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews/${reviewId}`, {
         method: 'DELETE',
@@ -184,8 +188,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     setReviewError('');
     if (!isCandidate) { setReviewError('Only candidates can submit reviews.'); return; }
     if (!reviewForm.title.trim() || !reviewForm.review.trim()) { setReviewError('Please fill in all fields.'); return; }
-    if (reviewForm.review.trim().length < 20) { setReviewError('Review must be at least 20 characters.'); return; }
-    if (reviewForm.review.trim().length > 500) { setReviewError('Review must not exceed 500 characters.'); return; }
+    if (reviewForm.review.trim().length > 1000) { setReviewError('Review must not exceed 1000 characters.'); return; }
     setSubmittingReview(true);
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews`, {
@@ -425,7 +428,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               </div>
             )}
 
-            {activeTab === 'salaries' && (
+{activeTab === 'salaries' && (
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Salaries at {company.name}</h2>
                 {jobs.length > 0 ? (
@@ -525,15 +528,13 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       onChange={(e) => setReviewForm({ ...reviewForm, review: e.target.value })}
                       placeholder="Share your experience..."
                       rows={5}
-                      maxLength={500}
+                      maxLength={1000}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                     <div className="flex justify-between text-xs mt-1">
-                      <span className={reviewForm.review.length > 0 && reviewForm.review.length < 20 ? 'text-red-500' : 'text-gray-400'}>
-                        {reviewForm.review.length < 20 ? `Min 20 characters (${20 - reviewForm.review.length} more)` : ''}
-                      </span>
-                      <span className={reviewForm.review.length >= 480 ? 'text-orange-500' : 'text-gray-400'}>
-                        {reviewForm.review.length}/500
+                      <span />
+                      <span className={reviewForm.review.length >= 950 ? 'text-orange-500' : 'text-gray-400'}>
+                        {reviewForm.review.length}/1000
                       </span>
                     </div>
                   </div>

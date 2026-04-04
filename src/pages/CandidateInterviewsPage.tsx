@@ -12,6 +12,8 @@ interface Interview {
   };
   candidateEmail: string;
   candidateName: string;
+  round?: string;
+  jobTitle?: string;
   interviewDate: string;
   interviewTime: string;
   interviewType: 'video' | 'in-person' | 'phone';
@@ -222,13 +224,22 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                         
                         {/* Interview Details */}
                         <div className="flex-1">
-                          <div className="flex items-center space-x-3 mb-2">
+                          <div className="flex items-center flex-wrap gap-2 mb-2">
                             <h3 className="font-semibold text-lg text-gray-900">
-                              {interview.jobId?.jobTitle || 'Job Title'}
+                              {interview.jobId?.jobTitle || interview.jobTitle || 'Job Title'}
                             </h3>
-                            <div className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${getStatusColor(interview.status)} animate-pulse`}>
+                            {interview.round && (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                                🎯 {interview.round} Round
+                              </span>
+                            )}
+                            <div className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border ${getStatusColor(interview.status)}`}>
                               {getStatusIcon(interview.status)}
-                              <span className="ml-2">{interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}</span>
+                              <span className="ml-2">
+                                {interview.status === 'scheduled' && interview.round
+                                  ? `Ongoing — ${interview.round} Round`
+                                  : interview.status.charAt(0).toUpperCase() + interview.status.slice(1)}
+                              </span>
                             </div>
                           </div>
                           

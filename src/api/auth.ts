@@ -25,6 +25,7 @@ export interface User {
   id: string;
   email: string;
   userType: 'jobseeker' | 'employer';
+  role?: string;
   fullName: string;
   phone?: string;
   company?: string;
@@ -40,7 +41,7 @@ export interface User {
 }
 
 export const authAPI = {
-  async register(userData: RegisterData): Promise<{ id: string; message: string; userType: string; user?: any; accessToken?: string; refreshToken?: string }> {
+  async register(userData: RegisterData): Promise<{ id: string; message: string; userType: string; user?: any; accessToken?: string; refreshToken?: string; verificationStatus?: string }> {
     
     const response = await fetch(API_ENDPOINTS.REGISTER, {
       method: 'POST',
