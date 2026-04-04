@@ -297,8 +297,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3">
+      <div className="w-full pl-6 pr-10 sm:pl-8 sm:pr-12">
+        <div className="flex items-center justify-between py-4">
           <div className="flex-shrink-0">
             <button 
               onClick={() => onNavigate && onNavigate('home')}
@@ -307,7 +307,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <img 
                 src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
                 alt={siteSettings?.siteTitle || 'ZyncJobs'} 
-                className="h-20 w-auto"
+                className="h-16 w-auto"
               />
             </button>
           </div>

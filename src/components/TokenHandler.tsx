@@ -23,10 +23,14 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-    // 'portal' is set by the Google button: 'candidate' or 'employer'
+    // 'portal' is set by the Google/LinkedIn button: 'candidate' or 'employer'
     const intendedPortal = (urlParams.get('portal') || urlParams.get('type') || 'candidate') as string;
+    const isLinkedinImport = urlParams.get('linkedin') === '1';
 
     if (!token) return;
+
+    // LinkedIn import flow — handled by LinkedInConnect component, skip here
+    if (isLinkedinImport) return;
 
     localStorage.setItem('token', token);
     localStorage.setItem('accessToken', token);
