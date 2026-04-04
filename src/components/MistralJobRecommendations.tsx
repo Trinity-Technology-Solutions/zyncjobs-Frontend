@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { rankJobs, type MatchBreakdown } from '../services/jobMatchEngine';
 
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 interface MistralJobRecommendationsProps {
   resumeSkills: Array<{ skill: string }>;
   location: string;
@@ -161,13 +163,71 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
   const fetchAndRank = async () => {
     try {
+      const skillNames = resumeSkills.map(s => s.skill);
+
+      // 1. Try backend vector semantic match
+      const storedUser = localStorage.getItem('user');
+      const userId = storedUser ? JSON.parse(storedUser)?.id : null;
+
+      if (userId) {
+        const res = await fetch(`${API_BASE}/match/recommendations/${userId}?limit=10`);
+        if (res.ok) {
+          const data = await res.json();
+          const matched = Array.isArray(data.jobs) ? data.jobs : [];
+          if (matched.length > 0) {
+            // Attach matchBreakdown shape from backend score so MatchCard renders correctly
+            setRankedJobs(matched.map((j: any) => ({
+              ...j,
+              matchBreakdown: {
+                overall: j.matchScore ?? j.matchPercentage ?? 0,
+                skillScore: j.skillScore ?? j.matchScore ?? 0,
+                titleScore: j.titleScore ?? 0,
+                locationScore: j.locationScore ?? 0,
+                matchedSkills: j.matchingSkills ?? [],
+                missingSkills: j.missingSkills ?? [],
+                bonusSkills: [],
+                explanation: j.explanation ?? [],
+              },
+            })));
+            return;
+          }
+        }
+      }
+
+      // 2. Try backend text-based semantic match
+      if (skillNames.length > 0) {
+        const res = await fetch(`${API_BASE}/match/jobs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: skillNames.join(' '), limit: 10 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const matches = Array.isArray(data.matches) ? data.matches : [];
+          if (matches.length > 0) {
+            setRankedJobs(matches.map((j: any) => ({
+              ...j,
+              matchBreakdown: {
+                overall: j.matchScore ?? j.matchPercentage ?? 0,
+                skillScore: j.skillScore ?? j.matchScore ?? 0,
+                titleScore: j.titleScore ?? 0,
+                locationScore: j.locationScore ?? 0,
+                matchedSkills: j.matchingSkills ?? [],
+                missingSkills: j.missingSkills ?? [],
+                bonusSkills: [],
+                explanation: j.explanation ?? [],
+              },
+            })));
+            return;
+          }
+        }
+      }
+
+      // 3. Fallback: fetch all jobs + local TF-IDF ranking
       const res = await fetch(`${API_ENDPOINTS.JOBS}`);
       if (!res.ok) return;
       const allJobs = await res.json();
-
-      const skillNames = resumeSkills.map(s => s.skill);
       const ranked = rankJobs(allJobs, skillNames, experience, location);
-      // Only show jobs with at least some relevance
       const relevant = ranked.filter(j => j.matchBreakdown.overall >= 25);
       setRankedJobs(relevant.length > 0 ? relevant : ranked.slice(0, 5));
     } catch (e) {

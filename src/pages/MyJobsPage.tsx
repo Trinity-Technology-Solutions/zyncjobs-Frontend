@@ -279,77 +279,82 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default') => {
     const jobKey = job._id || job.id || `job-${Math.random()}`;
     return (
-    <div key={jobKey} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex-1">
-          {/* Logo + Company Name on top */}
-          <div className="flex items-center gap-3 mb-3">
-            <div className="flex-shrink-0 w-12 h-12">
-              <div className="bg-gray-50 w-12 h-12 rounded-lg flex items-center justify-center p-1 border border-gray-200">
-                <img 
-                  src={getCompanyLogo(job.company)}
-                  alt={`${job.company} logo`}
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = '/images/zync-logo.svg';
-                  }}
-                />
-              </div>
+    <div key={jobKey} className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 transition-all bg-white relative overflow-hidden group">
+      {/* Gradient accent bar */}
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+      
+      <div className="flex items-start justify-between gap-4">
+        {/* Left: Logo + Content */}
+        <div className="flex gap-4 flex-1 min-w-0">
+          {/* Company Logo */}
+          <div className="flex-shrink-0">
+            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 w-16 h-16 rounded-xl flex items-center justify-center p-2 border-2 border-blue-100 shadow-sm">
+              <img 
+                src={getCompanyLogo(job.company)}
+                alt={`${job.company} logo`}
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/images/zync-logo.svg';
+                }}
+              />
             </div>
-            <span className="text-blue-600 font-semibold text-base">{job.company}</span>
           </div>
 
-          {/* Job Title + Date */}
-          <div className="flex items-start justify-between mb-1">
-            <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer">
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Company name + Date */}
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-blue-600 font-bold text-sm uppercase tracking-wide">{job.company}</span>
+              <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
+                {formatDate(job.createdAt)}
+              </span>
+            </div>
+
+            {/* Job Title */}
+            <h3 className="text-lg font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-3 line-clamp-2">
               {job.jobTitle || job.title}
             </h3>
-            <span className="text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-lg ml-4 flex-shrink-0">
-              {formatDate(job.createdAt)}
-            </span>
-          </div>
-
-          {/* Dashed divider */}
-          <div className="border-t border-dashed border-gray-300 my-3" />
-          
-          <div className="flex flex-wrap items-center gap-3 mb-3">
-            <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
-              <MapPin className="w-4 h-4 text-gray-600" />
-              <span className="text-sm font-medium text-gray-700">{job.location}</span>
+            
+            {/* Tags row */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <div className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md">
+                <MapPin className="w-3.5 h-3.5 text-gray-600" />
+                <span className="text-xs font-medium text-gray-700">{job.location}</span>
+              </div>
+              {formatSalary(job.salary) && (
+                <div className="flex items-center gap-1 bg-green-50 px-2.5 py-1 rounded-md">
+                  <IndianRupee className="w-3.5 h-3.5 text-green-600" />
+                  <span className="text-xs font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-md">
+                <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+                <span className="text-xs font-medium text-blue-700">{job.type}</span>
+              </div>
+              {job.positionId && actionType === 'posted' && (
+                <div className="flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-md">
+                  <span className="text-xs font-semibold text-purple-600">PID: {job.positionId}</span>
+                </div>
+              )}
             </div>
-            {formatSalary(job.salary) && (
-              <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                <IndianRupee className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+
+            {/* Description */}
+            {job.description && (
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border-l-3 border-blue-500">
+                <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">
+                  {job.description && job.description.length > 150 
+                    ? `${formatJobDescription(job.description.substring(0, 150))}...` 
+                    : formatJobDescription(job.description || '')}
+                </p>
               </div>
             )}
-            <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
-              <Briefcase className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-blue-700">{job.type}</span>
-            </div>
-            {/* Position ID for posted jobs */}
-            {job.positionId && actionType === 'posted' && (
-              <div className="flex items-center gap-1 bg-green-50 px-2 py-1 rounded-lg">
-                <span className="text-xs font-medium text-green-600">PID: {job.positionId}</span>
-              </div>
-            )}
           </div>
-
-          {job.description && (
-            <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500 mb-3">
-              <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                <span className="font-semibold text-blue-900">Description: </span>
-                {job.description && job.description.length > 300 
-                  ? `${formatJobDescription(job.description.substring(0, 300))}...` 
-                  : formatJobDescription(job.description || '')}
-              </p>
-            </div>
-          )}
         </div>
 
+        {/* Right: Action Buttons */}
         {showActions && (
-          <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col space-y-2">
+          <div className="flex flex-col gap-2 flex-shrink-0">
             {actionType === 'posted' && (
               <>
                 <button 
@@ -359,13 +364,13 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                       onNavigate('job-detail', { jobId, jobData: job });
                     }
                   }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
+                  className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg text-sm"
                 >
                   View Job
                 </button>
                 <button 
                   onClick={() => deleteJob(job._id || job.id)}
-                  className="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors shadow-md min-w-[140px]"
+                  className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-all shadow-md hover:shadow-lg text-sm"
                 >
                   Delete Job
                 </button>
@@ -375,16 +380,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <>
                 <button 
                   onClick={() => handleRemoveSavedJob(job._id || job.id)}
-                  className="flex items-center justify-center space-x-2 px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors shadow-sm min-w-[120px]"
+                  className="px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all text-sm font-medium"
                 >
-                  <span>Remove</span>
+                  Remove
                 </button>
                 <button 
                   onClick={() => {
                     localStorage.setItem('selectedJob', JSON.stringify(job));
                     onNavigate('job-application');
                   }}
-                  className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm min-w-[140px]"
+                  className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md text-sm"
                 >
                   Apply Now
                 </button>
@@ -393,7 +398,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'default' && (
               <button 
                 onClick={() => onNavigate('job-detail', { jobId: job._id || job.id })}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md min-w-[140px]"
+                className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md text-sm"
               >
                 View Job
               </button>
@@ -406,7 +411,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{background: 'linear-gradient(135deg, #f0f4ff 0%, #f8f0ff 50%, #fff0f6 100%)'}}>
       {notification.show && (
         <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white font-medium ${
           notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
@@ -415,7 +420,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         </div>
       )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-lg shadow-sm px-4 sm:px-6 lg:px-8 py-8">
+        <div className="bg-white rounded-2xl shadow-sm px-6 lg:px-8 py-8">
           <BackButton onClick={() => window.history.back()} text="Back" className="mb-6" />
 
           <div className="flex items-center justify-between mb-8">
@@ -572,7 +577,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {user?.type === 'employer' && activeTab === 'Posted Jobs' && (
                 <>
                   {postedJobs.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                       {postedJobs.map((job) => renderJobCard(job, true, 'posted'))}
                       {hasMoreJobs && (
                         <div className="text-center py-6">
@@ -677,8 +682,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
               {user?.type === 'candidate' && activeTab === 'Saved' && (
                 savedJobs.length > 0 ? (
-                  <div className="space-y-4">
-                    {savedJobs.map((job) => renderJobCard(job, true, 'saved'))}
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {savedJobs.map((job) => renderJobCard(job, true, 'saved'))}
                   </div>
                 ) : (
                   <EmptyState

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, MapPin, DollarSign, Clock, Building, Users, Star, TrendingUp, Brain, Target, Zap, ChevronRight, BookOpen } from 'lucide-react';
+import { Search, MapPin, DollarSign, TrendingUp, Brain, Target, ChevronRight, BookOpen } from 'lucide-react';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 interface EnhancedJobMatchingProps {
   user?: any;
@@ -49,17 +51,15 @@ const JobMatchCard: React.FC<{
             </div>
             <div className="flex items-center gap-4 text-sm text-gray-600">
               <div className="flex items-center gap-1">
-                <Building className="w-4 h-4" />
-                {job.company}
-              </div>
-              <div className="flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
-                {job.location}
+                {job.company} · {job.location}
               </div>
-              <div className="flex items-center gap-1">
-                <DollarSign className="w-4 h-4" />
-                ${job.salaryRange.min.toLocaleString()}-${job.salaryRange.max.toLocaleString()}
-              </div>
+              {job.salaryRange.max > 0 && (
+                <div className="flex items-center gap-1">
+                  <DollarSign className="w-4 h-4" />
+                  {job.salaryRange.min.toLocaleString()}–{job.salaryRange.max.toLocaleString()}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -214,99 +214,92 @@ const EnhancedJobMatching: React.FC<EnhancedJobMatchingProps> = ({ user, onJobSe
   }, [candidateProfile, jobs, searchQuery, filters]);
 
   const loadCandidateProfile = async () => {
-    if (!user?.email) {
-      // Create a basic profile for anonymous users
-      const basicProfile: CandidateProfile = {
-        skills: [],
-        experience: { years: 0, roles: [], industries: [], achievements: [] },
-        education: { degree: '', field: '', institution: '' },
-        preferences: {
-          location: [],
-          salaryRange: { min: 0, max: 200000 },
-          workType: 'flexible',
-          industries: []
-        },
-        careerGoals: {
-          targetRole: '',
-          timeframe: '',
-          priorities: []
-        }
-      };
-      setCandidateProfile(basicProfile);
-      return;
-    }
+    const blank: CandidateProfile = {
+      skills: [],
+      experience: { years: 0, roles: [], industries: [], achievements: [] },
+      education: { degree: '', field: '', institution: '' },
+      preferences: { location: [], salaryRange: { min: 0, max: 200000 }, workType: 'flexible', industries: [] },
+      careerGoals: { targetRole: '', timeframe: '', priorities: [] },
+    };
+
+    if (!user?.email) { setCandidateProfile(blank); return; }
 
     try {
-      // In production, load from API
-      const mockProfile: CandidateProfile = {
-        skills: ['JavaScript', 'React', 'Node.js', 'Python', 'AWS'],
-        experience: {
-          years: 3,
-          roles: ['Software Engineer', 'Frontend Developer'],
-          industries: ['Technology', 'E-commerce'],
-          achievements: ['Led team of 5 developers', 'Increased performance by 40%']
-        },
-        education: {
-          degree: 'Bachelor of Science',
-          field: 'Computer Science',
-          institution: 'Tech University'
-        },
-        preferences: {
-          location: ['San Francisco', 'Remote'],
-          salaryRange: { min: 80000, max: 150000 },
-          workType: 'remote',
-          industries: ['Technology', 'FinTech']
-        },
-        careerGoals: {
-          targetRole: 'Senior Software Engineer',
-          timeframe: '1-2 years',
-          priorities: ['Career Growth', 'Work-Life Balance', 'Learning Opportunities']
-        }
-      };
-      setCandidateProfile(mockProfile);
+      const stored = localStorage.getItem('user');
+      const u = stored ? JSON.parse(stored) : {};
+      const identifier = u.id || u.email;
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCandidateProfile({
+          skills: data.skills ?? [],
+          experience: {
+            years: data.experience?.years ?? data.yearsOfExperience ?? 0,
+            roles: data.experience?.roles ?? (data.currentRole ? [data.currentRole] : []),
+            industries: data.experience?.industries ?? [],
+            achievements: data.experience?.achievements ?? [],
+          },
+          education: {
+            degree: data.education?.degree ?? '',
+            field: data.education?.field ?? '',
+            institution: data.education?.institution ?? '',
+          },
+          preferences: {
+            location: data.preferences?.location ?? (data.location ? [data.location] : []),
+            salaryRange: data.preferences?.salaryRange ?? { min: 0, max: 200000 },
+            workType: data.preferences?.workType ?? 'flexible',
+            industries: data.preferences?.industries ?? [],
+          },
+          careerGoals: {
+            targetRole: data.careerGoals?.targetRole ?? data.desiredRole ?? '',
+            timeframe: data.careerGoals?.timeframe ?? '',
+            priorities: data.careerGoals?.priorities ?? [],
+          },
+        });
+        return;
+      }
     } catch (error) {
       console.error('Failed to load candidate profile:', error);
     }
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      setCandidateProfile({ ...blank, skills: Array.isArray(u.skills) ? u.skills : [] });
+    } catch { setCandidateProfile(blank); }
   };
 
   const loadJobs = async () => {
     try {
-      // In production, load from API
-      const mockJobs: JobProfile[] = [
-        {
-          id: '1',
-          title: 'Senior Software Engineer',
-          company: 'TechCorp',
-          location: 'San Francisco, CA',
-          salaryRange: { min: 120000, max: 160000 },
-          requiredSkills: ['JavaScript', 'React', 'Node.js', 'AWS'],
-          preferredSkills: ['TypeScript', 'Docker', 'Kubernetes'],
-          experience: { minYears: 3, maxYears: 7, requiredRoles: ['Software Engineer'] },
-          description: 'Join our team to build scalable web applications...',
-          benefits: ['Health Insurance', 'Stock Options', 'Remote Work'],
-          workType: 'hybrid',
-          industry: 'Technology',
-          companySize: '500-1000',
-          growthStage: 'Growth'
+      const res = await fetch(`${API_BASE}/jobs?limit=50`);
+      if (!res.ok) throw new Error('Failed to fetch jobs');
+      const data = await res.json();
+      const raw: any[] = Array.isArray(data) ? data : (data.jobs ?? []);
+      // Normalise backend job shape → JobProfile shape
+      const normalised: JobProfile[] = raw.map((j: any) => ({
+        id: j._id || j.id,
+        title: j.jobTitle || j.title || '',
+        company: j.company || '',
+        location: j.location || '',
+        salaryRange: j.salary && typeof j.salary === 'object'
+          ? { min: j.salary.min ?? 0, max: j.salary.max ?? 0 }
+          : { min: 0, max: 0 },
+        requiredSkills: Array.isArray(j.skills) ? j.skills : [],
+        preferredSkills: Array.isArray(j.preferredSkills) ? j.preferredSkills : [],
+        experience: {
+          minYears: j.experience?.minYears ?? j.minExperience ?? 0,
+          maxYears: j.experience?.maxYears ?? j.maxExperience ?? 10,
+          requiredRoles: j.experience?.requiredRoles ?? [],
         },
-        {
-          id: '2',
-          title: 'Full Stack Developer',
-          company: 'StartupXYZ',
-          location: 'Remote',
-          salaryRange: { min: 90000, max: 130000 },
-          requiredSkills: ['Python', 'Django', 'React', 'PostgreSQL'],
-          preferredSkills: ['AWS', 'Docker', 'Redis'],
-          experience: { minYears: 2, maxYears: 5, requiredRoles: ['Developer', 'Engineer'] },
-          description: 'Build the next generation of fintech products...',
-          benefits: ['Equity', 'Flexible Hours', 'Learning Budget'],
-          workType: 'remote',
-          industry: 'FinTech',
-          companySize: '50-100',
-          growthStage: 'Early'
-        }
-      ];
-      setJobs(mockJobs);
+        description: j.description || '',
+        benefits: Array.isArray(j.benefits) ? j.benefits : [],
+        workType: j.workType ?? (j.remote ? 'remote' : 'onsite'),
+        industry: j.industry || j.category || '',
+        companySize: j.companySize || '',
+        growthStage: j.growthStage || '',
+      }));
+      setJobs(normalised);
     } catch (error) {
       console.error('Failed to load jobs:', error);
     } finally {

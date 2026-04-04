@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Sparkles, RefreshCw, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
+import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
@@ -108,12 +108,15 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           systemPrompt: SYSTEM_PROMPT + jobContextStr,
         }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        const reply = data.reply || data.message || data.content || '';
-        setMessages(prev => [...prev, { role: 'assistant', content: reply || getFallback(trimmed), timestamp: new Date() }]);
-      } else throw new Error('API failed');
-    } catch {
+      const data = await res.json();
+      const reply = data.reply || data.message || data.content || data.text || data.answer || '';
+      if (reply) {
+        setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: new Date() }]);
+      } else {
+        throw new Error('Empty response');
+      }
+    } catch (err) {
+      console.error('AI Recruiter error:', err);
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed), timestamp: new Date() }]);
     } finally {
       setLoading(false);
@@ -142,6 +145,12 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
         <div className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => onNavigate?.('employer-dashboard')}
+              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors mr-1"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
             <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-violet-500 rounded-2xl flex items-center justify-center shadow-lg">
               <Sparkles className="w-6 h-6 text-white" />
             </div>

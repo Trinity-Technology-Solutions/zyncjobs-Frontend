@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, ArrowLeft } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, ArrowLeft, RotateCcw } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -21,8 +21,7 @@ const getAuthToken = async (): Promise<string | null> => {
       const refreshToken = localStorage.getItem('refreshToken');
       if (!refreshToken) return null;
       const res = await fetch(`${API_BASE_URL}/users/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })
       });
       if (res.ok) {
@@ -30,11 +29,9 @@ const getAuthToken = async (): Promise<string | null> => {
         localStorage.setItem('accessToken', data.accessToken);
         if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
         token = data.accessToken;
-      } else {
-        return null;
-      }
+      } else return null;
     }
-  } catch { /* use token as-is */ }
+  } catch { }
   return token;
 };
 
@@ -43,19 +40,13 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchReview();
-  }, [assessmentId]);
+  useEffect(() => { fetchReview(); }, [assessmentId]);
 
   const fetchReview = async () => {
     try {
       setLoading(true);
       const token = await getAuthToken();
-      if (!token) {
-        setError('Please log in to view your assessment review.');
-        setLoading(false);
-        return;
-      }
+      if (!token) { setError('Please log in to view your assessment review.'); setLoading(false); return; }
       const response = await fetch(`${API_BASE_URL}/skill-assessments/review/${assessmentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -63,141 +54,143 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
       setReview(await response.json());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error loading review');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <>
-        <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading your assessment review...</p>
-          </div>
+  if (loading) return (
+    <>
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+      <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-800 mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Loading your review...</p>
         </div>
-        <Footer onNavigate={onNavigate} />
-      </>
-    );
-  }
+      </div>
+      <Footer onNavigate={onNavigate} />
+    </>
+  );
 
-  if (error || !review) {
-    return (
-      <>
-        <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 p-6">
-          <div className="max-w-2xl mx-auto">
-            <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-6">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
-            </button>
-            <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-              <XCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Error Loading Review</h2>
-              <p className="text-gray-600 mb-6">{error}</p>
-              <button onClick={() => onNavigate('dashboard')} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
+  if (error || !review) return (
+    <>
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+      <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+        <div className="bg-white rounded-3xl shadow-xl p-10 text-center max-w-md mx-4">
+          <XCircle className="w-14 h-14 text-red-400 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Error Loading Review</h2>
+          <p className="text-gray-500 mb-6 text-sm">{error}</p>
+          <button onClick={() => onNavigate('skill-assessment')} className="bg-gray-900 text-white px-8 py-2.5 rounded-full font-semibold text-sm hover:bg-gray-700 transition-colors">Go Back</button>
         </div>
-        <Footer onNavigate={onNavigate} />
-      </>
-    );
-  }
+      </div>
+      <Footer onNavigate={onNavigate} />
+    </>
+  );
 
   const { skill, score, completedAt, review: reviewData, questions = [] } = review;
   const isPassed = score >= 70;
-  const levelColors: Record<string, string> = {
-    'Advanced': 'text-green-600 bg-green-50',
-    'Intermediate': 'text-blue-600 bg-blue-50',
-    'Beginner': 'text-orange-600 bg-orange-50'
-  };
+  const correctCount = questions.filter((q: any) => q.userAnswer === q.correctAnswer).length;
+  const wrongCount = questions.length - correctCount;
+  const circumference = 2 * Math.PI * 34;
 
   return (
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 py-8">
-        <div className="max-w-4xl mx-auto px-4">
-          <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-6 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+      <div className="min-h-screen py-10" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+        <div className="max-w-3xl mx-auto px-4">
+
+          {/* Back button */}
+          <button onClick={() => onNavigate('skill-assessment')} className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Assessments
           </button>
 
-          {/* Score Header */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <div className="flex items-start justify-between mb-6">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{skill} Assessment Review</h1>
-                <p className="text-gray-600">
-                  Completed on {new Date(completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
-              </div>
-              <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full ${isPassed ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                {isPassed ? <CheckCircle size={40} /> : <TrendingUp size={40} />}
-              </div>
+          {/* Score Card — same style as result screen */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-full border-2 border-green-400 flex items-center justify-center mx-auto mb-4 bg-white shadow-sm">
+              {isPassed
+                ? <CheckCircle className="w-8 h-8 text-green-500" />
+                : <TrendingUp className="w-8 h-8 text-amber-500" />}
             </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 text-center">
-                <div className="text-4xl font-bold text-blue-600 mb-2">{score}%</div>
-                <p className="text-sm text-gray-600">Your Score</p>
-              </div>
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6 text-center">
-                <div className={`text-2xl font-bold mb-2 ${levelColors[reviewData?.level] || 'text-gray-600'}`}>
-                  {reviewData?.level || 'N/A'}
+            <p className="text-gray-700 font-semibold text-lg mb-0.5">{skill} Assessment Review</p>
+            <p className="text-gray-400 text-sm mb-1">
+              {completedAt && new Date(completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+            <p className="text-gray-900 font-bold text-xl">Score Card</p>
+          </div>
+
+          {/* Score circles */}
+          <div className="bg-white rounded-3xl shadow-lg px-10 py-8 mb-6">
+            <div className="grid grid-cols-3 gap-6">
+              {[
+                { label: 'Correct', sublabel: 'Answers', value: correctCount, stroke: '#34d399', track: '#d1fae5', ratio: questions.length ? correctCount / questions.length : 0 },
+                { label: 'Total', sublabel: 'Questions', value: questions.length, stroke: '#374151', track: '#e5e7eb', ratio: 1 },
+                { label: 'Wrong', sublabel: 'Answers', value: wrongCount, stroke: '#f87171', track: '#fce7f3', ratio: questions.length ? wrongCount / questions.length : 0 },
+              ].map((item, i) => (
+                <div key={i} className="flex flex-col items-center gap-3">
+                  <div className="relative w-20 h-20">
+                    <svg width="80" height="80" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke={item.track} strokeWidth="6" />
+                      <circle cx="40" cy="40" r="34" fill="none" stroke={item.stroke} strokeWidth="6"
+                        strokeDasharray={`${item.ratio * circumference} ${circumference}`}
+                        strokeLinecap="round" transform="rotate(-90 40 40)" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xl font-bold" style={{color: item.stroke}}>{item.value}</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">{item.label}</p>
+                    <p className="text-sm text-gray-400">{item.sublabel}</p>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-600">Proficiency Level</p>
+              ))}
+            </div>
+
+            {/* Score bar */}
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-gray-600">Overall Score</span>
+                <span className={`text-sm font-bold ${isPassed ? 'text-emerald-600' : 'text-amber-500'}`}>{score}% — {isPassed ? '✓ Passed' : 'Keep Going'}</span>
               </div>
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 text-center">
-                <div className="text-2xl font-bold text-green-600 mb-2">{isPassed ? '✓ Passed' : 'Keep Going'}</div>
-                <p className="text-sm text-gray-600">Status</p>
+              <div className="w-full bg-gray-100 rounded-full h-2.5">
+                <div className={`h-2.5 rounded-full transition-all ${isPassed ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{width: `${score}%`}} />
               </div>
             </div>
           </div>
 
           {/* Q&A Review */}
           {questions.length > 0 && (
-            <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-              <h2 className="text-xl font-bold mb-6 flex items-center">
-                <BookOpen className="w-5 h-5 mr-2 text-blue-600" />
-                Question Review ({questions.filter((q: any) => q.userAnswer === q.correctAnswer).length}/{questions.length} Correct)
+            <div className="bg-white rounded-3xl shadow-lg p-8 mb-6">
+              <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-violet-500" />
+                Question Review
+                <span className="ml-auto text-xs font-medium text-gray-400">{correctCount}/{questions.length} Correct</span>
               </h2>
-              <div className="space-y-6">
+              <div className="space-y-5">
                 {questions.map((q: any, idx: number) => {
                   const isCorrect = q.userAnswer === q.correctAnswer;
                   return (
-                    <div key={idx} className={`border-2 rounded-lg p-5 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                    <div key={idx} className={`rounded-2xl p-5 border ${isCorrect ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50/50'}`}>
                       <div className="flex items-start gap-3 mb-4">
-                        <span className={`flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-white text-sm font-bold ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
-                          {idx + 1}
-                        </span>
-                        <p className="font-medium text-gray-800">{q.question}</p>
+                        <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${isCorrect ? 'bg-emerald-400' : 'bg-red-400'}`}>{idx + 1}</span>
+                        <p className="text-sm font-medium text-gray-800 leading-relaxed">{q.question}</p>
                       </div>
-                      <div className="space-y-2 ml-10">
+                      <div className="grid grid-cols-2 gap-2 ml-9">
                         {q.options.map((option: string, optIdx: number) => {
-                          const isCorrectOption = optIdx === q.correctAnswer;
-                          const isUserAnswer = optIdx === q.userAnswer;
-                          let optionClass = 'border border-gray-200 bg-white text-gray-700';
-                          if (isCorrectOption) optionClass = 'border-2 border-green-500 bg-green-100 text-green-800 font-medium';
-                          else if (isUserAnswer && !isCorrect) optionClass = 'border-2 border-red-400 bg-red-100 text-red-800';
+                          const isCorrectOpt = optIdx === q.correctAnswer;
+                          const isUserAns = optIdx === q.userAnswer;
                           return (
-                            <div key={optIdx} className={`flex items-center gap-2 px-4 py-2 rounded-lg ${optionClass}`}>
-                              <span className="text-sm font-semibold w-5">{String.fromCharCode(65 + optIdx)}.</span>
-                              <span className="text-sm flex-1">{option}</span>
-                              {isCorrectOption && <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />}
-                              {isUserAnswer && !isCorrect && <XCircle className="w-4 h-4 text-red-500 flex-shrink-0" />}
+                            <div key={optIdx} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border ${ 
+                              isCorrectOpt ? 'border-emerald-300 bg-emerald-100 text-emerald-800 font-medium' :
+                              isUserAns && !isCorrect ? 'border-red-300 bg-red-100 text-red-700' :
+                              'border-gray-100 bg-white text-gray-600'
+                            }`}>
+                              <span className="text-xs font-bold w-4 flex-shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
+                              <span className="flex-1 truncate">{option}</span>
+                              {isCorrectOpt && <CheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
+                              {isUserAns && !isCorrect && <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
                             </div>
                           );
                         })}
                       </div>
-                      {!isCorrect && q.userAnswer !== -1 && (
-                        <p className="ml-10 mt-2 text-sm text-red-600">
-                          Your answer: <span className="font-medium">{q.options[q.userAnswer]}</span> &nbsp;|&nbsp; Correct: <span className="font-medium text-green-700">{q.options[q.correctAnswer]}</span>
-                        </p>
-                      )}
-                      {q.userAnswer === -1 && (
-                        <p className="ml-10 mt-2 text-sm text-gray-500">Not answered &nbsp;|&nbsp; Correct: <span className="font-medium text-green-700">{q.options[q.correctAnswer]}</span></p>
-                      )}
                     </div>
                   );
                 })}
@@ -205,70 +198,79 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
             </div>
           )}
 
-          {/* Summary */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <Award className="w-5 h-5 mr-2 text-blue-600" /> Performance Summary
-            </h2>
-            <p className="text-gray-700 leading-relaxed">{reviewData?.summary}</p>
-          </div>
+          {/* Performance Summary */}
+          {reviewData?.summary && (
+            <div className="bg-white rounded-3xl shadow-lg p-8 mb-6">
+              <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                <Award className="w-4 h-4 text-amber-500" /> Performance Summary
+              </h2>
+              <p className="text-sm text-gray-600 leading-relaxed">{reviewData.summary}</p>
+            </div>
+          )}
 
-          {/* Strengths */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <CheckCircle className="w-5 h-5 mr-2 text-green-600" /> Your Strengths
-            </h2>
-            <ul className="space-y-3">
-              {reviewData?.strengths?.map((s: string, i: number) => (
-                <li key={i} className="flex items-start">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-600 mr-3 flex-shrink-0 mt-0.5">✓</span>
-                  <span className="text-gray-700">{s}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Improvements */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <TrendingUp className="w-5 h-5 mr-2 text-orange-600" /> Areas for Improvement
-            </h2>
-            <ul className="space-y-3">
-              {reviewData?.improvements?.map((s: string, i: number) => (
-                <li key={i} className="flex items-start">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 text-orange-600 mr-3 flex-shrink-0 mt-0.5">→</span>
-                  <span className="text-gray-700">{s}</span>
-                </li>
-              ))}
-            </ul>
+          {/* Strengths + Improvements side by side */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            {reviewData?.strengths?.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-lg p-6">
+                <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" /> Strengths
+                </h2>
+                <ul className="space-y-2">
+                  {reviewData.strengths.map((s: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                      <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">✓</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {reviewData?.improvements?.length > 0 && (
+              <div className="bg-white rounded-3xl shadow-lg p-6">
+                <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-amber-500" /> Improvements
+                </h2>
+                <ul className="space-y-2">
+                  {reviewData.improvements.map((s: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+                      <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs flex-shrink-0 mt-0.5">→</span>
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           {/* Recommendations */}
-          <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
-            <h2 className="text-xl font-bold mb-4 flex items-center">
-              <Target className="w-5 h-5 mr-2 text-blue-600" /> Recommended Next Steps
-            </h2>
-            <ul className="space-y-3">
-              {reviewData?.recommendations?.map((s: string, i: number) => (
-                <li key={i} className="flex items-start">
-                  <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 mr-3 flex-shrink-0 mt-0.5 font-semibold">{i + 1}</span>
-                  <span className="text-gray-700">{s}</span>
-                </li>
-              ))}
-            </ul>
+          {reviewData?.recommendations?.length > 0 && (
+            <div className="bg-white rounded-3xl shadow-lg p-8 mb-8">
+              <h2 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Target className="w-4 h-4 text-violet-500" /> Recommended Next Steps
+              </h2>
+              <div className="space-y-3">
+                {reviewData.recommendations.map((s: string, i: number) => (
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-violet-50 border border-violet-100">
+                    <span className="w-5 h-5 rounded-full bg-violet-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">{i + 1}</span>
+                    <span className="text-sm text-gray-700">{s}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex gap-4 justify-center pb-4">
+            <button onClick={() => onNavigate('skill-assessment')}
+              className="flex items-center gap-2 bg-gray-900 text-white px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-700 transition-colors shadow-md">
+              <RotateCcw className="w-4 h-4" /> Take Another
+            </button>
+            <button onClick={() => onNavigate('dashboard')}
+              className="flex items-center gap-2 bg-white text-gray-700 px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-50 transition-colors shadow-md border border-gray-200">
+              Dashboard
+            </button>
           </div>
 
-          {/* Actions */}
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={() => onNavigate('skill-assessment')} className="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center justify-center">
-                <BookOpen className="w-5 h-5 mr-2" /> Take Another Assessment
-              </button>
-              <button onClick={() => onNavigate('dashboard')} className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300 transition-colors font-medium">
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
         </div>
       </div>
       <Footer onNavigate={onNavigate} />

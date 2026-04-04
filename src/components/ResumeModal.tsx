@@ -51,32 +51,34 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     setNoResume(false);
     setCandidateName(directCandidateName || '');
 
-    const resolved = directResumeUrl ? buildFullUrl(directResumeUrl) : null;
-    if (resolved) {
-      setResumeFileUrl(resolved);
-    } else if (candidateEmail) {
-      fetchFromProfile(candidateEmail);
-    } else if (applicationId) {
-      fetchFromApi(applicationId);
+    // Always fetch latest resume from profile first (candidate may have updated it)
+    // Only use directResumeUrl as a last fallback
+    if (candidateEmail) {
+      fetchFromProfile(candidateEmail, directResumeUrl);
     } else {
-      setNoResume(true);
+      const resolved = directResumeUrl ? buildFullUrl(directResumeUrl) : null;
+      if (resolved) {
+        setResumeFileUrl(resolved);
+      } else {
+        setNoResume(true);
+      }
     }
   }, [isOpen, applicationId, directResumeUrl, candidateEmail]);
 
-  const fetchFromProfile = async (email: string) => {
+  const fetchFromProfile = async (email: string, fallbackUrl?: string) => {
     setLoading(true);
     try {
-      // Try users endpoint first (has full resume data)
-      const res = await fetch(`${API_BASE_URL}/users?email=${encodeURIComponent(email)}`);
+      // Try profile endpoint first (resume is saved here)
       let data: any = null;
-      if (res.ok) {
-        const users = await res.json();
-        data = Array.isArray(users) ? users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase()) : users;
-      }
-      // Fallback to profile endpoint
+      const profileRes = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(email)}`);
+      if (profileRes.ok) data = await profileRes.json();
+      // Fallback to users endpoint
       if (!data) {
-        const profileRes = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(email)}`);
-        if (profileRes.ok) data = await profileRes.json();
+        const res = await fetch(`${API_BASE_URL}/users?email=${encodeURIComponent(email)}`);
+        if (res.ok) {
+          const users = await res.json();
+          data = Array.isArray(users) ? users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase()) : users;
+        }
       }
       if (!data) throw new Error('User not found');
 
@@ -109,13 +111,19 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
           if (check.ok) {
             setResumeFileUrl(fileUrl);
           } else {
-            setNoResume(true);
+            // Profile resume not accessible — try the application's resumeUrl as fallback
+            const fallback = fallbackUrl ? buildFullUrl(fallbackUrl) : null;
+            if (fallback) setResumeFileUrl(fallback);
+            else setNoResume(true);
           }
         } catch {
           setResumeFileUrl(fileUrl); // try anyway in iframe
         }
       } else {
-        setNoResume(true);
+        // No resume in profile — try the application's resumeUrl as fallback
+        const fallback = fallbackUrl ? buildFullUrl(fallbackUrl) : null;
+        if (fallback) setResumeFileUrl(fallback);
+        else setNoResume(true);
       }
     } catch (e) {
       console.error('fetchFromProfile error:', e);

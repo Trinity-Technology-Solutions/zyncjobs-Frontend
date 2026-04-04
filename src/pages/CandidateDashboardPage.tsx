@@ -7,6 +7,7 @@ import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import CandidateNotificationBell from '../components/CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { API_ENDPOINTS } from '../config/env';
+import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 
 interface CandidateDashboardPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -83,7 +84,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       const [appsRes, interviewsRes, analyticsRes] = await Promise.all([
         fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(email)}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/interviews?candidateEmail=${encodeURIComponent(email)}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/interviews/candidate/${encodeURIComponent(email)}`),
         fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(email)}`),
       ]);
 
@@ -486,27 +487,33 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchRecommendedJobs = async (userData: any) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=1000`);
+      const userId = userData?.id;
+      if (userId) {
+        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/match/recommendations/${userId}?limit=5`);
+        if (res.ok) {
+          const data = await res.json();
+          const matched = Array.isArray(data.jobs) ? data.jobs : [];
+          if (matched.length > 0) {
+            setRecommendedJobs(matched.map((j: any) => ({ ...j, matchScore: j.matchScore || 0 })));
+            return;
+          }
+        }
+      }
+      // Fallback: skill-based filter
+      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=50`);
       if (response.ok) {
         const allJobs = await response.json();
-        let filtered = allJobs;
-        const rawSkills = userData.skills || userData.keySkills || [];
+        const rawSkills = userData.skills || [];
         const userSkills: string[] = Array.isArray(rawSkills)
-          ? rawSkills.map((s: any) => (typeof s === 'string' ? s : s?.skill || s?.name || '').toLowerCase()).filter(Boolean)
+          ? rawSkills.map((s: any) => (typeof s === 'string' ? s : s?.skill || '').toLowerCase()).filter(Boolean)
           : [];
+        let filtered = Array.isArray(allJobs) ? allJobs : [];
         if (userSkills.length > 0) {
-          const matchedJobs = allJobs.filter((job: any) => {
-            const jobSkills = (job.skills || job.requiredSkills || []).map((s: any) =>
-              (typeof s === 'string' ? s : s?.skill || s?.name || '').toLowerCase()
-            ).filter(Boolean);
-            const jobTitle = (job.jobTitle || job.title || '').toLowerCase();
-            const jobDesc = (job.description || job.jobDescription || '').toLowerCase();
-            return userSkills.some((skill: string) =>
-              jobSkills.some((js: string) => js.includes(skill) || skill.includes(js)) ||
-              jobTitle.includes(skill) || jobDesc.includes(skill)
-            );
+          const matched = filtered.filter((job: any) => {
+            const jobSkills = (job.skills || []).map((s: any) => (typeof s === 'string' ? s : s?.skill || '').toLowerCase());
+            return userSkills.some((skill: string) => jobSkills.some((js: string) => js.includes(skill) || skill.includes(js)));
           });
-          filtered = matchedJobs.length > 0 ? matchedJobs : allJobs;
+          filtered = matched.length > 0 ? matched : filtered;
         }
         setRecommendedJobs(filtered.slice(0, 5));
       }
@@ -674,6 +681,58 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <Edit className="w-5 h-5 text-blue-600" />
                       <span className="text-gray-700">Settings</span>
                     </button>
+
+                    {/* LinkedIn Import */}
+                    {!user?.linkedInImported && (
+                      <div className="pt-1">
+                        <LinkedInConnect
+                          mode="modal"
+                          onImport={async (profile: LinkedInProfile) => {
+                            // Merge LinkedIn data into user profile
+                            const merged = {
+                              ...user,
+                              name: profile.name || user?.name,
+                              location: profile.location || user?.location,
+                              profileSummary: profile.summary || user?.profileSummary,
+                              profilePhoto: profile.profilePhoto || user?.profilePhoto,
+                              skills: profile.skills.length > 0 ? profile.skills : (user?.skills || []),
+                              employment: profile.experience[0] ? {
+                                companyName: profile.experience[0].company,
+                                designation: profile.experience[0].title,
+                                description: profile.experience[0].description,
+                                currentlyWorking: profile.experience[0].current,
+                              } : user?.employment,
+                              educationCollege: profile.education[0] ? {
+                                college: profile.education[0].school,
+                                degree: profile.education[0].degree,
+                                passingYear: profile.education[0].endYear,
+                              } : user?.educationCollege,
+                              linkedInImported: true,
+                            };
+                            setUser(merged);
+                            localStorage.setItem('user', JSON.stringify(merged));
+                            calculateProfileCompletion(merged);
+                            // Persist to backend
+                            try {
+                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: user?.email, ...merged }),
+                              });
+                            } catch { /* silent */ }
+                            setNotification({ type: 'success', message: 'LinkedIn profile imported successfully!', isVisible: true });
+                          }}
+                        />
+                      </div>
+                    )}
+                    {user?.linkedInImported && (
+                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-green-600">
+                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                        </svg>
+                        LinkedIn connected
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -790,7 +849,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         const userSkills: string[] = (Array.isArray(user?.skills) ? user.skills : []).map((s: any) => String(s || '').toLowerCase());
                         const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: any) => String(s || '').toLowerCase());
                         const matchCount = jobSkills.filter(js => userSkills.some(us => us.includes(js) || js.includes(us))).length;
-                        const matchPct = jobSkills.length > 0 ? Math.round((matchCount / jobSkills.length) * 100) : 0;
+                        const matchPct = job.matchScore || (jobSkills.length > 0 ? Math.round((matchCount / jobSkills.length) * 100) : 0);
                         const isSaved = (() => { try { const userName = user?.name || 'user'; return JSON.parse(localStorage.getItem(`savedJobs_${userName}`) || '[]').includes(jobId); } catch { return false; } })();
                         return (
                         <div key={jobId || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">

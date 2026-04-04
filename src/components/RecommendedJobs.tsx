@@ -148,68 +148,46 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     try {
       setLoading(true);
       setError(null);
-      
-      // If resume skills exist, fetch skill-based recommendations
-      if (resumeSkills && resumeSkills.length > 0) {
-        const skillNames = resumeSkills.map(s => s.skill.toLowerCase()).filter(s => s);
-        
-        if (skillNames.length === 0) {
-          fetchAllRecentJobs();
-          return;
-        }
-        
-        const skillQuery = skillNames.join(',');
-        const locationQuery = location ? `&location=${encodeURIComponent(location)}` : '';
-        
-        console.log('🔍 Fetching recommended jobs with skills:', skillQuery);
-        
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?skills=${encodeURIComponent(skillQuery)}${locationQuery}`);
-        
-        if (response.ok) {
-          const allJobs = await response.json();
-          
-          if (!Array.isArray(allJobs)) {
-            fetchAllRecentJobs();
+
+      // Try real semantic matching first if user is logged in
+      const storedUser = localStorage.getItem('user');
+      const userId = storedUser ? JSON.parse(storedUser)?.id : null;
+
+      if (userId) {
+        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/match/recommendations/${userId}?limit=10`);
+        if (res.ok) {
+          const data = await res.json();
+          const matched = Array.isArray(data.jobs) ? data.jobs : [];
+          if (matched.length > 0) {
+            setJobs(matched.map((j: any) => ({ ...j, matchPercentage: j.matchScore })));
+            setLoading(false);
             return;
           }
-          
-          // Calculate match percentage for each job
-          const jobsWithMatch = allJobs.map((job: Job) => {
-            const jobSkills = (job.skills || []).map(s => s.toLowerCase());
-            const matchingSkills = skillNames.filter(skill => 
-              jobSkills.some(jobSkill => jobSkill.includes(skill) || skill.includes(jobSkill))
-            );
-            const matchPercentage = skillNames.length > 0 
-              ? Math.round((matchingSkills.length / skillNames.length) * 100)
-              : 0;
-            
-            return {
-              ...job,
-              matchPercentage,
-              matchingSkills
-            };
-          });
-          
-          // Sort by match percentage and take top 5
-          const sortedJobs = jobsWithMatch
-            .filter((job: any) => job.matchPercentage > 0)
-            .sort((a: any, b: any) => b.matchPercentage - a.matchPercentage)
-            .slice(0, 5);
-          
-          console.log('✅ Recommended jobs found:', sortedJobs.length);
-          
-          if (sortedJobs.length > 0) {
-            setJobs(sortedJobs);
-          } else {
-            // If no skill matches, show recent jobs
-            fetchAllRecentJobs();
-          }
-        } else {
-          console.error('Failed to fetch jobs:', response.status);
-          fetchAllRecentJobs();
         }
+      }
+
+      // Fallback: skill-based or recent jobs
+      if (resumeSkills && resumeSkills.length > 0) {
+        const skillNames = resumeSkills.map(s => s.skill.toLowerCase()).filter(s => s);
+        if (skillNames.length === 0) { fetchAllRecentJobs(); return; }
+
+        // Use semantic text match
+        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/match/jobs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: skillNames.join(' '), limit: 10 })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const matches = Array.isArray(data.matches) ? data.matches : [];
+          if (matches.length > 0) {
+            setJobs(matches.map((j: any) => ({ ...j, matchPercentage: j.matchScore })));
+            setLoading(false);
+            return;
+          }
+        }
+        fetchAllRecentJobs();
       } else {
-        // No resume skills, fetch all recent jobs
         fetchAllRecentJobs();
       }
     } catch (error) {

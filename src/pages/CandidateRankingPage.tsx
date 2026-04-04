@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star } from 'lucide-react';
+import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star, ArrowLeft } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -133,6 +133,12 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => onNavigate?.('employer-dashboard')}
+              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors mr-1"
+            >
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
             <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
               <Trophy className="w-6 h-6 text-white" />
             </div>

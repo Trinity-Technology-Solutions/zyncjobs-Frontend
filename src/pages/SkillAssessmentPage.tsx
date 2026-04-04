@@ -182,23 +182,87 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   };
 
   if (result) {
+    const wrong = result.totalQuestions - result.correctAnswers;
     return (
       <>
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-2xl mx-auto px-4">
-            <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
-              <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-6 ${result.score >= 70 ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                <CheckCircle size={32} />
-              </div>
-              <h2 className="text-2xl font-bold mb-4">Assessment Complete!</h2>
-              <div className="text-4xl font-bold mb-4 text-blue-600">{result.score}%</div>
-              <p className="text-gray-600 mb-4">
-                You got {result.correctAnswers} out of {result.totalQuestions} questions correct
-              </p>
-              <p className="text-sm text-gray-500 mb-6">Redirecting to your review page...</p>
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+        <div className="min-h-screen flex items-center justify-center" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+          <div className="text-center max-w-lg w-full mx-4">
+            {/* Check icon */}
+            <div className="w-16 h-16 rounded-full border-2 border-green-400 flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-500" />
             </div>
+            <p className="text-gray-700 font-semibold text-lg mb-1">Your quiz has been submitted!</p>
+            <p className="text-gray-900 font-bold text-xl mb-6">Score Card</p>
+
+            {/* Score card */}
+            <div className="bg-white rounded-3xl shadow-lg px-10 py-8 mb-8">
+              <div className="grid grid-cols-3 gap-6">
+                {/* Correct */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative w-20 h-20">
+                    <svg width="80" height="80" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#d1fae5" strokeWidth="6" />
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#34d399" strokeWidth="6"
+                        strokeDasharray={`${(result.correctAnswers / result.totalQuestions) * 213.6} 213.6`}
+                        strokeLinecap="round" transform="rotate(-90 40 40)" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xl font-bold text-green-500">{result.correctAnswers}</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">Correct</p>
+                    <p className="text-sm text-gray-500">Answers</p>
+                  </div>
+                </div>
+
+                {/* Total */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative w-20 h-20">
+                    <svg width="80" height="80" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#e5e7eb" strokeWidth="6" />
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#374151" strokeWidth="6"
+                        strokeDasharray="213.6 213.6"
+                        strokeLinecap="round" transform="rotate(-90 40 40)" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xl font-bold text-gray-700">{result.totalQuestions}</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">Total</p>
+                    <p className="text-sm text-gray-500">Questions</p>
+                  </div>
+                </div>
+
+                {/* Wrong */}
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative w-20 h-20">
+                    <svg width="80" height="80" viewBox="0 0 80 80">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#fce7f3" strokeWidth="6" />
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="#f87171" strokeWidth="6"
+                        strokeDasharray={`${(wrong / result.totalQuestions) * 213.6} 213.6`}
+                        strokeLinecap="round" transform="rotate(-90 40 40)" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xl font-bold text-red-400">{wrong}</span>
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm font-semibold text-gray-700">Wrong</p>
+                    <p className="text-sm text-gray-500">Answers</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => onNavigate('skill-assessment')}
+              className="bg-red-400 hover:bg-red-500 text-white px-10 py-3 rounded-full font-semibold text-sm transition-colors shadow-md"
+            >
+              Go Back
+            </button>
           </div>
         </div>
         <Footer onNavigate={onNavigate} />
@@ -208,132 +272,114 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
 
   if (assessment) {
     const question = assessment.questions[currentQuestion];
+    const answeredCount = answers.filter(a => a !== -1).length;
+    const radius = 54;
+    const circumference = 2 * Math.PI * radius;
+    const progress = (answeredCount / assessment.totalQuestions) * circumference;
     return (
       <>
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="min-h-screen bg-gray-50 py-8">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="grid md:grid-cols-3 gap-6">
-              {/* Question Navigator Sidebar */}
-              <div className="md:col-span-1">
-                <div className="bg-white rounded-lg shadow-sm border p-4 sticky top-8">
-                  <h3 className="font-semibold text-sm text-gray-700 mb-3">Questions</h3>
-                  <div className="grid grid-cols-5 gap-2">
-                    {assessment.questions.map((_: any, i: number) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentQuestion(i)}
-                        className={`w-8 h-8 rounded text-xs font-medium transition-colors ${
-                          i === currentQuestion
-                            ? 'bg-blue-600 text-white'
-                            : answers[i] !== -1
-                            ? 'bg-green-100 text-green-700 border border-green-300'
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                      >
-                        {i + 1}
-                      </button>
-                    ))}
+        <div className="min-h-screen flex items-center justify-center py-8" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mx-4">
+
+            {/* Top bar */}
+            <div className="flex items-center justify-between px-8 pt-6 pb-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <div>
+                  <div className={`text-sm font-mono font-bold ${timeLeft < 300 ? 'text-red-500' : 'text-gray-700'}`}>
+                    {formatTime(timeLeft)}
                   </div>
-                  <div className="mt-4 pt-4 border-t space-y-2 text-xs text-gray-500">
-                    <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-blue-600 inline-block"></span> Current</div>
-                    <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-green-100 border border-green-300 inline-block"></span> Answered</div>
-                    <div className="flex items-center gap-2"><span className="w-4 h-4 rounded bg-gray-100 inline-block"></span> Unanswered</div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <div className={`flex items-center gap-2 text-sm font-medium ${timeLeft < 300 ? 'text-red-600' : 'text-gray-700'}`}>
-                      <Clock size={16} />
-                      {formatTime(timeLeft)}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      {answers.filter(a => a !== -1).length} of {assessment.totalQuestions} answered
-                    </div>
-                  </div>
+                  <div className="text-xs text-gray-400">Time remaining</div>
+                </div>
+              </div>
+              <button
+                onClick={submitAssessment}
+                disabled={loading}
+                className="bg-gray-900 text-white px-6 py-2.5 rounded-xl text-sm font-semibold hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              >
+                {loading ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-gray-100 mx-8" />
+
+            {/* Question + circular progress */}
+            <div className="flex gap-6 px-8 py-6">
+              <div className="flex-1">
+                <p className="text-xs text-gray-400 mb-2 font-medium">Question {currentQuestion + 1} of {assessment.totalQuestions}</p>
+                <p className="text-sm font-medium text-gray-800 mb-5 leading-relaxed">{question.question}</p>
+                <div className="grid grid-cols-2 gap-3">
+                  {question.options.map((option: string, index: number) => (
+                    <label key={index}
+                      className={`flex items-center gap-3 px-4 py-3 border rounded-xl cursor-pointer transition-all ${
+                        answers[currentQuestion] === index
+                          ? 'border-gray-900 bg-gray-900 text-white'
+                          : 'border-gray-200 hover:border-gray-400 bg-white text-gray-700'
+                      }`}>
+                      <input type="radio" name={`q-${currentQuestion}`} value={index}
+                        checked={answers[currentQuestion] === index}
+                        onChange={() => { const a = [...answers]; a[currentQuestion] = index; setAnswers(a); }}
+                        className="hidden" />
+                      <span className={`text-xs font-bold w-5 flex-shrink-0 ${
+                        answers[currentQuestion] === index ? 'text-white' : 'text-gray-400'
+                      }`}>{String.fromCharCode(65 + index)}.</span>
+                      <span className="text-sm">{option}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              {/* Main Question Area */}
-              <div className="md:col-span-2">
-                <div className="bg-white rounded-lg shadow-sm border p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-lg font-bold">{assessment.skill} Assessment</h2>
-                    <span className="text-sm text-gray-500">Q{currentQuestion + 1}/{assessment.totalQuestions}</span>
-                  </div>
-
-                  <div className="mb-5">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${((answers.filter(a => a !== -1).length) / assessment.totalQuestions) * 100}%` }}
-                      />
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{Math.round((answers.filter(a => a !== -1).length / assessment.totalQuestions) * 100)}% Complete</div>
-                  </div>
-
-                  <div className="mb-6">
-                    <h3 className="text-base font-medium mb-4 leading-relaxed">{question.question}</h3>
-                    <div className="space-y-3">
-                      {question.options.map((option: string, index: number) => (
-                        <label
-                          key={index}
-                          className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                            answers[currentQuestion] === index
-                              ? 'border-blue-500 bg-blue-50'
-                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            name={`question-${currentQuestion}`}
-                            value={index}
-                            checked={answers[currentQuestion] === index}
-                            onChange={() => {
-                              const newAnswers = [...answers];
-                              newAnswers[currentQuestion] = index;
-                              setAnswers(newAnswers);
-                            }}
-                            className="mr-3"
-                          />
-                          <span className="text-sm">{option}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentQuestion(prev => Math.max(0, prev - 1))}
-                      className={`px-5 py-2 border-2 rounded-lg text-sm font-medium transition-colors ${
-                        currentQuestion === 0
-                          ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                          : 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
-                      }`}
-                    >
-                      ← Previous
-                    </button>
-                    {currentQuestion === assessment.totalQuestions - 1 ? (
-                      <button
-                        type="button"
-                        onClick={submitAssessment}
-                        disabled={loading}
-                        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm font-medium"
-                      >
-                        {loading ? 'Submitting...' : 'Submit Assessment'}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentQuestion(prev => Math.min(assessment.totalQuestions - 1, prev + 1))}
-                        className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium"
-                      >
-                        Next →
-                      </button>
-                    )}
+              {/* Circular progress */}
+              <div className="flex-shrink-0 flex items-center justify-center">
+                <div className="relative w-28 h-28">
+                  <svg width="112" height="112" viewBox="0 0 112 112">
+                    <circle cx="56" cy="56" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="7" />
+                    <circle cx="56" cy="56" r={radius} fill="none" stroke="#111827" strokeWidth="7"
+                      strokeDasharray={`${progress} ${circumference}`}
+                      strokeLinecap="round" transform="rotate(-90 56 56)" />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-lg font-bold text-gray-900">{answeredCount}/{assessment.totalQuestions}</span>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Divider */}
+            <div className="h-px bg-gray-100 mx-8" />
+
+            {/* Bottom navigation */}
+            <div className="flex items-center gap-2 px-8 py-5">
+              <button
+                onClick={() => setCurrentQuestion(p => Math.max(0, p - 1))}
+                disabled={currentQuestion === 0}
+                className="px-5 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors bg-white"
+              >
+                Prev
+              </button>
+              <div className="flex gap-1.5 flex-1 justify-center flex-wrap">
+                {assessment.questions.map((_: any, i: number) => (
+                  <button key={i} onClick={() => setCurrentQuestion(i)}
+                    className={`w-8 h-8 rounded-lg text-xs font-semibold transition-all ${
+                      i === currentQuestion
+                        ? 'bg-gray-900 text-white'
+                        : answers[i] !== -1
+                        ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}>{i + 1}</button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentQuestion(p => Math.min(assessment.totalQuestions - 1, p + 1))}
+                disabled={currentQuestion === assessment.totalQuestions - 1}
+                className="px-5 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:border-gray-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors bg-white"
+              >
+                Next
+              </button>
+            </div>
+
           </div>
         </div>
         <Footer onNavigate={onNavigate} />
@@ -350,179 +396,178 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   return (
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50 py-8">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="mb-6">
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </button>
+      <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 64px)', background: 'linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%)' }}>
+        <div className="flex-1 max-w-4xl w-full mx-auto px-6 py-10">
+
+          {/* Greeting */}
+          <div className="flex items-start justify-between mb-10">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-800 leading-tight mb-1">
+                Hi {user?.name?.split(' ')[0] || 'there'}, Ready to
+              </h1>
+              <h1 className="text-4xl font-bold text-gray-800 leading-tight">
+                Prove Your Skills?
+              </h1>
+              <p className="text-gray-400 text-sm mt-3">AI-powered assessments · Instant results · Shareable badges</p>
+            </div>
+            <div className="relative flex-shrink-0 mr-8">
+              <div className="relative">
+                <div className="w-28 h-28 bg-gradient-to-b from-gray-800 to-gray-900 rounded-3xl flex items-center justify-center shadow-2xl relative overflow-hidden">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="flex gap-3">
+                      <div className="w-4 h-4 bg-cyan-400 rounded-full animate-pulse shadow-lg shadow-cyan-400/50" />
+                      <div className="w-4 h-4 bg-cyan-400 rounded-full animate-pulse shadow-lg shadow-cyan-400/50" />
+                    </div>
+                    <div className="w-8 h-2 bg-cyan-400/60 rounded-full mt-1" />
+                  </div>
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-1 h-4 bg-gray-600 rounded-full">
+                    <div className="w-2.5 h-2.5 bg-cyan-400 rounded-full -mt-1 -ml-0.5 shadow-lg shadow-cyan-400/50" />
+                  </div>
+                </div>
+                <div className="absolute -left-4 top-8 w-4 h-10 bg-gray-700 rounded-full" />
+                <div className="absolute -right-4 top-8 w-4 h-10 bg-gray-700 rounded-full" />
+                <div className="absolute -top-2 -right-28 bg-white rounded-2xl px-3 py-2 shadow-lg border border-gray-100 text-xs font-medium text-gray-700 whitespace-nowrap">
+                  Let's test your<br />skills! 🚀
+                </div>
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-3xl font-bold mb-2">Skill Assessments</h1>
-          <p className="text-gray-500 mb-6">Validate your skills with AI-powered assessments and stand out to employers.</p>
-
-          {/* Stats Row */}
+          {/* Stats cards */}
           {myAssessments.length > 0 && (
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-white rounded-lg border p-4 text-center">
-                <div className="text-2xl font-bold text-blue-600">{myAssessments.length}</div>
-                <div className="text-xs text-gray-500 mt-1">Total Taken</div>
+            <div className="grid grid-cols-3 gap-4 mb-8">
+              {[
+                { label: 'Total Taken', value: myAssessments.length, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100' },
+                { label: 'Passed (≥70%)', value: passed, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
+                { label: 'Avg Score', value: `${avgScore}%`, color: avgScore >= 70 ? 'text-emerald-600' : 'text-amber-500', bg: 'bg-amber-50', border: 'border-amber-100' },
+              ].map((s, i) => (
+                <div key={i} className={`${s.bg} rounded-2xl p-5 border ${s.border} shadow-sm`}>
+                  <div className={`text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>
+                  <div className="text-xs text-gray-500 font-medium">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Feature cards — skill categories */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[
+              { icon: '⚡', title: 'Test your coding skills with AI-generated questions tailored to your level.', tag: 'Programming', highlight: false },
+              { icon: '🧠', title: 'Validate your knowledge in databases, cloud, and system design concepts.', tag: 'Technical Skills', highlight: true },
+              { icon: '📊', title: 'Assess your data analysis, visualization, and business intelligence skills.', tag: 'Data & Analytics', highlight: false },
+            ].map((card, i) => (
+              <div key={i}
+                className={`bg-white rounded-2xl p-5 shadow-sm border border-gray-100 ${card.highlight ? 'ring-2 ring-violet-200' : ''} hover:shadow-md transition-shadow cursor-pointer`}
+                onClick={() => { setSkillSearch(''); setShowSkillDropdown(true); }}>
+                <div className="text-3xl mb-4">{card.icon}</div>
+                <p className="text-gray-700 text-sm leading-relaxed mb-4 font-medium">{card.title}</p>
+                <span className="text-xs text-gray-400 font-medium">{card.tag}</span>
               </div>
-              <div className="bg-white rounded-lg border p-4 text-center">
-                <div className="text-2xl font-bold text-green-600">{passed}</div>
-                <div className="text-xs text-gray-500 mt-1">Passed (≥70%)</div>
+            ))}
+          </div>
+
+          {/* Bottom input area */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-8">
+            {/* Top hint bar */}
+            <div className="flex items-center justify-between px-5 py-2.5 border-b border-gray-50">
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <span className="w-3.5 h-3.5 text-violet-400">⚡</span>
+                Choose a skill to start your assessment
               </div>
-              <div className="bg-white rounded-lg border p-4 text-center">
-                <div className={`text-2xl font-bold ${avgScore >= 70 ? 'text-green-600' : 'text-orange-500'}`}>{avgScore}%</div>
-                <div className="text-xs text-gray-500 mt-1">Avg Score</div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                <span>🤖</span>
+                Powered by ZyncJobs AI
+              </div>
+            </div>
+
+            {/* Search input */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <span className="text-gray-300 text-lg font-light">+</span>
+              <div className="flex-1">
+                <input
+                  type="text"
+                  value={skillSearch}
+                  onChange={handleSkillSearch}
+                  onFocus={() => setShowSkillDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowSkillDropdown(false), 200)}
+                  placeholder='Search a skill — e.g. "JavaScript", "Python", "AWS"'
+                  className="w-full outline-none text-sm text-gray-700 placeholder-gray-300 bg-transparent"
+                />
+              </div>
+              <Search className="w-4 h-4 text-gray-300 flex-shrink-0" />
+              <button
+                onClick={startAssessment}
+                disabled={!selectedSkill || loading}
+                className="w-8 h-8 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0"
+              >
+                {loading
+                  ? <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  : <ArrowLeft className="w-3.5 h-3.5 text-white rotate-180" />}
+              </button>
+            </div>
+            {/* Dropdown outside the flex row to avoid overlap */}
+            {showSkillDropdown && filteredSkills.length > 0 && (
+              <div className="mx-5 mb-2 z-50 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                {filteredSkills.map((skill, i) => (
+                  <button key={i} type="button" onMouseDown={() => selectSkill(skill)}
+                    className="w-full text-left px-4 py-2.5 hover:bg-violet-50 text-sm text-gray-700 border-b last:border-0 transition-colors">
+                    {skill}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Popular skill pills */}
+            <div className="flex items-center gap-2 px-5 pb-4 flex-wrap">
+              {popularSkills.map((skill, i) => (
+                <button key={i} type="button" onClick={() => selectSkill(skill)}
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                    selectedSkill === skill
+                      ? 'bg-gray-900 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-900 hover:text-white'
+                  }`}>
+                  {skill}
+                </button>
+              ))}
+            </div>
+
+            {startError && (
+              <div className="mx-5 mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">{startError}</div>
+            )}
+          </div>
+
+          {/* My Assessments */}
+          {myAssessments.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-base font-bold text-gray-900 mb-4">My Assessments</h2>
+              <div className="space-y-3">
+                {myAssessments.map((a, i) => (
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-gray-100 hover:bg-gray-50 transition-colors">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      a.score >= 70 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                    }`}>{a.skill?.slice(0, 2).toUpperCase()}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-semibold text-gray-800">{a.skill}</span>
+                        <span className={`text-sm font-bold ${a.score >= 70 ? 'text-emerald-600' : 'text-amber-500'}`}>{a.score}%</span>
+                      </div>
+                      <div className="w-full bg-gray-100 rounded-full h-1.5">
+                        <div className={`h-1.5 rounded-full ${a.score >= 70 ? 'bg-emerald-500' : 'bg-amber-400'}`} style={{ width: `${a.score}%` }} />
+                      </div>
+                    </div>
+                    {a.score >= 70 && <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Passed</span>}
+                    {(a.assessmentId || a._id || a.id) && (
+                      <button type="button" onClick={() => onNavigate('assessment-review', { assessmentId: a.assessmentId || a._id || a.id })}
+                        className="text-xs text-violet-600 hover:text-violet-800 font-medium flex-shrink-0 flex items-center gap-1">
+                        Review <ExternalLink className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
-          <div className="grid md:grid-cols-5 gap-6">
-            {/* Left: Take Assessment */}
-            <div className="md:col-span-2 space-y-4">
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <h2 className="text-lg font-bold mb-1">Take New Assessment</h2>
-                <p className="text-gray-500 text-xs mb-4">10 AI-generated questions · Instant results · Shareable badge</p>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">Select Skill</label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={skillSearch}
-                      onChange={handleSkillSearch}
-                      onFocus={() => setShowSkillDropdown(true)}
-                      onBlur={() => setTimeout(() => setShowSkillDropdown(false), 200)}
-                      placeholder="Search skills..."
-                      className="w-full p-3 pr-10 border rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                    />
-                    <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    {showSkillDropdown && filteredSkills.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {filteredSkills.map((skill, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onMouseDown={() => selectSkill(skill)}
-                            className="w-full text-left px-4 py-2 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
-                          >
-                            {skill}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {startError && (
-                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                    {startError}
-                  </div>
-                )}
-                <button
-                  onClick={startAssessment}
-                  disabled={!selectedSkill || loading}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium text-sm"
-                >
-                  {loading ? 'Generating Questions...' : startError ? 'Retry' : 'Start Assessment'}
-                </button>
-              </div>
-
-              {/* Popular Skills */}
-              <div className="bg-white p-5 rounded-lg shadow-sm border">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">Popular Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {popularSkills.map(skill => (
-                    <button
-                      key={skill}
-                      type="button"
-                      onClick={() => selectSkill(skill)}
-                      className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                        selectedSkill === skill
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600'
-                      }`}
-                    >
-                      {skill}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Right: My Assessments */}
-            <div className="md:col-span-3">
-              <div className="bg-white p-6 rounded-lg shadow-sm border h-full">
-                <h2 className="text-lg font-bold mb-4">My Assessments</h2>
-                {myAssessments.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-14 h-14 bg-blue-50 rounded-full flex items-center justify-center mb-3">
-                      <CheckCircle className="w-7 h-7 text-blue-400" />
-                    </div>
-                    <p className="text-gray-500 text-sm">No assessments yet.</p>
-                    <p className="text-gray-400 text-xs mt-1">Pick a skill on the left and get started!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {myAssessments.map((a, index) => (
-                      <div key={index} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                              a.score >= 70 ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                            }`}>
-                              {a.skill?.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-medium text-sm">{a.skill}</div>
-                              <div className="text-xs text-gray-400">
-                                {a.completedAt && new Date(a.completedAt).getFullYear() > 1970
-                                  ? new Date(a.completedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
-                                  : 'Date unavailable'}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {a.score >= 70 && (
-                              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Passed</span>
-                            )}
-                            <span className={`text-sm font-bold ${
-                              a.score >= 70 ? 'text-green-600' : 'text-orange-500'
-                            }`}>{a.score}%</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <div className="w-full bg-gray-200 rounded-full h-1.5">
-                              <div
-                                className={`h-1.5 rounded-full transition-all ${
-                                  a.score >= 70 ? 'bg-green-500' : 'bg-orange-400'
-                                }`}
-                                style={{ width: `${a.score}%` }}
-                              />
-                            </div>
-                          </div>
-                          {(a.assessmentId || a._id || a.id) && (
-                            <button
-                              type="button"
-                              onClick={() => onNavigate('assessment-review', { assessmentId: a.assessmentId || a._id || a.id })}
-                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium flex-shrink-0"
-                            >
-                              View Review <ExternalLink className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
       </div>
       <Footer onNavigate={onNavigate} />

@@ -436,7 +436,10 @@ function App() {
             <AuthGuard user={user}>
               <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
               {user?.type === 'employer' ? (
-                <WithLayout {...nav}><EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} /></WithLayout>
+                <>
+                  <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+                  <EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} />
+                </>
               ) : user?.type === 'admin' || user?.type === 'super_admin' ? (
                 <Navigate to="/admin/dashboard" replace />
               ) : (
