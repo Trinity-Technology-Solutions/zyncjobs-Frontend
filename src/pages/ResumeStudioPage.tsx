@@ -1,3 +1,5 @@
+import React from 'react';
+import { FileText, Search, BarChart2, BookOpen, ArrowRight, ArrowLeft } from 'lucide-react';
 import React, { useState } from 'react';
 import { FileText, Upload, BarChart2, BookOpen, ArrowRight, CheckCircle, Lightbulb, Layout, Zap } from 'lucide-react';
 import Header from '../components/Header';
@@ -140,6 +142,19 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
     <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <button
+          onClick={() => onNavigate('dashboard')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </button>
+
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-4">
+            <FileText className="w-8 h-8 text-blue-600" />
       <div className="max-w-5xl mx-auto px-6 py-16">
 
         {/* Hero Section */}

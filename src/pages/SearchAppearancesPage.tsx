@@ -1,181 +1,153 @@
 import React, { useState, useEffect } from 'react';
-import { Search, TrendingUp, Eye, Calendar } from 'lucide-react';
+import { Search, TrendingUp, Eye, ArrowLeft, Calendar } from 'lucide-react';
 import Header from '../components/Header';
-import BackButton from '../components/BackButton';
-import { API_ENDPOINTS } from '../config/constants';
+import { API_ENDPOINTS } from '../config/env';
 
-interface SearchAppearancesPageProps {
-  onNavigate: (page: string) => void;
-  user?: any;
-  onLogout?: () => void;
-}
+interface Props { onNavigate: (page: string) => void; user?: any; onLogout?: () => void; }
 
-const SearchAppearancesPage: React.FC<SearchAppearancesPageProps> = ({ onNavigate, user, onLogout }) => {
-  const [searchAppearances, setSearchAppearances] = useState<any[]>([]);
+const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
   const [loading, setLoading] = useState(true);
   const [totalAppearances, setTotalAppearances] = useState(0);
+  const [thisWeek, setThisWeek] = useState(0);
+  const [profileViews, setProfileViews] = useState(0);
+  const [topKeywords, setTopKeywords] = useState<string[]>([]);
+  const [appearances, setAppearances] = useState<any[]>([]);
 
-  useEffect(() => {
-    fetchSearchAppearances();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  const fetchSearchAppearances = async () => {
+  const fetchData = async () => {
     try {
-      const userData = localStorage.getItem('user');
-      if (!userData) return;
-      
-      const user = JSON.parse(userData);
-      const email = user.email;
-      
-      if (!email) return;
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      const email = u.email; if (!email) return;
 
-      // Fetch analytics data
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${email}?userType=candidate`);
-      if (response.ok) {
-        const data = await response.json();
-        setTotalAppearances(data.searchAppearances || 0);
+      const [summaryRes, detailRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(email)}?userType=candidate`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/search-appearances/${encodeURIComponent(email)}`)
+      ]);
+
+      if (summaryRes.ok) {
+        const s = await summaryRes.json();
+        setTotalAppearances(s.searchAppearances || 0);
+        setProfileViews(s.profileViews || 0);
       }
-
-      // Fetch detailed search appearances
-      try {
-        const appearancesResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/search-appearances/${email}`);
-        if (appearancesResponse.ok) {
-          const appearancesData = await appearancesResponse.json();
-          setSearchAppearances(appearancesData || []);
+      if (detailRes.ok) {
+        const d = await detailRes.json();
+        if (d && !Array.isArray(d)) {
+          setThisWeek(d.thisWeek || 0);
+          setTopKeywords(d.topKeywords || []);
+          setAppearances(d.appearances || []);
+        } else {
+          setAppearances(Array.isArray(d) ? d : []);
         }
-      } catch (error) {
-        console.log('Detailed search appearances not available:', error);
-        setSearchAppearances([]);
       }
-    } catch (error) {
-      console.error('Error fetching search appearances:', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
+  const fmt = (ts: string) => {
+    const d = new Date(ts), diff = Date.now() - d.getTime();
+    const m = Math.floor(diff/60000);
+    if (m < 60) return `${m}m ago`;
+    const h = Math.floor(diff/3600000);
+    if (h < 24) return `${h}h ago`;
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+  };
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <BackButton 
-          onClick={() => onNavigate('dashboard')}
-          text="Back to Dashboard"
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-4"
-        />
-        
-        <div className="mb-6">
+        <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-6">
+          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+        </button>
+
+        <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Search Appearances</h1>
-          <p className="text-gray-600 mt-1">Track how often your profile appears in employer searches</p>
+          <p className="text-gray-500 mt-1">Track how often your profile appears in employer searches</p>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg shadow-sm border border-blue-200 p-6 card-hover">
-            <div className="flex items-center">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg shadow-md">
-                <Search className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Appearances</p>
-                <p className="text-2xl font-bold text-gray-900">{totalAppearances}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg shadow-sm border border-green-200 p-6 card-hover">
-            <div className="flex items-center">
-              <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg shadow-md">
-                <TrendingUp className="w-6 h-6 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">This Week</p>
-                <p className="text-2xl font-bold text-gray-900">{Math.floor(totalAppearances * 0.4)}</p>
+        {/* Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+          {[
+            { label: 'Total Appearances', value: totalAppearances, icon: Search, color: 'blue' },
+            { label: 'This Week', value: thisWeek, icon: TrendingUp, color: 'green' },
+            { label: 'Profile Views', value: profileViews, icon: Eye, color: 'purple' },
+          ].map(({ label, value, icon: Icon, color }) => (
+            <div key={label} className={`bg-white rounded-xl border border-${color}-100 p-5 shadow-sm`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 bg-${color}-100 rounded-lg flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 text-${color}-600`} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">{label}</p>
+                  <p className="text-2xl font-bold text-gray-900">{value}</p>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg shadow-sm border border-purple-200 p-6 card-hover">
-            <div className="flex items-center">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg shadow-md">
-                <Eye className="w-6 h-6 text-purple-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Profile Views</p>
-                <p className="text-2xl font-bold text-gray-900">{Math.floor(totalAppearances * 0.2)}</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
-        {/* Search Keywords */}
-        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border mb-6 card-hover">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Top Search Keywords</h2>
+        {/* Top Keywords */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
+          <div className="px-6 py-4 border-b border-gray-100">
+            <h2 className="font-semibold text-gray-900">Top Search Keywords</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Keywords employers used when your profile appeared</p>
           </div>
           <div className="p-6">
-            <div className="flex flex-wrap gap-2">
-              {['React Developer', 'JavaScript', 'Full Stack', 'Node.js', 'Python', 'Software Engineer', 'Frontend', 'Backend'].map((keyword, index) => (
-                <span key={index} className="px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-full text-sm shadow-md hover:shadow-lg transition-shadow">
-                  {keyword}
-                </span>
-              ))}
-            </div>
+            {topKeywords.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {topKeywords.map((kw, i) => (
+                  <span key={i} className="px-3 py-1.5 bg-blue-600 text-white rounded-full text-sm font-medium">{kw}</span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-400 text-sm">No keyword data yet. Appears as employers search for candidates matching your profile.</p>
+            )}
           </div>
         </div>
 
         {/* Appearances List */}
-        <div className="bg-white/90 backdrop-blur-md rounded-lg shadow-sm border card-hover">
-          {totalAppearances > 0 ? (
-            <>
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Search Appearances</h2>
-              </div>
-              <div className="divide-y divide-gray-200">
-                {/* Sample search appearances */}
-                {Array.from({ length: Math.min(totalAppearances, 8) }, (_, index) => (
-                  <div key={index} className="px-6 py-4 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-300">
-                    <div className="flex items-start space-x-3">
-                      <div className="flex-shrink-0">
-                        <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center shadow-md">
-                          <Search className="w-5 h-5 text-green-600" />
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-gray-900">
-                            Appeared in search for "{['React Developer', 'Full Stack Engineer', 'JavaScript Developer', 'Software Engineer', 'Frontend Developer'][index % 5]}"
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {new Date(Date.now() - (index * 12 * 60 * 60 * 1000)).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <p className="text-sm text-gray-600 mt-1">
-                          Search by {['Google', 'Microsoft', 'Amazon', 'Meta', 'Apple', 'Netflix', 'Uber', 'Airbnb'][index % 8]} recruiter
-                        </p>
-                      </div>
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-semibold text-gray-900">Recent Appearances</h2>
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{appearances.length} records</span>
+          </div>
+          {appearances.length > 0 ? (
+            <div className="divide-y divide-gray-50">
+              {appearances.map((item, idx) => (
+                <div key={item.id || idx} className="px-6 py-4 hover:bg-blue-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Search className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">
+                        {item.metadata?.searchQuery ? `Appeared for "${item.metadata.searchQuery}"` : 'Profile appeared in search'}
+                      </p>
+                      {item.metadata?.company && <p className="text-xs text-gray-500 mt-0.5">by {item.metadata.company}</p>}
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
+                      <Calendar className="w-3 h-3" />
+                      {fmt(item.createdAt)}
                     </div>
                   </div>
-                ))}
-              </div>
-            </>
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="p-8 text-center">
-              <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No search appearances yet</h3>
-              <p className="text-gray-600 mb-4">Optimize your profile with relevant skills and keywords to appear in more searches</p>
-              <button 
-                onClick={() => onNavigate('candidate-profile')}
-                className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
+            <div className="p-12 text-center">
+              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-8 h-8 text-gray-300" />
+              </div>
+              <h3 className="font-medium text-gray-900 mb-1">No appearances yet</h3>
+              <p className="text-sm text-gray-500 mb-4">Complete your profile with skills and keywords to appear in employer searches</p>
+              <button onClick={() => onNavigate('dashboard')} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
                 Optimize Profile
               </button>
             </div>

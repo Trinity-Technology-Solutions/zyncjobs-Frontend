@@ -144,6 +144,12 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     }
     const id = encodeURIComponent(company?.name || company?._id || '');
     if (!id) return;
+    // Optimistic update
+    const newFollowing = !isFollowing;
+    const newCount = newFollowing ? followersCount + 1 : Math.max(0, followersCount - 1);
+    setIsFollowing(newFollowing);
+    setFollowersCount(newCount);
+    const action = newFollowing ? 'follow' : 'unfollow';
     const wasFollowing = isFollowing;
     const prevCount = followersCount;
     const action = wasFollowing ? 'unfollow' : 'follow';
@@ -157,6 +163,15 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       });
       if (response.ok) {
         const data = await response.json();
+        setFollowersCount(data.followersCount ?? newCount);
+      } else {
+        // Revert on failure
+        setIsFollowing(!newFollowing);
+        setFollowersCount(followersCount);
+      }
+    } catch {
+      setIsFollowing(!newFollowing);
+      setFollowersCount(followersCount);
         if (data.followersCount !== undefined) setFollowersCount(data.followersCount);
       } else {
         setIsFollowing(wasFollowing);
@@ -213,9 +228,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         if (company) setReviews(await fetchCompanyReviews(company.name));
         setTimeout(() => { setShowReviewModal(false); setReviewSuccess(false); }, 1500);
       } else {
-        setReviewError(data.error || 'Failed to submit review. Please try again.');
+        const errMsg = data.error || '';
+        if (errMsg.toLowerCase().includes('relation') || errMsg.toLowerCase().includes('does not exist') || response.status === 500) {
+          setReviewError('Review service is temporarily unavailable. Please try again later.');
+        } else {
+          setReviewError(errMsg || 'Failed to submit review. Please try again.');
+        }
       }
-    } catch (error) {
+    } catch {
       setReviewError('Network error. Please check your connection and try again.');
     } finally {
       setSubmittingReview(false);

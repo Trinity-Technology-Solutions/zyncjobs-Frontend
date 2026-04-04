@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RoleGuard from '../components/RoleGuard';
+import { Send, Bot, User, Sparkles, RefreshCw, Brain, Target, TrendingUp, BookOpen, DollarSign, Users, BarChart3, ChevronRight, Zap, ArrowLeft } from 'lucide-react';
 import { Send, Mic, Search, MoreHorizontal, Zap, RefreshCw, Bot, User, TrendingUp, MessageCircle } from 'lucide-react';
 import { API_BASE_URL } from '../config/env';
 
@@ -113,6 +114,14 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
       <div className="flex flex-col" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%)' }}>
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
+        <div className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 flex flex-col gap-4">
+          <button
+            onClick={() => onNavigate?.('dashboard')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </button>
         <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-6 py-8" style={{ minHeight: 0 }}>
 
           {/* Home screen */}

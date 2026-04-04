@@ -37,6 +37,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [error, setError] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const candidateId = currentUser.id || currentUser._id || currentUser.email;
@@ -134,6 +135,94 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
+  };
+
+  const handleFileAttach = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { setError('File must be under 5MB'); e.target.value = ''; return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const attachment = JSON.stringify({ __type: 'attachment', name: file.name, mimeType: file.type, data: reader.result as string });
+      sendFileMessage(attachment, file.name);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const sendFileMessage = async (attachmentJson: string, fileName: string) => {
+    if (!selectedConversation) return;
+    setSendingMessage(true); setError('');
+    try {
+      const response = await fetch(`${API_ENDPOINTS.MESSAGES}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          senderId: candidateId,
+          receiverId: selectedConversation.employerId,
+          senderName: currentUser.name || 'Candidate',
+          senderEmail: currentUser.email,
+          receiverName: selectedConversation.employerName,
+          receiverEmail: selectedConversation.employerEmail,
+          message: attachmentJson,
+          conversationId: selectedConversation.conversationId,
+          read: false,
+        }),
+      });
+      if (response.ok) {
+        const sent = await response.json();
+        setMessages(prev => [...prev, sent]);
+        setConversations(prev => prev.map(conv =>
+          conv.conversationId === selectedConversation.conversationId
+            ? { ...conv, lastMessage: `📎 ${fileName}`, lastMessageTime: new Date().toISOString() }
+            : conv
+        ));
+      } else { setError('Failed to send file'); }
+    } catch { setError('Error sending file'); }
+    finally { setSendingMessage(false); }
+  };
+
+  const renderMessageContent = (message: string, isOwn: boolean) => {
+    // Handle old text-format attachments like [📎 filename]
+    if (message.startsWith('[') && message.includes('📎') && message.endsWith(']')) {
+      const name = message.replace(/^\[📎\s*/, '').replace(/\]$/, '');
+      return <span className="text-sm italic opacity-80">📎 {name} (legacy)</span>;
+    }
+    try {
+      const parsed = JSON.parse(message);
+      if (parsed.__type === 'attachment') {
+        const isImage = parsed.mimeType?.startsWith('image/');
+        if (isImage) {
+          return (
+            <div>
+              <img
+                src={parsed.data}
+                alt={parsed.name}
+                className="max-w-xs max-h-48 rounded-lg cursor-pointer hover:opacity-90 block"
+                onClick={() => window.open(parsed.data, '_blank')}
+              />
+              <a
+                href={parsed.data}
+                download={parsed.name}
+                className={`text-xs mt-1 flex items-center gap-1 underline ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}
+              >
+                📎 {parsed.name}
+              </a>
+            </div>
+          );
+        }
+        return (
+          <a
+            href={parsed.data}
+            download={parsed.name}
+            className={`flex items-center gap-2 text-sm underline font-medium ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}
+          >
+            📎 {parsed.name}
+          </a>
+        );
+      }
+    } catch {}
+    return <p className="text-sm break-words">{message}</p>;
   };
 
   const handleSendMessage = async () => {
@@ -379,11 +468,9 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                     return (
                       <div key={msg._id || idx} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-sm px-3 py-2 rounded-2xl ${
-                          isOwn
-                            ? 'bg-blue-600 text-white rounded-br-sm'
-                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                          isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                         }`}>
-                          <p className="text-sm break-words">{msg.message}</p>
+                          {renderMessageContent(msg.message, isOwn)}
                           <div className={`flex items-center justify-end gap-1 mt-0.5 ${
                             isOwn ? 'text-blue-100' : 'text-gray-400'
                           } text-xs`}>
@@ -409,7 +496,18 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                 </div>
               )}
               <div className="flex gap-2 items-center">
-                <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex-shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
+                  onChange={handleFileAttach}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex-shrink-0"
+                  title="Attach file"
+                >
                   <Paperclip className="w-5 h-5" />
                 </button>
                 <input

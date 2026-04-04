@@ -594,11 +594,6 @@ function App() {
             </AuthGuard>
           } />
 
-          <Route path="/search-appearances" element={
-            <AuthGuard user={user}>
-              <SearchAppearancesPage onNavigate={handleNavigation} />
-            </AuthGuard>
-          } />
 
           <Route path="/candidate-profile-view" element={
             <AuthGuard user={user}>
@@ -652,8 +647,14 @@ function App() {
           } />
 
           <Route path="/recruiter-actions" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user}>
               <RecruiterActionsPage onNavigate={handleNavigation} />
+            </AuthGuard>
+          } />
+
+          <Route path="/search-appearances" element={
+            <AuthGuard user={user}>
+              <SearchAppearancesPage onNavigate={handleNavigation} />
             </AuthGuard>
           } />
 
