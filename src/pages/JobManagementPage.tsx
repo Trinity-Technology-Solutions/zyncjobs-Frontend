@@ -451,7 +451,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       
                       <div className="relative">
                         <button 
-                          onClick={() => setOpenMenuId(openMenuId === jobId ? null : jobId)}
+                          onClick={() => setOpenMenuId(openMenuId === jobId ? null : jobId ?? null)}
                           className="p-1 hover:bg-gray-100 rounded transition-colors"
                           title="More options"
                         >

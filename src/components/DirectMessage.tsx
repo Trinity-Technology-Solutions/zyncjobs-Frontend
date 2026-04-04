@@ -29,32 +29,6 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
 
   const conversationId = [employerId, candidateId].sort().join('_');
 
-  const renderMessageContent = (message: string, isOwn: boolean) => {
-    try {
-      const parsed = JSON.parse(message);
-      if (parsed.__type === 'attachment') {
-        const isImage = parsed.mimeType?.startsWith('image/');
-        const linkClass = isOwn ? 'text-blue-100 underline' : 'text-blue-600 underline';
-        if (isImage) {
-          return (
-            <div>
-              <img src={parsed.data} alt={parsed.name} className="max-w-full max-h-40 rounded-lg mb-1 cursor-pointer" onClick={() => window.open(parsed.data, '_blank')} />
-              <a href={parsed.data} download={parsed.name} className={`text-xs ${linkClass} flex items-center gap-1`}>
-                <span>📎</span><span>{parsed.name}</span>
-              </a>
-            </div>
-          );
-        }
-        return (
-          <a href={parsed.data} download={parsed.name} className={`flex items-center gap-2 text-sm ${linkClass}`}>
-            <span>📎</span><span>{parsed.name}</span>
-          </a>
-        );
-      }
-    } catch {}
-    return <p>{message}</p>;
-  };
-
   useEffect(() => {
     fetchMessages();
   }, [conversationId]);

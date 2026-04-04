@@ -198,26 +198,32 @@ function App() {
   useEffect(() => {
     initializeEmployerIdCounter();
 
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('token')) return; // OAuth callback ? handled by TokenHandler route
+    const handleForceLogout = () => handleLogout();
+    window.addEventListener('zync:logout', handleForceLogout);
+
+    if (new URLSearchParams(window.location.search).get('token')) {
+      return () => window.removeEventListener('zync:logout', handleForceLogout);
+    }
 
     const savedUser = localStorage.getItem('user');
-    if (!savedUser) return;
-
-    try {
-      const userData = JSON.parse(savedUser);
-      let userType: UserType['type'] = 'candidate';
-      if (userData.userType === 'employer') userType = 'employer';
-      if (userData.userType === 'admin') userType = 'admin';
-      if (userData.userType === 'super_admin') userType = 'super_admin';
-      setUser({
-        name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
-        type: userType,
-        email: userData.email,
-      });
-    } catch {
-      localStorage.removeItem('user');
+    if (savedUser) {
+      try {
+        const userData = JSON.parse(savedUser);
+        let userType: UserType['type'] = 'candidate';
+        if (userData.userType === 'employer') userType = 'employer';
+        if (userData.userType === 'admin') userType = 'admin';
+        if (userData.userType === 'super_admin') userType = 'super_admin';
+        setUser({
+          name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
+          type: userType,
+          email: userData.email,
+        });
+      } catch {
+        localStorage.removeItem('user');
+      }
     }
+
+    return () => window.removeEventListener('zync:logout', handleForceLogout);
   }, []);
 
   // Global fetch interceptor for 503 maintenance

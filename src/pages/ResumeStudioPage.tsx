@@ -1,7 +1,5 @@
-import React from 'react';
-import { FileText, Search, BarChart2, BookOpen, ArrowRight, ArrowLeft } from 'lucide-react';
 import React, { useState } from 'react';
-import { FileText, Upload, BarChart2, BookOpen, ArrowRight, CheckCircle, Lightbulb, Layout, Zap } from 'lucide-react';
+import { FileText, Upload, BarChart2, BookOpen, ArrowRight, ArrowLeft, CheckCircle, Lightbulb, Layout, Zap } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -142,7 +140,7 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
     <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-5xl mx-auto px-6 py-16">
         <button
           onClick={() => onNavigate('dashboard')}
           className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-6"
@@ -150,12 +148,6 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </button>
-
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-2xl mb-4">
-            <FileText className="w-8 h-8 text-blue-600" />
-      <div className="max-w-5xl mx-auto px-6 py-16">
 
         {/* Hero Section */}
         <div className="text-center mb-16">
@@ -196,10 +188,7 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
                 outline: card.highlight ? `2px solid ${card.accentBorder}` : 'none',
               }}
             >
-              {/* Visual element */}
               {card.visual}
-
-              {/* Content */}
               <div className="mt-4">
                 <h2 className="text-lg font-bold text-gray-900 mb-1.5">{card.title}</h2>
                 <p className="text-sm text-gray-500 leading-relaxed mb-5">{card.desc}</p>
@@ -228,7 +217,6 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
             </div>
           ))}
         </div>
-
       </div>
 
       <Footer onNavigate={onNavigate} />

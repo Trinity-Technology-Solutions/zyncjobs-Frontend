@@ -4,6 +4,8 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { resumeIntelligenceEngine, ResumeAnalysis } from '../services/resumeIntelligenceEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
+import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
+import mammoth from 'mammoth';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -49,20 +51,24 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
       let resumeContent: string;
       
       if (inputMode === 'file' && file) {
-        // For file upload, try API first, then fallback to local processing
-        try {
-          const form = new FormData();
-          form.append('resume', file);
-          const res = await fetch(`${API_BASE}/resume-score/upload`, { method: 'POST', body: form });
-          if (res.ok) {
-            const data = await res.json();
-            resumeContent = data.text || '';
-          } else {
-            throw new Error('API processing failed');
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (ext === 'pdf') {
+          const objectUrl = URL.createObjectURL(file);
+          try {
+            const textItems = await readPdf(objectUrl);
+            resumeContent = textItems.map(item => item.text).join(' ');
+          } finally {
+            URL.revokeObjectURL(objectUrl);
           }
-        } catch {
-          // Fallback: simulate text extraction
-          resumeContent = `Resume content from ${file.name}\n\nThis is a simulated extraction. In production, use PDF parsing libraries.`;
+        } else if (ext === 'docx' || ext === 'doc') {
+          const arrayBuffer = await file.arrayBuffer();
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          resumeContent = result.value;
+        } else {
+          throw new Error('Unsupported file type. Please upload a PDF or DOCX file.');
+        }
+        if (!resumeContent.trim()) {
+          throw new Error('Could not extract text from this file. Try pasting the text directly.');
         }
       } else {
         resumeContent = resumeText;

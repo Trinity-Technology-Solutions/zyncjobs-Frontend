@@ -452,17 +452,107 @@ const ResumeEditorPage: React.FC<ResumeEditorPageProps> = ({ onNavigate, user, o
         pdf.save(`${name}_Resume.pdf`);
         showToast('PDF downloaded successfully! ✅', 'success');
       } else {
-        const htmlContent = `<!DOCTYPE html><html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word'><head><meta charset="utf-8"><title>Resume</title><style>body{font-family:Arial,sans-serif;line-height:1.6;margin:40px;color:#111}h1{font-size:24px;margin-bottom:4px}h2{font-size:14px;color:#555;margin-bottom:8px}h3{font-size:13px;border-bottom:1px solid #333;padding-bottom:4px;margin-top:16px;text-transform:uppercase;letter-spacing:1px}p{margin:4px 0;font-size:12px}.contact{font-size:12px;color:#555}</style></head><body><h1>${resumeData.firstName} ${resumeData.lastName}</h1><h2>${resumeData.jobTitle}</h2><p class="contact">${[resumeData.email, resumeData.phone, resumeData.city && resumeData.country ? `${resumeData.city}, ${resumeData.country}` : resumeData.city || resumeData.country].filter(Boolean).join(' | ')}</p>${resumeData.summary ? `<h3>Summary</h3><p>${resumeData.summary}</p>` : ''}${resumeData.experience.some(e => e.company || e.role) ? `<h3>Experience</h3>${resumeData.experience.filter(e => e.company || e.role).map(e => `<p><strong>${e.role}${e.company ? ` — ${e.company}` : ''}</strong>${e.start ? ` (${e.start}${e.end ? ` – ${e.end}` : ''})` : ''}</p>${e.details.filter(Boolean).map(d => `<p style="margin-left:16px">• ${d}</p>`).join('')}`).join('')}` : ''}${resumeData.education.some(e => e.school || e.degree) ? `<h3>Education</h3>${resumeData.education.filter(e => e.school || e.degree).map(e => `<p><strong>${e.degree}${e.school ? ` — ${e.school}` : ''}</strong>${e.start ? ` (${e.start}${e.end ? ` – ${e.end}` : ''})` : ''}</p>`).join('')}` : ''}${resumeData.skills.length > 0 ? `<h3>Skills</h3><p>${resumeData.skills.join(' · ')}</p>` : ''}</body></html>`;
-        const blob = new Blob([htmlContent], { type: 'application/msword' });
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
+
+        const accent = TEMPLATE_STYLES[selectedTemplate]?.accent || '#1E1E1E';
+        const accentHex = accent.replace('#', '');
+
+        const sectionHeading = (text: string) => new Paragraph({
+          text,
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 240, after: 80 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: accentHex, space: 4 } },
+        });
+
+        const children: any[] = [
+          // Name
+          new Paragraph({
+            children: [new TextRun({ text: `${resumeData.firstName} ${resumeData.lastName}`.trim(), bold: true, size: 48, color: accentHex })],
+            alignment: AlignmentType.LEFT,
+            spacing: { after: 40 },
+          }),
+          // Job title
+          ...(resumeData.jobTitle ? [new Paragraph({
+            children: [new TextRun({ text: resumeData.jobTitle, size: 28, color: '555555' })],
+            spacing: { after: 40 },
+          })] : []),
+          // Contact line
+          new Paragraph({
+            children: [new TextRun({
+              text: [resumeData.email, resumeData.phone, resumeData.city && resumeData.country ? `${resumeData.city}, ${resumeData.country}` : resumeData.city || resumeData.country].filter(Boolean).join('  |  '),
+              size: 20, color: '666666',
+            })],
+            spacing: { after: 200 },
+          }),
+        ];
+
+        // Summary
+        if (resumeData.summary) {
+          children.push(sectionHeading('SUMMARY'));
+          children.push(new Paragraph({ children: [new TextRun({ text: resumeData.summary, size: 22 })], spacing: { after: 120 } }));
+        }
+
+        // Experience
+        const expItems = resumeData.experience.filter(e => e.company || e.role);
+        if (expItems.length) {
+          children.push(sectionHeading('EXPERIENCE'));
+          expItems.forEach(exp => {
+            children.push(new Paragraph({
+              children: [
+                new TextRun({ text: exp.role, bold: true, size: 24 }),
+                ...(exp.company ? [new TextRun({ text: ` — ${exp.company}`, size: 24 })] : []),
+                ...(exp.start ? [new TextRun({ text: `  ${exp.start}${exp.end ? ` – ${exp.end}` : ''}`, size: 20, color: '888888' })] : []),
+              ],
+              spacing: { before: 120, after: 40 },
+            }));
+            if (exp.location) children.push(new Paragraph({ children: [new TextRun({ text: exp.location, size: 20, color: '888888' })], spacing: { after: 40 } }));
+            exp.details.filter(Boolean).forEach(d => {
+              children.push(new Paragraph({ children: [new TextRun({ text: `• ${d}`, size: 22 })], spacing: { after: 40 } }));
+            });
+          });
+        }
+
+        // Education
+        const eduItems = resumeData.education.filter(e => e.school || e.degree);
+        if (eduItems.length) {
+          children.push(sectionHeading('EDUCATION'));
+          eduItems.forEach(edu => {
+            children.push(new Paragraph({
+              children: [
+                new TextRun({ text: edu.degree, bold: true, size: 24 }),
+                ...(edu.school ? [new TextRun({ text: ` — ${edu.school}`, size: 24 })] : []),
+                ...(edu.start ? [new TextRun({ text: `  ${edu.start}${edu.end ? ` – ${edu.end}` : ''}`, size: 20, color: '888888' })] : []),
+              ],
+              spacing: { before: 120, after: 40 },
+            }));
+          });
+        }
+
+        // Skills
+        if (resumeData.skills.length) {
+          children.push(sectionHeading('SKILLS'));
+          children.push(new Paragraph({ children: [new TextRun({ text: resumeData.skills.join(' · '), size: 22 })], spacing: { after: 120 } }));
+        }
+
+        const doc = new Document({
+          styles: {
+            default: {
+              document: { run: { font: 'Calibri', size: 22 } },
+            },
+          },
+          sections: [{ children }],
+        });
+
+        const blob = await Packer.toBlob(doc);
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `${name}_Resume.doc`;
+        a.download = `${name}_Resume.docx`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        showToast('Word document downloaded! Open in Microsoft Word. ✅', 'success');
+        showToast('DOCX downloaded successfully! ✅', 'success');
       }
     } catch (error: any) {
       console.error('Download error:', error);
