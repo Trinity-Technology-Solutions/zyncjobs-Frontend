@@ -36,10 +36,7 @@ const CompanyJobsPage = lazy(() => import('./pages/CompanyJobsPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
 const CompanyDetailsPage = lazy(() => import('./pages/CompanyDetailsPage'));
 const JobHuntingPage = lazy(() => import('./pages/JobHuntingPage'));
-const ResumeTemplatesPage = lazy(() => import('./pages/ResumeTemplatesPage'));
-const ResumeEditorPage = lazy(() => import('./pages/ResumeEditorPage'));
-const ResumeReadyPage = lazy(() => import('./pages/ResumeReadyPage'));
-const ResumeViewerPage = lazy(() => import('./pages/ResumeViewerPage'));
+
 const InterviewTipsPage = lazy(() => import('./pages/InterviewTipsPage'));
 const CareerCoachPage = lazy(() => import('./pages/CareerCoachPage'));
 const CandidateRankingPage = lazy(() => import('./pages/CandidateRankingPage'));
@@ -86,6 +83,7 @@ const TermsPage = lazy(() => import('./pages/TermsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
 const AccessibilityPage = lazy(() => import('./pages/AccessibilityPage'));
 const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
+const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
 const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
@@ -126,17 +124,6 @@ const AssessmentReviewPageWrapper: React.FC<{
 }> = ({ onNavigate, user }) => {
   const { assessmentId } = useParams<{ assessmentId: string }>();
   return <AssessmentReviewPage onNavigate={onNavigate} user={user} assessmentId={assessmentId || ''} />;
-};
-
-// Reads template from URL search param fresh on each render
-const ResumeEditorWrapper: React.FC<{
-  onNavigate: (page: string, data?: any) => void;
-  user: any;
-  onLogout: () => void;
-}> = ({ onNavigate, user, onLogout }) => {
-  const [searchParams] = useSearchParams();
-  const template = searchParams.get('template') || '';
-  return <ResumeEditorPage onNavigate={onNavigate} user={user} onLogout={onLogout} template={template} />;
 };
 
 // Wrapper that reads ?id= reactively from URL for CandidateProfileView
@@ -302,11 +289,6 @@ function App() {
     closeModals();
 
     if (page === 'home') { navigate('/'); return; }
-    if (page === 'resume-editor') {
-      const t = typeof params === 'string' ? params : '';
-      navigate(`/resume-editor${t ? `?template=${encodeURIComponent(t)}` : ''}`);
-      return;
-    }
     if (page.startsWith('job-detail/')) {
       navigate(`/job-detail?id=${page.split('/')[1]}`);
       return;
@@ -433,9 +415,7 @@ function App() {
           <Route path="/terms" element={<TermsPage {...nav} />} />
           <Route path="/privacy" element={<PrivacyPage {...nav} />} />
           <Route path="/accessibility" element={<AccessibilityPage {...nav} />} />
-          <Route path="/resume-templates" element={<ResumeTemplatesPage {...nav} />} />
           <Route path="/resume-help" element={<ResumeHelpPage {...nav} />} />
-          <Route path="/resume-view/:template" element={<ResumeViewerPage />} />
 
           {/* -- Protected: any logged-in user -- */}
           <Route path="/dashboard" element={
@@ -549,15 +529,9 @@ function App() {
             </AuthGuard>
           } />
 
-          <Route path="/resume-editor" element={
+          <Route path="/resume-builder" element={
             <AuthGuard user={user} allowedRoles={['candidate']}>
-              <ResumeEditorWrapper onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-            </AuthGuard>
-          } />
-
-          <Route path="/resume-ready" element={
-            <AuthGuard user={user} allowedRoles={['candidate']}>
-              <ResumeReadyPage {...nav} />
+              <ResumeBuilderPage {...nav} />
             </AuthGuard>
           } />
 
