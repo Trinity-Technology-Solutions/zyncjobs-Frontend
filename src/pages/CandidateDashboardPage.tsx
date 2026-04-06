@@ -1894,21 +1894,27 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     </div>
 
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-  <circle cx="11" cy="11" r="8"></circle>
-  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-</svg>
-
-
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                              </svg>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-500">Search Appearances</p>
+                            <p className="text-2xl font-bold text-gray-900">{activityData.searchAppearances}</p>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-500">Search Appearances</p>
-                          <p className="text-2xl font-bold text-gray-900">{activityData.searchAppearances}</p>
-                        </div>
+                        <button
+                          onClick={() => onNavigate('search-appearances')}
+                          className="text-xs text-blue-600 font-medium hover:underline flex-shrink-0 ml-2"
+                        >
+                          View All
+                        </button>
                       </div>
                     </div>
 
@@ -1930,22 +1936,29 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     </div>
 
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0">
-                          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="2"/>
-  <path d="M2 18C2 15.2386 4.23858 13 7 13H7C9.76142 13 12 15.2386 12 18V20H2V18Z" stroke="currentColor" strokeWidth="2"/>
-  <circle cx="17" cy="7" r="3" stroke="currentColor" strokeWidth="2"/>
-  <path d="M12 18C12 15.2386 14.2386 13 17 13H17C19.7614 13 22 15.2386 22 18V20H12V18Z" stroke="currentColor" strokeWidth="2"/>
-</svg>
-
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0">
+                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="2"/>
+                                <path d="M2 18C2 15.2386 4.23858 13 7 13H7C9.76142 13 12 15.2386 12 18V20H2V18Z" stroke="currentColor" strokeWidth="2"/>
+                                <circle cx="17" cy="7" r="3" stroke="currentColor" strokeWidth="2"/>
+                                <path d="M12 18C12 15.2386 14.2386 13 17 13H17C19.7614 13 22 15.2386 22 18V20H12V18Z" stroke="currentColor" strokeWidth="2"/>
+                              </svg>
+                            </div>
+                          </div>
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-500">Recruiter Actions</p>
+                            <p className="text-2xl font-bold text-gray-900">{activityData.recruiterActions}</p>
                           </div>
                         </div>
-                        <div className="ml-4">
-                          <p className="text-sm font-medium text-gray-500">Recruiter Actions</p>
-                          <p className="text-2xl font-bold text-gray-900">{activityData.recruiterActions}</p>
-                        </div>
+                        <button
+                          onClick={() => onNavigate('recruiter-actions')}
+                          className="text-xs text-blue-600 font-medium hover:underline flex-shrink-0 ml-2"
+                        >
+                          View All
+                        </button>
                       </div>
                     </div>
                   </div>
