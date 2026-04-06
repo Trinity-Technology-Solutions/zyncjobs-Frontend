@@ -29,8 +29,9 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
 
     if (!token) return;
 
-    // LinkedIn import flow — handled by LinkedInConnect component, skip here
-    if (isLinkedinImport) return;
+    // 'linkedin=1' with a token = OAuth login flow, process it normally
+    // 'linkedin=1' without token = profile import, handled by LinkedInConnect
+    if (isLinkedinImport && !token) return;
 
     localStorage.setItem('token', token);
     localStorage.setItem('accessToken', token);

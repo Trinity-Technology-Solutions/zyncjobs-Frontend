@@ -43,7 +43,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   user?: any;
   onLogout?: () => void;
   companyId?: string;
-}) => {
+}): JSX.Element => {
   const [company, setCompany] = useState<Company | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
@@ -144,12 +144,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     }
     const id = encodeURIComponent(company?.name || company?._id || '');
     if (!id) return;
-    // Optimistic update
-    const newFollowing = !isFollowing;
-    const newCount = newFollowing ? followersCount + 1 : Math.max(0, followersCount - 1);
-    setIsFollowing(newFollowing);
-    setFollowersCount(newCount);
-    const action = newFollowing ? 'follow' : 'unfollow';
     const wasFollowing = isFollowing;
     const prevCount = followersCount;
     const action = wasFollowing ? 'unfollow' : 'follow';
@@ -163,15 +157,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       });
       if (response.ok) {
         const data = await response.json();
-        setFollowersCount(data.followersCount ?? newCount);
-      } else {
-        // Revert on failure
-        setIsFollowing(!newFollowing);
-        setFollowersCount(followersCount);
-      }
-    } catch {
-      setIsFollowing(!newFollowing);
-      setFollowersCount(followersCount);
         if (data.followersCount !== undefined) setFollowersCount(data.followersCount);
       } else {
         setIsFollowing(wasFollowing);

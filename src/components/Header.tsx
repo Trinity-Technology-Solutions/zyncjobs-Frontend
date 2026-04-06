@@ -611,7 +611,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             <button 
                               onClick={() => {
                                 setIsDropdownOpen(false);
-                                onNavigate && onNavigate('job-listings', { tab: 'recommended' });
+                                onNavigate && onNavigate('job-listings');
                               }} 
                               className="flex items-center w-full text-left px-3 py-3 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                             >

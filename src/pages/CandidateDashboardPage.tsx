@@ -650,6 +650,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <span className="text-gray-700">Skill Gap Analysis</span>
                     </button>
                     <button 
+                      onClick={() => {
+                        try {
+                          onNavigate('job-matches');
+                        } catch (error) {
+                          console.error('Navigation error:', error);
+                          window.location.href = '/job-matches';
+                        }
+                      }}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-gray-700">🎯 AI Job Matches</span>
+                    </button>
+                    <button 
                       onClick={() => onNavigate('my-applications')}
                       className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
                     >
