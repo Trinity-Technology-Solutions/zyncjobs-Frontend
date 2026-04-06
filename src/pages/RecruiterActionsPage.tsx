@@ -1,220 +1,251 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Briefcase, CheckCircle, XCircle, Clock, Eye, Star, Calendar, TrendingUp, Users } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { ArrowLeft, Users, RefreshCw, Eye, TrendingUp, MapPin, Building2, Sparkles } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
 
 interface Props { onNavigate: (page: string) => void; user?: any; onLogout?: () => void; }
+type FilterKey = 'all' | 'profile_viewed' | 'job_invite';
 
-const statusConfig: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
-  applied:     { label: 'Applied',     color: 'text-blue-700',   bg: 'bg-blue-50 border-blue-200',   icon: <Clock className="w-4 h-4 text-blue-600" /> },
-  reviewed:    { label: 'Reviewed',    color: 'text-yellow-700', bg: 'bg-yellow-50 border-yellow-200', icon: <Eye className="w-4 h-4 text-yellow-600" /> },
-  shortlisted: { label: 'Shortlisted', color: 'text-purple-700', bg: 'bg-purple-50 border-purple-200', icon: <Star className="w-4 h-4 text-purple-600" /> },
-  interview:   { label: 'Interview',   color: 'text-indigo-700', bg: 'bg-indigo-50 border-indigo-200', icon: <Users className="w-4 h-4 text-indigo-600" /> },
-  hired:       { label: 'Hired',       color: 'text-green-700',  bg: 'bg-green-50 border-green-200',  icon: <CheckCircle className="w-4 h-4 text-green-600" /> },
-  rejected:    { label: 'Rejected',    color: 'text-red-700',    bg: 'bg-red-50 border-red-200',      icon: <XCircle className="w-4 h-4 text-red-600" /> },
-  withdrawn:   { label: 'Withdrawn',   color: 'text-gray-600',   bg: 'bg-gray-50 border-gray-200',    icon: <XCircle className="w-4 h-4 text-gray-400" /> },
+const FILTERS = [
+  { key: 'all' as FilterKey,            label: 'All Actions',   icon: TrendingUp, active: 'bg-blue-600 text-white border-blue-600',     inactive: 'bg-white text-gray-600 border-gray-200 hover:border-blue-400 hover:text-blue-600' },
+  { key: 'profile_viewed' as FilterKey, label: 'Profile Viewed', icon: Eye,       active: 'bg-purple-600 text-white border-purple-600',  inactive: 'bg-white text-gray-600 border-gray-200 hover:border-purple-400 hover:text-purple-600' },
+  { key: 'job_invite' as FilterKey,     label: 'Job Invite',    icon: Sparkles,   active: 'bg-emerald-600 text-white border-emerald-600', inactive: 'bg-white text-gray-600 border-gray-200 hover:border-emerald-400 hover:text-emerald-600' },
+];
+
+const STAT_CARDS = [
+  { key: 'all',           label: 'Total Actions',  icon: TrendingUp, gradient: 'from-blue-500 to-blue-600',      text: 'text-blue-700' },
+  { key: 'profile_viewed', label: 'Profile Viewed', icon: Eye,       gradient: 'from-purple-500 to-purple-600',  text: 'text-purple-700' },
+  { key: 'job_invite',    label: 'Job Invites',    icon: Sparkles,   gradient: 'from-emerald-500 to-emerald-600', text: 'text-emerald-700' },
+];
+
+const ACTION_CONFIG: Record<string, { text: string; color: string; bg: string; border: string; dot: string; strip: string }> = {
+  profile_viewed: { text: 'Profile Viewed', color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200',  dot: 'bg-purple-500',  strip: 'bg-purple-500' },
+  job_invite:     { text: '✨ Job Invite',  color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', strip: 'bg-emerald-500' },
+  nvite_sent:     { text: '✨ Job Invite',  color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', dot: 'bg-emerald-500', strip: 'bg-emerald-500' },
+  contact_viewed: { text: 'Profile Viewed', color: 'text-purple-700',  bg: 'bg-purple-50',  border: 'border-purple-200',  dot: 'bg-purple-500',  strip: 'bg-purple-500' },
 };
+
+function timeAgo(ts: string) {
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(diff / 86400000);
+  if (days < 7) return `${days} day${days > 1 ? 's' : ''} ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks} week${weeks > 1 ? 's' : ''} ago`;
+  return `${Math.floor(days / 30)} month${Math.floor(days / 30) > 1 ? 's' : ''} ago`;
+}
+
+function Avatar({ name, picture }: { name: string; picture?: string | null }) {
+  if (picture) return <img src={picture} alt={name} className="w-14 h-14 rounded-full object-cover ring-2 ring-white shadow-md flex-shrink-0" />;
+  const initial = (name || '?').charAt(0).toUpperCase();
+  const palettes = [
+    'from-violet-500 to-purple-600', 'from-blue-500 to-cyan-600',
+    'from-emerald-500 to-teal-600',  'from-orange-500 to-amber-600',
+    'from-rose-500 to-pink-600',     'from-indigo-500 to-blue-600',
+  ];
+  return (
+    <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl text-white bg-gradient-to-br shadow-md flex-shrink-0 ${palettes[initial.charCodeAt(0) % palettes.length]}`}>
+      {initial}
+    </div>
+  );
+}
 
 const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
   const [loading, setLoading] = useState(true);
-  const [applications, setApplications] = useState<any[]>([]);
-  const [recruiterEvents, setRecruiterEvents] = useState<any[]>([]);
-  const [stats, setStats] = useState({ total: 0, reviewed: 0, shortlisted: 0, hired: 0 });
-  const [activeTab, setActiveTab] = useState<'applications' | 'events'>('applications');
+  const [actions, setActions] = useState<any[]>([]);
+  const [counts, setCounts] = useState<Record<string, number>>({ all: 0, profile_viewed: 0, job_invite: 0 });
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+  const [liveIndicator, setLiveIndicator] = useState(false);
 
-  useEffect(() => { fetchData(); }, []);
+  const userEmail = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email || user?.email || ''; } catch { return user?.email || ''; } })();
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async (filter: FilterKey = activeFilter) => {
+    if (!userEmail) return;
     try {
-      const u = JSON.parse(localStorage.getItem('user') || '{}');
-      const email = u.email; if (!email) return;
-
-      const [appsRes, eventsRes] = await Promise.all([
-        fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(email)}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/recruiter-actions/${encodeURIComponent(email)}`)
-      ]);
-
-      if (appsRes.ok) {
-        const data = await appsRes.json();
-        const apps = Array.isArray(data) ? data : data.applications || [];
-        setApplications(apps);
-        setStats({
-          total: apps.length,
-          reviewed: apps.filter((a: any) => ['reviewed', 'shortlisted', 'interview', 'hired'].includes(a.status)).length,
-          shortlisted: apps.filter((a: any) => ['shortlisted', 'interview'].includes(a.status)).length,
-          hired: apps.filter((a: any) => a.status === 'hired').length,
+      const apiFilter = filter === 'job_invite' ? 'nvite_sent' : filter;
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/recruiter-actions/${encodeURIComponent(userEmail)}?filter=${apiFilter}`);
+      if (res.ok) {
+        const data = await res.json();
+        const raw = data.counts || {};
+        // Normalize: map nvite_sent → job_invite, exclude contact_viewed
+        const normalized = (data.actions || [])
+          .filter((a: any) => a.action !== 'contact_viewed')
+          .map((a: any) => ({ ...a, action: a.action === 'nvite_sent' ? 'job_invite' : a.action }));
+        setActions(normalized);
+        setCounts({
+          all: Math.max(0, (raw.all || 0) - (raw.contact_viewed || 0)),
+          profile_viewed: raw.profile_viewed || 0,
+          job_invite: raw.nvite_sent || 0,
         });
-      }
-      if (eventsRes.ok) {
-        const ev = await eventsRes.json();
-        setRecruiterEvents(Array.isArray(ev) ? ev : []);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
-  };
+  }, [userEmail, activeFilter]);
 
-  const fmt = (ts: string) => {
-    const d = new Date(ts);
-    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-  };
+  useEffect(() => { fetchData(activeFilter); }, [activeFilter]);
 
-  const getStatus = (status: string) => statusConfig[status] || statusConfig['applied'];
+  useEffect(() => {
+    if (!userEmail) return;
+    const socketUrl = (import.meta.env.VITE_API_URL || '/api').replace('/api', '');
+    const socket: Socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+    socket.on(`analytics_update:${userEmail}`, ({ eventType }: { eventType: string }) => {
+      if (eventType === 'recruiter_action') {
+        setLiveIndicator(true);
+        fetchData(activeFilter);
+        setTimeout(() => setLiveIndicator(false), 3000);
+      }
+    });
+    return () => { socket.disconnect(); };
+  }, [userEmail, activeFilter, fetchData]);
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600" />
-    </div>
-  );
+  const filtered = activeFilter === 'all' ? actions : actions.filter(a => a.action === activeFilter);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-indigo-50">
+    <div className="min-h-screen bg-[#f3f2f0]">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="max-w-4xl mx-auto px-4 py-8">
 
-        <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back to Dashboard
+      <div className="max-w-5xl mx-auto px-4 py-6">
+
+        <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm mb-5 transition-colors group">
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
         </button>
 
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Recruiter Actions</h1>
-          <p className="text-gray-500 mt-1">Track recruiter activity on your applications</p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: 'Total Applied', value: stats.total, icon: Briefcase, color: 'blue' },
-            { label: 'Reviewed', value: stats.reviewed, icon: Eye, color: 'yellow' },
-            { label: 'Shortlisted', value: stats.shortlisted, icon: Star, color: 'purple' },
-            { label: 'Hired', value: stats.hired, icon: CheckCircle, color: 'green' },
-          ].map(({ label, value, icon: Icon, color }) => (
-            <div key={label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm text-center">
-              <div className={`w-9 h-9 bg-${color}-100 rounded-lg flex items-center justify-center mx-auto mb-2`}>
-                <Icon className={`w-5 h-5 text-${color}-600`} />
-              </div>
-              <p className="text-2xl font-bold text-gray-900">{value}</p>
-              <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-1 mb-6 w-fit">
-          {(['applications', 'events'] as const).map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-              {tab === 'applications' ? 'Applications' : 'Recruiter Events'}
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Recruiter Actions</h1>
+            <p className="text-sm text-gray-500 mt-0.5">See who's been engaging with your profile</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {liveIndicator && (
+              <span className="flex items-center gap-1.5 text-xs text-green-600 font-semibold bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
+                <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Live
+              </span>
+            )}
+            <button onClick={() => fetchData(activeFilter)} className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-white transition-all">
+              <RefreshCw className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+
+        {/* Stat Cards — 3 only */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          {STAT_CARDS.map(({ key, label, icon: Icon, gradient, text }) => (
+            <div key={key} onClick={() => setActiveFilter(key as FilterKey)}
+              className={`bg-white rounded-xl border p-4 shadow-sm hover:shadow-md transition-all cursor-pointer ${activeFilter === key ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-100'}`}>
+              <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${gradient} flex items-center justify-center mb-2 shadow-sm`}>
+                <Icon className="w-4 h-4 text-white" />
+              </div>
+              <p className={`text-2xl font-bold ${text}`}>{loading ? '—' : counts[key] ?? 0}</p>
+              <p className="text-xs text-gray-500 mt-0.5 font-medium">{label}</p>
+            </div>
           ))}
         </div>
 
-        {/* Applications Tab */}
-        {activeTab === 'applications' && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Your Applications</h2>
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{applications.length} total</span>
+        {/* Main Panel */}
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+
+          {/* Filter Tabs */}
+          <div className="px-5 pt-4 pb-3 border-b border-gray-100">
+            <div className="flex flex-wrap gap-2">
+              {FILTERS.map(({ key, label, icon: Icon, active, inactive }) => (
+                <button key={key} onClick={() => setActiveFilter(key)}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border text-xs font-semibold transition-all ${activeFilter === key ? active : inactive}`}>
+                  <Icon className="w-3 h-3" />
+                  {label}
+                  <span className={`px-1.5 py-0.5 rounded-full text-xs font-bold ${activeFilter === key ? 'bg-white bg-opacity-30' : 'bg-gray-100 text-gray-500'}`}>
+                    {counts[key] ?? 0}
+                  </span>
+                </button>
+              ))}
             </div>
-            {applications.length > 0 ? (
-              <div className="divide-y divide-gray-50">
-                {applications.map((app, idx) => {
-                  const s = getStatus(app.status);
+          </div>
+
+          {/* Cards */}
+          <div className="p-5">
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[1, 2, 3, 4].map(i => <div key={i} className="rounded-xl border border-gray-100 p-4 animate-pulse bg-gray-50 h-36" />)}
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-10 h-10 text-blue-400" />
+                </div>
+                <h3 className="font-bold text-gray-900 text-lg mb-2">No recruiter actions yet</h3>
+                <p className="text-sm text-gray-500 max-w-xs mx-auto mb-5">Complete your profile to attract recruiter attention</p>
+                <button onClick={() => onNavigate('dashboard')} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors">
+                  Improve Profile
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {filtered.map((item, idx) => {
+                  const r = item.recruiter || {};
+                  const cfg = ACTION_CONFIG[item.action] || ACTION_CONFIG['profile_viewed'];
+                  const skills: string[] = (r.skills || []).filter(Boolean);
+                  const hasCompany = !!r.company;
+                  const hasLocation = !!r.location;
+
                   return (
-                    <div key={app._id || app.id || idx} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white font-bold text-sm">
-                            {(app.company || app.companyName || 'C').charAt(0).toUpperCase()}
-                          </div>
+                    <div key={item.id || idx} className="relative bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md hover:border-gray-300 transition-all group">
+                      <div className={`absolute left-0 top-0 bottom-0 w-1 ${cfg.strip}`} />
+
+                      <div className="pl-4 pr-4 pt-4 pb-3">
+                        <div className="flex items-start gap-3 mb-3">
+                          <Avatar name={r.name || 'R'} picture={r.profilePicture} />
                           <div className="flex-1 min-w-0">
-                            <p className="font-semibold text-gray-900 truncate">{app.jobTitle || app.title || 'Position'}</p>
-                            <p className="text-sm text-gray-500">{app.company || app.companyName || 'Company'}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Calendar className="w-3 h-3 text-gray-400" />
-                              <span className="text-xs text-gray-400">Applied {fmt(app.createdAt)}</span>
-                            </div>
+                            <p className="font-bold text-gray-900 text-sm truncate group-hover:text-blue-700 transition-colors">
+                              {r.name || 'Recruiter'}
+                            </p>
+                            {(r.title || hasCompany) && (
+                              <p className="text-xs text-gray-500 truncate mt-0.5">
+                                {r.title && hasCompany ? `${r.title} at ${r.company}` : hasCompany ? r.company : r.title}
+                              </p>
+                            )}
+                            {hasLocation && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <MapPin className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                                <span className="text-xs text-blue-600 font-medium">{r.location}</span>
+                              </div>
+                            )}
+                            {hasCompany && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <Building2 className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                <span className="text-xs text-gray-500 truncate">{r.company}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold flex-shrink-0 ${s.bg} ${s.color}`}>
-                          {s.icon}
-                          {s.label}
+
+                        {skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-3">
+                            {skills.slice(0, 4).map((s, i) => (
+                              <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full border border-gray-200">{s}</span>
+                            ))}
+                            {skills.length > 4 && <span className="text-xs text-gray-400">+{skills.length - 4}</span>}
+                          </div>
+                        )}
+
+                        <div className={`flex items-center justify-between pt-2.5 border-t ${cfg.border} border-opacity-50`}>
+                          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                            {cfg.text}
+                          </span>
+                          <span className="text-xs text-gray-400 font-medium">{timeAgo(item.createdAt)}</span>
                         </div>
                       </div>
-                      {app.status !== 'applied' && (
-                        <div className="mt-3 ml-13 pl-13">
-                          <div className="flex items-center gap-2 ml-13">
-                            <TrendingUp className="w-3.5 h-3.5 text-gray-400 ml-13" />
-                            <span className="text-xs text-gray-500 ml-13">
-                              {app.status === 'reviewed' && 'A recruiter has reviewed your application'}
-                              {app.status === 'shortlisted' && '🎉 You have been shortlisted!'}
-                              {app.status === 'interview' && '📅 Interview scheduled — check your email'}
-                              {app.status === 'hired' && '🎊 Congratulations! You have been hired'}
-                              {app.status === 'rejected' && 'Application was not selected this time'}
-                              {app.status === 'withdrawn' && 'You withdrew this application'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
               </div>
-            ) : (
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Briefcase className="w-8 h-8 text-gray-300" />
-                </div>
-                <h3 className="font-medium text-gray-900 mb-1">No applications yet</h3>
-                <p className="text-sm text-gray-500 mb-4">Start applying to jobs to track recruiter actions</p>
-                <button onClick={() => onNavigate('job-listings')} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-                  Browse Jobs
-                </button>
-              </div>
             )}
           </div>
-        )}
-
-        {/* Recruiter Events Tab */}
-        {activeTab === 'events' && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="font-semibold text-gray-900">Recruiter Activity</h2>
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{recruiterEvents.length} events</span>
-            </div>
-            {recruiterEvents.length > 0 ? (
-              <div className="divide-y divide-gray-50">
-                {recruiterEvents.map((ev, idx) => (
-                  <div key={ev.id || idx} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Users className="w-4 h-4 text-indigo-600" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-900">
-                          {ev.metadata?.action ? `Recruiter action: ${ev.metadata.action}` : 'Recruiter viewed your profile'}
-                        </p>
-                        {ev.metadata?.company && <p className="text-xs text-gray-500 mt-0.5">by {ev.metadata.company}</p>}
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-                        <Calendar className="w-3 h-3" />
-                        {fmt(ev.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-12 text-center">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-gray-300" />
-                </div>
-                <h3 className="font-medium text-gray-900 mb-1">No recruiter events yet</h3>
-                <p className="text-sm text-gray-500">Recruiter activity will appear here as they interact with your profile</p>
-              </div>
-            )}
-          </div>
-        )}
-
+        </div>
       </div>
     </div>
   );

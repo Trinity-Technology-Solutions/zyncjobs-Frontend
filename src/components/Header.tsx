@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { API_ENDPOINTS } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
@@ -270,6 +271,29 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     fetchProfileMetrics();
     fetchNotifications();
     
+    // Socket.io real-time analytics update for candidates
+    let socket: any = null;
+    if (user?.type === 'candidate' || user?.type !== 'employer') {
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          const userEmail = parsedUser.email;
+          if (userEmail) {
+            const socketUrl = (import.meta.env.VITE_API_URL || '/api').replace('/api', '');
+            socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+            socket.on(`analytics_update:${userEmail}`, () => {
+              fetchProfileMetrics();
+            });
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Listen for manual analytics refresh event
+    const handleAnalyticsRefresh = () => fetchProfileMetrics();
+    window.addEventListener('analyticsRefresh', handleAnalyticsRefresh);
+    
     // Listen for job deletion events to refresh metrics
     const handleJobDeleted = () => {
       console.log('Job deleted event received in Header, refreshing metrics...');
@@ -287,11 +311,15 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     
     // Set up periodic refresh for notifications
     const notificationInterval = setInterval(fetchNotifications, 60000); // Refresh every minute
+    const metricsInterval = setInterval(fetchProfileMetrics, 30000); // Refresh metrics every 30s
     
     return () => {
+      if (socket) socket.disconnect();
+      window.removeEventListener('analyticsRefresh', handleAnalyticsRefresh);
       window.removeEventListener('jobDeleted', handleJobDeleted);
       window.removeEventListener('focus', handleWindowFocus);
       clearInterval(notificationInterval);
+      clearInterval(metricsInterval);
     };
   }, [user]);
 
@@ -499,7 +527,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                               <>
                                 <div className="flex-1 text-center bg-white rounded-lg p-2">
                                   <div className="text-xl font-bold text-gray-900">{profileMetrics.recruiterActions}</div>
-                                  <div className="text-xs text-gray-600">Recruiter Actions</div>
+                                <div className="text-xs text-gray-600">Recruiter Actions</div>
                                   <button 
                                     onClick={() => {
                                       setIsDropdownOpen(false);
