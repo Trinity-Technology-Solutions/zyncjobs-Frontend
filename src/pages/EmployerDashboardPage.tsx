@@ -1320,19 +1320,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           )}
                           <button 
                             onClick={() => {
-                              const candidateId = application.candidateId || application.userId || application.candidateUserId || application.candidateEmail || application.email;
-                              if (!candidateId) {
+                              const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
+                              sessionStorage.setItem('viewCandidateData', JSON.stringify({
+                                name: application.candidateName || '',
+                                email: application.candidateEmail || '',
+                                phone: application.candidatePhone || '',
+                                skills: application.candidateSkills || application.skills || [],
+                              }));
+                              if (!cid) {
                                 showToast('Candidate profile not available.', 'info');
                                 return;
                               }
-                              sessionStorage.setItem('viewCandidateId', String(candidateId));
-                              sessionStorage.setItem('viewCandidateData', JSON.stringify({
-                                name: application.candidateName,
-                                email: application.candidateEmail,
-                                phone: application.candidatePhone,
-                                skills: application.candidateSkills || [],
-                              }));
-                              onNavigate('candidate-profile-view', { candidateId: String(candidateId) });
+                              sessionStorage.setItem('viewCandidateId', String(cid));
+                              onNavigate('candidate-profile-view', { candidateId: String(cid) });
                             }}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
