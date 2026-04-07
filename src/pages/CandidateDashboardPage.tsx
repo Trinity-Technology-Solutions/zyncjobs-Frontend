@@ -650,6 +650,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <span className="text-gray-700">Skill Gap Analysis</span>
                     </button>
                     <button 
+                      onClick={() => onNavigate('career-roadmap')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <TrendingUp className="w-5 h-5 text-indigo-600" />
+                      <span className="text-gray-700">Career Roadmap</span>
+                    </button>
+                    <button 
                       onClick={() => {
                         try {
                           onNavigate('job-matches');

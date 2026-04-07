@@ -94,6 +94,7 @@ const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 const RecommendedJobs = lazy(() => import('./components/RecommendedJobs'));
 const JobRecommendationsPage = lazy(() => import('./pages/JobRecommendationsPage'));
 const CandidateMatchesPage = lazy(() => import('./pages/CandidateMatchesPage').then(m => ({ default: m.CandidateMatchesPage })));
+const CareerRoadmapPage = lazy(() => import('./pages/CareerRoadmapPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -503,6 +504,12 @@ function App() {
           <Route path="/career-coach" element={
             <AuthGuard user={user} allowedRoles={['candidate']}>
               <CareerCoachPage {...nav} />
+            </AuthGuard>
+          } />
+
+          <Route path="/career-roadmap" element={
+            <AuthGuard user={user} allowedRoles={['candidate']}>
+              <CareerRoadmapPage {...nav} />
             </AuthGuard>
           } />
 
