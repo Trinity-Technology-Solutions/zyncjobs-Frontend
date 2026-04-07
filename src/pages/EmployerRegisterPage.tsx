@@ -54,12 +54,22 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData({ ...formData, companyName: value });
+    setCompanyLogo('');
     if (value.trim().length >= 1) {
       try {
         const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);
         if (response.ok) {
           const data = await response.json();
-          setCompanySuggestions(data.slice(0, 8));
+          const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+          setCompanySuggestions(list.slice(0, 8));
+          // Auto-set logo if exact match found
+          const exact = list.find((c: any) =>
+            (c.name || c.companyName || '').toLowerCase() === value.toLowerCase()
+          );
+          if (exact) {
+            const logo = exact.logo || exact.logoUrl || exact.imageUrl || exact.image || '';
+            if (logo) setCompanyLogo(logo);
+          }
         } else {
           setCompanySuggestions(fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 8));
         }
@@ -72,6 +82,36 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     } else {
       setShowSuggestions(false);
       setCompanyLogo('');
+    }
+  };
+
+  const fetchLogoOnBlur = async (name: string) => {
+    if (!name.trim() || companyLogo) return;
+    // Try companies API first
+    try {
+      const res = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+        const match = list.find((c: any) =>
+          (c.name || c.companyName || '').toLowerCase().includes(name.toLowerCase())
+        );
+        if (match) {
+          const logo = match.logo || match.logoUrl || match.imageUrl || match.image || '';
+          if (logo) { setCompanyLogo(logo); return; }
+        }
+      }
+    } catch {}
+    // Fallback: logo.dev
+    const domainMap: Record<string, string> = {
+      zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
+      google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
+      accenture: 'accenture.com', cognizant: 'cognizant.com', hcl: 'hcltech.com',
+      oracle: 'oracle.com', ibm: 'ibm.com', trinity: 'trinitetech.com',
+    };
+    const n = name.toLowerCase();
+    for (const [key, domain] of Object.entries(domainMap)) {
+      if (n.includes(key)) { setCompanyLogo(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`); return; }
     }
   };
 
@@ -223,12 +263,19 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Name</label>
                   <div className="relative">
+                    {/* Logo preview inside input */}
+                    {companyLogo && (
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded overflow-hidden flex-shrink-0 z-10">
+                        <img src={companyLogo} alt="" className="w-full h-full object-contain"
+                          onError={() => setCompanyLogo('')} />
+                      </div>
+                    )}
                     <input
                       type="text" name="companyName" value={formData.companyName}
                       onChange={handleCompanyNameChange}
                       onFocus={() => formData.companyName.length >= 1 && setShowSuggestions(true)}
-                      onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+                      onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); fetchLogoOnBlur(formData.companyName); }}
+                      className={`w-full py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition ${companyLogo ? 'pl-10 pr-4' : 'px-4'}`}
                       placeholder="Enter your company name" required
                     />
                     {showSuggestions && companySuggestions.length > 0 && (

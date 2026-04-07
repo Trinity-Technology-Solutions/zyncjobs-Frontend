@@ -419,7 +419,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
 
                     {/* Right side buttons — stacked like job search page */}
                     <div className="flex flex-col gap-2 flex-shrink-0 min-w-[120px]">
-                      {job.matchPercentage && (
+                      {job.matchPercentage > 0 && (
                         <span className="text-xs font-bold bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-full text-center">
                           {job.matchPercentage}% Match
                         </span>
