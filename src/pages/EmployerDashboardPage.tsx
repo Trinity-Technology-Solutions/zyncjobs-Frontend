@@ -495,43 +495,34 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   };
 
   const getDisplayLogo = () => {
-    console.log('getDisplayLogo - companyLogo:', companyLogo);
-    console.log('getDisplayLogo - companyName:', companyName);
-    console.log('getDisplayLogo - user email:', user?.email);
-    
-    // Check if user is from Trinity Technology Solutions
-    if (user?.email && user.email.includes('@trinitetech')) {
-      console.log('Using Trinity logo for trinitetech employee');
-      // Try Trinity logo with fallback
-      const trinityLogo = '/images/company-logos/trinity-logo.png';
-      return trinityLogo;
+    // 1. Use stored logo from profile/localStorage (set during complete-profile or register)
+    if (companyLogo && companyLogo.trim() !== '') return companyLogo;
+
+    // 2. Trinity special case
+    if (user?.email?.includes('@trinitetech') || companyName?.toLowerCase().includes('trinity'))
+      return '/images/company-logos/trinity-logo.png';
+
+    // 3. Use logo.dev with guessed domain
+    const domainMap: Record<string, string> = {
+      zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
+      google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
+      accenture: 'accenture.com', cognizant: 'cognizant.com', hcl: 'hcltech.com',
+      oracle: 'oracle.com', ibm: 'ibm.com', capgemini: 'capgemini.com',
+    };
+    const n = (companyName || '').toLowerCase();
+    for (const [key, domain] of Object.entries(domainMap)) {
+      if (n.includes(key)) return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
     }
-    
-    // First try to use company logo from user data
-    if (companyLogo && companyLogo.trim() !== '' && !companyLogo.includes('clearbit.com') && !companyLogo.includes('gstatic.com')) {
-      console.log('Using stored company logo:', companyLogo);
-      return companyLogo;
-    }
-    
-    // Try to get logo from company name using Clearbit
-    if (companyName && companyName.trim() !== '' && companyName !== 'Company') {
-      const companyDomain = companyName.toLowerCase().replace(/\s+/g, '') + '.com';
-      console.log('Trying Clearbit logo for:', companyDomain);
-      return `https://logo.clearbit.com/${companyDomain}`;
-    }
-    
-    // Try to extract company name from email domain
-    if (user?.email && user.email.includes('@')) {
+
+    // 4. Try email domain (non-generic)
+    if (user?.email?.includes('@')) {
       const emailDomain = user.email.split('@')[1];
-      if (emailDomain && !emailDomain.includes('gmail') && !emailDomain.includes('yahoo') && !emailDomain.includes('outlook')) {
-        console.log('Trying Clearbit logo for email domain:', emailDomain);
-        return `https://logo.clearbit.com/${emailDomain}`;
-      }
+      if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain))
+        return `https://img.logo.dev/${emailDomain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
     }
-    
-    // Fallback to avatar with company name or employer name
+
+    // 5. Letter avatar fallback
     const displayName = companyName && companyName !== 'Company' ? companyName : employerName;
-    console.log('Using fallback avatar for:', displayName);
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
   };
 
