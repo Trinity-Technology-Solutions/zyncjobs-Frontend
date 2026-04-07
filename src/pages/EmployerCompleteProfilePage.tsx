@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building, Phone, Globe, MapPin, ChevronRight, Sparkles, CheckCircle2, Users, Briefcase } from 'lucide-react';
+import { Building, Phone, Globe, MapPin, ChevronRight, CheckCircle2, Users, Briefcase, ArrowLeft } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 
 interface Props {
@@ -92,6 +92,14 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  const handleSkip = () => {
+    if (!companyName.trim()) {
+      setError('Company name is required. Please fill in your company name before proceeding.');
+      return;
+    }
+    onNavigate('dashboard');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!companyName.trim()) { setError('Company name is required'); return; }
@@ -151,11 +159,12 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
         {/* LEFT PANEL */}
         <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-b from-blue-600 to-indigo-700 p-10 flex-col justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-10">
-              <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <span className="text-white font-bold text-lg">ZyncJobs</span>
+            <div className="flex items-center mb-10">
+              <img
+                src="/images/zyncjobs-logo.png"
+                alt="ZyncJobs"
+                className="h-20 w-auto"
+              />
             </div>
 
             <h2 className="text-3xl font-bold text-white leading-tight mb-3">
@@ -198,6 +207,25 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
         {/* RIGHT PANEL */}
         <div className="flex-1 bg-white p-8 lg:p-10 flex flex-col justify-center">
 
+          {/* Back button */}
+          <button
+            type="button"
+            onClick={() => {
+              // Clear session so user can choose a different Google account
+              localStorage.removeItem('token');
+              localStorage.removeItem('accessToken');
+              localStorage.removeItem('refreshToken');
+              localStorage.removeItem('user');
+              sessionStorage.clear();
+              // Redirect to Google OAuth employer login to pick a different account
+              const apiUrl = import.meta.env.VITE_API_URL || '/api';
+              window.location.href = `${apiUrl}/auth/google/employer?prompt=select_account`;
+            }}
+            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+
           {/* Progress indicator */}
           <div className="flex items-center gap-2 mb-8">
             <div className="flex items-center gap-1.5">
@@ -223,28 +251,38 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
           </div>
 
           {/* Company logo preview */}
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 rounded-2xl border-2 border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden shadow-sm flex-shrink-0">
-              {companyLogo ? (
-                <img
-                  src={companyLogo}
-                  alt="Company logo"
-                  className="w-full h-full object-contain p-1"
-                  onError={() => setCompanyLogo('')}
-                />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center rounded-xl">
-                  <span className="text-white font-bold text-xl">{logoInitials}</span>
+          <div className="flex items-center gap-5 mb-8 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
+            <div className="relative flex-shrink-0">
+              <div className="w-20 h-20 rounded-2xl border-2 border-white bg-white flex items-center justify-center overflow-hidden shadow-md">
+                {companyLogo ? (
+                  <img
+                    src={companyLogo}
+                    alt="Company logo"
+                    className="w-full h-full object-contain p-2"
+                    onError={() => setCompanyLogo('')}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                    <span className="text-white font-black text-2xl tracking-tight">{logoInitials}</span>
+                  </div>
+                )}
+              </div>
+              {companyName && (
+                <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
                 </div>
               )}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Complete Your Profile</h1>
+              <h1 className="text-xl font-bold text-gray-900">Complete Your Profile</h1>
               <p className="text-gray-500 text-sm mt-0.5">
                 {companyName ? (
                   <span>Setting up <span className="font-semibold text-blue-600">{companyName}</span></span>
                 ) : 'Tell us about your company to get started'}
               </p>
+              {!companyName && (
+                <p className="text-xs text-blue-500 mt-1.5 font-medium">Logo preview will appear here ✨</p>
+              )}
             </div>
           </div>
 
@@ -357,7 +395,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
           </form>
 
           <button
-            type="button" onClick={() => onNavigate('dashboard')}
+            type="button" onClick={handleSkip}
             className="w-full text-center text-gray-400 text-sm hover:text-gray-600 transition-colors mt-4"
           >
             Skip for now — I'll complete this later

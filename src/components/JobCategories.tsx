@@ -26,6 +26,8 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       icon: Code, 
       color: "bg-blue-50", 
       iconColor: "text-blue-600",
+      borderColor: "border-blue-200",
+      badgeBg: "bg-blue-100",
       searchTerms: ["software developer", "frontend developer", "backend developer", "full stack developer", "web developer", "software engineer"]
     },
     { 
@@ -33,13 +35,17 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       icon: Database, 
       color: "bg-purple-50", 
       iconColor: "text-purple-600",
+      borderColor: "border-purple-200",
+      badgeBg: "bg-purple-100",
       searchTerms: ["data scientist", "machine learning", "ai engineer", "data analyst", "data engineer", "artificial intelligence"]
     },
     { 
       name: "Mobile Development", 
       icon: Smartphone, 
-      color: "bg-green-50", 
-      iconColor: "text-green-600",
+      color: "bg-emerald-50", 
+      iconColor: "text-emerald-600",
+      borderColor: "border-emerald-200",
+      badgeBg: "bg-emerald-100",
       searchTerms: ["mobile developer", "ios developer", "android developer", "react native", "flutter developer", "mobile app"]
     },
     { 
@@ -47,13 +53,17 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       icon: Shield, 
       color: "bg-red-50", 
       iconColor: "text-red-600",
+      borderColor: "border-red-200",
+      badgeBg: "bg-red-100",
       searchTerms: ["cybersecurity", "security analyst", "security engineer", "penetration tester", "information security", "cyber security"]
     },
     { 
       name: "Cloud Engineering", 
       icon: Cloud, 
-      color: "bg-indigo-50", 
-      iconColor: "text-indigo-600",
+      color: "bg-cyan-50", 
+      iconColor: "text-cyan-600",
+      borderColor: "border-cyan-200",
+      badgeBg: "bg-cyan-100",
       searchTerms: ["cloud engineer", "aws", "azure", "gcp", "devops", "cloud architect"]
     },
     { 
@@ -61,6 +71,8 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       icon: Cpu, 
       color: "bg-orange-50", 
       iconColor: "text-orange-600",
+      borderColor: "border-orange-200",
+      badgeBg: "bg-orange-100",
       searchTerms: ["devops", "infrastructure", "kubernetes", "docker", "ci/cd", "system administrator"]
     },
     { 
@@ -68,6 +80,8 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       icon: TrendingUp, 
       color: "bg-teal-50", 
       iconColor: "text-teal-600",
+      borderColor: "border-teal-200",
+      badgeBg: "bg-teal-100",
       searchTerms: ["product manager", "product owner", "business analyst", "project manager", "scrum master"]
     },
     { 
@@ -75,6 +89,8 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       icon: Palette, 
       color: "bg-pink-50", 
       iconColor: "text-pink-600",
+      borderColor: "border-pink-200",
+      badgeBg: "bg-pink-100",
       searchTerms: ["ui designer", "ux designer", "graphic designer", "web designer", "product designer", "visual designer"]
     }
   ];
@@ -182,19 +198,24 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
               <div
                 key={index}
                 onClick={() => handleCategoryClick(category)}
-                className={`category-card ${category.color} hover:shadow-lg p-8 rounded-xl cursor-pointer transition-all duration-300 group opacity-0 translate-y-8`}
+                className={`category-card ${category.color} border-2 ${category.borderColor} hover:shadow-xl hover:border-blue-400 p-8 rounded-2xl cursor-pointer transition-all duration-300 group opacity-0 translate-y-8 hover:-translate-y-2`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="text-center">
-                  <div className={`w-16 h-16 ${category.color} rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <IconComponent className={`w-8 h-8 ${category.iconColor}`} />
+                  <div className={`w-20 h-20 ${category.badgeBg} rounded-full flex items-center justify-center mx-auto mb-5 group-hover:scale-125 transition-transform duration-300 shadow-md`}>
+                    <IconComponent className={`w-10 h-10 ${category.iconColor}`} />
                   </div>
-                  <h5 className="text-lg font-semibold text-gray-900 mb-2">
+                  <h5 className="text-lg font-bold text-gray-900 mb-3">
                     {category.name}
                   </h5>
-                  <span className="text-blue-600 text-sm font-medium">
-                    {loading ? 'Loading...' : `${jobCount} ${jobText}`}
-                  </span>
+                  <div className="flex items-center justify-center gap-2">
+                    <span className={`${category.badgeBg} ${category.iconColor} text-sm font-bold px-3 py-1 rounded-full`}>
+                      {loading ? 'Loading...' : `${jobCount}`}
+                    </span>
+                    <span className="text-gray-600 text-sm font-medium">
+                      {jobText}
+                    </span>
+                  </div>
                 </div>
               </div>
             );
@@ -216,6 +237,15 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
         
         .animate-fade-in-up {
           animation: fadeInUp 0.6s ease-out forwards;
+        }
+        
+        .category-card {
+          background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.7) 100%);
+          backdrop-filter: blur(10px);
+        }
+        
+        .category-card:hover {
+          background: linear-gradient(135deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.95) 100%);
         }
       `}</style>
     </div>

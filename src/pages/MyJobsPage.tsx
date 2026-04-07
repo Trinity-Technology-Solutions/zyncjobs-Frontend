@@ -295,7 +295,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 className="w-full h-full object-contain"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;
-                  target.src = '/images/zync-logo.svg';
+                  target.onerror = null; target.src = `https://ui-avatars.com/api/?name=C&size=64&background=3b82f6&color=ffffff&bold=true`;
                 }}
               />
             </div>
@@ -713,7 +713,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                     className="w-8 h-8 object-contain"
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement;
-                                      target.src = '/images/zync-logo.svg';
+                                      target.onerror = null; target.src = `https://ui-avatars.com/api/?name=C&size=64&background=3b82f6&color=ffffff&bold=true`;
                                     }}
                                   />
                                 </div>
