@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
-import { io } from 'socket.io-client';
 import { API_ENDPOINTS } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';

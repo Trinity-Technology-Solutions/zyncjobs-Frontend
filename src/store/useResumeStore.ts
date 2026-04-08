@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface PersonalInfo {
   name: string;
@@ -13,6 +14,7 @@ export interface ExperienceItem {
   id: string;
   title: string;
   company: string;
+  location: string;
   duration: string;
   current: boolean;
   bullets: string[];
@@ -22,18 +24,19 @@ export interface EducationItem {
   id: string;
   degree: string;
   institution: string;
+  location: string;
   duration: string;
   grade: string;
 }
 
 export interface ResumeData {
-  template: 'modern' | 'classic' | 'minimal' | 'creative' | 'executive' | 'tech';
+  template: string;
   personalInfo: PersonalInfo;
   summary: string;
   experience: ExperienceItem[];
   education: EducationItem[];
   skills: string[];
-  jobDescription: string; // for JD optimization
+  jobDescription: string;
 }
 
 interface ResumeStore {
@@ -50,7 +53,7 @@ interface ResumeStore {
 }
 
 const defaultData: ResumeData = {
-  template: 'modern',
+  template: 'classic',
   personalInfo: { name: '', email: '', phone: '', location: '', linkedin: '', portfolio: '' },
   summary: '',
   experience: [],
@@ -59,64 +62,71 @@ const defaultData: ResumeData = {
   jobDescription: '',
 };
 
-export const useResumeStore = create<ResumeStore>((set) => ({
-  data: defaultData,
+export const useResumeStore = create<ResumeStore>(
+  persist(
+    (set) => ({
+      data: defaultData,
 
-  update: (field, value) =>
-    set((s) => ({ data: { ...s.data, [field]: value } })),
+      update: (field, value) =>
+        set((s) => ({ data: { ...s.data, [field]: value } })),
 
-  updatePersonalInfo: (field, value) =>
-    set((s) => ({
-      data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
-    })),
+      updatePersonalInfo: (field, value) =>
+        set((s) => ({
+          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
+        })),
 
-  addExperience: () =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        experience: [
-          ...s.data.experience,
-          { id: Date.now().toString(), title: '', company: '', duration: '', current: false, bullets: [''] },
-        ],
-      },
-    })),
+      addExperience: () =>
+        set((s) => ({
+          data: {
+            ...s.data,
+            experience: [
+              ...s.data.experience,
+              { id: Date.now().toString(), title: '', company: '', location: '', duration: '', current: false, bullets: [''] },
+            ],
+          },
+        })),
 
-  updateExperience: (id, field, value) =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        experience: s.data.experience.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
-      },
-    })),
+      updateExperience: (id, field, value) =>
+        set((s) => ({
+          data: {
+            ...s.data,
+            experience: s.data.experience.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
+          },
+        })),
 
-  removeExperience: (id) =>
-    set((s) => ({
-      data: { ...s.data, experience: s.data.experience.filter((e) => e.id !== id) },
-    })),
+      removeExperience: (id) =>
+        set((s) => ({
+          data: { ...s.data, experience: s.data.experience.filter((e) => e.id !== id) },
+        })),
 
-  addEducation: () =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        education: [
-          ...s.data.education,
-          { id: Date.now().toString(), degree: '', institution: '', duration: '', grade: '' },
-        ],
-      },
-    })),
+      addEducation: () =>
+        set((s) => ({
+          data: {
+            ...s.data,
+            education: [
+              ...s.data.education,
+              { id: Date.now().toString(), degree: '', institution: '', location: '', duration: '', grade: '' },
+            ],
+          },
+        })),
 
-  updateEducation: (id, field, value) =>
-    set((s) => ({
-      data: {
-        ...s.data,
-        education: s.data.education.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
-      },
-    })),
+      updateEducation: (id, field, value) =>
+        set((s) => ({
+          data: {
+            ...s.data,
+            education: s.data.education.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
+          },
+        })),
 
-  removeEducation: (id) =>
-    set((s) => ({
-      data: { ...s.data, education: s.data.education.filter((e) => e.id !== id) },
-    })),
+      removeEducation: (id) =>
+        set((s) => ({
+          data: { ...s.data, education: s.data.education.filter((e) => e.id !== id) },
+        })),
 
-  reset: () => set({ data: defaultData }),
-}));
+      reset: () => set({ data: defaultData }),
+    }),
+    {
+      name: 'zyncjobs-resume-builder',
+    }
+  )
+);
