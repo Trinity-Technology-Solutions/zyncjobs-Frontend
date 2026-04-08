@@ -275,7 +275,6 @@ export default function ExperienceStep() {
                 >
                   + Add bullet point
                 </button>
-              </div>
             </div>
           ))}
         </div>

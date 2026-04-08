@@ -1,48 +1,26 @@
 export const getCompanyLogo = (companyName: string): string => {
-  if (!companyName) return '/images/zyncjobs-logo.png';
-  
-  // Check if company name contains 'trinity' (case insensitive) - prioritize local logo
+  if (!companyName) {
+    return `https://ui-avatars.com/api/?name=C&size=64&background=3b82f6&color=ffffff&bold=true`;
+  }
+
+  // Trinity special case — use local logo
   if (companyName.toLowerCase().includes('trinity')) {
     return '/images/company-logos/trinity-logo.png';
   }
-  
-  // Check if company name contains 'zync' (case insensitive)
+
+  // ZyncJobs special case
   if (companyName.toLowerCase().includes('zync')) {
     return '/images/zyncjobs-logo.png';
   }
-  
-  // Clean company name for file lookup
-  const cleanName = companyName.toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '');
-  
-  // For specific companies, use letter avatars as fallback
-  const localLogos: { [key: string]: string } = {
-    'trinity-technology-solutions': '/images/company-logos/trinity-logo.png',
-    'trinity-tech': '/images/company-logos/trinity-logo.png',
-    'trinitytech': '/images/company-logos/trinity-logo.png'
-  };
-  
-  // Check if we have a local logo
-  if (localLogos[cleanName]) {
-    return localLogos[cleanName];
-  }
-  
-  // Try to get domain from company name for Clearbit (for non-Trinity companies)
+
+  // Known domain map — use logo.dev (reliable)
   const domain = getCompanyDomain(companyName);
-  
-  if (domain && !companyName.toLowerCase().includes('trinity')) {
-    return `https://logo.clearbit.com/${domain}`;
+  if (domain) {
+    return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
   }
-  
-  // Always return letter avatar as fallback instead of missing zync-logo.svg
-  const initials = companyName.split(' ').map(n => n[0]).join('').toUpperCase();
-  return `data:image/svg+xml,${encodeURIComponent(`
-    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-      <rect width="64" height="64" fill="#3B82F6" rx="8"/>
-      <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial" font-size="20" font-weight="bold">${initials}</text>
-    </svg>
-  `)}`;
+
+  // Letter avatar fallback via ui-avatars
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true`;
 };
 
 const getCompanyDomain = (companyName: string): string => {
@@ -115,19 +93,15 @@ const getCompanyDomain = (companyName: string): string => {
 };
 
 export const getSafeCompanyLogo = (job: any): string => {
-  const companyName = job.company || job.companyName || 'ZyncJobs';
-  
-  // Special handling for Trinity Technology - ALWAYS use Trinity logo, never Clearbit
+  const companyName = job.company || job.companyName || '';
+
   if (companyName.toLowerCase().includes('trinity')) {
     return '/images/company-logos/trinity-logo.png';
   }
-  
-  // Special handling for ZyncJobs - use ZyncJobs logo
   if (companyName.toLowerCase().includes('zync')) {
     return '/images/zyncjobs-logo.png';
   }
-  
-  // Use the updated getCompanyLogo function
+
   return getCompanyLogo(companyName);
 };
 

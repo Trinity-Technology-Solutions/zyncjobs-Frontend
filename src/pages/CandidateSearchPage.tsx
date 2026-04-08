@@ -211,49 +211,11 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           }
         } catch {}
       }
-<<<<<<< Updated upstream
       const filtered = candidatesArray
         .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
         .map((c: any) => ({ ...c, _id: c._id || c.id }));
       setCandidates(filtered);
       setTotalCandidates(filtered.length);
-=======
-
-      // Filter out employer/admin accounts
-      const filtered = candidatesArray.filter((c: any) =>
-        !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || '')
-      );
-
-      // Track search_appearance only for meaningful searches (min 3 chars)
-      const keyword = (searchTerm || selectedSkill || selectedLocation || '').trim();
-      if (filtered.length > 0 && keyword.length >= 3) {
-        filtered.forEach((c: any) => {
-          const candidateEmail = c.email;
-          if (!candidateEmail) return;
-          fetch(`${API_ENDPOINTS.BASE_URL}/analytics/track/search-appearance`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email: candidateEmail,
-              userId: c.id || c._id,
-              searchQuery: keyword,
-              keyword,
-            }),
-          }).catch(() => {});
-        });
-      }
-
-      if (append) {
-        setCandidates(prev => [...prev, ...filtered]);
-      } else {
-        setCandidates(filtered);
-        if (!searchTerm && !selectedSkill && !selectedLocation) {
-          setTotalCandidates(filtered.length);
-        }
-      }
-
-      setHasMoreCandidates(filtered.length === candidatesPerPage);
->>>>>>> Stashed changes
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
     } catch (error) {
       console.error('Error fetching candidates:', error);

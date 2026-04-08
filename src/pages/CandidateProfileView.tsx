@@ -155,34 +155,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       return;
     }
 
-<<<<<<< Updated upstream
-      if (response.ok) {
-        const data = await response.json();
-        setCandidate({
-          ...data,
-          name: data.name || data.fullName || data.candidateName,
-          email: data.email || data.candidateEmail,
-          phone: data.phone || data.candidatePhone,
-          location: typeof data.location === 'string' ? data.location : '',
-          skills: Array.isArray(data.skills) ? data.skills.map((s: any) => typeof s === 'string' ? s : s?.name || String(s)) : [],
-          profilePhoto: data.profilePhoto || data.avatar,
-          resume: data.resume || data.resumeFile || data.resumePath || (data.resumeUrl ? { url: data.resumeUrl, name: data.resumeUrl.split('/').pop() } : null),
-          profileSummary: safeStr(data.profileSummary || data.bio || data.summary),
-          education: safeStr(data.education),
-          employment: safeStr(data.employment || data.experience),
-          projects: safeStr(data.projects),
-          internships: safeStr(data.internships),
-          languages: safeStr(data.languages),
-          certifications: safeStr(data.certifications),
-          awards: safeStr(data.awards),
-        });
-=======
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(effectiveCandidateId)}`);
       if (res.ok) {
         const raw = await res.json();
         setCandidate(buildFromApi(raw));
->>>>>>> Stashed changes
       } else {
         // Try users endpoint as fallback
         const res2 = await fetch(`${API_ENDPOINTS.BASE_URL}/users/${encodeURIComponent(effectiveCandidateId)}`);
@@ -319,23 +296,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
               </div>
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-2">
-<<<<<<< Updated upstream
-                <button onClick={() => setShowMessage(true)}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={!candidate.email}>
-                  <MessageCircle className="w-4 h-4" />Send Message
-                </button>
-                {candidate.resume && (
-                  <button onClick={() => {
-                    const r = candidate.resume;
-                    const resumeUrl = typeof r === 'string'
-                      ? r
-                      : (r?.url || r?.fileUrl || r?.path || (r?.filename ? `/uploads/${r.filename}` : null));
-                    if (!resumeUrl) return;
-                    const fullUrl = resumeUrl.startsWith('http') ? resumeUrl : `${(API_ENDPOINTS.BASE_URL || '').replace('/api', '')}${resumeUrl.startsWith('/') ? resumeUrl : '/' + resumeUrl}`;
-                    window.open(fullUrl, '_blank');
-                  }}
-=======
                 {candidate.email && (
                   <button onClick={() => setShowMessage(true)}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
@@ -344,7 +304,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                 )}
                 {candidate.resumeUrl && (
                   <button onClick={() => window.open(candidate.resumeUrl, '_blank')}
->>>>>>> Stashed changes
                     className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm hover:bg-gray-50">
                     <Download className="w-4 h-4" />Resume
                   </button>

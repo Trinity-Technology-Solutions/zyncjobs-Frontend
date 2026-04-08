@@ -686,26 +686,25 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       )}
 
       {/* Static Sidebar */}
-      <div className="employer-sidebar flex flex-col flex-shrink-0" style={{width: '220px', minHeight: '100%', overflowY: 'visible', overflowX: 'hidden', position: 'sticky', top: 0, alignSelf: 'flex-start', marginLeft: '0px'}}>
-            {/* Profile header */}
-            <div className="px-5 pt-4 pb-3">
-              <BackButton onClick={() => window.history.back()} text="Back" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors mb-2" />
+      <div className="employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900" style={{width: '280px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden', position: 'sticky', top: 0, alignSelf: 'flex-start', marginLeft: '0px'}}>
+            {/* Profile header - Enhanced */}
+            <div className="px-6 pt-6 pb-4 border-b border-blue-700">
+              <BackButton onClick={() => window.history.back()} text="Back" className="inline-flex items-center text-sm text-white hover:text-blue-100 transition-colors mb-3" />
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <img src={getDisplayLogo()} alt={companyName || employerName}
-                    className="w-12 h-12 rounded-full object-cover border-2 border-blue-200 shadow-md"
+                    className="w-16 h-16 rounded-full object-cover border-2 border-white"
                     onError={(e) => {
                       const img = e.target as HTMLImageElement;
                       const displayName = companyName || employerName;
-                      const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
+                      const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=1e3a8a&color=ffffff&bold=true`;
                       if (img.src !== fallbackUrl) img.src = fallbackUrl;
                     }}
                   />
-                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white"></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-gray-900 text-sm leading-tight">{employerName}</p>
-                  <p className="text-xs text-gray-500 leading-snug mt-0.5">
+                  <p className="font-bold text-white text-base leading-tight">{employerName}</p>
+                  <p className="text-sm text-white leading-snug mt-0.5 font-medium">
                     {companyName && companyName !== 'Company' ? companyName :
                      user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
                      user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
@@ -715,35 +714,35 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
 
-            {/* Messages + Activity panel */}
-            <div className="px-4 py-3 border-b border-gray-100">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-gray-700">Messages</span>
-                <button onClick={() => onNavigate('candidate-messages')} className="text-blue-500 hover:text-blue-700">
-                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            {/* Messages + Activity panel - Enhanced Card Style */}
+            <div className="px-4 py-4 mx-3 mt-4 bg-gradient-to-br from-blue-600/80 to-blue-700/70 rounded-xl border-2 border-blue-400/80 backdrop-blur-sm shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-white uppercase tracking-wider">💬 Messages</span>
+                <button onClick={() => onNavigate('candidate-messages')} className="text-white hover:text-blue-100 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </button>
               </div>
               {recentMessages.length === 0 ? (
-                <p className="text-xs text-gray-400 mb-3">No messages yet</p>
+                <p className="text-sm text-white text-center py-2">No messages yet</p>
               ) : (
-                <div className="space-y-2 mb-3">
+                <div className="space-y-2">
                   {recentMessages.map((c, i) => (
-                    <div key={i} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 rounded-lg p-1 transition-colors">
+                    <div key={i} onClick={() => onNavigate('candidate-messages')} className="flex items-center gap-2 cursor-pointer hover:bg-blue-500/40 rounded-lg p-2 transition-all duration-200 border border-transparent hover:border-blue-300/60">
                       {c.otherPhoto ? (
-                        <img src={c.otherPhoto} alt={c.otherName} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                        <img src={c.otherPhoto} alt={c.otherName} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-blue-300/60" />
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
                           {c.otherName.charAt(0).toUpperCase()}
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-gray-800 truncate">{c.otherName}</p>
-                        <p className="text-xs text-gray-400 truncate">{c.preview}...</p>
+                        <p className="text-sm font-semibold text-white truncate">{c.otherName}</p>
+                        <p className="text-sm text-white truncate">{c.preview}...</p>
                       </div>
                       {c.unreadCount > 0 && (
-                        <span className="bg-blue-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold flex-shrink-0">{c.unreadCount}</span>
+                        <span className="bg-blue-400 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[10px]">{c.unreadCount}</span>
                       )}
                     </div>
                   ))}
@@ -752,7 +751,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
 
             {/* Navigation */}
-            <nav className="py-2 flex flex-col">
+            <nav className="py-4 flex flex-col px-3 space-y-1">
               {([
                 { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard') },
                 { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => onNavigate('candidate-ranking'), external: true },
@@ -772,42 +771,71 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 const isActive = activeMenu === item.key;
                 return (
                   <button key={item.key} onClick={item.action}
-                    style={{ fontSize: '13px' }}
-                    className={`w-full flex items-center gap-2.5 pl-4 pr-3 py-2 transition-all duration-150 text-left ${
+                    style={{ fontSize: '15px' }}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left font-medium ${
                       isActive
-                        ? 'bg-blue-50 text-blue-700 font-semibold border-l-[3px] border-blue-600'
-                        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800 border-l-[3px] border-transparent'
-                    }`}>
-                    <span className={`flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`}>{item.icon}</span>
-                    <span className="leading-tight flex-1 truncate" style={{ fontSize: '13px' }}>{item.label}</span>
+                        ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40'
+                        : 'text-white hover:bg-blue-700/60 hover:text-white'
+                    }`}
+                  >
+                    <span className={`flex-shrink-0 text-lg ${isActive ? 'text-white' : 'text-blue-200'}`}>{item.icon}</span>
+                    <span className="leading-tight flex-1 truncate" style={{ fontSize: '15px' }}>{item.label}</span>
                     {item.badge ? (
-                      <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[18px] h-[18px] px-1 rounded-full font-bold flex items-center justify-center ${
-                        item.badgeRed ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'
+                      <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[20px] h-[20px] px-1 rounded-full font-bold flex items-center justify-center ${
+                        item.badgeRed ? 'bg-red-500 text-white' : 'bg-emerald-400 text-slate-900'
                       }`}>{item.badge}</span>
                     ) : null}
                   </button>
                 );
               })}
 
-              {/* Delete Account — separate danger item */}
-              <button onClick={() => openConfirm('Delete Account', 'Once you delete your account, there is no going back. Are you certain?', () => { showToast('Account deletion coming soon.', 'info'); closeConfirm(); })}
-                style={{ fontSize: '13px' }}
-                className="w-full flex items-center gap-2.5 pl-4 pr-3 py-2 text-red-400 hover:bg-red-50 hover:text-red-600 transition-all duration-150 text-left border-l-[3px] border-transparent mt-1">
+              {/* Delete Account */}
+              <button onClick={() => openConfirm(
+                'Delete Account',
+                'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
+                async () => {
+                  closeConfirm();
+                  try {
+                    const stored = localStorage.getItem('user');
+                    const userData = stored ? JSON.parse(stored) : {};
+                    const userId = userData.id || userData._id;
+                    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+                    if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
+                      method: 'DELETE',
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (res.ok) {
+                      localStorage.clear();
+                      sessionStorage.clear();
+                      showToast('Account deleted successfully. Redirecting...', 'success');
+                      setTimeout(() => { if (onLogout) onLogout(); onNavigate('home'); }, 1500);
+                    } else {
+                      const err = await res.json().catch(() => ({}));
+                      showToast(err.error || 'Failed to delete account. Please try again.', 'error');
+                    }
+                  } catch {
+                    showToast('Network error. Please try again.', 'error');
+                  }
+                }
+              )}
+                style={{ fontSize: '15px' }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
                 <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
-                <span style={{ fontSize: '13px' }}>Delete Account</span>
+                <span style={{ fontSize: '15px' }}>Delete Account</span>
               </button>
             </nav>
 
-
-            <div className="py-3 border-t border-gray-200" style={{paddingLeft: '12px', paddingRight: '12px', paddingBottom: '32px', marginBottom: '0'}}>
+            {/* Logout Button */}
+            <div className="px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
               <button
                 onClick={() => {
                   if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
                 }}
-                className="w-full flex items-center gap-3 px-2 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-blue-700/50 hover:text-white transition-all duration-200 font-medium"
               >
-                <LogOut className="w-5 h-5 flex-shrink-0" />
-                <span className="font-medium text-sm">Logout</span>
+                <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
+                <span style={{ fontSize: '15px' }}>Logout</span>
               </button>
             </div>
       </div>
@@ -844,7 +872,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
             <button
               onClick={() => onNavigate('job-posting-selection')}
-              className="bg-emerald-700 text-white px-5 py-2 rounded-lg font-medium hover:bg-emerald-800 transition-colors text-sm"
+              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-5 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-sm shadow-lg"
             >
               Post a Job
             </button>
@@ -861,7 +889,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <h1 className="text-3xl font-bold text-gray-900">Employer Dashboard</h1>
                 <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
               </div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl shadow-md border-2 border-gray-200 p-6">
 
               {/* ── Stat Cards ── */}
               <div className="grid grid-cols-4 gap-5 mb-8">
@@ -874,13 +902,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   const circumference = 2 * Math.PI * radius;
                   const fillRatio = isNumericPct ? clampedPct / 100 : 0.6;
                   const strokeDash = fillRatio * circumference;
-                  const ringColors = ['#8b5cf6','#06b6d4','#f59e0b','#10b981'];
+                  const ringColors = ['#3b82f6','#06b6d4','#f59e0b','#10b981'];
                   const ringColor = isPositive ? ringColors[index] : '#ef4444';
                   const numVal = parseInt(stat.value) || 0;
                   const displayVal = numVal >= 1000 ? `${(numVal/1000).toFixed(1)}K` : stat.value;
-                  const borderColors = ['border-t-violet-500','border-t-cyan-500','border-t-amber-500','border-t-emerald-500'];
+                  const borderColors = ['border-t-blue-500','border-t-cyan-500','border-t-amber-500','border-t-emerald-500'];
+                  const bgGradients = ['from-blue-50 to-white','from-cyan-50 to-white','from-amber-50 to-white','from-emerald-50 to-white'];
                   return (
-                    <div key={index} className={`bg-white rounded-2xl px-6 py-5 shadow-sm border border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-md transition-all`}>
+                    <div key={index} className={`bg-gradient-to-br ${bgGradients[index]} rounded-2xl px-6 py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-3">{stat.label}</p>
                       <div className="flex items-center justify-between">
                         <div>
@@ -910,7 +939,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               {/* ── Row 1: Charts ── */}
               <div className="grid grid-cols-3 gap-5 mb-5">
                 {/* Area chart */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300 flex flex-col">
                   <div className="flex items-center justify-between mb-1">
                     <div>
                       <h2 className="text-sm font-bold text-gray-900">Applications Received</h2>
@@ -942,7 +971,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* Status Donut */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl p-6 shadow-md border-2 border-purple-100 hover:shadow-lg transition-all duration-300 flex flex-col">
                   <div className="flex items-center justify-between mb-1">
                     <div>
                       <h2 className="text-sm font-bold text-gray-900">Status Breakdown</h2>
@@ -968,7 +997,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* Acquisitions */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 flex flex-col">
+                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-6 shadow-md border-2 border-indigo-100 hover:shadow-lg transition-all duration-300 flex flex-col">
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-sm font-bold text-gray-900">Acquisitions</h2>
                     <span className="text-xs text-violet-500 font-semibold bg-violet-50 px-2 py-0.5 rounded-full">This Month</span>
@@ -1010,7 +1039,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               {/* ── Row 2: Bottom Cards ── */}
               <div className="grid grid-cols-3 gap-5 mb-6">
                 {/* Top Jobs */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-bold text-gray-900">Top Active Jobs</h2>
                     <span className="text-xs text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">Last 30 days</span>
@@ -1039,7 +1068,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* New Applicants */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-bold text-gray-900">New Applicants</h2>
                     <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Today</span>
@@ -1065,7 +1094,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
 
                 {/* Recent Activity */}
-                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl p-6 shadow-md border-2 border-orange-100 hover:shadow-lg transition-all duration-300">
                   <h2 className="text-sm font-bold text-gray-900 mb-4">Recent Activity</h2>
                   {loading ? (
                     <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-600"></div></div>
