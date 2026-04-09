@@ -42,7 +42,7 @@ function SimulationTab({ user }: { user?: any }) {
   const MAX_QUESTIONS = 5;
 
   useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+    if (chatRef.current && messages.length > 0) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
 
   const selectedRole = role === 'custom' ? customRole : role;
@@ -69,6 +69,7 @@ Rules:
     setQuestionCount(0);
     setScores([]);
     setFeedbacks([]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
       const res = await fetch(`${API_BASE}/ai-suggestions/career-coach`, {
@@ -377,6 +378,7 @@ Rules:
 const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'tips' | 'questions' | 'star' | 'simulate'>('tips');
+  const simulateRef = useRef<HTMLDivElement>(null);
 
   const phases = [
     {
@@ -503,7 +505,10 @@ const InterviewTipsPage: React.FC<InterviewTipsPageProps> = ({ onNavigate, user,
           ].map(tab => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => {
+                setActiveTab(tab.key as any);
+                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 50);
+              }}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
                 activeTab === tab.key
                   ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'

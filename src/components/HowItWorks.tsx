@@ -1,106 +1,147 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Search, FileText, UserPlus, Send } from 'lucide-react';
 
 interface HowItWorksProps {
   onNavigate?: (page: string) => void;
 }
 
+const steps = [
+  {
+    id: '01',
+    icon: Search,
+    title: 'Search Jobs',
+    desc: 'Explore thousands of AI-matched opportunities tailored to your skills, location, and preferences.',
+    page: 'job-listings',
+    gradient: 'from-blue-500 to-blue-700',
+    light: 'bg-blue-50',
+    text: 'text-blue-600',
+    border: 'border-blue-100',
+    glow: 'hover:shadow-blue-100',
+  },
+  {
+    id: '02',
+    icon: FileText,
+    title: 'Build Your Resume',
+    desc: 'Create or upload your resume using our AI-powered builder. Get instant ATS score and improvement tips.',
+    page: 'resume-builder',
+    gradient: 'from-violet-500 to-purple-700',
+    light: 'bg-violet-50',
+    text: 'text-violet-600',
+    border: 'border-violet-100',
+    glow: 'hover:shadow-violet-100',
+  },
+  {
+    id: '03',
+    icon: UserPlus,
+    title: 'Create Account',
+    desc: 'Sign up free to save jobs, track applications, and get smart recommendations powered by AI.',
+    page: 'role-selection',
+    gradient: 'from-orange-500 to-orange-700',
+    light: 'bg-orange-50',
+    text: 'text-orange-600',
+    border: 'border-orange-100',
+    glow: 'hover:shadow-orange-100',
+  },
+  {
+    id: '04',
+    icon: Send,
+    title: 'Apply Instantly',
+    desc: 'One-click apply and track your application status in real-time. Get notified at every stage.',
+    page: 'job-listings',
+    gradient: 'from-emerald-500 to-green-700',
+    light: 'bg-emerald-50',
+    text: 'text-emerald-600',
+    border: 'border-emerald-100',
+    glow: 'hover:shadow-emerald-100',
+  },
+];
+
 const HowItWorks: React.FC<HowItWorksProps> = ({ onNavigate }) => {
-  const sectionRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState<boolean[]>([false, false, false, false]);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+    const observers = cardRefs.current.map((ref, i) => {
+      if (!ref) return null;
+      const obs = new IntersectionObserver(
+        ([entry]) => {
           if (entry.isIntersecting) {
-            entry.target.classList.add('animate-fade-in-up');
+            setTimeout(() => setVisible(v => { const n = [...v]; n[i] = true; return n; }), i * 120);
+            obs.disconnect();
           }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    const steps = sectionRef.current?.querySelectorAll('.step-card');
-    steps?.forEach((step) => observer.observe(step));
-
-    return () => observer.disconnect();
+        },
+        { threshold: 0.15 }
+      );
+      obs.observe(ref);
+      return obs;
+    });
+    return () => observers.forEach(o => o?.disconnect());
   }, []);
 
   return (
-    <div className="bg-white py-16" ref={sectionRef}>
+    <section className="py-20 bg-gradient-to-b from-white via-gray-50 to-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <h6 className="text-blue-600 font-semibold text-lg mb-2">How It Work</h6>
-          <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Follow Easy 4 Steps</h2>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            It is a long established fact that a reader will be distracted by the 
-            readable content of a page when looking at its layout.
+
+        {/* Heading */}
+        <div className="text-center mb-16">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-widest border border-blue-100 mb-4">
+            How It Works
+          </span>
+          <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+            Your Dream Job is <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">Just 4 Steps Away</span>
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto text-base leading-relaxed">
+            From searching to applying — ZyncJobs makes your job hunt simple, smart, and fast.
           </p>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {[
-            {
-              icon: Search,
-              title: "Search Jobs",
-              description: "Browse thousands of job opportunities from top companies. Use filters to find jobs that match your skills and preferences.",
-              page: "job-listings"
-            },
-            {
-              icon: FileText,
-              title: "CV/Resume",
-              description: "Upload your resume or create one using our AI-powered resume builder. Showcase your skills and experience effectively.",
-              page: "resume-templates"
-            },
-            {
-              icon: UserPlus,
-              title: "Create Account",
-              description: "Sign up for free to save jobs, track applications, and get personalized job recommendations based on your profile.",
-              page: "role-selection"
-            },
-            {
-              icon: Send,
-              title: "Apply Them",
-              description: "Apply to jobs with one click. Track your application status and communicate directly with hiring managers.",
-              page: "job-listings"
-            }
-          ].map((step, index) => {
-            const IconComponent = step.icon;
+
+        {/* Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+
+          {/* Connector line — desktop only */}
+          <div className="hidden lg:block absolute top-12 left-[12.5%] right-[12.5%] h-px bg-gradient-to-r from-blue-200 via-violet-200 via-orange-200 to-emerald-200 z-0" />
+
+          {steps.map((step, i) => {
+            const Icon = step.icon;
             return (
-              <div 
-                key={index} 
-                className="step-card text-center cursor-pointer hover:transform hover:scale-105 transition-all duration-300 opacity-0 translate-y-8" 
-                onClick={() => onNavigate && onNavigate(step.page)}
-                style={{ animationDelay: `${index * 150}ms` }}
+              <div
+                key={step.id}
+                ref={el => { cardRefs.current[i] = el; }}
+                onClick={() => onNavigate?.(step.page)}
+                className={`relative z-10 group cursor-pointer rounded-2xl bg-white border ${step.border} p-6 shadow-sm hover:shadow-xl ${step.glow} transition-all duration-500 ${
+                  visible[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+                }`}
+                style={{ transitionDelay: `${i * 80}ms` }}
               >
-                <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white mx-auto mb-4 hover:bg-blue-700 transition-colors duration-300">
-                  <IconComponent className="w-8 h-8" />
+                {/* Step number watermark */}
+                <span className="absolute top-4 right-5 text-6xl font-black text-gray-100 select-none leading-none group-hover:text-gray-200 transition-colors">
+                  {step.id}
+                </span>
+
+                {/* Icon */}
+                <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${step.gradient} flex items-center justify-center mb-5 shadow-md group-hover:scale-110 transition-transform duration-300`}>
+                  <Icon className="w-6 h-6 text-white" />
+                  {/* Dot connector */}
+                  <span className={`hidden lg:block absolute -right-[calc(100%+1.5rem)] top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-gradient-to-br ${step.gradient} ${i === steps.length - 1 ? 'hidden' : ''}`} />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
+
+                {/* Content */}
+                <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-700 transition-colors">
+                  {step.title}
+                </h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                  {step.desc}
+                </p>
+
+                {/* Bottom accent bar */}
+                <div className={`absolute bottom-0 left-6 right-6 h-0.5 rounded-full bg-gradient-to-r ${step.gradient} scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left`} />
               </div>
             );
           })}
         </div>
+
       </div>
-      
-      <style>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fade-in-up {
-          animation: fadeInUp 0.6s ease-out forwards;
-        }
-      `}</style>
-    </div>
+    </section>
   );
 };
 
