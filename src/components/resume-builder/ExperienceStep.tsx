@@ -131,6 +131,17 @@ export default function ExperienceStep() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                  <input
+                    type="text"
+                    value={exp.location ?? ''}
+                    onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
+                    placeholder="e.g. Chennai, India"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
                   <input
                     type="text"
@@ -153,28 +164,29 @@ export default function ExperienceStep() {
               </div>
 
               {/* AI Generate Bullets Button */}
-              <div className="flex items-center justify-between pt-2 pb-2 border-t border-gray-100">
-                <label className="block text-sm font-medium text-gray-700">
-                  Key Achievements (bullet points)
-                </label>
-                <button
-                  onClick={() => generateBullets(exp.id)}
-                  disabled={aiLoading === exp.id || !exp.title || !exp.company}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {aiLoading === exp.id ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Write with AI
-                    </>
-                  )}
-                </button>
-              </div>
+              <div className="border-t border-gray-100 pt-2 space-y-2">
+                <div className="flex items-center justify-between pb-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Key Achievements (bullet points)
+                  </label>
+                  <button
+                    onClick={() => generateBullets(exp.id)}
+                    disabled={aiLoading === exp.id || !exp.title || !exp.company}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {aiLoading === exp.id ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5" />
+                        Write with AI
+                      </>
+                    )}
+                  </button>
+                </div>
                 {exp.bullets.map((bullet, bIdx) => {
                   const key = `${exp.id}-${bIdx}`;
                   const hasSuggestions = suggestions[key]?.length > 0;
@@ -263,6 +275,7 @@ export default function ExperienceStep() {
                 >
                   + Add bullet point
                 </button>
+              </div>
             </div>
           ))}
         </div>

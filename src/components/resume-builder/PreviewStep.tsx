@@ -261,7 +261,6 @@ export default function PreviewStep() {
     setPdfLoading(true);
     const fileName = `${data.personalInfo.name || 'Resume'}_Resume.pdf`;
     try {
-      // Try backend PDF generation first (best quality)
       const API_BASE = import.meta.env.VITE_API_URL || '/api';
       const res = await fetch(`${API_BASE}/pdf/generate-resume`, {
         method: 'POST',
@@ -272,11 +271,18 @@ export default function PreviewStep() {
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = fileName; a.click();
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
         return;
       }
-    } catch { /* fall through to client-side */ }
+      console.warn('Backend PDF failed, status:', res.status);
+    } catch (e) {
+      console.warn('Backend PDF unavailable, using client fallback:', e);
+    }
 
     // Client-side fallback using jsPDF text rendering (no html2canvas)
     try {

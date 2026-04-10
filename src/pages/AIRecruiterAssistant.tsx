@@ -108,15 +108,12 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           systemPrompt: SYSTEM_PROMPT + jobContextStr,
         }),
       });
+      if (!res.ok) throw new Error(`API error ${res.status}`);
       const data = await res.json();
       const reply = data.reply || data.message || data.content || data.text || data.answer || '';
-      if (reply) {
-        setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: new Date() }]);
-      } else {
-        throw new Error('Empty response');
-      }
-    } catch (err) {
-      console.error('AI Recruiter error:', err);
+      if (!reply) throw new Error('Empty response');
+      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: new Date() }]);
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed), timestamp: new Date() }]);
     } finally {
       setLoading(false);

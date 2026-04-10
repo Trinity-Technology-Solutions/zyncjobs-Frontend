@@ -177,7 +177,7 @@ const InterviewScheduling = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({ scheduledDate: newDate })
+        body: JSON.stringify({ scheduledDate: newDate.toISOString() })
       });
       fetchInterviews();
     } catch (error) {

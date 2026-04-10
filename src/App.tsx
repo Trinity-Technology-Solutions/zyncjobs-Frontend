@@ -406,7 +406,7 @@ function App() {
           <Route path="/employers" element={<EmployersPage {...nav} />} />
           <Route path="/job-hunting" element={<JobHuntingPage onNavigate={handleNavigation} />} />
           <Route path="/job-role" element={<JobRolePage onNavigate={handleNavigation} jobTitle="" />} />
-          <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} />} />
+          <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />} />
           <Route path="/skill-detail" element={<SkillDetailPage onNavigate={handleNavigation} skillName="" />} />
           <Route path="/search" element={
             <WithLayout {...nav}><SearchEngine /></WithLayout>

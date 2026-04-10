@@ -1,5 +1,5 @@
 import React from 'react';
-import { Facebook, Twitter, Linkedin, Instagram } from 'lucide-react';
+import { FileText, MessageSquare, Compass, CheckSquare } from 'lucide-react';
 
 interface FooterProps {
   onNavigate?: (page: string, topic?: string) => void;
@@ -34,10 +34,10 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   const isEmployer = user?.type === 'employer';
 
   const resourceLinks = [
-    { name: "🎨 Resume Studio", action: () => onNavigate && onNavigate('resume-studio'), candidateOnly: true },
-    { name: "💬 Interview Preparation", action: () => onNavigate && onNavigate('interview-tips'), candidateOnly: true },
-    { name: "🧭 Career Guidance", action: () => onNavigate && onNavigate('career-coach'), candidateOnly: true },
-    { name: "✅ Skill Check", action: () => onNavigate && onNavigate('skill-assessment'), candidateOnly: true },
+    { name: "Resume Studio", icon: FileText, action: () => onNavigate && onNavigate('resume-studio'), candidateOnly: true },
+    { name: "Interview Preparation", icon: MessageSquare, action: () => onNavigate && onNavigate('interview-tips'), candidateOnly: true },
+    { name: "Career Guidance", icon: Compass, action: () => onNavigate && onNavigate('career-coach'), candidateOnly: true },
+    { name: "Skill Check", icon: CheckSquare, action: () => onNavigate && onNavigate('skill-assessment'), candidateOnly: true },
   ].filter(link => !isEmployer || !link.candidateOnly);
 
   const companyLinks = [
@@ -65,20 +65,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           <p className="text-gray-600 mb-6 leading-relaxed max-w-2xl">
             The leading platform connecting tech professionals with their dream careers. Find jobs, hire talent, and grow your career in tech.
           </p>
-          <div className="flex space-x-4">
-            <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">
-              <Facebook className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">
-              <Twitter className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">
-              <Linkedin className="w-5 h-5" />
-            </a>
-            <a href="#" className="text-gray-500 hover:text-blue-600 transition-colors">
-              <Instagram className="w-5 h-5" />
-            </a>
-          </div>
+
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -124,8 +111,9 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
                   >
+                    <link.icon className="w-4 h-4 flex-shrink-0" />
                     {link.name}
                   </button>
                 </li>
