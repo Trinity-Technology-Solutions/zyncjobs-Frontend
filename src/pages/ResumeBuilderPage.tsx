@@ -9,6 +9,7 @@ import ExperienceStep from '../components/resume-builder/ExperienceStep';
 import EducationStep from '../components/resume-builder/EducationStep';
 import SkillsStep from '../components/resume-builder/SkillsStep';
 import AISuggestionsStep from '../components/resume-builder/AISuggestionsStep';
+import CertificationsAwardsStep from '../components/resume-builder/CertificationsAwardsStep';
 import PreviewStep from '../components/resume-builder/PreviewStep';
 import LivePreview from '../components/resume-builder/LivePreview';
 import { useResumeStore } from '../store/useResumeStore';
@@ -20,14 +21,15 @@ interface ResumeBuilderPageProps {
 }
 
 const steps = [
-  { id: 0, name: 'Template', component: TemplateSelection },
-  { id: 1, name: 'Personal Info', component: PersonalInfoStep },
-  { id: 2, name: 'Summary', component: SummaryStep },
-  { id: 3, name: 'Experience', component: ExperienceStep },
-  { id: 4, name: 'Education', component: EducationStep },
-  { id: 5, name: 'Skills', component: SkillsStep },
-  { id: 6, name: 'AI Optimize', component: AISuggestionsStep },
-  { id: 7, name: 'Preview', component: PreviewStep },
+  { id: 0, name: 'Template',       component: TemplateSelection },
+  { id: 1, name: 'Personal Info',  component: PersonalInfoStep },
+  { id: 2, name: 'Summary',        component: SummaryStep },
+  { id: 3, name: 'Experience',     component: ExperienceStep },
+  { id: 4, name: 'Education',      component: EducationStep },
+  { id: 5, name: 'Skills',         component: SkillsStep },
+  { id: 6, name: 'Certifications', component: CertificationsAwardsStep },
+  { id: 7, name: 'AI Optimize',    component: AISuggestionsStep },
+  { id: 8, name: 'Preview',        component: PreviewStep },
 ];
 
 const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user, onLogout }) => {
@@ -44,6 +46,10 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
   };
 
   const handleNext = () => {
+    if (currentStep === steps.length - 1) {
+      onNavigate?.('resume-studio');
+      return;
+    }
     if (currentStep < steps.length - 1) setCurrentStep(currentStep + 1);
   };
 
@@ -121,7 +127,7 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
 
               <button
                 onClick={handleNext}
-                disabled={currentStep === steps.length - 1 || !canGoNext()}
+                disabled={currentStep < steps.length - 1 && !canGoNext()}
                 className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {currentStep === steps.length - 1 ? 'Finish' : 'Next'}

@@ -41,15 +41,32 @@ function timeAgo(ts: string) {
 }
 
 function Avatar({ name, picture }: { name: string; picture?: string | null }) {
-  if (picture) return <img src={picture} alt={name} className="w-14 h-14 rounded-full object-cover ring-2 ring-white shadow-md flex-shrink-0" />;
   const initial = (name || '?').charAt(0).toUpperCase();
   const palettes = [
     'from-violet-500 to-purple-600', 'from-blue-500 to-cyan-600',
     'from-emerald-500 to-teal-600',  'from-orange-500 to-amber-600',
     'from-rose-500 to-pink-600',     'from-indigo-500 to-blue-600',
   ];
+  const fallbackGradient = palettes[initial.charCodeAt(0) % palettes.length];
+  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || '?')}&size=56&background=6366f1&color=ffffff&bold=true`;
+
+  if (picture && picture.trim()) {
+    const src = picture.startsWith('http') ? picture : `${(import.meta.env.VITE_API_URL || '/api').replace('/api', '')}${picture}`;
+    return (
+      <img
+        src={src}
+        alt={name}
+        className="w-14 h-14 rounded-full object-cover ring-2 ring-white shadow-md flex-shrink-0"
+        onError={(e) => {
+          const img = e.target as HTMLImageElement;
+          img.onerror = null;
+          img.src = fallbackAvatar;
+        }}
+      />
+    );
+  }
   return (
-    <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl text-white bg-gradient-to-br shadow-md flex-shrink-0 ${palettes[initial.charCodeAt(0) % palettes.length]}`}>
+    <div className={`w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl text-white bg-gradient-to-br shadow-md flex-shrink-0 ${fallbackGradient}`}>
       {initial}
     </div>
   );
@@ -197,7 +214,7 @@ const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =
 
                       <div className="pl-4 pr-4 pt-4 pb-3">
                         <div className="flex items-start gap-3 mb-3">
-                          <Avatar name={r.name || 'R'} picture={r.profilePicture} />
+                          <Avatar name={r.name || 'R'} picture={r.profilePicture || r.photo || r.avatar || r.picture || null} />
                           <div className="flex-1 min-w-0">
                             <p className="font-bold text-gray-900 text-sm truncate group-hover:text-blue-700 transition-colors">
                               {r.name || 'Recruiter'}

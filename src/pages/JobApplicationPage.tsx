@@ -119,63 +119,85 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
     );
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
-        <div className="max-w-2xl mx-auto p-6">
+      <div className="min-h-screen bg-gradient-to-br from-violet-700 via-indigo-800 to-blue-900 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-pink-500/30 to-purple-600/30 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-blue-400/30 to-indigo-600/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div className="relative max-w-3xl mx-auto px-6 py-6">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-pink-400 to-violet-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m-8 0V6a2 2 0 00-2 2v6.341" />
               </svg>
             </div>
-            <h2 className="text-sm text-gray-600 mb-2">You're Applying for</h2>
-            <h1 className="text-2xl font-bold mb-2">{currentJobData.title}</h1>
-            <p className="text-gray-600">@ {currentJobData.company} in {currentJobData.location}</p>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20">
+              <h2 className="text-sm font-medium text-indigo-200 mb-1 uppercase tracking-wide">You're Applying for</h2>
+              <h1 className="text-2xl font-bold text-white mb-2">{currentJobData.title}</h1>
+              <p className="text-base text-indigo-200 font-medium">@ {currentJobData.company} in {currentJobData.location}</p>
+            </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${getProgressPercentage()}%` }}></div>
+          <div className="mb-6">
+            <div className="w-full bg-white/20 rounded-full h-2.5 shadow-inner">
+              <div className="bg-gradient-to-r from-pink-400 to-violet-400 h-2.5 rounded-full shadow-lg transition-all duration-500 ease-out" style={{ width: `${getProgressPercentage()}%` }}></div>
             </div>
-            <p className="text-sm text-gray-600 mt-2">Step {currentStep} of 3</p>
+            <div className="flex justify-between items-center mt-2">
+              <p className="text-sm font-medium text-indigo-200">Step {currentStep} of 3</p>
+              <p className="text-sm font-medium text-pink-300">{Math.round(getProgressPercentage())}% Complete</p>
+            </div>
           </div>
 
           {/* Resume & Cover Letter Form */}
-          <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 shadow-lg">
-            <h2 className="text-2xl font-bold mb-6">Resume & Cover Letter</h2>
+          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Resume & Cover Letter</h2>
+              <p className="text-gray-500 text-sm">Upload your documents to get started</p>
+            </div>
             
             {/* Resume Section */}
-            <div className="mb-8">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
-                Resume <span className="text-red-500">*</span>
+            <div className="mb-10">
+              <label className="block text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                <svg className="w-5 h-5 text-indigo-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Resume <span className="text-red-500 ml-1">*</span>
               </label>
               
               {hasResume || applicationData.resumeFile ? (
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="border-2 border-green-200 rounded-2xl p-6 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <svg className="w-8 h-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
                       <div>
-                        <p className="font-medium text-blue-600">
+                        <p className="font-bold text-green-700 text-lg">
                           {applicationData.resumeFileName || existingResume?.name || 'Resume.pdf'}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          {applicationData.resumeFile ? 'Just uploaded' : 'Uploaded to application'}
+                        <p className="text-sm text-green-600 font-medium flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {applicationData.resumeFile ? 'Just uploaded' : 'Ready for application'}
                         </p>
                       </div>
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button className="text-green-500 hover:text-green-700 p-2 rounded-full hover:bg-green-100 transition-colors">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
                       </svg>
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                <div className="border-3 border-dashed border-indigo-300 rounded-2xl p-8 text-center bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 transition-all duration-300 cursor-pointer group">
                   <input
                     type="file"
                     id="resume-upload"
@@ -220,36 +242,48 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                       }
                     }}
                   />
-                  <label htmlFor="resume-upload" className="cursor-pointer">
-                    <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-lg font-medium text-gray-700 mb-2">Upload your resume</p>
-                    <p className="text-sm text-gray-500">PDF, DOC, DOCX up to 10MB</p>
+                  <label htmlFor="resume-upload" className="cursor-pointer block">
+                    <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform shadow-lg">
+                      <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </div>
+                    <p className="text-xl font-bold text-gray-800 mb-3">Upload your resume</p>
+                    <p className="text-sm text-gray-600 bg-white/70 rounded-full px-4 py-2 inline-block">PDF, DOC, DOCX up to 10MB</p>
                   </label>
                 </div>
               )}
             </div>
 
             {/* Cover Letter Section */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-medium text-gray-700">
+            <div className="mb-10">
+              <div className="flex items-center justify-between mb-4">
+                <label className="block text-lg font-semibold text-gray-800 flex items-center">
+                  <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
                   Cover letter
                 </label>
-                <span className="text-sm text-gray-500">Optional</span>
+                <span className="text-sm font-medium text-purple-600 bg-purple-100 px-3 py-1 rounded-full">Optional</span>
               </div>
               
               {applicationData.coverLetterFile ? (
-                <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="border-2 border-purple-200 rounded-2xl p-6 bg-gradient-to-r from-purple-50 to-pink-50 shadow-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <svg className="w-8 h-8 text-blue-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mr-4 shadow-lg">
+                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
                       <div>
-                        <p className="font-medium text-blue-600">{applicationData.coverLetterFileName}</p>
-                        <p className="text-sm text-gray-500">Just uploaded</p>
+                        <p className="font-bold text-purple-700 text-lg">{applicationData.coverLetterFileName}</p>
+                        <p className="text-sm text-purple-600 font-medium flex items-center">
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Just uploaded
+                        </p>
                       </div>
                     </div>
                     <button 
@@ -257,16 +291,16 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                         updateData('coverLetterFile', null);
                         updateData('coverLetterFileName', '');
                       }}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-purple-500 hover:text-red-600 p-2 rounded-full hover:bg-red-100 transition-colors"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="border-2 border-dashed border-blue-200 rounded-lg p-6 text-center bg-blue-50">
+                <div className="border-3 border-dashed border-purple-300 rounded-2xl p-8 text-center bg-gradient-to-br from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 transition-all duration-300 cursor-pointer group">
                   <input
                     type="file"
                     id="cover-letter-upload"
@@ -280,18 +314,21 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                       }
                     }}
                   />
-                  <label htmlFor="cover-letter-upload" className="cursor-pointer">
-                    <svg className="w-8 h-8 text-blue-500 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                    </svg>
-                    <p className="text-blue-600 font-medium">Upload your cover letter</p>
+                  <label htmlFor="cover-letter-upload" className="cursor-pointer block">
+                    <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                      <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                    </div>
+                    <p className="text-purple-700 font-bold text-lg">Upload your cover letter</p>
+                    <p className="text-sm text-purple-600 mt-2">Stand out from other candidates</p>
                   </label>
                 </div>
               )}
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center pt-6 border-t border-gray-200">
               <BackButton 
                 onClick={() => onNavigate('job-listings')}
                 text="Back to Jobs"
@@ -299,13 +336,16 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
               <button
                 onClick={nextStep}
                 disabled={!hasResume && !applicationData.resumeFile}
-                className={`px-6 py-2 rounded-lg font-medium ${
+                className={`px-8 py-3 rounded-2xl font-bold text-lg transition-all duration-300 transform hover:scale-105 shadow-lg ${
                   hasResume || applicationData.resumeFile
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-blue-500/25'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-gray-300/25'
                 }`}
               >
-                Next
+                Continue
+                <svg className="w-5 h-5 ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
               </button>
             </div>
           </div>
@@ -316,42 +356,59 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
 
   // Step 2: Work Authorization
   const renderWorkAuthStep = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
-      <div className="max-w-2xl mx-auto p-6">
+    <div className="min-h-screen bg-gradient-to-br from-violet-700 via-indigo-800 to-blue-900 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-teal-400/30 to-emerald-600/30 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-cyan-400/30 to-indigo-600/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
+      </div>
+      
+      <div className="relative max-w-3xl mx-auto px-6 py-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m-8 0V6a2 2 0 00-2 2v6.341" />
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform">
+            <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
           </div>
-          <h2 className="text-sm text-gray-600 mb-2">You're Applying for</h2>
-          <h1 className="text-2xl font-bold mb-2">{currentJobData.title}</h1>
-          <p className="text-gray-600">@ {currentJobData.company} in {currentJobData.location}</p>
+          <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20">
+            <h2 className="text-sm font-medium text-teal-200 mb-1 uppercase tracking-wide">You're Applying for</h2>
+            <h1 className="text-2xl font-bold text-white mb-2">{currentJobData.title}</h1>
+            <p className="text-base text-teal-200 font-medium">@ {currentJobData.company} in {currentJobData.location}</p>
+          </div>
         </div>
 
         {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${getProgressPercentage()}%` }}></div>
+        <div className="mb-6">
+          <div className="w-full bg-white/20 rounded-full h-2.5 shadow-inner">
+            <div className="bg-gradient-to-r from-teal-400 to-emerald-400 h-2.5 rounded-full shadow-lg transition-all duration-500 ease-out" style={{ width: `${getProgressPercentage()}%` }}></div>
           </div>
-          <p className="text-sm text-gray-600 mt-2">Step {currentStep} of 3</p>
+          <div className="flex justify-between items-center mt-2">
+            <p className="text-sm font-medium text-teal-200">Step {currentStep} of 3</p>
+            <p className="text-sm font-medium text-emerald-300">{Math.round(getProgressPercentage())}% Complete</p>
+          </div>
         </div>
 
         {/* Work Authorization Form */}
-        <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 shadow-lg">
-          <h2 className="text-2xl font-bold mb-6">Work Authorization</h2>
+        <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent mb-1">Work Authorization</h2>
+            <p className="text-gray-500 text-sm">Let us know your work eligibility status</p>
+          </div>
           
-          <div className="mb-8">
-            <label htmlFor="work-auth-select" className="block text-sm font-medium text-gray-700 mb-3">
-              Work Authorization <span className="text-red-500">*</span>
+          <div className="mb-10">
+            <label htmlFor="work-auth-select" className="block text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg className="w-5 h-5 text-emerald-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Work Authorization <span className="text-red-500 ml-1">*</span>
             </label>
             
             <select
               id="work-auth-select"
               value={applicationData.workAuthorization}
               onChange={(e) => updateData('workAuthorization', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+              className="w-full border-2 border-emerald-200 rounded-2xl px-6 py-4 text-lg focus:ring-4 focus:ring-emerald-500/20 focus:border-emerald-500 bg-white shadow-lg transition-all duration-300 hover:border-emerald-300"
             >
               <option value="US Citizen">US Citizen</option>
               <option value="Green Card Holder">Green Card Holder</option>
@@ -364,34 +421,46 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
             </select>
           </div>
 
-          <div className="bg-gray-50 p-4 rounded-lg mb-8">
-            <p className="text-sm text-gray-600">
-              By providing your Work Authorization status, you consent to us collecting and keeping this info consistent with our policies.
-            </p>
-            <button className="text-blue-600 hover:text-blue-700 text-sm mt-2 flex items-center">
-              Learn more
-              <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 p-6 rounded-2xl mb-8 border border-emerald-200">
+            <div className="flex items-start">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center mr-4 flex-shrink-0">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm text-emerald-800 font-medium mb-2">
+                  By providing your Work Authorization status, you consent to us collecting and keeping this info consistent with our policies.
+                </p>
+                <button className="text-emerald-600 hover:text-emerald-700 text-sm font-medium flex items-center group">
+                  Learn more
+                  <svg className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Navigation */}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center pt-6 border-t border-gray-200">
             <button
               onClick={prevStep}
-              className="flex items-center text-gray-600 hover:text-gray-800"
+              className="flex items-center text-gray-600 hover:text-gray-800 font-medium px-4 py-2 rounded-xl hover:bg-gray-100 transition-colors"
             >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
               Back
             </button>
             <button
               onClick={nextStep}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700"
+              className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-8 py-3 rounded-2xl font-bold text-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 transform hover:scale-105 shadow-lg shadow-emerald-500/25"
             >
-              Next
+              Continue
+              <svg className="w-5 h-5 ml-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
             </button>
           </div>
         </div>
@@ -423,78 +492,128 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
     };
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
-        <div className="max-w-2xl mx-auto p-6">
+      <div className="min-h-screen bg-gradient-to-br from-violet-700 via-indigo-800 to-blue-900 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-rose-500/30 to-orange-600/30 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-amber-400/30 to-violet-600/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+        
+        <div className="relative max-w-3xl mx-auto px-6 py-6">
           {/* Header */}
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m-8 0V6a2 2 0 00-2 2v6.341" />
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-br from-rose-400 to-orange-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg transform hover:scale-105 transition-transform">
+              <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <h2 className="text-sm text-gray-600 mb-2">You're Applying for</h2>
-            <h1 className="text-2xl font-bold mb-2">{currentJobData.title}</h1>
-            <p className="text-gray-600">@ {currentJobData.company} in {currentJobData.location}</p>
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 shadow-lg border border-white/20">
+              <h2 className="text-sm font-medium text-rose-200 mb-1 uppercase tracking-wide">You're Applying for</h2>
+              <h1 className="text-2xl font-bold text-white mb-2">{currentJobData.title}</h1>
+              <p className="text-base text-rose-200 font-medium">@ {currentJobData.company} in {currentJobData.location}</p>
+            </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${getProgressPercentage()}%` }}></div>
+          <div className="mb-6">
+            <div className="w-full bg-white/20 rounded-full h-2.5 shadow-inner">
+              <div className="bg-gradient-to-r from-rose-400 to-orange-400 h-2.5 rounded-full shadow-lg transition-all duration-500 ease-out" style={{ width: `${getProgressPercentage()}%` }}></div>
             </div>
-            <p className="text-sm text-gray-600 mt-2">Step {currentStep} of 3</p>
+            <div className="flex justify-between items-center mt-2">
+              <p className="text-sm font-medium text-rose-200">Step {currentStep} of 3</p>
+              <p className="text-sm font-medium text-orange-300">{Math.round(getProgressPercentage())}% Complete</p>
+            </div>
           </div>
 
           {/* Review Application */}
-          <div className="bg-white/90 backdrop-blur-md rounded-lg p-8 shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Review your application</h2>
-            <p className="text-gray-600 mb-8">
-              Take a moment to review the documents you're submitting for this application. Once you submit, this action cannot be undone.
-            </p>
+          <div className="bg-white/95 backdrop-blur-lg rounded-3xl p-8 shadow-2xl border border-white/20">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-rose-600 to-orange-600 bg-clip-text text-transparent mb-2">Review your application</h2>
+              <p className="text-gray-600 text-lg">
+                Take a moment to review the documents you're submitting for this application. Once you submit, this action cannot be undone.
+              </p>
+            </div>
 
             {/* Resume Section */}
-            <div className="border border-gray-200 rounded-lg p-6 mb-6">
+            <div className="border-2 border-green-200 rounded-2xl p-6 mb-6 bg-gradient-to-r from-green-50 to-emerald-50 shadow-lg">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg">Resume <span className="text-red-500">*</span></h3>
-                <button className="text-blue-600 hover:text-blue-700 p-2 rounded-full border border-gray-200">
+                <h3 className="font-bold text-xl text-green-800 flex items-center">
+                  <svg className="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Resume <span className="text-red-500 ml-1">*</span>
+                </h3>
+                <button className="text-green-600 hover:text-green-700 p-3 rounded-full border-2 border-green-200 hover:border-green-300 bg-white hover:bg-green-50 transition-all">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
               </div>
-              <p className="text-gray-700">
+              <p className="text-green-700 font-medium text-lg flex items-center">
+                <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
                 {getResumeName()}
               </p>
             </div>
 
             {/* Cover Letter Section */}
-            <div className="border border-gray-200 rounded-lg p-6 mb-6">
+            <div className="border-2 border-purple-200 rounded-2xl p-6 mb-6 bg-gradient-to-r from-purple-50 to-pink-50 shadow-lg">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-lg">Cover Letter</h3>
-                <button className="text-blue-600 hover:text-blue-700 p-2 rounded-full border border-gray-200">
+                <h3 className="font-bold text-xl text-purple-800 flex items-center">
+                  <svg className="w-6 h-6 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                  Cover Letter
+                </h3>
+                <button className="text-purple-600 hover:text-purple-700 p-3 rounded-full border-2 border-purple-200 hover:border-purple-300 bg-white hover:bg-purple-50 transition-all">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                   </svg>
                 </button>
               </div>
-              <p className="text-gray-700">
-                {applicationData.coverLetterFileName || 'No cover letter uploaded'}
+              <p className="text-purple-700 font-medium text-lg flex items-center">
+                {applicationData.coverLetterFileName ? (
+                  <>
+                    <svg className="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    {applicationData.coverLetterFileName}
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    <span className="text-gray-500">No cover letter uploaded</span>
+                  </>
+                )}
               </p>
             </div>
 
             {/* Work Authorization Section */}
-            <div className="border border-gray-200 rounded-lg p-6 mb-8">
-              <h3 className="font-semibold text-lg mb-4">Work Authorization</h3>
-              <p className="text-gray-700">{applicationData.workAuthorization}</p>
+            <div className="border-2 border-blue-200 rounded-2xl p-6 mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-lg">
+              <h3 className="font-bold text-xl text-blue-800 mb-4 flex items-center">
+                <svg className="w-6 h-6 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Work Authorization
+              </h3>
+              <p className="text-blue-700 font-medium text-lg flex items-center">
+                <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                {applicationData.workAuthorization}
+              </p>
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center pt-8 border-t border-gray-200">
               <button
                 onClick={prevStep}
-                className="flex items-center text-gray-600 hover:text-gray-800"
+                className="flex items-center text-gray-600 hover:text-gray-800 font-medium px-4 py-2 rounded-xl hover:bg-gray-100 transition-colors"
               >
-                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
                 Back
@@ -615,10 +734,13 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, job
                     window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "❌ Network error. Please check your connection and try again." } }));
                   }
                 }}
-                className="bg-green-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-green-700 flex items-center"
+                className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-10 py-4 rounded-2xl font-bold text-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-300 transform hover:scale-105 shadow-2xl shadow-green-500/25 flex items-center"
               >
+                <svg className="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
                 Submit Application
-                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-6 h-6 ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </button>

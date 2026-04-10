@@ -26,6 +26,21 @@ export interface EducationItem {
   grade: string;
 }
 
+export interface CertificationItem {
+  id: string;
+  name: string;
+  issuer: string;
+  year: string;
+}
+
+export interface AwardItem {
+  id: string;
+  title: string;
+  issuer: string;
+  year: string;
+  description: string;
+}
+
 export interface ResumeData {
   template: 'modern' | 'classic' | 'minimal' | 'creative' | 'executive' | 'tech';
   personalInfo: PersonalInfo;
@@ -33,7 +48,9 @@ export interface ResumeData {
   experience: ExperienceItem[];
   education: EducationItem[];
   skills: string[];
-  jobDescription: string; // for JD optimization
+  certifications: CertificationItem[];
+  awards: AwardItem[];
+  jobDescription: string;
 }
 
 interface ResumeStore {
@@ -46,6 +63,12 @@ interface ResumeStore {
   addEducation: () => void;
   updateEducation: (id: string, field: keyof EducationItem, value: string) => void;
   removeEducation: (id: string) => void;
+  addCertification: () => void;
+  updateCertification: (id: string, field: keyof CertificationItem, value: string) => void;
+  removeCertification: (id: string) => void;
+  addAward: () => void;
+  updateAward: (id: string, field: keyof AwardItem, value: string) => void;
+  removeAward: (id: string) => void;
   reset: () => void;
 }
 
@@ -56,6 +79,8 @@ const defaultData: ResumeData = {
   experience: [],
   education: [],
   skills: [],
+  certifications: [],
+  awards: [],
   jobDescription: '',
 };
 
@@ -116,6 +141,54 @@ export const useResumeStore = create<ResumeStore>((set) => ({
   removeEducation: (id) =>
     set((s) => ({
       data: { ...s.data, education: s.data.education.filter((e) => e.id !== id) },
+    })),
+
+  addCertification: () =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        certifications: [
+          ...s.data.certifications,
+          { id: Date.now().toString(), name: '', issuer: '', year: '' },
+        ],
+      },
+    })),
+
+  updateCertification: (id, field, value) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        certifications: s.data.certifications.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
+      },
+    })),
+
+  removeCertification: (id) =>
+    set((s) => ({
+      data: { ...s.data, certifications: s.data.certifications.filter((c) => c.id !== id) },
+    })),
+
+  addAward: () =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        awards: [
+          ...s.data.awards,
+          { id: Date.now().toString(), title: '', issuer: '', year: '', description: '' },
+        ],
+      },
+    })),
+
+  updateAward: (id, field, value) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        awards: s.data.awards.map((a) => (a.id === id ? { ...a, [field]: value } : a)),
+      },
+    })),
+
+  removeAward: (id) =>
+    set((s) => ({
+      data: { ...s.data, awards: s.data.awards.filter((a) => a.id !== id) },
     })),
 
   reset: () => set({ data: defaultData }),

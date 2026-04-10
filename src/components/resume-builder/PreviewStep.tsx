@@ -261,81 +261,54 @@ export default function PreviewStep() {
     setPdfLoading(true);
     const fileName = `${data.personalInfo.name || 'Resume'}_Resume.pdf`;
     try {
-      // Try backend PDF generation first (best quality)
-      const API_BASE = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${API_BASE}/pdf/generate-resume`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resumeData: data }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = fileName; a.click();
-        URL.revokeObjectURL(url);
-        return;
-      }
-    } catch { /* fall through to client-side */ }
-
-    // Client-side fallback using jsPDF text rendering (no html2canvas)
-    try {
+      // Render the actual ResumeTemplate component to canvas → PDF
+      const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const M = 15, W = 180, lh = 6;
-      let y = M;
 
-      const addLine = (text: string, size = 10, style = 'normal', color = '#374151') => {
-        if (y > 270) { doc.addPage(); y = M; }
-        doc.setFontSize(size);
-        doc.setFont('helvetica', style);
-        doc.setTextColor(color);
-        const lines = doc.splitTextToSize(String(text || ''), W);
-        doc.text(lines, M, y);
-        y += lines.length * lh + 1;
-      };
+      const element = previewRef.current;
+      if (!element) throw new Error('Preview not found');
 
-      const addSection = (title: string) => {
-        y += 3;
-        addLine(title.toUpperCase(), 8, 'bold', '#6b7280');
-        doc.setDrawColor('#e5e7eb');
-        doc.line(M, y, M + W, y); y += 4;
-      };
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: data.template === 'tech' ? '#030712' : '#ffffff',
+        logging: false,
+      });
 
-      // Header
-      addLine(data.personalInfo.name || 'Candidate', 20, 'bold', '#1a1a2e');
-      const contact = [data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location].filter(Boolean).join('  •  ');
-      if (contact) addLine(contact, 9, 'normal', '#374151');
-      if (data.personalInfo.linkedin || data.personalInfo.portfolio)
-        addLine([data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('  •  '), 9, 'normal', '#2563eb');
-      y += 2;
-      doc.setDrawColor('#2563eb'); doc.setLineWidth(0.8); doc.line(M, y, M + W, y); y += 5;
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();
+      const pdfH = pdf.internal.pageSize.getHeight();
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = Math.min(pdfW / imgW, pdfH / imgH);
+      const scaledW = imgW * ratio;
+      const scaledH = imgH * ratio;
+      const offsetX = (pdfW - scaledW) / 2;
 
-      if (data.summary) { addSection('Summary'); addLine(data.summary, 10, 'normal'); }
-      if (data.skills.length) { addSection('Skills'); addLine(data.skills.join('  •  '), 10, 'normal'); }
-
-      if (data.experience.length) {
-        addSection('Experience');
-        data.experience.forEach(exp => {
-          addLine(`${exp.title} — ${exp.company}`, 10.5, 'bold', '#1a1a2e');
-          if (exp.duration) addLine(exp.duration, 9, 'italic', '#6b7280');
-          exp.bullets.filter(b => b.trim()).forEach(b => addLine(`• ${b}`, 9.5, 'normal'));
-          y += 2;
-        });
+      // If content is taller than one page, split into pages
+      if (scaledH <= pdfH) {
+        pdf.addImage(imgData, 'PNG', offsetX, 0, scaledW, scaledH);
+      } else {
+        let yPos = 0;
+        while (yPos < imgH) {
+          const sliceH = Math.min(pdfH / ratio, imgH - yPos);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = imgW;
+          sliceCanvas.height = sliceH;
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.drawImage(canvas, 0, yPos, imgW, sliceH, 0, 0, imgW, sliceH);
+          const sliceData = sliceCanvas.toDataURL('image/png');
+          if (yPos > 0) pdf.addPage();
+          pdf.addImage(sliceData, 'PNG', offsetX, 0, scaledW, sliceH * ratio);
+          yPos += sliceH;
+        }
       }
 
-      if (data.education.length) {
-        addSection('Education');
-        data.education.forEach(edu => {
-          addLine(`${edu.degree} — ${edu.institution}`, 10.5, 'bold', '#1a1a2e');
-          if (edu.duration) addLine(edu.duration, 9, 'italic', '#6b7280');
-          if (edu.grade) addLine(`Grade: ${edu.grade}`, 9, 'normal');
-          y += 2;
-        });
-      }
-
-      doc.save(fileName);
-    } catch {
+      pdf.save(fileName);
+    } catch (err) {
+      console.error('PDF export failed, falling back to text:', err);
       downloadTxt();
     } finally {
       setPdfLoading(false);
