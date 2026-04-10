@@ -197,7 +197,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
     }
   };
 
-  const subtitle = heroData?.subtitle || 'We Have 208,000+ Live Jobs';
+  const subtitle = heroData?.subtitle || 'Let AI Find Your Next Move';
   const title = heroData?.title || 'Your Dream Job Is Waiting For You';
   const description = heroData?.description || 'AI career platform for jobs, skills, interview prep, and ATS-ready resumes.';
   const buttonText = heroData?.buttonText || 'Find Job';
