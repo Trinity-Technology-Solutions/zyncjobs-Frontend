@@ -478,7 +478,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userEmail}`);
       if (response.ok) {
         const data = await response.json();
-        setApplications(data.slice(0, 5)); // Get latest 5 applications
+        setApplications(data);
       }
     } catch (error) {
       console.error('Error fetching applications:', error);
@@ -614,10 +614,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {activeTab === 'Profile' && (
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               {!readOnly && (
               
-              <div className="lg:col-span-1">
+              <div className="md:col-span-1">
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                   <div className="space-y-1">
@@ -648,6 +648,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     >
                       <Search className="w-5 h-5 text-purple-600" />
                       <span className="text-gray-700">Skill Gap Analysis</span>
+                    </button>
+                    <button 
+                      onClick={() => onNavigate('career-roadmap')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <TrendingUp className="w-5 h-5 text-indigo-600" />
+                      <span className="text-gray-700">Career Roadmap</span>
                     </button>
                     <button 
                       onClick={() => {
@@ -819,7 +826,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     </div>
                     
                     <div className="border-t pt-4">
-                      <h4 className="font-medium text-gray-900 mb-2">My Assessments</h4>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-gray-900">My Assessments</h4>
+                        {myAssessments.length > 3 && (
+                          <button
+                            onClick={() => onNavigate('skill-assessment')}
+                            className="text-xs text-blue-600 font-medium hover:underline"
+                          >
+                            View More ({myAssessments.length})
+                          </button>
+                        )}
+                      </div>
                       {myAssessments.length === 0 ? (
                         <p className="text-sm text-gray-500">No assessments completed yet</p>
                       ) : (
@@ -839,14 +856,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               </span>
                             </div>
                           ))}
-                          {myAssessments.length > 3 && (
-                            <button
-                              onClick={() => onNavigate('skill-assessment')}
-                              className="text-xs text-blue-600 hover:underline mt-1"
-                            >
-                              View all {myAssessments.length} assessments
-                            </button>
-                          )}
                         </div>
                       )}
                     </div>
@@ -855,12 +864,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
                 {/* AI Job Recommendations */}
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                  <div className="flex items-center gap-2 mb-4">
+                  <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">AI Job Suggestions</h3>
+                    {recommendedJobs.length > 3 && (
+                      <button
+                        onClick={() => onNavigate('job-listings')}
+                        className="text-xs text-blue-600 font-medium hover:underline"
+                      >
+                        View More ({recommendedJobs.length})
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-4">
                     {recommendedJobs.length > 0 ? (
-                      recommendedJobs.map((job, index) => {
+                      recommendedJobs.slice(0, 3).map((job, index) => {
                         const jobId = job._id || job.id;
                         const userSkills: string[] = (Array.isArray(user?.skills) ? user.skills : []).map((s: any) => String(s || '').toLowerCase());
                         const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: any) => String(s || '').toLowerCase());
@@ -947,13 +964,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                   
                   <div className="mt-4 pt-4 border-t">
-                    <h4 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
-
-                      <span className="text-sm">Recent Applications</span>
-                    </h4>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-medium text-gray-900 text-sm">Recent Applications</h4>
+                      {applications.length > 3 && (
+                        <button
+                          onClick={() => onNavigate('my-applications')}
+                          className="text-xs text-blue-600 font-medium hover:underline"
+                        >
+                          View More ({applications.length})
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       {applications.length > 0 ? (
-                        applications.map((app, index) => (
+                        applications.slice(0, 3).map((app, index) => (
                           <div
                             key={app._id || index}
                             className="border border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
@@ -1020,7 +1044,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               )}
 
               {/* Main Content Area */}
-              <div className="lg:col-span-3">
+              <div className="md:col-span-3">
                 {!readOnly && (
                 <>{/* Save All Button */}
                 {!profileSaved && <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
@@ -1875,7 +1899,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               ) : activityData ? (
                 <>
                   {/* Activity Stats Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                       <div className="flex items-center">
                         <div className="flex-shrink-0">

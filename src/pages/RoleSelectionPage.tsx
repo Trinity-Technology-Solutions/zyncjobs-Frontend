@@ -103,7 +103,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
                 <User className="w-8 h-8 text-white" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-2">Tech Professionals</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Find a Job</h2>
               <p className="text-blue-100 text-sm mb-6 leading-relaxed">
                 Be seen and get hired. Create your profile and let top companies find you.
               </p>
@@ -158,7 +158,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
                 <Building2 className="w-8 h-8 text-white" />
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-2">Employers & Recruiters</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Hire Talent</h2>
               <p className="text-orange-100 text-sm mb-6 leading-relaxed">
                 Find and hire top tech talent faster with AI-powered candidate matching.
               </p>

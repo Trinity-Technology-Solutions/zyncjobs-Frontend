@@ -32,6 +32,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -48,6 +49,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
     }
     if (formData.password.length < 6) {
       const msg = 'Password must be at least 6 characters long';
+      setError(msg); showToast(msg, 'error'); setLoading(false); return;
+    }
+    if (!agreedToTerms) {
+      const msg = 'Please agree to the Terms & Conditions to continue';
       setError(msg); showToast(msg, 'error'); setLoading(false); return;
     }
     try {
@@ -115,6 +120,16 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Lottie Animation */}
+            <div className="flex justify-center items-center my-4">
+              <dotlottie-wc 
+                src="https://lottie.host/9c22dcff-4c93-48d8-b9ed-92f46ea5608f/wBQ6dCH7VB.lottie" 
+                style={{width: '350px', height: '350px'}} 
+                autoplay 
+                loop
+              />
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -203,8 +218,12 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 </div>
 
                 <button
-                  type="submit" disabled={loading}
-                  className="w-full py-3 rounded-xl text-white font-semibold text-sm bg-blue-600 hover:bg-blue-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="submit" disabled={loading || !agreedToTerms}
+                  className={`w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 ${
+                    agreedToTerms && !loading
+                      ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer shadow-sm hover:shadow-md'
+                      : 'bg-gray-300 text-gray-400 cursor-not-allowed'
+                  }`}
                 >
                   {loading ? 'Creating Account...' : 'Create Account'}
                 </button>
@@ -220,6 +239,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 type="button"
                 onClick={() => {
                   if (localStorage.getItem('user')) { showToast('You are already logged in!', 'warning'); return; }
+                  if (!agreedToTerms) { showToast('Please agree to the Terms & Conditions before continuing.', 'error'); return; }
                   window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -237,6 +257,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 mode="modal"
                 className="w-full mt-2"
                 onImport={(profile: LinkedInProfile) => {
+                  if (!agreedToTerms) { showToast('Please agree to the Terms & Conditions before continuing.', 'error'); return; }
                   setFormData(prev => ({
                     ...prev,
                     name: profile.name || prev.name,
@@ -245,6 +266,20 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                   showToast('LinkedIn profile imported! Review your details and complete registration.', 'success');
                 }}
               />
+
+              <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors mt-4 ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                <input
+                  type="checkbox" id="terms-candidate" checked={agreedToTerms}
+                  onChange={e => setAgreedToTerms(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                />
+                <label htmlFor="terms-candidate" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
+                  By creating an account, I agree to ZyncJobs'{' '}
+                  <button type="button" onClick={() => onNavigate('terms')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Terms & Conditions</button>
+                  {' '}and{' '}
+                  <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Privacy Policy</button>.
+                </label>
+              </div>
 
               <p className="text-center text-sm text-gray-500 mt-6">
                 Already have an account?{' '}

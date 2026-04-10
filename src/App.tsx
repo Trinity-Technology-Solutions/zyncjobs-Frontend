@@ -94,6 +94,7 @@ const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 const RecommendedJobs = lazy(() => import('./components/RecommendedJobs'));
 const JobRecommendationsPage = lazy(() => import('./pages/JobRecommendationsPage'));
 const CandidateMatchesPage = lazy(() => import('./pages/CandidateMatchesPage').then(m => ({ default: m.CandidateMatchesPage })));
+const CareerRoadmapPage = lazy(() => import('./pages/CareerRoadmapPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -405,7 +406,7 @@ function App() {
           <Route path="/employers" element={<EmployersPage {...nav} />} />
           <Route path="/job-hunting" element={<JobHuntingPage onNavigate={handleNavigation} />} />
           <Route path="/job-role" element={<JobRolePage onNavigate={handleNavigation} jobTitle="" />} />
-          <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} />} />
+          <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />} />
           <Route path="/skill-detail" element={<SkillDetailPage onNavigate={handleNavigation} skillName="" />} />
           <Route path="/search" element={
             <WithLayout {...nav}><SearchEngine /></WithLayout>
@@ -503,6 +504,12 @@ function App() {
           <Route path="/career-coach" element={
             <AuthGuard user={user} allowedRoles={['candidate']}>
               <CareerCoachPage {...nav} />
+            </AuthGuard>
+          } />
+
+          <Route path="/career-roadmap" element={
+            <AuthGuard user={user} allowedRoles={['candidate']}>
+              <CareerRoadmapPage {...nav} />
             </AuthGuard>
           } />
 

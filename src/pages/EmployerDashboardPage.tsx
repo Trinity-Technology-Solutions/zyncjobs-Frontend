@@ -667,7 +667,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
   ];
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="bg-gray-50 flex" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
@@ -685,8 +685,23 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         </div>
       )}
 
-      {/* Static Sidebar */}
-      <div className="employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900" style={{width: '280px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden', position: 'sticky', top: 0, alignSelf: 'flex-start', marginLeft: '0px'}}>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Mobile toggle */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 bg-blue-800 text-white p-2 rounded-lg shadow-lg"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Sidebar */}
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '280px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
             <div className="px-6 pt-6 pb-4 border-b border-blue-700">
               <BackButton onClick={() => window.history.back()} text="Back" className="inline-flex items-center text-sm text-white hover:text-blue-100 transition-colors mb-3" />
@@ -841,9 +856,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-50" style={{minWidth: 0}}>
+      <div className="flex-1 bg-gray-50 min-w-0">
         {/* Top bar */}
-        <div className="flex items-center justify-end gap-3 py-3" style={{paddingLeft: '40px', paddingRight: '40px'}}>
+        <div className="flex items-center justify-end gap-3 py-3 pl-14 lg:pl-10 pr-4 lg:pr-10">
           <div className="flex items-center gap-3">
             <div className="relative">
               <button
@@ -882,7 +897,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
         {/* Dashboard Content */}
         <div className="pt-0 pb-2">
-          <div style={{paddingLeft: '40px', paddingRight: '40px'}}>
+          <div className="px-4 lg:px-10">
           {activeMenu === 'dashboard' ? (
             <>
               <div className="mb-4">
@@ -892,7 +907,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl shadow-md border-2 border-gray-200 p-6">
 
               {/* ── Stat Cards ── */}
-              <div className="grid grid-cols-4 gap-5 mb-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
                 {stats.map((stat, index) => {
                   const isPositive = !stat.percentage.startsWith('-');
                   const numericPct = parseInt(stat.percentage.replace(/[^0-9-]/g, '')) || 0;
@@ -937,7 +952,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* ── Row 1: Charts ── */}
-              <div className="grid grid-cols-3 gap-5 mb-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-5">
                 {/* Area chart */}
                 <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300 flex flex-col">
                   <div className="flex items-center justify-between mb-1">
@@ -1037,7 +1052,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* ── Row 2: Bottom Cards ── */}
-              <div className="grid grid-cols-3 gap-5 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
                 {/* Top Jobs */}
                 <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
@@ -1114,6 +1129,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       ))}
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* Lottie Animation - Bottom Right */}
+              <div className="mt-6 flex justify-end">
+                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-4 shadow-md border-2 border-blue-100">
+                  <dotlottie-wc 
+                    src="https://lottie.host/cac79d7d-c73d-4f6a-ad2a-4f75c2c53c8c/ie3zPqytVz.lottie" 
+                    style={{width: '500px', height: '500px'}} 
+                    autoplay 
+                    loop
+                  />
                 </div>
               </div>
 

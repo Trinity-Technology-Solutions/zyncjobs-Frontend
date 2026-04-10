@@ -263,6 +263,31 @@ export default function PreviewStep() {
     try {
       // Render the actual ResumeTemplate component to canvas → PDF
       const { default: html2canvas } = await import('html2canvas');
+      const API_BASE = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${API_BASE}/pdf/generate-resume`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resumeData: data }),
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+      console.warn('Backend PDF failed, status:', res.status);
+    } catch (e) {
+      console.warn('Backend PDF unavailable, using client fallback:', e);
+    }
+
+    // Client-side fallback using jsPDF text rendering (no html2canvas)
+    try {
       const { default: jsPDF } = await import('jspdf');
 
       const element = previewRef.current;

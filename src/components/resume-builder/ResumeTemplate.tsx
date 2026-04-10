@@ -3,96 +3,64 @@ import { ResumeData } from '../../store/useResumeStore';
 
 interface Props { data: ResumeData; scale?: number; }
 
-// ─── shared section heading styles per template ───────────────────────────────
-const SectionLabel = ({ label, template }: { label: string; template: string }) => {
-  if (template === 'modern') return (
-    <div className="flex items-center gap-2 mb-3">
-      <span className="text-xs font-bold uppercase tracking-widest text-blue-600">{label}</span>
-      <div className="flex-1 h-px bg-blue-200" />
-    </div>
-  );
-  if (template === 'classic') return (
-    <div className="mb-3 border-b-2 border-gray-800 pb-1">
-      <span className="text-sm font-bold uppercase tracking-wide text-gray-800">{label}</span>
-    </div>
-  );
-  if (template === 'minimal') return (
-    <div className="mb-3">
-      <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{label}</span>
-    </div>
-  );
-  if (template === 'creative') return (
-    <div className="mb-3">
-      <span className="inline-block bg-purple-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full">{label}</span>
-    </div>
-  );
-  if (template === 'executive') return (
-    <div className="mb-3 flex items-center gap-3">
-      <div className="w-1 h-5 bg-amber-500 rounded" />
-      <span className="text-sm font-bold uppercase tracking-widest text-gray-700">{label}</span>
-      <div className="flex-1 h-px bg-amber-200" />
-    </div>
-  );
-  if (template === 'tech') return (
-    <div className="mb-3">
-      <span className="text-xs font-mono font-bold uppercase tracking-widest text-green-600"># {label}</span>
-      <div className="h-px bg-green-200 mt-1" />
-    </div>
-  );
-  return <div className="mb-3 font-bold uppercase text-xs text-gray-500">{label}</div>;
-};
+const s = { fontFamily: 'Arial, sans-serif', fontSize: 11, color: '#111', lineHeight: 1.4 };
 
-// ─── 1. MODERN ────────────────────────────────────────────────────────────────
-const ModernTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 11 }}>
+// ─── 1. CLASSIC ───────────────────────────────────────────────────────────────
+// Centered header, bold section lines — most ATS-safe
+const ClassicTemplate = ({ data }: { data: ResumeData }) => (
+  <div style={{ ...s, padding: '32px 36px' }}>
     {/* Header */}
-    <div className="bg-blue-600 text-white px-6 py-5 rounded-t-lg">
-      <h1 className="text-2xl font-bold">{data.personalInfo.name || 'Your Name'}</h1>
-      <div className="flex flex-wrap gap-3 mt-1 text-blue-100 text-xs">
-        {data.personalInfo.email && <span>{data.personalInfo.email}</span>}
-        {data.personalInfo.phone && <span>• {data.personalInfo.phone}</span>}
-        {data.personalInfo.location && <span>• {data.personalInfo.location}</span>}
+    <div style={{ textAlign: 'center', marginBottom: 14 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase' }}>
+        {data.personalInfo.name || 'Your Name'}
+      </div>
+      <div style={{ fontSize: 10, marginTop: 4, color: '#333' }}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location].filter(Boolean).join('  |  ')}
       </div>
       {(data.personalInfo.linkedin || data.personalInfo.portfolio) && (
-        <div className="flex gap-3 mt-1 text-blue-200 text-xs">
-          {data.personalInfo.linkedin && <span>{data.personalInfo.linkedin}</span>}
-          {data.personalInfo.portfolio && <span>• {data.personalInfo.portfolio}</span>}
+        <div style={{ fontSize: 10, color: '#333', marginTop: 2 }}>
+          {[data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('  |  ')}
         </div>
       )}
     </div>
-    <div className="px-6 py-4 space-y-4">
-      {data.summary && (
-        <div><SectionLabel label="Summary" template="modern" />
-          <p className="text-xs text-gray-700 leading-relaxed">{data.summary}</p>
-        </div>
-      )}
-      {data.skills.length > 0 && (
-        <div><SectionLabel label="Skills" template="modern" />
-          <div className="flex flex-wrap gap-1.5">
-            {data.skills.map((s, i) => <span key={i} className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full border border-blue-200">{s}</span>)}
-          </div>
-        </div>
-      )}
-      {data.experience.length > 0 && (
-        <div><SectionLabel label="Experience" template="modern" />
-          {data.experience.map(exp => (
-            <div key={exp.id} className="mb-3">
-              <div className="flex justify-between"><span className="font-semibold text-xs text-gray-900">{exp.title}</span><span className="text-xs text-gray-400">{exp.duration}</span></div>
-              <span className="text-xs text-blue-600 italic">{exp.company}</span>
-              <ul className="mt-1 space-y-0.5">{exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} className="text-xs text-gray-700 ml-3">• {b}</li>)}</ul>
+
+    {/* Section helper */}
+    {[
+      data.summary && { label: 'PROFESSIONAL SUMMARY', content: <p style={{ margin: 0, fontSize: 10.5 }}>{data.summary}</p> },
+      data.skills.length > 0 && { label: 'CORE COMPETENCIES', content: <p style={{ margin: 0, fontSize: 10.5 }}>{data.skills.join('  •  ')}</p> },
+      data.experience.length > 0 && {
+        label: 'PROFESSIONAL EXPERIENCE', content: (
+          <>{data.experience.map(exp => (
+            <div key={exp.id} style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, fontSize: 10.5 }}>{exp.title}{exp.company ? `, ${exp.company}` : ''}</span>
+                <span style={{ fontSize: 10, color: '#444' }}>{exp.duration}</span>
+              </div>
+              <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
+                {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ fontSize: 10.5, marginBottom: 2 }}>{b}</li>)}
+              </ul>
             </div>
-          ))}
-        </div>
-      )}
-      {data.education.length > 0 && (
-        <div><SectionLabel label="Education" template="modern" />
-          {data.education.map(edu => (
-            <div key={edu.id} className="mb-2">
-              <div className="flex justify-between"><span className="font-semibold text-xs text-gray-900">{edu.degree}</span><span className="text-xs text-gray-400">{edu.duration}</span></div>
-              <span className="text-xs text-blue-600 italic">{edu.institution}</span>
-              {edu.grade && <p className="text-xs text-gray-500">Grade: {edu.grade}</p>}
+          ))}</>
+        )
+      },
+      data.education.length > 0 && {
+        label: 'EDUCATION', content: (
+          <>{data.education.map(edu => (
+            <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div>
+                <span style={{ fontWeight: 700, fontSize: 10.5 }}>{edu.degree}</span>
+                {edu.institution && <span style={{ fontSize: 10.5 }}>, {edu.institution}</span>}
+                {edu.grade && <span style={{ fontSize: 10, color: '#555' }}> — {edu.grade}</span>}
+              </div>
+              <span style={{ fontSize: 10, color: '#444' }}>{edu.duration}</span>
             </div>
-          ))}
+          ))}</>
+        )
+      },
+    ].filter(Boolean).map((sec: any, i) => (
+      <div key={i} style={{ marginBottom: 12 }}>
+        <div style={{ borderBottom: '1.5px solid #111', paddingBottom: 2, marginBottom: 6, fontWeight: 700, fontSize: 10.5, letterSpacing: 0.5 }}>
+          {sec.label}
         </div>
       )}
       {data.certifications?.length > 0 && (
@@ -186,44 +154,112 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
                 <span className="text-xs text-gray-500 italic flex-shrink-0 ml-2">{a.year}</span>
               </div>
               {a.description && <p className="text-xs text-gray-600 ml-2">{a.description}</p>}
-            </div>
-          ))}
-        </div>
-      )}
+        {sec.content}
+      </div>
+    ))}
+  </div>
+);
+
+// ─── 2. MODERN ────────────────────────────────────────────────────────────────
+// Left-aligned name, thin rule under header, compact
+const ModernTemplate = ({ data }: { data: ResumeData }) => (
+  <div style={{ ...s, padding: '28px 36px' }}>
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 22, fontWeight: 700 }}>{data.personalInfo.name || 'Your Name'}</div>
+      <div style={{ fontSize: 10, color: '#444', marginTop: 3 }}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('  ·  ')}
+      </div>
+      <div style={{ borderBottom: '2px solid #111', marginTop: 8 }} />
     </div>
+
+    {data.summary && (
+      <Section label="Summary">
+        <p style={{ margin: 0, fontSize: 10.5 }}>{data.summary}</p>
+      </Section>
+    )}
+    {data.skills.length > 0 && (
+      <Section label="Skills">
+        <p style={{ margin: 0, fontSize: 10.5 }}>{data.skills.join(' · ')}</p>
+      </Section>
+    )}
+    {data.experience.length > 0 && (
+      <Section label="Experience">
+        {data.experience.map(exp => (
+          <div key={exp.id} style={{ marginBottom: 8 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <span style={{ fontWeight: 700, fontSize: 11 }}>{exp.title}</span>
+              <span style={{ fontSize: 10, color: '#555' }}>{exp.duration}</span>
+            </div>
+            {exp.company && <div style={{ fontSize: 10.5, fontStyle: 'italic', color: '#333' }}>{exp.company}</div>}
+            <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
+              {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ fontSize: 10.5, marginBottom: 2 }}>{b}</li>)}
+            </ul>
+          </div>
+        ))}
+      </Section>
+    )}
+    {data.education.length > 0 && (
+      <Section label="Education">
+        {data.education.map(edu => (
+          <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: 10.5 }}>{edu.degree}</span>
+              {edu.institution && <span style={{ fontSize: 10.5 }}>, {edu.institution}</span>}
+              {edu.grade && <span style={{ fontSize: 10, color: '#555' }}> · {edu.grade}</span>}
+            </div>
+            <span style={{ fontSize: 10, color: '#555' }}>{edu.duration}</span>
+          </div>
+        ))}
+      </Section>
+    )}
   </div>
 );
 
 // ─── 3. MINIMAL ───────────────────────────────────────────────────────────────
+// Ultra-clean, lots of whitespace, small caps labels
 const MinimalTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ fontFamily: 'Helvetica, sans-serif', fontSize: 11 }} className="px-8 py-6">
-    <div className="mb-6">
-      <h1 className="text-3xl font-light text-gray-900 tracking-tight">{data.personalInfo.name || 'Your Name'}</h1>
-      <div className="text-xs text-gray-400 mt-1 space-x-3">
-        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location].filter(Boolean).map((v, i) => <span key={i}>{v}</span>)}
+  <div style={{ ...s, fontFamily: 'Georgia, serif', padding: '36px 40px' }}>
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ fontSize: 24, fontWeight: 400, letterSpacing: 2, textTransform: 'uppercase' }}>
+        {data.personalInfo.name || 'Your Name'}
+      </div>
+      <div style={{ fontSize: 9.5, color: '#666', marginTop: 5, letterSpacing: 0.5 }}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location].filter(Boolean).join('   ·   ')}
       </div>
     </div>
-    <div className="space-y-5">
-      {data.summary && (<div><SectionLabel label="About" template="minimal" /><p className="text-xs text-gray-600 leading-relaxed">{data.summary}</p></div>)}
-      {data.skills.length > 0 && (<div><SectionLabel label="Skills" template="minimal" /><p className="text-xs text-gray-600">{data.skills.join(', ')}</p></div>)}
-      {data.experience.length > 0 && (
-        <div><SectionLabel label="Experience" template="minimal" />
-          {data.experience.map(exp => (
-            <div key={exp.id} className="mb-3">
-              <div className="flex justify-between"><span className="text-xs font-medium text-gray-800">{exp.title} — {exp.company}</span><span className="text-xs text-gray-400">{exp.duration}</span></div>
-              <ul className="mt-1">{exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} className="text-xs text-gray-500 ml-3">– {b}</li>)}</ul>
+
+    {[
+      data.summary && { label: 'About', body: <p style={{ margin: 0, fontSize: 10.5, color: '#222' }}>{data.summary}</p> },
+      data.skills.length > 0 && { label: 'Skills', body: <p style={{ margin: 0, fontSize: 10.5, color: '#222' }}>{data.skills.join(', ')}</p> },
+      data.experience.length > 0 && {
+        label: 'Experience', body: (
+          <>{data.experience.map(exp => (
+            <div key={exp.id} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 700, fontSize: 10.5 }}>{exp.title}{exp.company ? ` — ${exp.company}` : ''}</span>
+                <span style={{ fontSize: 10, color: '#777' }}>{exp.duration}</span>
+              </div>
+              <ul style={{ margin: '3px 0 0 14px', padding: 0 }}>
+                {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ fontSize: 10.5, color: '#333', marginBottom: 2 }}>{b}</li>)}
+              </ul>
             </div>
-          ))}
-        </div>
-      )}
-      {data.education.length > 0 && (
-        <div><SectionLabel label="Education" template="minimal" />
-          {data.education.map(edu => (
-            <div key={edu.id} className="mb-2 flex justify-between">
-              <span className="text-xs text-gray-700">{edu.degree}, {edu.institution}</span>
-              <span className="text-xs text-gray-400">{edu.duration}</span>
+          ))}</>
+        )
+      },
+      data.education.length > 0 && {
+        label: 'Education', body: (
+          <>{data.education.map(edu => (
+            <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <span style={{ fontSize: 10.5 }}>{edu.degree}{edu.institution ? `, ${edu.institution}` : ''}</span>
+              <span style={{ fontSize: 10, color: '#777' }}>{edu.duration}</span>
             </div>
-          ))}
+          ))}</>
+        )
+      },
+    ].filter(Boolean).map((sec: any, i) => (
+      <div key={i} style={{ marginBottom: 14, display: 'flex', gap: 20 }}>
+        <div style={{ width: 80, flexShrink: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#888', paddingTop: 2 }}>
+          {sec.label}
         </div>
       )}
       {data.certifications?.length > 0 && (
@@ -250,61 +286,49 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
         </div>
       )}
     </div>
+        <div style={{ flex: 1, borderTop: '1px solid #ddd', paddingTop: 4 }}>{sec.body}</div>
+      </div>
+    ))}
   </div>
 );
 
-// ─── 4. CREATIVE (Design / Marketing) ────────────────────────────────────────
-const CreativeTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ fontFamily: 'Arial, sans-serif', fontSize: 11 }} className="flex min-h-full">
-    {/* Left sidebar */}
-    <div className="w-2/5 bg-purple-700 text-white px-4 py-5 space-y-4">
-      <div>
-        <h1 className="text-xl font-bold leading-tight">{data.personalInfo.name || 'Your Name'}</h1>
-        <div className="mt-2 space-y-1 text-purple-200 text-xs">
-          {data.personalInfo.email && <div>✉ {data.personalInfo.email}</div>}
-          {data.personalInfo.phone && <div>📞 {data.personalInfo.phone}</div>}
-          {data.personalInfo.location && <div>📍 {data.personalInfo.location}</div>}
-          {data.personalInfo.linkedin && <div>🔗 {data.personalInfo.linkedin}</div>}
-        </div>
+// ─── 4. EXECUTIVE ─────────────────────────────────────────────────────────────
+// Double-rule header, formal serif, strong hierarchy
+const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
+  <div style={{ ...s, fontFamily: 'Georgia, serif', padding: '30px 36px' }}>
+    <div style={{ textAlign: 'center', borderTop: '3px double #111', borderBottom: '3px double #111', padding: '10px 0', marginBottom: 16 }}>
+      <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase' }}>
+        {data.personalInfo.name || 'Your Name'}
       </div>
-      {data.skills.length > 0 && (
-        <div>
-          <div className="text-xs font-bold uppercase tracking-widest text-purple-300 mb-2">Skills</div>
-          <div className="space-y-1">{data.skills.map((s, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 bg-purple-300 rounded-full flex-shrink-0" />
-              <span className="text-xs text-purple-100">{s}</span>
-            </div>
-          ))}</div>
-        </div>
-      )}
-      {data.education.length > 0 && (
-        <div>
-          <div className="text-xs font-bold uppercase tracking-widest text-purple-300 mb-2">Education</div>
-          {data.education.map(edu => (
-            <div key={edu.id} className="mb-2">
-              <div className="text-xs font-semibold text-white">{edu.degree}</div>
-              <div className="text-xs text-purple-200">{edu.institution}</div>
-              <div className="text-xs text-purple-300">{edu.duration}</div>
-            </div>
-          ))}
+      <div style={{ fontSize: 10, color: '#444', marginTop: 4 }}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location].filter(Boolean).join('  ·  ')}
+      </div>
+      {(data.personalInfo.linkedin || data.personalInfo.portfolio) && (
+        <div style={{ fontSize: 10, color: '#444', marginTop: 2 }}>
+          {[data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('  ·  ')}
         </div>
       )}
     </div>
-    {/* Right content */}
-    <div className="flex-1 px-5 py-5 space-y-4">
-      {data.summary && (
-        <div><SectionLabel label="Profile" template="creative" />
-          <p className="text-xs text-gray-700 leading-relaxed">{data.summary}</p>
+
+    {data.summary && (
+      <ExecSection label="Executive Summary">
+        <p style={{ margin: 0, fontSize: 10.5, fontStyle: 'italic' }}>{data.summary}</p>
+      </ExecSection>
+    )}
+    {data.skills.length > 0 && (
+      <ExecSection label="Areas of Expertise">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '2px 8px' }}>
+          {data.skills.map((s, i) => <span key={i} style={{ fontSize: 10.5 }}>▸ {s}</span>)}
         </div>
-      )}
-      {data.experience.length > 0 && (
-        <div><SectionLabel label="Experience" template="creative" />
-          {data.experience.map(exp => (
-            <div key={exp.id} className="mb-3 pl-3 border-l-2 border-purple-200">
-              <div className="font-bold text-xs text-gray-900">{exp.title}</div>
-              <div className="text-xs text-purple-600 italic">{exp.company} · {exp.duration}</div>
-              <ul className="mt-1">{exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} className="text-xs text-gray-600 ml-2">• {b}</li>)}</ul>
+      </ExecSection>
+    )}
+    {data.experience.length > 0 && (
+      <ExecSection label="Career History">
+        {data.experience.map(exp => (
+          <div key={exp.id} style={{ marginBottom: 9 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 700, fontSize: 11 }}>{exp.title}</span>
+              <span style={{ fontSize: 10, color: '#555' }}>{exp.duration}</span>
             </div>
           ))}
         </div>
@@ -333,51 +357,114 @@ const CreativeTemplate = ({ data }: { data: ResumeData }) => (
         </div>
       )}
     </div>
+            {exp.company && <div style={{ fontSize: 10.5, fontStyle: 'italic', color: '#444', marginBottom: 2 }}>{exp.company}</div>}
+            <ul style={{ margin: '2px 0 0 16px', padding: 0 }}>
+              {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ fontSize: 10.5, marginBottom: 2 }}>▸ {b}</li>)}
+            </ul>
+          </div>
+        ))}
+      </ExecSection>
+    )}
+    {data.education.length > 0 && (
+      <ExecSection label="Education & Credentials">
+        {data.education.map(edu => (
+          <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+            <div>
+              <span style={{ fontWeight: 700, fontSize: 10.5 }}>{edu.degree}</span>
+              {edu.institution && <span style={{ fontSize: 10.5 }}> · {edu.institution}</span>}
+              {edu.grade && <span style={{ fontSize: 10, color: '#555' }}> · {edu.grade}</span>}
+            </div>
+            <span style={{ fontSize: 10, color: '#555' }}>{edu.duration}</span>
+          </div>
+        ))}
+      </ExecSection>
+    )}
   </div>
 );
 
-// ─── 5. EXECUTIVE (Finance / Legal / C-Suite) ─────────────────────────────────
-const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ fontFamily: 'Georgia, serif', fontSize: 11 }} className="px-6 py-5">
-    <div className="flex items-end justify-between border-b-4 border-amber-500 pb-3 mb-4">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 tracking-wide">{data.personalInfo.name || 'Your Name'}</h1>
-        <div className="text-xs text-gray-500 mt-1">{[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location].filter(Boolean).join('  ·  ')}</div>
+// ─── 5. COMPACT ───────────────────────────────────────────────────────────────
+// Dense, fits more content, tight spacing — great for experienced candidates
+const CompactTemplate = ({ data }: { data: ResumeData }) => (
+  <div style={{ ...s, fontSize: 10, padding: '24px 32px' }}>
+    <div style={{ borderBottom: '2px solid #000', paddingBottom: 6, marginBottom: 8 }}>
+      <span style={{ fontSize: 18, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        {data.personalInfo.name || 'Your Name'}
+      </span>
+      <div style={{ fontSize: 9.5, color: '#333', marginTop: 3 }}>
+        {[data.personalInfo.email, data.personalInfo.phone, data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join(' | ')}
       </div>
-      {(data.personalInfo.linkedin || data.personalInfo.portfolio) && (
-        <div className="text-xs text-amber-700 text-right">{[data.personalInfo.linkedin, data.personalInfo.portfolio].filter(Boolean).join('\n')}</div>
-      )}
     </div>
-    <div className="space-y-4">
-      {data.summary && (<div><SectionLabel label="Executive Summary" template="executive" /><p className="text-xs text-gray-700 leading-relaxed italic">{data.summary}</p></div>)}
-      {data.skills.length > 0 && (
-        <div><SectionLabel label="Areas of Expertise" template="executive" />
-          <div className="grid grid-cols-3 gap-1">{data.skills.map((s, i) => <div key={i} className="text-xs text-gray-700 flex items-center gap-1"><span className="text-amber-500">▸</span>{s}</div>)}</div>
-        </div>
-      )}
-      {data.experience.length > 0 && (
-        <div><SectionLabel label="Career History" template="executive" />
-          {data.experience.map(exp => (
-            <div key={exp.id} className="mb-3">
-              <div className="flex justify-between items-baseline">
-                <span className="font-bold text-xs text-gray-900">{exp.title}</span>
-                <span className="text-xs text-amber-700 font-semibold">{exp.duration}</span>
-              </div>
-              <div className="text-xs text-gray-600 italic mb-1">{exp.company}</div>
-              <ul>{exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} className="text-xs text-gray-700 ml-3">▸ {b}</li>)}</ul>
+
+    {data.summary && (
+      <CompactSection label="SUMMARY">
+        <p style={{ margin: 0 }}>{data.summary}</p>
+      </CompactSection>
+    )}
+    {data.skills.length > 0 && (
+      <CompactSection label="SKILLS">
+        <p style={{ margin: 0 }}>{data.skills.join(' | ')}</p>
+      </CompactSection>
+    )}
+    {data.experience.length > 0 && (
+      <CompactSection label="EXPERIENCE">
+        {data.experience.map(exp => (
+          <div key={exp.id} style={{ marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 700 }}>{exp.title}{exp.company ? ` | ${exp.company}` : ''}</span>
+              <span style={{ color: '#555' }}>{exp.duration}</span>
             </div>
-          ))}
-        </div>
+            <ul style={{ margin: '2px 0 0 14px', padding: 0 }}>
+              {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ marginBottom: 1 }}>{b}</li>)}
+            </ul>
+          </div>
+        ))}
+      </CompactSection>
+    )}
+    {data.education.length > 0 && (
+      <CompactSection label="EDUCATION">
+        {data.education.map(edu => (
+          <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ fontWeight: 700 }}>{edu.degree}{edu.institution ? ` | ${edu.institution}` : ''}{edu.grade ? ` | ${edu.grade}` : ''}</span>
+            <span style={{ color: '#555' }}>{edu.duration}</span>
+          </div>
+        ))}
+      </CompactSection>
+    )}
+  </div>
+);
+
+// ─── 6. PROFESSIONAL ──────────────────────────────────────────────────────────
+// Two-column: narrow left sidebar for contact/skills, wide right for content
+const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
+  <div style={{ ...s, display: 'flex', minHeight: '100%' }}>
+    {/* Left sidebar */}
+    <div style={{ width: '32%', background: '#f5f5f5', borderRight: '1px solid #ddd', padding: '28px 16px', fontSize: 10 }}>
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.2 }}>{data.personalInfo.name || 'Your Name'}</div>
+      </div>
+      <SideSection label="CONTACT">
+        {data.personalInfo.email && <div style={{ marginBottom: 2 }}>{data.personalInfo.email}</div>}
+        {data.personalInfo.phone && <div style={{ marginBottom: 2 }}>{data.personalInfo.phone}</div>}
+        {data.personalInfo.location && <div style={{ marginBottom: 2 }}>{data.personalInfo.location}</div>}
+        {data.personalInfo.linkedin && <div style={{ marginBottom: 2 }}>{data.personalInfo.linkedin}</div>}
+        {data.personalInfo.portfolio && <div style={{ marginBottom: 2 }}>{data.personalInfo.portfolio}</div>}
+      </SideSection>
+      {data.skills.length > 0 && (
+        <SideSection label="SKILLS">
+          {data.skills.map((sk, i) => <div key={i} style={{ marginBottom: 2 }}>• {sk}</div>)}
+        </SideSection>
       )}
       {data.education.length > 0 && (
-        <div><SectionLabel label="Education & Credentials" template="executive" />
+        <SideSection label="EDUCATION">
           {data.education.map(edu => (
-            <div key={edu.id} className="mb-2 flex justify-between">
-              <div><span className="font-bold text-xs text-gray-900">{edu.degree}</span><span className="text-xs text-gray-600"> · {edu.institution}</span></div>
-              <span className="text-xs text-gray-500">{edu.duration}{edu.grade ? ` · ${edu.grade}` : ''}</span>
+            <div key={edu.id} style={{ marginBottom: 6 }}>
+              <div style={{ fontWeight: 700 }}>{edu.degree}</div>
+              {edu.institution && <div>{edu.institution}</div>}
+              {edu.duration && <div style={{ color: '#666' }}>{edu.duration}</div>}
+              {edu.grade && <div style={{ color: '#666' }}>{edu.grade}</div>}
             </div>
           ))}
-        </div>
+        </SideSection>
       )}
       {data.certifications?.length > 0 && (
         <div><SectionLabel label="Certifications" template="executive" />
@@ -403,57 +490,29 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
         </div>
       )}
     </div>
-  </div>
-);
 
-// ─── 6. TECH (Engineering / IT / Developer) ───────────────────────────────────
-const TechTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ fontFamily: 'monospace', fontSize: 10.5 }} className="bg-gray-950 text-green-400 px-6 py-5 min-h-full">
-    <div className="border border-green-700 rounded px-4 py-3 mb-4">
-      <div className="text-green-300 text-xs mb-1">{'// developer profile'}</div>
-      <h1 className="text-xl font-bold text-green-300">{data.personalInfo.name || 'Your Name'}</h1>
-      <div className="text-green-600 text-xs mt-1 space-y-0.5">
-        {data.personalInfo.email && <div>email: <span className="text-green-400">"{data.personalInfo.email}"</span></div>}
-        {data.personalInfo.phone && <div>phone: <span className="text-green-400">"{data.personalInfo.phone}"</span></div>}
-        {data.personalInfo.location && <div>location: <span className="text-green-400">"{data.personalInfo.location}"</span></div>}
-        {data.personalInfo.linkedin && <div>linkedin: <span className="text-green-400">"{data.personalInfo.linkedin}"</span></div>}
-        {data.personalInfo.portfolio && <div>portfolio: <span className="text-green-400">"{data.personalInfo.portfolio}"</span></div>}
-      </div>
-    </div>
-    <div className="space-y-4">
+    {/* Right content */}
+    <div style={{ flex: 1, padding: '28px 20px' }}>
       {data.summary && (
-        <div><SectionLabel label="About" template="tech" />
-          <p className="text-xs text-green-300 leading-relaxed pl-2 border-l border-green-800">{data.summary}</p>
-        </div>
-      )}
-      {data.skills.length > 0 && (
-        <div><SectionLabel label="Tech Stack" template="tech" />
-          <div className="flex flex-wrap gap-1.5 pl-2">
-            {data.skills.map((s, i) => <span key={i} className="bg-green-900 text-green-300 text-xs px-2 py-0.5 rounded border border-green-700">{s}</span>)}
-          </div>
-        </div>
+        <ProfSection label="PROFESSIONAL SUMMARY">
+          <p style={{ margin: 0, fontSize: 10.5 }}>{data.summary}</p>
+        </ProfSection>
       )}
       {data.experience.length > 0 && (
-        <div><SectionLabel label="Experience" template="tech" />
+        <ProfSection label="WORK EXPERIENCE">
           {data.experience.map(exp => (
-            <div key={exp.id} className="mb-3 pl-2 border-l border-green-800">
-              <div className="text-green-200 font-bold text-xs">{exp.title} <span className="text-green-600">@</span> {exp.company}</div>
-              {exp.duration && <div className="text-green-700 text-xs">// {exp.duration}</div>}
-              <ul className="mt-1">{exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} className="text-xs text-green-400 ml-2">→ {b}</li>)}</ul>
+            <div key={exp.id} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={{ fontWeight: 700, fontSize: 11 }}>{exp.title}</span>
+                <span style={{ fontSize: 10, color: '#555' }}>{exp.duration}</span>
+              </div>
+              {exp.company && <div style={{ fontSize: 10.5, color: '#444', marginBottom: 2 }}>{exp.company}</div>}
+              <ul style={{ margin: '3px 0 0 16px', padding: 0 }}>
+                {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ fontSize: 10.5, marginBottom: 2 }}>{b}</li>)}
+              </ul>
             </div>
           ))}
-        </div>
-      )}
-      {data.education.length > 0 && (
-        <div><SectionLabel label="Education" template="tech" />
-          {data.education.map(edu => (
-            <div key={edu.id} className="mb-2 pl-2">
-              <span className="text-green-200 text-xs font-bold">{edu.degree}</span>
-              <span className="text-green-600 text-xs"> · {edu.institution}</span>
-              {edu.duration && <span className="text-green-700 text-xs"> // {edu.duration}</span>}
-            </div>
-          ))}
-        </div>
+        </ProfSection>
       )}
       {data.certifications?.length > 0 && (
         <div><SectionLabel label="Certifications" template="tech" />
@@ -482,17 +541,53 @@ const TechTemplate = ({ data }: { data: ResumeData }) => (
   </div>
 );
 
+// ─── Shared sub-components ────────────────────────────────────────────────────
+const Section = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ marginBottom: 11 }}>
+    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, borderBottom: '1px solid #aaa', paddingBottom: 2, marginBottom: 5 }}>{label}</div>
+    {children}
+  </div>
+);
+
+const ExecSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ marginBottom: 12 }}>
+    <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5, borderBottom: '1px solid #888', paddingBottom: 2 }}>{label}</div>
+    {children}
+  </div>
+);
+
+const CompactSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ marginBottom: 7 }}>
+    <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, marginBottom: 3, borderBottom: '1px solid #ccc', paddingBottom: 1 }}>{label}</div>
+    {children}
+  </div>
+);
+
+const SideSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ marginBottom: 14 }}>
+    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', borderBottom: '1px solid #bbb', paddingBottom: 2, marginBottom: 5 }}>{label}</div>
+    {children}
+  </div>
+);
+
+const ProfSection = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div style={{ marginBottom: 12 }}>
+    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', borderBottom: '1.5px solid #333', paddingBottom: 2, marginBottom: 6 }}>{label}</div>
+    {children}
+  </div>
+);
+
 // ─── ROUTER ───────────────────────────────────────────────────────────────────
 export default function ResumeTemplate({ data, scale = 1 }: Props) {
   const style = scale !== 1 ? { transform: `scale(${scale})`, transformOrigin: 'top left', width: `${100 / scale}%` } : {};
   const inner = (() => {
     switch (data.template) {
-      case 'classic':   return <ClassicTemplate data={data} />;
-      case 'minimal':   return <MinimalTemplate data={data} />;
-      case 'creative':  return <CreativeTemplate data={data} />;
-      case 'executive': return <ExecutiveTemplate data={data} />;
-      case 'tech':      return <TechTemplate data={data} />;
-      default:          return <ModernTemplate data={data} />;
+      case 'modern':       return <ModernTemplate data={data} />;
+      case 'minimal':      return <MinimalTemplate data={data} />;
+      case 'executive':    return <ExecutiveTemplate data={data} />;
+      case 'compact':      return <CompactTemplate data={data} />;
+      case 'professional': return <ProfessionalTemplate data={data} />;
+      default:             return <ClassicTemplate data={data} />;
     }
   })();
   return <div style={style}>{inner}</div>;

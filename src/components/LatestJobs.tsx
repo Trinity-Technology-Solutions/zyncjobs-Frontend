@@ -147,11 +147,20 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
     <div className="bg-white py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-12">
-          <div>
-            <h6 className="text-blue-600 font-semibold text-lg mb-2">Latest Job</h6>
-            <h2 className="text-3xl lg:text-4xl font-bold text-gray-900 mb-2">New Job Offer</h2>
-            <p className="text-gray-600">Latest jobs posted through our platform</p>
-          </div>
+          {/* Label Badge */}
+          <span className="inline-block text-xs font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full mb-4">
+            Latest Jobs
+          </span>
+
+          {/* Heading */}
+          <h2 className="text-4xl font-semibold tracking-tight text-gray-900 mb-3">
+            Recent Job Openings
+          </h2>
+
+          {/* Subtitle */}
+          <p className="text-gray-500 text-base max-w-xl">
+            Discover the latest opportunities from verified employers, updated in real-time.
+          </p>
         </div>
         
         {jobs.length === 0 ? (
