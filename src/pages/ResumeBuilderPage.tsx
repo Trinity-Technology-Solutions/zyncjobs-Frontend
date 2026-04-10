@@ -9,6 +9,7 @@ import ExperienceStep from '../components/resume-builder/ExperienceStep';
 import EducationStep from '../components/resume-builder/EducationStep';
 import SkillsStep from '../components/resume-builder/SkillsStep';
 import AISuggestionsStep from '../components/resume-builder/AISuggestionsStep';
+import CertificationsAwardsStep from '../components/resume-builder/CertificationsAwardsStep';
 import PreviewStep from '../components/resume-builder/PreviewStep';
 import LivePreview from '../components/resume-builder/LivePreview';
 import { useResumeStore } from '../store/useResumeStore';
@@ -20,6 +21,15 @@ interface ResumeBuilderPageProps {
 }
 
 const steps = [
+  { id: 0, name: 'Template',       component: TemplateSelection },
+  { id: 1, name: 'Personal Info',  component: PersonalInfoStep },
+  { id: 2, name: 'Summary',        component: SummaryStep },
+  { id: 3, name: 'Experience',     component: ExperienceStep },
+  { id: 4, name: 'Education',      component: EducationStep },
+  { id: 5, name: 'Skills',         component: SkillsStep },
+  { id: 6, name: 'Certifications', component: CertificationsAwardsStep },
+  { id: 7, name: 'AI Optimize',    component: AISuggestionsStep },
+  { id: 8, name: 'Preview',        component: PreviewStep },
   { id: 0, name: 'Template',     component: TemplateSelection },
   { id: 1, name: 'Contacts',     component: PersonalInfoStep },
   { id: 2, name: 'Experience',   component: ExperienceStep },
@@ -44,6 +54,10 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
   };
 
   const handleNext = () => {
+    if (currentStep === steps.length - 1) {
+      onNavigate?.('resume-studio');
+      return;
+    }
     if (currentStep < steps.length - 1) setCurrentStep(currentStep + 1);
   };
 
@@ -124,6 +138,30 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
             </div>
           </div>
 
+            {/* Navigation Buttons */}
+            <div className="flex items-center justify-between mt-6">
+              <button
+                onClick={handlePrev}
+                disabled={currentStep === 0}
+                className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Previous
+              </button>
+
+              <div className="text-sm text-gray-500">
+                Step {currentStep + 1} of {steps.length}
+              </div>
+
+              <button
+                onClick={handleNext}
+                disabled={currentStep < steps.length - 1 && !canGoNext()}
+                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           {/* ── Step content ── */}
           <div className="bg-white border-l border-r border-gray-200 px-8 py-8 flex-1 overflow-y-auto">
             <CurrentStepComponent />

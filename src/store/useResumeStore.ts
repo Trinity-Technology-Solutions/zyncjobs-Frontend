@@ -29,6 +29,21 @@ export interface EducationItem {
   grade: string;
 }
 
+export interface CertificationItem {
+  id: string;
+  name: string;
+  issuer: string;
+  year: string;
+}
+
+export interface AwardItem {
+  id: string;
+  title: string;
+  issuer: string;
+  year: string;
+  description: string;
+}
+
 export interface ResumeData {
   template: string;
   personalInfo: PersonalInfo;
@@ -36,6 +51,8 @@ export interface ResumeData {
   experience: ExperienceItem[];
   education: EducationItem[];
   skills: string[];
+  certifications: CertificationItem[];
+  awards: AwardItem[];
   jobDescription: string;
 }
 
@@ -49,6 +66,12 @@ interface ResumeStore {
   addEducation: () => void;
   updateEducation: (id: string, field: keyof EducationItem, value: string) => void;
   removeEducation: (id: string) => void;
+  addCertification: () => void;
+  updateCertification: (id: string, field: keyof CertificationItem, value: string) => void;
+  removeCertification: (id: string) => void;
+  addAward: () => void;
+  updateAward: (id: string, field: keyof AwardItem, value: string) => void;
+  removeAward: (id: string) => void;
   reset: () => void;
 }
 
@@ -59,9 +82,120 @@ const defaultData: ResumeData = {
   experience: [],
   education: [],
   skills: [],
+  certifications: [],
+  awards: [],
   jobDescription: '',
 };
 
+export const useResumeStore = create<ResumeStore>((set) => ({
+  data: defaultData,
+
+  update: (field, value) =>
+    set((s) => ({ data: { ...s.data, [field]: value } })),
+
+  updatePersonalInfo: (field, value) =>
+    set((s) => ({
+      data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
+    })),
+
+  addExperience: () =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        experience: [
+          ...s.data.experience,
+          { id: Date.now().toString(), title: '', company: '', duration: '', current: false, bullets: [''] },
+        ],
+      },
+    })),
+
+  updateExperience: (id, field, value) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        experience: s.data.experience.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
+      },
+    })),
+
+  removeExperience: (id) =>
+    set((s) => ({
+      data: { ...s.data, experience: s.data.experience.filter((e) => e.id !== id) },
+    })),
+
+  addEducation: () =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        education: [
+          ...s.data.education,
+          { id: Date.now().toString(), degree: '', institution: '', duration: '', grade: '' },
+        ],
+      },
+    })),
+
+  updateEducation: (id, field, value) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        education: s.data.education.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
+      },
+    })),
+
+  removeEducation: (id) =>
+    set((s) => ({
+      data: { ...s.data, education: s.data.education.filter((e) => e.id !== id) },
+    })),
+
+  addCertification: () =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        certifications: [
+          ...s.data.certifications,
+          { id: Date.now().toString(), name: '', issuer: '', year: '' },
+        ],
+      },
+    })),
+
+  updateCertification: (id, field, value) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        certifications: s.data.certifications.map((c) => (c.id === id ? { ...c, [field]: value } : c)),
+      },
+    })),
+
+  removeCertification: (id) =>
+    set((s) => ({
+      data: { ...s.data, certifications: s.data.certifications.filter((c) => c.id !== id) },
+    })),
+
+  addAward: () =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        awards: [
+          ...s.data.awards,
+          { id: Date.now().toString(), title: '', issuer: '', year: '', description: '' },
+        ],
+      },
+    })),
+
+  updateAward: (id, field, value) =>
+    set((s) => ({
+      data: {
+        ...s.data,
+        awards: s.data.awards.map((a) => (a.id === id ? { ...a, [field]: value } : a)),
+      },
+    })),
+
+  removeAward: (id) =>
+    set((s) => ({
+      data: { ...s.data, awards: s.data.awards.filter((a) => a.id !== id) },
+    })),
+
+  reset: () => set({ data: defaultData }),
+}));
 export const useResumeStore = create<ResumeStore>(
   persist(
     (set) => ({

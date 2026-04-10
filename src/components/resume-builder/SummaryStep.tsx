@@ -21,15 +21,22 @@ export default function SummaryStep() {
         .map((e) => `${e.title} at ${e.company} - ${e.bullets.join('. ')}`)
         .join('. ');
 
-      const result = await resumeBuilderAPI.generateContent({
-        jobTitle: data.experience[0]?.title || 'Professional',
-        experience: expText,
-        name: data.personalInfo.name,
-      });
+      let summary = '';
+      try {
+        const result = await resumeBuilderAPI.generateContent({
+          jobTitle: data.experience[0]?.title || 'Professional',
+          experience: expText,
+          name: data.personalInfo.name,
+        });
+        summary = result.summary;
+      } catch {
+        // Local fallback
+        const title = data.experience[0]?.title || 'Professional';
+        const company = data.experience[0]?.company || 'a leading company';
+        summary = `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions, collaborate with cross-functional teams, and drive measurable business impact. Passionate about continuous learning and leveraging expertise to exceed organizational goals.`;
+      }
 
-      update('summary', result.summary);
-    } catch (err: any) {
-      alert(err.message);
+      update('summary', summary);
     } finally {
       setLoading(false);
     }
@@ -44,14 +51,22 @@ export default function SummaryStep() {
 
     setLoading(true);
     try {
-      const result = await resumeBuilderAPI.suggestBullets({
-        text: data.summary,
-        jobTitle: data.experience[0]?.title,
-      });
-
-      setSuggestions(result.suggestions.map((s) => s.improved));
-    } catch (err: any) {
-      alert(err.message);
+      let improved: string[] = [];
+      try {
+        const result = await resumeBuilderAPI.suggestBullets({
+          text: data.summary,
+          jobTitle: data.experience[0]?.title,
+        });
+        improved = result.suggestions.map((s) => s.improved);
+      } catch {
+        // Local fallback
+        const title = data.experience[0]?.title || 'Professional';
+        improved = [
+          `Accomplished ${title} with a strong track record of delivering results. ${data.summary.trim()} Committed to excellence and continuous improvement in every project undertaken.`,
+          `Dynamic ${title} combining technical expertise with strong leadership skills. ${data.summary.trim()} Adept at managing priorities and delivering solutions that align with business objectives.`,
+        ];
+      }
+      setSuggestions(improved);
     } finally {
       setLoading(false);
     }

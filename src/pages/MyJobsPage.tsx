@@ -280,8 +280,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     const jobKey = job._id || job.id || `job-${Math.random()}`;
     return (
     <div key={jobKey} className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 transition-all bg-white relative overflow-hidden group">
-      {/* Gradient accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+      {/* Gradient accent bar - left corner only */}
+      <div className="absolute top-0 left-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 via-purple-500 to-pink-500 rounded-l-xl"></div>
       
       <div className="flex items-start justify-between gap-4">
         {/* Left: Logo + Content */}

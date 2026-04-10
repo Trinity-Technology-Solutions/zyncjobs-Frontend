@@ -69,13 +69,13 @@ class ResumeBuilderAPI {
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to generate content');
+      let errMsg = 'Failed to generate content';
+      try { const err = await res.json(); errMsg = err.error || errMsg; } catch {}
+      throw new Error(errMsg);
     }
     return res.json();
   }
 
-  // (B) JD-Based Optimization - improves resume based on job description
   async optimizeWithJD(data: AIOptimizeJDRequest): Promise<AIOptimizeJDResponse> {
     const res = await fetch(`${API_BASE}/resume-builder/optimize-jd`, {
       method: 'POST',
@@ -83,13 +83,13 @@ class ResumeBuilderAPI {
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to optimize resume');
+      let errMsg = 'Failed to optimize resume';
+      try { const err = await res.json(); errMsg = err.error || errMsg; } catch {}
+      throw new Error(errMsg);
     }
     return res.json();
   }
 
-  // (C) Real-time Bullet Suggestions
   async suggestBullets(data: AISuggestBulletsRequest): Promise<AISuggestBulletsResponse> {
     const res = await fetch(`${API_BASE}/resume-builder/suggest-bullets`, {
       method: 'POST',
@@ -97,13 +97,13 @@ class ResumeBuilderAPI {
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to get suggestions');
+      let errMsg = 'Failed to get suggestions';
+      try { const err = await res.json(); errMsg = err.error || errMsg; } catch {}
+      throw new Error(errMsg);
     }
     return res.json();
   }
 
-  // ATS Score Calculator
   async calculateATSScore(data: ATSScoreRequest): Promise<ATSScoreResponse> {
     const res = await fetch(`${API_BASE}/resume-builder/ats-score`, {
       method: 'POST',
@@ -111,8 +111,9 @@ class ResumeBuilderAPI {
       body: JSON.stringify(data),
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to calculate ATS score');
+      let errMsg = 'Failed to calculate ATS score';
+      try { const err = await res.json(); errMsg = err.error || errMsg; } catch {}
+      throw new Error(errMsg);
     }
     return res.json();
   }
