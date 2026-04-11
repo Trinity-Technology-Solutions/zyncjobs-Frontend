@@ -704,6 +704,8 @@ return (
                               profilePhoto: candidate.profilePhoto || '',
                               companyName: userData.companyName || userData.company || '',
                               companyLogo: userData.companyLogo || '',
+                              appliedJobTitle: selectedJob ? (selectedJob.jobTitle || selectedJob.title || '') : '',
+                              appliedJobId: selectedJob ? (selectedJob._id || selectedJob.id || null) : null,
                             };
                             fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) })
                               .then(async res => {

@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
+import { computeMatchBreakdown, normalizeSkill, getUserProfile } from '../utils/matchScore';
 
 interface Props {
   onNavigate?: (page: string, data?: any) => void;
@@ -20,7 +21,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'match' | 'recent'>('match');
-  const [breakdownJob, setBreakdownJob] = useState<string | null>(null);
+  const [breakdownJob, setBreakdownJob] = useState<any | null>(null);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
 
   const userId = (() => {
@@ -35,6 +36,18 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       return JSON.parse(localStorage.getItem('user') || '{}').name || 'there';
     } catch { return 'there'; }
   })();
+
+  const getUserSkills = (): string[] => {
+    try {
+      const profile = getUserProfile();
+      const raw = profile.skills || profile.keySkills || [];
+      return Array.isArray(raw)
+        ? raw.map((s: any) => String(s || '').toLowerCase().trim()).filter(Boolean)
+        : [];
+    } catch { return []; }
+  };
+
+  // Removed calcLocalMatchScore — now using computeMatchBreakdown from shared utility
 
   useEffect(() => { loadRecommendations(); fetchCompanyLogos(); }, []);
 
@@ -59,21 +72,27 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       setError('');
       const data = await matchAPI.getRecommendations(userId, 20);
       const raw = Array.isArray(data?.jobs) ? data.jobs : [];
-      const normalized = raw.map((j: any) => ({
-        ...j,
-        id: j.id || j._id || '',
-        title: j.title || j.jobTitle || '',
-        company: j.company || '',
-        location: j.location || '',
-        salary: j.salary || null,
-        salaryMin: j.salaryMin || null,
-        salaryMax: j.salaryMax || null,
-        type: j.type || j.workType || j.jobType || '',
-        skills: Array.isArray(j.skills) ? j.skills : [],
-        matchScore: j.matchScore || 0,
-        description: j.description || '',
-        createdAt: j.createdAt || '',
-      }));
+      const normalized = raw.map((j: any) => {
+        const jobSkills = Array.isArray(j.skills) ? j.skills : [];
+        const jobData = { ...j, title: j.title || j.jobTitle || '', skills: jobSkills };
+        // Always use the same weighted formula as the modal
+        const { overall } = computeMatchBreakdown(jobData);
+        return {
+          ...j,
+          id: j.id || j._id || '',
+          title: j.title || j.jobTitle || '',
+          company: j.company || '',
+          location: j.location || '',
+          salary: j.salary || null,
+          salaryMin: j.salaryMin || null,
+          salaryMax: j.salaryMax || null,
+          type: j.type || j.workType || j.jobType || '',
+          skills: jobSkills,
+          matchScore: overall,
+          description: j.description || '',
+          createdAt: j.createdAt || '',
+        };
+      });
       setJobs(normalized);
     } catch (err: any) {
       setError(err?.message || 'Failed to load recommendations');
@@ -302,11 +321,17 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                         {/* Skills */}
                         {job.skills.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
-                            {job.skills.slice(0, 5).map((skill: string, i: number) => (
-                              <span key={i} className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded font-medium">
-                                {String(skill)}
-                              </span>
-                            ))}
+                            {job.skills.slice(0, 5).map((skill: string, i: number) => {
+                              const userSkills = getUserSkills();
+                              const isMatched = userSkills.some(us => us.includes(normalizeSkill(skill)) || normalizeSkill(skill).includes(us));
+                              return (
+                                <span key={i} className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                  isMatched ? 'bg-green-100 text-green-700' : 'bg-indigo-50 text-indigo-700'
+                                }`}>
+                                  {isMatched ? '✓ ' : ''}{String(skill)}
+                                </span>
+                              );
+                            })}
                             {job.skills.length > 5 && (
                               <span className="text-xs text-gray-400 px-2 py-0.5">+{job.skills.length - 5} more</span>
                             )}
@@ -319,7 +344,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                         <MatchScoreBadge score={job.matchScore || 0} size="lg" />
                         <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
                           <button
-                            onClick={() => setBreakdownJob(job.id)}
+                            onClick={() => setBreakdownJob(job)}
                             className="flex-1 sm:flex-none text-sm border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 font-semibold transition-colors whitespace-nowrap"
                           >
                             View Match
@@ -365,8 +390,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       {/* Match Breakdown Modal */}
       {breakdownJob && (
         <MatchBreakdownModal
-          jobId={breakdownJob}
-          userId={userId}
+          job={breakdownJob}
           isOpen={true}
           onClose={() => setBreakdownJob(null)}
         />

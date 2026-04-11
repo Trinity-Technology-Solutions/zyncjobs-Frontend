@@ -399,6 +399,15 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       <div className="flex flex-col" style={{ minHeight: 'calc(100vh - 64px)', background: 'linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%)' }}>
         <div className="flex-1 max-w-4xl w-full mx-auto px-6 py-10">
 
+          {/* Back button */}
+          <button
+            onClick={() => onNavigate('dashboard')}
+            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </button>
+
           {/* Greeting */}
           <div className="flex items-start justify-between mb-10">
             <div>

@@ -778,7 +778,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('team') },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('auto-rejection') },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('candidate-search'), external: true },
-                { key: 'top-candidates', label: '🎯 Top Candidates', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, action: () => onNavigate('candidate-matches'), external: true },
                 { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('saved-candidates') },
                 { key: 'alerts',           label: 'Alerts',            icon: <Bell className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('alerts'), badge: notifications.length || null, badgeRed: true },
                 { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('settings'), external: true },
@@ -1631,16 +1630,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                          {/* Name + Saved-by badge */}
+                          {/* Name + Applied Job badge */}
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <h3 className="text-xl font-bold text-gray-900">{name}</h3>
-                            {candidate.companyName && (
+                            {candidate.appliedJobTitle && (
                               <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                {candidate.companyLogo && (
-                                  <img src={candidate.companyLogo} alt="" className="w-3.5 h-3.5 rounded-full object-cover"
-                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                                )}
-                                {candidate.companyName}
+                                <Briefcase className="w-3 h-3" />
+                                {candidate.appliedJobTitle}
                               </span>
                             )}
                           </div>
