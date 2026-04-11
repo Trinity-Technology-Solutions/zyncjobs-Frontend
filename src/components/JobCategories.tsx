@@ -105,6 +105,30 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
 
   const fetchCategoryCounts = async () => {
     try {
+      // First try to get counts from the categories endpoint
+      const response = await fetch(`${API_ENDPOINTS.JOBS}/categories`);
+      if (response.ok) {
+        const data = await response.json();
+        const counts: {[key: string]: number} = {};
+        
+        // Map API categories to frontend categories
+        data.forEach((item: {category: string, count: number}) => {
+          counts[item.category] = item.count;
+        });
+        
+        // Set counts for categories that exist in the API
+        categories.forEach(cat => {
+          if (counts[cat.name] === undefined) {
+            counts[cat.name] = 0;
+          }
+        });
+        
+        setCategoryCounts(counts);
+        setLoading(false);
+        return;
+      }
+      
+      // Fallback to search-based counting if categories endpoint fails
       const counts: {[key: string]: number} = {};
       for (const category of categories) {
         try {
@@ -133,7 +157,7 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
       setCategoryCounts(counts);
     } catch {
       const defaultCounts: {[key: string]: number} = {};
-      categories.forEach(cat => { defaultCounts[cat.name] = Math.floor(Math.random() * 200) + 50; });
+      categories.forEach(cat => { defaultCounts[cat.name] = 0; });
       setCategoryCounts(defaultCounts);
     } finally {
       setLoading(false);
