@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import { accountAPI } from '../api/account';
@@ -337,7 +337,26 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                   )}
                 </div>
 
-                {/* Manage Account Section */}
+              {/* Privacy Settings Link */}
+              <div className="border-b">
+                <div className="flex items-center justify-between p-6">
+                  <div className="flex items-center">
+                    <Shield className="w-5 h-5 text-gray-400 mr-3" />
+                    <div>
+                      <h3 className="font-medium text-gray-900">Privacy & Data</h3>
+                      <p className="text-sm text-gray-500">Manage consent, download or delete your data</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onNavigate('privacy-settings')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors text-sm"
+                  >
+                    Manage
+                  </button>
+                </div>
+              </div>
+
+              {/* Manage Account Section */}
                 <div className="border-b">
                   <button
                     onClick={() => toggleSection('manage')}

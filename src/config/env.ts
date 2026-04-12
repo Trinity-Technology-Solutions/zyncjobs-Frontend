@@ -69,6 +69,18 @@ export const API_ENDPOINTS = {
   // Saved Candidates
   SAVED_CANDIDATES: `${config.API_URL}/saved-candidates`,
 
+  // Candidate Credentialing
+  CREDENTIALING: `${config.API_URL}/credentialing`,
+
+  // Salary Insights
+  SALARY_INSIGHTS: `${config.API_URL}/salary-insights`,
+
+  // GDPR
+  GDPR_CONSENT: `${config.API_URL}/gdpr/consent`,
+  GDPR_PRIVACY_SETTINGS: `${config.API_URL}/gdpr/privacy-settings`,
+  GDPR_DOWNLOAD_DATA: `${config.API_URL}/gdpr/download-data`,
+  GDPR_DELETE_ACCOUNT: `${config.API_URL}/gdpr/delete-account`,
+
   // Notifications
   NOTIFICATIONS: `${config.API_URL}/notifications`,
   CANDIDATE_NOTIFICATIONS: `${config.API_URL}/notifications/candidate`,
