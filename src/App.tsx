@@ -17,6 +17,7 @@ import JobAlertsManager from './components/JobAlertsManager';
 import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
 import ErrorBoundary from './components/ErrorBoundary';
+import CookieConsentBanner from './components/CookieConsentBanner';
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 
@@ -94,6 +95,9 @@ const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 const RecommendedJobs = lazy(() => import('./components/RecommendedJobs'));
 const JobRecommendationsPage = lazy(() => import('./pages/JobRecommendationsPage'));
 const CareerRoadmapPage = lazy(() => import('./pages/CareerRoadmapPage'));
+const SalaryInsightsPage = lazy(() => import('./pages/SalaryInsightsPage'));
+const ProfileVisibilityToggle = lazy(() => import('./components/ProfileVisibilityToggle'));
+const PrivacySettingsPage = lazy(() => import('./pages/PrivacySettingsPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -334,6 +338,10 @@ function App() {
       navigate('/candidate-messages');
       return;
     }
+    if (page === 'privacy-settings') {
+      navigate('/privacy-settings');
+      return;
+    }
     navigate(`/${page}`);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
   };
@@ -350,6 +358,7 @@ function App() {
     <>
       <GlobalAlert />
       <OfflineIndicator />
+      <CookieConsentBanner onNavigate={handleNavigation} />
       <Notification
         type={notification.type}
         message={notification.message}
@@ -417,6 +426,11 @@ function App() {
           <Route path="/help" element={<HelpCenterPage {...nav} />} />
           <Route path="/terms" element={<TermsPage {...nav} />} />
           <Route path="/privacy" element={<PrivacyPage {...nav} />} />
+          <Route path="/privacy-settings" element={
+            <AuthGuard user={user}>
+              <PrivacySettingsPage {...nav} />
+            </AuthGuard>
+          } />
           <Route path="/accessibility" element={<AccessibilityPage {...nav} />} />
           <Route path="/resume-help" element={<ResumeHelpPage {...nav} />} />
 
@@ -509,6 +523,27 @@ function App() {
           <Route path="/career-roadmap" element={
             <AuthGuard user={user} allowedRoles={['candidate']}>
               <CareerRoadmapPage {...nav} />
+            </AuthGuard>
+          } />
+
+          <Route path="/salary-insights" element={
+            <WithLayout {...nav}>
+              <div className="max-w-4xl mx-auto px-4 py-8">
+                <SalaryInsightsPage />
+              </div>
+            </WithLayout>
+          } />
+
+          <Route path="/profile-visibility" element={
+            <AuthGuard user={user} allowedRoles={['candidate']}>
+              <WithLayout {...nav}>
+                <div className="max-w-2xl mx-auto px-4 py-8">
+                  <ProfileVisibilityToggle
+                    userEmail={user?.email || ''}
+                    onSave={() => {}}
+                  />
+                </div>
+              </WithLayout>
             </AuthGuard>
           } />
 

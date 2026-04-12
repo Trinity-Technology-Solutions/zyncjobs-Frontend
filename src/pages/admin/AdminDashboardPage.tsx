@@ -62,6 +62,7 @@ const navItems: NavItem[] = [
   { id: 'notifications', label: 'Notifications',   icon: Bell,            section: 'communication' },
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
+  { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
   { id: 'settings',      label: 'Settings',        icon: Settings,        section: 'system' },
 ];
 
@@ -264,6 +265,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'notifications': return <NotificationsSection onUnauthorized={handleUnauthorized} />;
       case 'email':         return <EmailControlSection onUnauthorized={handleUnauthorized} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
+      case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
       case 'settings':      return <AdminSettingsSection onUnauthorized={handleUnauthorized} />;
       default:              return <OverviewSection loading={loading} stats={stats} growth={growth} quickStats={quickStats} />;
     }
@@ -941,6 +943,152 @@ function AnalyticsSection({ growth, stats }: { growth: GrowthPoint[]; stats: Ove
               ))}
             </div>
           ) : <p className="text-gray-500 text-sm">Loading...</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GdprDashboardSection({ onUnauthorized }: { onUnauthorized: () => void }) {
+  const [stats, setStats] = useState<any>(null);
+  const [records, setRecords] = useState<any[]>([]);
+  const [filter, setFilter] = useState('all');
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [s, r] = await Promise.all([
+        authFetch(`${API_ENDPOINTS.ADMIN_USERS}/gdpr/stats`, {}, onUnauthorized),
+        authFetch(`${API_ENDPOINTS.ADMIN_USERS}/gdpr/records?limit=50${filter !== 'all' ? `&status=${filter}` : ''}`, {}, onUnauthorized),
+      ]);
+      setStats(s);
+      setRecords(r.records ?? []);
+    } catch (e: any) {
+      if (e.message !== 'UNAUTHORIZED') {}
+    } finally {
+      setLoading(false);
+    }
+  }, [onUnauthorized, filter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
+      active:   'bg-emerald-900/40 text-emerald-400',
+      reminded: 'bg-amber-900/40 text-amber-400',
+      deleted:  'bg-red-900/40 text-red-400',
+    };
+    return map[status] || 'bg-gray-800 text-gray-400';
+  };
+
+  const statCards = stats ? [
+    { label: 'Total Consent Records', val: stats.total,         color: 'bg-blue-600' },
+    { label: 'Consent Given',         val: stats.consentGiven,  color: 'bg-emerald-600' },
+    { label: '6-Month Inactive',      val: stats.inactive6m,    color: 'bg-amber-500' },
+    { label: 'Reminders Sent',        val: stats.reminded,      color: 'bg-orange-500' },
+    { label: 'Resumes Auto-Deleted',  val: stats.deleted,       color: 'bg-red-600' },
+    { label: 'Deleted (Last 30d)',    val: stats.recentDeleted, color: 'bg-rose-700' },
+  ] : [];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
+        {loading
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-gray-900 rounded-xl p-4 border border-gray-800 animate-pulse">
+                <div className="h-3 bg-gray-700 rounded w-20 mb-2" />
+                <div className="h-7 bg-gray-700 rounded w-12" />
+              </div>
+            ))
+          : statCards.map(({ label, val, color }) => (
+              <div key={label} className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+                <p className="text-xs text-gray-500 mb-1 leading-tight">{label}</p>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${color}`} />
+                  <span className="text-xl font-bold text-white">{val ?? 0}</span>
+                </div>
+              </div>
+            ))
+        }
+      </div>
+
+      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <Shield className="w-4 h-4 text-blue-400" />
+            <h2 className="text-sm font-semibold">Consent Records</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={filter}
+              onChange={e => setFilter(e.target.value)}
+              className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-3 py-1.5 text-xs focus:outline-none"
+            >
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="reminded">Reminded</option>
+              <option value="deleted">Deleted</option>
+            </select>
+            <button onClick={load} disabled={loading} className="text-gray-400 hover:text-white disabled:opacity-40">
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-800">
+                <th className="text-left px-6 py-3 font-medium">User</th>
+                <th className="text-left px-6 py-3 font-medium">Consent Date</th>
+                <th className="text-left px-6 py-3 font-medium">Last Active</th>
+                <th className="text-left px-6 py-3 font-medium">Reminder Sent</th>
+                <th className="text-left px-6 py-3 font-medium">Resume Status</th>
+                <th className="text-left px-6 py-3 font-medium">AI Allowed</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading
+                ? Array.from({ length: 8 }).map((_, i) => (
+                    <tr key={i} className="border-b border-gray-800 animate-pulse">
+                      {Array.from({ length: 6 }).map((_, j) => (
+                        <td key={j} className="px-6 py-3"><div className="h-4 bg-gray-700 rounded w-24" /></td>
+                      ))}
+                    </tr>
+                  ))
+                : records.map((r: any) => (
+                    <tr key={r.id} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors">
+                      <td className="px-6 py-3">
+                        <p className="text-gray-200 text-xs font-medium">{r.userName}</p>
+                        <p className="text-gray-500 text-xs">{r.userEmail}</p>
+                      </td>
+                      <td className="px-6 py-3 text-gray-400 text-xs">
+                        {r.consentDate ? new Date(r.consentDate).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-3 text-gray-400 text-xs">
+                        {r.lastActiveAt ? new Date(r.lastActiveAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-3 text-gray-400 text-xs">
+                        {r.reminderSentAt ? new Date(r.reminderSentAt).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${statusBadge(r.resumeStatus)}`}>
+                          {r.resumeStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`text-xs font-medium ${r.allowAIRecommendations ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {r.allowAIRecommendations ? 'Yes' : 'No'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+              }
+            </tbody>
+          </table>
+          {!loading && !records.length && (
+            <p className="text-center text-gray-500 py-8 text-sm">No GDPR records found.</p>
+          )}
         </div>
       </div>
     </div>

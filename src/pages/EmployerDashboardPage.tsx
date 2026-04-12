@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles } from 'lucide-react';
+import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from '../config/constants';
 import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
+import CandidateCredentialing from '../components/CandidateCredentialing';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
@@ -74,7 +75,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const convos = await res.json();
         // Enrich each conversation with the other party's info
         const enriched = await Promise.all(
-          convos.slice(0, 4).map(async (c: any) => {
+          convos.slice(0, 4).filter((c: any) => c.lastMessage).map(async (c: any) => {
             const msg = c.lastMessage;
             const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId;
             try {
@@ -769,9 +770,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <nav className="py-4 flex flex-col px-3 space-y-1">
               {([
                 { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard') },
+                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('job-management'), external: true },
                 { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => onNavigate('candidate-ranking'), external: true },
                 { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('ai-recruiter'), external: true },
-                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('job-management'), external: true },
                 { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('applications'), badge: applications.length || null },
                 { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('interviews'), badge: interviews.length || null },
                 { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('my-jobs'), external: true, badge: jobs.length || null },
@@ -779,7 +780,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('auto-rejection') },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('candidate-search'), external: true },
                 { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('saved-candidates') },
-                { key: 'alerts',           label: 'Alerts',            icon: <Bell className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('alerts'), badge: notifications.length || null, badgeRed: true },
+                { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('credentialing') },
                 { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('settings'), external: true },
               ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean }[]).map(item => {
                 const isActive = activeMenu === item.key;
@@ -1828,6 +1829,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <h1 className="text-3xl font-bold text-gray-900 mb-8">AI Auto-Rejection Settings</h1>
               <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
             </>
+          ) : activeMenu === 'credentialing' ? (
+            <CandidateCredentialing employerEmail={user?.email || ''} showToast={showToast} />
           ) : null}
           </div>
         </div>

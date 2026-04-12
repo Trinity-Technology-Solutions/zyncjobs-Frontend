@@ -8,6 +8,7 @@ import CandidateNotificationBell from '../components/CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { API_ENDPOINTS } from '../config/env';
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
+import ProfileVisibilityToggle from '../components/ProfileVisibilityToggle';
 
 interface CandidateDashboardPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -657,6 +658,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <span className="text-gray-700">Career Roadmap</span>
                     </button>
                     <button 
+                      onClick={() => onNavigate('salary-insights')}
+                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <span className="text-gray-700">Salary Insights</span>
+                    </button>
+                    <button 
                       onClick={() => {
                         try {
                           onNavigate('job-matches');
@@ -757,6 +765,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Profile Visibility */}
+                <div className="mb-6">
+                  <ProfileVisibilityToggle
+                    userEmail={user?.email || ''}
+                    compact={true}
+                    onSave={(data) => {
+                      const updatedUser = { ...user, ...data };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                    }}
+                  />
                 </div>
 
                 {/* Stats between Quick Actions and Followed Companies */}

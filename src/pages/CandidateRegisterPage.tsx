@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, ArrowLeft, Briefcase, Users, TrendingUp, CheckCircle } from 'lucide-react';
 import { authAPI } from '../api/auth';
+import { gdprAPI } from '../api/gdpr';
 import Header from '../components/Header';
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 
@@ -33,6 +34,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [consentResume, setConsentResume] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -56,7 +58,11 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
       setError(msg); showToast(msg, 'error'); setLoading(false); return;
     }
     try {
-      await authAPI.register({ email: formData.email, password: formData.password, name: formData.name, userType: 'candidate' });
+      const registered = await authAPI.register({ email: formData.email, password: formData.password, name: formData.name, userType: 'candidate' });
+      // Record GDPR consent
+      const userId = (registered as any)?.id || (registered as any)?._id || formData.email;
+      const consentTypes = ['terms', ...(consentResume ? ['resume_storage'] : [])];
+      gdprAPI.recordConsent(userId, consentTypes).catch(() => {});
       const msg = 'Account created successfully! You can now sign in.';
       setSuccess(msg);
       showToast(msg, 'success');
@@ -267,18 +273,31 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 }}
               />
 
-              <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors mt-4 ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
-                <input
-                  type="checkbox" id="terms-candidate" checked={agreedToTerms}
-                  onChange={e => setAgreedToTerms(e.target.checked)}
-                  className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
-                />
-                <label htmlFor="terms-candidate" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
-                  By creating an account, I agree to ZyncJobs'{' '}
-                  <button type="button" onClick={() => onNavigate('terms')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Terms & Conditions</button>
-                  {' '}and{' '}
-                  <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Privacy Policy</button>.
-                </label>
+              <div className="space-y-2 mt-4">
+                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <input
+                    type="checkbox" id="terms-candidate" checked={agreedToTerms}
+                    onChange={e => setAgreedToTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                  />
+                  <label htmlFor="terms-candidate" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
+                    By creating an account, I agree to ZyncJobs'{' '}
+                    <button type="button" onClick={() => onNavigate('terms')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Terms & Conditions</button>
+                    {' '}and{' '}
+                    <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Privacy Policy</button>.
+                  </label>
+                </div>
+                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${consentResume ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                  <input
+                    type="checkbox" id="consent-resume" checked={consentResume}
+                    onChange={e => setConsentResume(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                  />
+                  <label htmlFor="consent-resume" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
+                    I agree to store my resume for job matching and opportunities. Your data may be processed using AI to improve recommendations.{' '}
+                    <button type="button" onClick={() => onNavigate('privacy-settings')} className="text-blue-600 hover:text-blue-800 underline">Manage privacy settings</button>.
+                  </label>
+                </div>
               </div>
 
               <p className="text-center text-sm text-gray-500 mt-6">
