@@ -178,10 +178,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchTerm.trim() && !location.trim()) return;
-    trackSearch(searchTerm);
+    const term = searchTerm.trim();
+    const loc = location.trim();
+    if (!term && !loc) return;
+    if (term) trackSearch(term);
     if (onNavigate) {
-      onNavigate('job-listings', { searchTerm, location });
+      onNavigate('job-listings', { searchTerm: term, location: loc });
     }
   };
 
@@ -409,7 +411,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                         setSearchTerm(term);
                         trackSearch(term);
                         if (onNavigate) {
-                          onNavigate('job-listings', { searchTerm: term, location });
+                          onNavigate('job-listings', { searchTerm: term, location: location.trim() });
                         }
                       }}
                       className="hover:underline cursor-pointer" style={{color: '#a78bfa'}}
