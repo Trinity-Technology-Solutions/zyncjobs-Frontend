@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Users, Briefcase, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 
 interface ProfileVisibilityToggleProps {
   userEmail: string;
@@ -20,6 +21,19 @@ const PROFILE_VISIBILITY_OPTIONS = [
   { value: 'private', label: 'Private', desc: 'Your profile is hidden from search', icon: <EyeOff className="w-4 h-4" /> },
 ];
 
+const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
+  <button
+    onClick={onToggle}
+    className={`relative flex-shrink-0 w-11 h-6 rounded-full border-2 transition-colors duration-200 focus:outline-none ${
+      on ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'
+    }`}
+  >
+    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow-md border border-gray-200 transition-transform duration-200 ${
+      on ? 'translate-x-5' : 'translate-x-0'
+    }`} />
+  </button>
+);
+
 const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userEmail, onSave, compact = false }) => {
   const [openToWork, setOpenToWork] = useState(false);
   const [visibilityStatus, setVisibilityStatus] = useState('passively-looking');
@@ -31,7 +45,7 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
   useEffect(() => {
     const fetchVisibility = async () => {
       try {
-        const res = await fetch(`${API_ENDPOINTS.PROFILE}/${encodeURIComponent(userEmail)}`);
+        const res = await apiFetch(`${API_ENDPOINTS.PROFILE}/${encodeURIComponent(userEmail)}`);
         if (res.ok) {
           const data = await res.json();
           setOpenToWork(data.openToWork ?? false);
@@ -44,32 +58,47 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
     if (userEmail) fetchVisibility();
   }, [userEmail]);
 
-  const handleSave = async () => {
+  const save = async (patch: Partial<{ openToWork: boolean; visibilityStatus: string; profileVisibility: string }>) => {
     setSaving(true);
+    const payload = {
+      openToWork: patch.openToWork ?? openToWork,
+      visibilityStatus: patch.visibilityStatus ?? visibilityStatus,
+      profileVisibility: patch.profileVisibility ?? profileVisibility,
+    };
     try {
-      const res = await fetch(`${API_ENDPOINTS.PROFILE}/save`, {
+      const res = await apiFetch(`${API_ENDPOINTS.PROFILE}/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: userEmail, openToWork, visibilityStatus, profileVisibility }),
+        body: JSON.stringify({ email: userEmail, ...payload }),
       });
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
-        onSave?.({ openToWork, visibilityStatus, profileVisibility });
-        // Update localStorage
+        onSave?.(payload);
         try {
           const stored = localStorage.getItem('user');
-          if (stored) {
-            const u = JSON.parse(stored);
-            localStorage.setItem('user', JSON.stringify({ ...u, openToWork, visibilityStatus, profileVisibility }));
-          }
+          if (stored) localStorage.setItem('user', JSON.stringify({ ...JSON.parse(stored), ...payload }));
         } catch { /* silent */ }
       }
     } catch { /* silent */ }
     finally { setSaving(false); }
   };
 
-  const currentStatus = VISIBILITY_OPTIONS.find(o => o.value === visibilityStatus);
+  const toggleOpenToWork = () => {
+    const next = !openToWork;
+    setOpenToWork(next);
+    save({ openToWork: next });
+  };
+
+  const changeVisibility = (val: string) => {
+    setVisibilityStatus(val);
+    save({ visibilityStatus: val });
+  };
+
+  const changeProfileVisibility = (val: string) => {
+    setProfileVisibility(val);
+    save({ profileVisibility: val });
+  };
 
   if (loading) return <div className="animate-pulse h-32 bg-gray-100 rounded-xl" />;
 
@@ -78,25 +107,19 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
       <div className="bg-white border border-gray-200 rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-gray-900">Profile Visibility</h3>
-          <button onClick={handleSave} disabled={saving} className="text-xs bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex-shrink-0">
-            {saved ? '✓ Saved' : saving ? 'Saving...' : 'Save'}
-          </button>
+          {saving && <span className="text-xs text-gray-400">Saving...</span>}
+          {saved && <span className="text-xs text-green-600 font-medium">✓ Saved</span>}
         </div>
         {/* Open to Work toggle */}
         <div className="flex items-center gap-2 mb-3 p-2 bg-green-50 rounded-lg border border-green-200">
           <Briefcase className="w-4 h-4 text-green-600 flex-shrink-0" />
           <span className="text-sm font-medium text-green-800 flex-1">Open to Work</span>
-          <button
-            onClick={() => setOpenToWork(!openToWork)}
-            className={`relative flex-shrink-0 w-10 h-5 rounded-full transition-colors overflow-hidden ${openToWork ? 'bg-green-500' : 'bg-gray-300'}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${openToWork ? 'translate-x-5' : 'translate-x-0.5'}`} />
-          </button>
+          <Toggle on={openToWork} onToggle={toggleOpenToWork} />
         </div>
         {/* Status select */}
         <select
           value={visibilityStatus}
-          onChange={e => setVisibilityStatus(e.target.value)}
+          onChange={e => changeVisibility(e.target.value)}
           className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500"
         >
           {VISIBILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -124,11 +147,16 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
               <p className="text-xs text-gray-500">{openToWork ? 'Recruiters can see you are looking for jobs' : 'Hidden from recruiters'}</p>
             </div>
           </div>
+          {/* Large toggle for full page */}
           <button
-            onClick={() => setOpenToWork(!openToWork)}
-            className={`relative w-14 h-7 rounded-full transition-colors duration-300 ${openToWork ? 'bg-green-500' : 'bg-gray-300'}`}
+            onClick={toggleOpenToWork}
+            className={`relative w-14 h-7 rounded-full border-2 transition-colors duration-300 focus:outline-none ${
+              openToWork ? 'bg-green-500 border-green-500' : 'bg-white border-gray-300'
+            }`}
           >
-            <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-300 ${openToWork ? 'translate-x-8' : 'translate-x-1'}`} />
+            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow-md border border-gray-200 transition-transform duration-300 ${
+              openToWork ? 'translate-x-7' : 'translate-x-0'
+            }`} />
           </button>
         </div>
         {openToWork && (
@@ -145,7 +173,8 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
         <div className="space-y-3">
           {VISIBILITY_OPTIONS.map(opt => (
             <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${visibilityStatus === opt.value ? opt.bg : 'border-gray-100 hover:border-gray-200'}`}>
-              <input type="radio" name="visibilityStatus" value={opt.value} checked={visibilityStatus === opt.value} onChange={() => setVisibilityStatus(opt.value)} className="sr-only" />
+              <input type="radio" name="visibilityStatus" value={opt.value} checked={visibilityStatus === opt.value}
+                onChange={() => changeVisibility(opt.value)} className="sr-only" />
               <div className={`w-3 h-3 rounded-full flex-shrink-0 ${opt.color}`} />
               <div className="flex-1">
                 <p className={`text-sm font-semibold ${visibilityStatus === opt.value ? opt.textColor : 'text-gray-700'}`}>{opt.label}</p>
@@ -163,7 +192,8 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
         <div className="space-y-3">
           {PROFILE_VISIBILITY_OPTIONS.map(opt => (
             <label key={opt.value} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${profileVisibility === opt.value ? 'bg-blue-50 border-blue-300' : 'border-gray-100 hover:border-gray-200'}`}>
-              <input type="radio" name="profileVisibility" value={opt.value} checked={profileVisibility === opt.value} onChange={() => setProfileVisibility(opt.value)} className="sr-only" />
+              <input type="radio" name="profileVisibility" value={opt.value} checked={profileVisibility === opt.value}
+                onChange={() => changeProfileVisibility(opt.value)} className="sr-only" />
               <span className={`flex-shrink-0 ${profileVisibility === opt.value ? 'text-blue-600' : 'text-gray-400'}`}>{opt.icon}</span>
               <div className="flex-1">
                 <p className={`text-sm font-semibold ${profileVisibility === opt.value ? 'text-blue-700' : 'text-gray-700'}`}>{opt.label}</p>
@@ -175,14 +205,12 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
         </div>
       </div>
 
-      {/* Save Button */}
-      <button
-        onClick={handleSave}
-        disabled={saving}
-        className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-      >
-        {saved ? <><CheckCircle className="w-5 h-5" /> Saved!</> : saving ? 'Saving...' : 'Save Visibility Settings'}
-      </button>
+      {/* Save status indicator */}
+      <div className="flex items-center justify-center gap-2 text-sm">
+        {saving && <span className="text-gray-400">Saving changes...</span>}
+        {saved && <span className="text-green-600 font-medium flex items-center gap-1"><CheckCircle className="w-4 h-4" /> Changes saved!</span>}
+        {!saving && !saved && <span className="text-gray-400 text-xs">Changes save automatically</span>}
+      </div>
     </div>
   );
 };

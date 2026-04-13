@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
+import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 
@@ -121,7 +123,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
     
     try {
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token') || '';
+      const token = tokenStorage.getAccess() || '';
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -152,7 +154,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       const employerJobs = allJobs.filter((job: any) => 
         job.postedBy === user?.email || job.employerEmail === user?.email
       );
-      const employerJobIds = employerJobs.map((job: any) => job.id || job._id);
+      const employerJobIds = employerJobs.map((job: any) => getId(job));
       
       console.log('Employer jobs:', employerJobIds.length);
       
@@ -277,7 +279,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default') => {
-    const jobKey = job._id || job.id || `job-${Math.random()}`;
+    const jobKey = getId(job) || `job-${Math.random()}`;
     return (
     <div key={jobKey} className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 transition-all bg-white relative overflow-hidden group">
       {/* Gradient accent bar - left corner only */}
@@ -359,7 +361,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <>
                 <button 
                   onClick={() => {
-                    const jobId = job.id || job._id;
+                    const jobId = getId(job);
                     if (jobId) {
                       onNavigate('job-detail', { jobId, jobData: job });
                     }
@@ -369,7 +371,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                   View Job
                 </button>
                 <button 
-                  onClick={() => deleteJob(job._id || job.id)}
+                  onClick={() => deleteJob(getId(job))}
                   className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-all shadow-md hover:shadow-lg text-sm"
                 >
                   Delete Job
@@ -379,7 +381,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'saved' && (
               <>
                 <button 
-                  onClick={() => handleRemoveSavedJob(job._id || job.id)}
+                  onClick={() => handleRemoveSavedJob(getId(job))}
                   className="px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all text-sm font-medium"
                 >
                   Remove
@@ -397,7 +399,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             )}
             {actionType === 'default' && (
               <button 
-                onClick={() => onNavigate('job-detail', { jobId: job._id || job.id })}
+                onClick={() => onNavigate('job-detail', { jobId: getId(job) })}
                 className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md text-sm"
               >
                 View Job

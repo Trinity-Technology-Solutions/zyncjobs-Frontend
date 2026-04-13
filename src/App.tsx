@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -20,7 +20,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
-
+import { accountAPI } from './api/account';
+import { tokenStorage } from './utils/tokenStorage';
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
@@ -49,7 +50,6 @@ const JobPostingSelectionPage = lazy(() => import('./pages/JobPostingSelectionPa
 const JobParsingPage = lazy(() => import('./pages/JobParsingPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 const SkillDetailPage = lazy(() => import('./pages/SkillDetailPage'));
-const CareerResources = lazy(() => import('./components/CareerResources'));
 const CandidateDashboardPage = lazy(() => import('./pages/CandidateDashboardPage'));
 const CandidateMessagesPage = lazy(() => import('./pages/CandidateMessagesPage'));
 const EmployerDashboardPage = lazy(() => import('./pages/EmployerDashboardPage'));
@@ -162,19 +162,8 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [maintenance, setMaintenance] = useState(false);
-
-  const [user, setUser] = useState<UserType | null>(() => {
-    try {
-      const savedUser = localStorage.getItem('user');
-      if (!savedUser) return null;
-      const userData = JSON.parse(savedUser);
-      let userType: UserType['type'] = 'candidate';
-      if (userData.userType === 'employer') userType = 'employer';
-      if (userData.userType === 'admin') userType = 'admin';
-      if (userData.userType === 'super_admin') userType = 'super_admin';
-      return { name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User', type: userType, email: userData.email };
-    } catch { return null; }
-  });
+  const [user, setUser] = useState<UserType | null>(null);
+  const [userLoading, setUserLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showEmployerLoginModal, setShowEmployerLoginModal] = useState(false);
@@ -185,125 +174,26 @@ function App() {
     isVisible: boolean;
   }>({ type: 'info', message: '', isVisible: false });
 
-  const showNotification = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
-    setNotification({ type, message, isVisible: true });
-  };
-
-  useEffect(() => {
-    initializeEmployerIdCounter();
-
-    const handleForceLogout = () => handleLogout();
-    window.addEventListener('zync:logout', handleForceLogout);
-
-    if (new URLSearchParams(window.location.search).get('token')) {
-      return () => window.removeEventListener('zync:logout', handleForceLogout);
-    }
-
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        let userType: UserType['type'] = 'candidate';
-        if (userData.userType === 'employer') userType = 'employer';
-        if (userData.userType === 'admin') userType = 'admin';
-        if (userData.userType === 'super_admin') userType = 'super_admin';
-        setUser({
-          name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
-          type: userType,
-          email: userData.email,
-        });
-      } catch {
-        localStorage.removeItem('user');
-      }
-    }
-
-    return () => window.removeEventListener('zync:logout', handleForceLogout);
-  }, []);
-
-  // Global fetch interceptor for 503 maintenance
-  useEffect(() => {
-    const orig = window.fetch;
-    window.fetch = async (...args) => {
-      const res = await orig(...args);
-      if (res.status === 503) {
-        const clone = res.clone();
-        try {
-          const data = await clone.json();
-          if (data.maintenance) setMaintenance(true);
-        } catch {}
-      }
-      return res;
-    };
-    return () => { window.fetch = orig; };
-  }, []);
-
-  if (maintenance && !location.pathname.startsWith('/admin')) {
-    const handleRetry = async () => {
-      try {
-        const res = await fetch('/api/jobs?limit=1');
-        if (res.ok) setMaintenance(false);
-      } catch {}
-    };
-    return <MaintenancePage onRetry={handleRetry} />;
-  }
-
-  const handleLogin = (userData: UserType & { id?: string; _id?: string }) => {
-    const existing = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-    localStorage.setItem('user', JSON.stringify({
-      ...existing,
-      name: userData.name,
-      fullName: userData.name,
-      email: userData.email,
-      userType: userData.type,
-      id: (userData as any).id || (userData as any)._id || existing.id || existing._id,
-    }));
-    setUser(userData);
-    closeModals();
-
-    if (userData.email && (userData.type === 'candidate' || userData.type === 'employer')) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        localStorageMigration.setToken(token);
-        setTimeout(() => localStorageMigration.runFullMigration().catch(console.error), 1000);
-      }
-    }
-  };
-
-  const handleLogout = () => {
-    setUser(null);
-    // Only remove auth-related keys ? don't nuke unrelated browser storage
-    ['user', 'token', 'accessToken', 'refreshToken', 'adminToken', 'selectedJob'].forEach(k =>
-      localStorage.removeItem(k)
-    );
-    sessionStorage.clear();
-    navigate('/', { replace: true });
-  };
-
-  const closeModals = () => {
+  // ALL hooks must be declared before any early returns
+  const closeModals = useCallback(() => {
     setShowLoginModal(false);
     setShowRegisterModal(false);
     setShowEmployerLoginModal(false);
     setShowRoleSelectionModal(false);
-  };
+  }, []);
 
-  const handleRoleSelection = (role: 'candidate' | 'employer') => {
-    closeModals();
-    navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
-  };
-
-  // Legacy prop-based navigation ? keeps existing page components working unchanged
-  const handleNavigation = (page: string, params?: any) => {
-    closeModals();
-
-    if (page === 'home') { navigate('/'); return; }
+  const handleNavigation = useCallback((page: string, params?: any) => {
+    const currentPath = window.location.pathname;
+    if (page === 'home') { if (currentPath !== '/') navigate('/'); return; }
     if (page.startsWith('job-detail/')) {
-      navigate(`/job-detail?id=${page.split('/')[1]}`);
+      const jobId = page.split('/')[1];
+      const cached = (() => { try { return JSON.parse(localStorage.getItem('selectedJob') || '{}'); } catch { return {}; } })();
+      const slug = cached?.slug && (cached?._id === jobId || cached?.id === jobId) ? cached.slug : null;
+      const target = slug ? `/jobs/${slug}` : `/job-detail?id=${jobId}`;
+      if (currentPath !== target.split('?')[0]) navigate(target);
       return;
     }
-    if (page === 'job-listings' && params?.tab) {
-      navigate(`/job-listings?tab=${params.tab}`);
-      return;
-    }
+    if (page === 'job-listings' && params?.tab) { navigate(`/job-listings?tab=${params.tab}`); return; }
     if (page === 'job-listings') {
       const qp = new URLSearchParams();
       if (params?.searchTerm) qp.set('q', params.searchTerm);
@@ -315,36 +205,144 @@ function App() {
     }
     if (page === 'job-detail') {
       const id = params?.jobId || params?.jobData?._id || params?.jobData?.id;
+      const slug = params?.jobData?.slug || params?.slug;
       if (params?.jobData) localStorage.setItem('selectedJob', JSON.stringify(params.jobData));
+      if (slug) { navigate(`/jobs/${slug}`); return; }
       navigate(id ? `/job-detail?id=${id}` : '/job-detail');
       return;
     }
-    if (page === 'assessment-review' && params?.assessmentId) {
-      navigate(`/assessment-review/${params.assessmentId}`);
-      return;
-    }
+    if (page === 'assessment-review' && params?.assessmentId) { navigate(`/assessment-review/${params.assessmentId}`); return; }
     if (page === 'candidate-profile-view') {
       const cid = params?.candidateId || '';
-      if (cid) {
-        sessionStorage.setItem('viewCandidateId', cid);
-        navigate(`/candidate-profile-view?id=${encodeURIComponent(cid)}`);
-      } else {
-        const stored = sessionStorage.getItem('viewCandidateId') || '';
-        navigate(stored ? `/candidate-profile-view?id=${encodeURIComponent(stored)}` : '/candidate-profile-view');
+      if (cid) { sessionStorage.setItem('viewCandidateId', cid); navigate(`/candidate-profile-view?id=${encodeURIComponent(cid)}`); }
+      else { const stored = sessionStorage.getItem('viewCandidateId') || ''; navigate(stored ? `/candidate-profile-view?id=${encodeURIComponent(stored)}` : '/candidate-profile-view'); }
+      return;
+    }
+    if (page === 'candidate-messages') { navigate('/candidate-messages'); return; }
+    if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
+    if (page === 'login') { navigate('/login'); return; }
+    if (page === 'dashboard') { navigate('/dashboard'); return; }
+    if (page === 'my-applications') { navigate('/my-applications'); return; }
+    const target = `/${page}`;
+    if (currentPath !== target) { navigate(target); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigate]);
+
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setNotification({ type, message, isVisible: true });
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setUser(null);
+    tokenStorage.clear();
+    sessionStorage.clear();
+    navigate('/', { replace: true });
+  }, [navigate]);
+
+  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string }) => {
+    setUser(userData);
+    closeModals();
+    const token = tokenStorage.getAccess();
+    if (token && (userData.type === 'candidate' || userData.type === 'employer')) {
+      localStorageMigration.setToken(token);
+      setTimeout(() => localStorageMigration.runFullMigration().catch(console.error), 1000);
+    }
+  }, [closeModals]);
+
+  const handleRoleSelection = useCallback((role: 'candidate' | 'employer') => {
+    closeModals();
+    navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
+  }, [closeModals, navigate]);
+
+  useEffect(() => {
+    initializeEmployerIdCounter();
+    const handleForceLogout = () => {
+      setUser(null);
+      tokenStorage.clear();
+      sessionStorage.clear();
+      navigate('/', { replace: true });
+    };
+    window.addEventListener('zync:logout', handleForceLogout);
+
+    const restoreSession = async () => {
+      let token = tokenStorage.getAccess();
+
+      // No access token in sessionStorage (e.g. after page refresh)
+      // Try to silently restore using refreshToken from localStorage
+      if (!token) {
+        const refreshToken = tokenStorage.getRefresh();
+        if (!refreshToken) { setUserLoading(false); return; }
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/token/refresh`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            tokenStorage.setAccess(data.accessToken);
+            if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
+            token = data.accessToken;
+          } else {
+            // Refresh token expired/invalid — clear and stay logged out
+            tokenStorage.clear();
+            setUserLoading(false);
+            return;
+          }
+        } catch {
+          setUserLoading(false);
+          return;
+        }
       }
-      return;
-    }
-    if (page === 'candidate-messages') {
-      navigate('/candidate-messages');
-      return;
-    }
-    if (page === 'privacy-settings') {
-      navigate('/privacy-settings');
-      return;
-    }
-    navigate(`/${page}`);
-    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-  };
+
+      // Now fetch user with valid token
+      try {
+        const userData = await accountAPI.getMe();
+        if (!userData) {
+          tokenStorage.clear();
+          setUser(null);
+        } else {
+          let userType: UserType['type'] = 'candidate';
+          if (userData.userType === 'employer') userType = 'employer';
+          if (userData.userType === 'admin') userType = 'admin';
+          if (userData.userType === 'super_admin') userType = 'super_admin';
+          setUser({ name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User', type: userType, email: userData.email });
+        }
+      } catch {
+        tokenStorage.clear();
+        setUser(null);
+      } finally {
+        setUserLoading(false);
+      }
+    };
+
+    restoreSession();
+    return () => window.removeEventListener('zync:logout', handleForceLogout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount only
+
+  useEffect(() => {
+    const orig = window.fetch;
+    window.fetch = async (...args) => {
+      const res = await orig(...args);
+      if (res.status === 503) {
+        const clone = res.clone();
+        try { const data = await clone.json(); if (data.maintenance) setMaintenance(true); } catch {}
+      }
+      return res;
+    };
+    return () => { window.fetch = orig; };
+  }, []);
+
+  // Early returns AFTER all hooks
+  if (userLoading) return <LoadingFallback />;
+
+  if (maintenance && !location.pathname.startsWith('/admin')) {
+    const handleRetry = async () => {
+      try { const res = await fetch('/api/jobs?limit=1'); if (res.ok) setMaintenance(false); } catch {}
+    };
+    return <MaintenancePage onRetry={handleRetry} />;
+  }
 
   // Handle OAuth callback
   const urlParams = new URLSearchParams(window.location.search);
@@ -385,10 +383,16 @@ function App() {
           } />
 
           {/* -- Auth -- */}
-          <Route path="/login" element={<LoginPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
+          <Route path="/login" element={
+            user
+              ? <Navigate to="/dashboard" replace />
+              : <LoginPage onNavigate={handleNavigation} onLogin={handleLogin} />
+          } />
           <Route path="/employer-login" element={
-            <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
-              onShowNotification={n => showNotification(n.message, n.type)} />
+            user
+              ? <Navigate to="/dashboard" replace />
+              : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
+                  onShowNotification={n => showNotification(n.message, n.type)} />
           } />
           <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
           <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
@@ -402,6 +406,12 @@ function App() {
           <Route path="/job-detail" element={
             <WithLayout {...nav}>
               <JobDetailPage {...nav} jobTitle="" jobId={new URLSearchParams(location.search).get('id') || ''} />
+            </WithLayout>
+          } />
+          {/* SEO-friendly job URL: /jobs/:slug */}
+          <Route path="/jobs/:slug" element={
+            <WithLayout {...nav}>
+              <JobDetailPage {...nav} jobTitle="" jobId={''} />
             </WithLayout>
           } />
           <Route path="/companies" element={<CompaniesPage {...nav} />} />
@@ -508,12 +518,6 @@ function App() {
             </AuthGuard>
           } />
 
-          <Route path="/career-resources" element={
-            <AuthGuard user={user} allowedRoles={['candidate', 'admin']}>
-              <WithLayout {...nav}><CareerResources /></WithLayout>
-            </AuthGuard>
-          } />
-
           <Route path="/career-coach" element={
             <AuthGuard user={user} allowedRoles={['candidate']}>
               <CareerCoachPage {...nav} />
@@ -529,7 +533,7 @@ function App() {
           <Route path="/salary-insights" element={
             <WithLayout {...nav}>
               <div className="max-w-4xl mx-auto px-4 py-8">
-                <SalaryInsightsPage />
+                <SalaryInsightsPage onNavigate={handleNavigation} />
               </div>
             </WithLayout>
           } />
@@ -574,7 +578,7 @@ function App() {
           } />
 
           <Route path="/resume-builder" element={
-            <AuthGuard user={user} allowedRoles={['candidate']}>
+            <AuthGuard user={user}>
               <ResumeBuilderPage {...nav} />
             </AuthGuard>
           } />
@@ -738,8 +742,8 @@ function App() {
                 <div className="max-w-4xl mx-auto px-4 py-8">
                   <h1 className="text-2xl font-bold text-gray-900 mb-6">Recommended Jobs for You</h1>
                   <RecommendedJobs
-                    resumeSkills={(() => { try { return JSON.parse(localStorage.getItem('resumeSkills') || '[]'); } catch { return []; } })()}
-                    location={(() => { try { return JSON.parse(localStorage.getItem('user') || '{}').location || ''; } catch { return ''; } })()}
+                    resumeSkills={[]}
+                    location={user?.email ? '' : ''}
                     user={user as any}
                     onNavigate={handleNavigation}
                   />

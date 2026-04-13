@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/env';
+import { tokenStorage } from '../../utils/tokenStorage';
 
 interface Props {
   onLogin: (user: any) => void;
@@ -34,8 +35,8 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
       }
 
       const token = data.accessToken || data.token;
-      localStorage.setItem('accessToken', token);
-      localStorage.setItem('adminToken', token);
+      tokenStorage.setAccess(token);
+      tokenStorage.setAdmin(token);
       localStorage.setItem('user', JSON.stringify({ ...data.user, userType: role }));
       onLogin({ name: data.user.name, type: role, email: data.user.email });
       onNavigate('admin/dashboard');

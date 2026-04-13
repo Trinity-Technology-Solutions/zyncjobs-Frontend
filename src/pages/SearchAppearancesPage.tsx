@@ -30,6 +30,8 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
   const [topKeywords, setTopKeywords] = useState<{ kw: string; count: number }[]>([]);
   const [appearances, setAppearances] = useState<any[]>([]);
   const [liveIndicator, setLiveIndicator] = useState(false);
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+  const ITEMS_PER_DATE = 3;
 
   const userEmail = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email || user?.email || ''; } catch { return user?.email || ''; } })();
 
@@ -218,51 +220,82 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
-              {Object.entries(grouped).map(([date, items]) => (
-                <div key={date}>
-                  {/* Date header */}
-                  <div className="px-5 py-2 bg-gray-50 flex items-center gap-2">
-                    <Clock className="w-3.5 h-3.5 text-gray-400" />
-                    <span className="text-xs font-semibold text-gray-500">{date}</span>
-                    <span className="text-xs text-gray-400">· {items.length} appearance{items.length > 1 ? 's' : ''}</span>
-                  </div>
+              {Object.entries(grouped).map(([date, items]) => {
+                const isExpanded = expandedDates[date];
+                const visible = isExpanded ? items : items.slice(0, ITEMS_PER_DATE);
+                const remaining = items.length - ITEMS_PER_DATE;
 
-                  {/* Items for this date */}
-                  {items.map((item: any, idx: number) => {
-                    const kw = item.metadata?.searchQuery || item.metadata?.keyword || '';
-                    const hasKeyword = kw && kw.length >= 3;
+                // Deduplicate: group consecutive identical entries
+                const deduped: { item: any; count: number }[] = [];
+                visible.forEach((item: any) => {
+                  const kw = item.metadata?.searchQuery || item.metadata?.keyword || '';
+                  const last = deduped[deduped.length - 1];
+                  const lastKw = last?.item.metadata?.searchQuery || last?.item.metadata?.keyword || '';
+                  if (last && lastKw === kw) {
+                    last.count++;
+                  } else {
+                    deduped.push({ item, count: 1 });
+                  }
+                });
 
-                    return (
-                      <div key={item.id || idx} className="px-5 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3">
-                        {/* Icon */}
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${hasKeyword ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                          {hasKeyword ? <Search className="w-4 h-4 text-blue-600" /> : <User className="w-4 h-4 text-gray-500" />}
-                        </div>
+                return (
+                  <div key={date}>
+                    {/* Date header */}
+                    <div className="px-5 py-2 bg-gray-50 flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="text-xs font-semibold text-gray-500">{date}</span>
+                      <span className="text-xs text-gray-400">· {items.length} appearance{items.length > 1 ? 's' : ''}</span>
+                    </div>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          {hasKeyword ? (
-                            <>
+                    {/* Items */}
+                    {deduped.map(({ item, count }, idx) => {
+                      const kw = item.metadata?.searchQuery || item.metadata?.keyword || '';
+                      const hasKeyword = kw && kw.length >= 3;
+                      return (
+                        <div key={item.id || idx} className="px-5 py-3 hover:bg-blue-50 transition-colors flex items-center gap-3">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${hasKeyword ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                            {hasKeyword ? <Search className="w-4 h-4 text-blue-600" /> : <User className="w-4 h-4 text-gray-500" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            {hasKeyword ? (
                               <p className="text-sm font-medium text-gray-900">
                                 A recruiter searched <span className="text-blue-600 font-semibold">"{kw}"</span> and found your profile
                               </p>
-                              <p className="text-xs text-gray-400 mt-0.5">Your profile matched this search query</p>
-                            </>
-                          ) : (
-                            <>
+                            ) : (
                               <p className="text-sm font-medium text-gray-900">Your profile appeared in a recruiter search</p>
-                              <p className="text-xs text-gray-400 mt-0.5">No specific keyword recorded</p>
-                            </>
-                          )}
+                            )}
+                            <p className="text-xs text-gray-400 mt-0.5">
+                              {hasKeyword ? 'Matched this search query' : 'No specific keyword recorded'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {count > 1 && (
+                              <span className="text-xs bg-blue-600 text-white rounded-full px-2 py-0.5 font-bold">×{count}</span>
+                            )}
+                            <span className="text-xs text-gray-400 font-medium">{timeAgo(item.createdAt)}</span>
+                          </div>
                         </div>
+                      );
+                    })}
 
-                        {/* Time */}
-                        <span className="text-xs text-gray-400 flex-shrink-0 font-medium">{timeAgo(item.createdAt)}</span>
+                    {/* View More / Less */}
+                    {items.length > ITEMS_PER_DATE && (
+                      <div className="px-5 py-2 border-t border-gray-50">
+                        <button
+                          onClick={() => setExpandedDates(prev => ({ ...prev, [date]: !prev[date] }))}
+                          className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1 transition-colors"
+                        >
+                          {isExpanded ? (
+                            <>▲ Show less</>
+                          ) : (
+                            <>▼ View {remaining} more appearance{remaining > 1 ? 's' : ''}</>
+                          )}
+                        </button>
                       </div>
-                    );
-                  })}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

@@ -6,6 +6,8 @@
  *         const res = await apiFetch('/api/jobs', { headers: {...} });
  */
 
+import { tokenStorage } from '../utils/tokenStorage';
+
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 let isRefreshing = false;
@@ -17,7 +19,7 @@ function onRefreshed(newToken: string) {
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('refreshToken');
+  const refreshToken = tokenStorage.getRefresh();
   if (!refreshToken) return null;
 
   const res = await fetch(`${API_BASE}/token/refresh`, {
@@ -27,28 +29,20 @@ async function refreshAccessToken(): Promise<string | null> {
   });
 
   if (!res.ok) {
-    // Refresh token expired — force logout
-    localStorage.removeItem('token');
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    tokenStorage.clear();
     window.dispatchEvent(new CustomEvent('zync:logout'));
     return null;
   }
 
   const data = await res.json();
-  const newAccess = data.accessToken;
-  const newRefresh = data.refreshToken;
+  tokenStorage.setAccess(data.accessToken);
+  if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
 
-  localStorage.setItem('accessToken', newAccess);
-  localStorage.setItem('token', newAccess);
-  if (newRefresh) localStorage.setItem('refreshToken', newRefresh);
-
-  return newAccess;
+  return data.accessToken;
 }
 
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const accessToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+  const accessToken = tokenStorage.getAccess();
 
   // Inject Authorization header
   const headers = new Headers(options.headers || {});

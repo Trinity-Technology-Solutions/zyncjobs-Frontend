@@ -12,7 +12,19 @@ const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'inf
   toast.id = 'toast';
   const colors = { success: 'bg-green-500 text-white', error: 'bg-red-500 text-white', warning: 'bg-yellow-500 text-white', info: 'bg-blue-500 text-white' };
   toast.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full ${colors[type]}`;
-  toast.innerHTML = `<div class="flex items-center"><span>${message}</span><button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">×</button></div>`;
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex items-center';
+  const span = document.createElement('span');
+  span.textContent = message;
+  const btn = document.createElement('button');
+  btn.className = 'ml-4 text-white hover:text-gray-200';
+  btn.textContent = '×';
+  btn.addEventListener('click', () => toast.remove());
+  wrapper.appendChild(span);
+  wrapper.appendChild(btn);
+  toast.appendChild(wrapper);
+
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.remove('translate-x-full'), 100);
   setTimeout(() => toast.remove(), 4000);

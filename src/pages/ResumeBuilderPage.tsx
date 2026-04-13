@@ -30,14 +30,6 @@ const steps = [
   { id: 6, name: 'Certifications', component: CertificationsAwardsStep },
   { id: 7, name: 'AI Optimize',    component: AISuggestionsStep },
   { id: 8, name: 'Preview',        component: PreviewStep },
-  { id: 0, name: 'Template',     component: TemplateSelection },
-  { id: 1, name: 'Contacts',     component: PersonalInfoStep },
-  { id: 2, name: 'Experience',   component: ExperienceStep },
-  { id: 3, name: 'Education',    component: EducationStep },
-  { id: 4, name: 'Skills',       component: SkillsStep },
-  { id: 5, name: 'Summary',      component: SummaryStep },
-  { id: 6, name: 'AI Optimize',  component: AISuggestionsStep },
-  { id: 7, name: 'Finalize',     component: PreviewStep },
 ];
 
 const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user, onLogout }) => {
@@ -86,55 +78,40 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
         <div className={`flex flex-col ${showPreview ? 'w-[52%]' : 'w-full'} transition-all`}>
 
           {/* ── Horizontal step tabs ── */}
-          <div className="bg-white border border-gray-200 rounded-tl-xl rounded-tr-xl px-6 pt-5 pb-0">
-            <div className="flex items-start relative">
-              {/* connecting line */}
-              <div className="absolute top-[11px] left-0 right-0 h-px bg-gray-200 z-0" />
-              {/* progress line */}
+          <div className="bg-white border border-gray-200 rounded-tl-xl rounded-tr-xl px-6 pt-5 pb-4">
+            {/* Step label */}
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-semibold text-blue-600">{steps[currentStep].name}</span>
+              <span className="text-xs text-gray-400">Step {currentStep + 1} of {steps.length}</span>
+            </div>
+            {/* Progress dots */}
+            <div className="flex items-center relative">
+              <div className="absolute top-1/2 left-0 right-0 h-px bg-gray-200 -translate-y-1/2 z-0" />
               <div
-                className="absolute top-[11px] left-0 h-px bg-blue-500 z-0 transition-all duration-300"
+                className="absolute top-1/2 left-0 h-px bg-blue-500 -translate-y-1/2 z-0 transition-all duration-300"
                 style={{ width: `${(currentStep / (steps.length - 1)) * 100}%` }}
               />
-
               {steps.map((step, idx) => {
-                const done    = idx < currentStep;
-                const active  = idx === currentStep;
+                const done   = idx < currentStep;
+                const active = idx === currentStep;
                 return (
                   <button
-                    key={step.id}
+                    key={idx}
                     onClick={() => setCurrentStep(idx)}
-                    className="flex-1 flex flex-col items-center gap-1.5 z-10 group"
+                    title={step.name}
+                    className="flex-1 flex justify-center z-10"
                   >
-                    {/* dot */}
                     <div
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all
-                        ${done   ? 'bg-blue-500 border-blue-500'
-                        : active ? 'bg-white border-blue-500'
-                        :          'bg-white border-gray-300'}`}
+                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all text-xs font-bold
+                        ${ done   ? 'bg-blue-500 border-blue-500 text-white'
+                         : active ? 'bg-white border-blue-500 text-blue-600 shadow-md ring-2 ring-blue-100'
+                         :          'bg-white border-gray-300 text-gray-400'}`}
                     >
-                      {done && <Check className="w-3 h-3 text-white" />}
-                      {active && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                      {done ? <Check className="w-3.5 h-3.5" /> : idx + 1}
                     </div>
-                    {/* label */}
-                    <span
-                      className={`text-xs font-medium whitespace-nowrap transition-colors
-                        ${active ? 'text-blue-600' : done ? 'text-gray-600' : 'text-gray-400'}`}
-                    >
-                      {step.name}
-                    </span>
                   </button>
                 );
               })}
-            </div>
-            {/* active step underline */}
-            <div className="mt-3 relative h-0.5 bg-transparent">
-              <div
-                className="absolute h-0.5 bg-blue-500 transition-all duration-300"
-                style={{
-                  width: `${100 / steps.length}%`,
-                  left: `${(currentStep / steps.length) * 100}%`,
-                }}
-              />
             </div>
           </div>
 

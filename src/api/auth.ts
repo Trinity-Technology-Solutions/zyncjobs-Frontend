@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 
 
 export interface LoginData {
@@ -64,48 +65,28 @@ export const authAPI = {
 
     const result = await response.json();
     
-    // Store tokens if provided
-    if (result.accessToken) {
-      localStorage.setItem('accessToken', result.accessToken);
-    }
-    if (result.refreshToken) {
-      localStorage.setItem('refreshToken', result.refreshToken);
-    }
-    
+    if (result.accessToken) tokenStorage.setAccess(result.accessToken);
+    if (result.refreshToken) tokenStorage.setRefresh(result.refreshToken);
     return result;
   },
 
   async login(loginData: LoginData): Promise<{ message: string; user: User; accessToken?: string; refreshToken?: string }> {
-    
     const response = await fetch(API_ENDPOINTS.LOGIN, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(loginData),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       let error;
-      try {
-        error = JSON.parse(errorText);
-      } catch {
-        error = { error: 'Login failed' };
-      }
+      try { error = JSON.parse(errorText); } catch { error = { error: 'Login failed' }; }
       throw new Error(error.error || 'Incorrect email or password. Please try again.');
     }
 
     const result = await response.json();
-    
-    // Store tokens if provided
-    if (result.accessToken) {
-      localStorage.setItem('accessToken', result.accessToken);
-    }
-    if (result.refreshToken) {
-      localStorage.setItem('refreshToken', result.refreshToken);
-    }
-    
+    if (result.accessToken) tokenStorage.setAccess(result.accessToken);
+    if (result.refreshToken) tokenStorage.setRefresh(result.refreshToken);
     return result;
   },
 

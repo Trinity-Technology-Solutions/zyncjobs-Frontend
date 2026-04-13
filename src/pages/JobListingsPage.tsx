@@ -4,7 +4,7 @@ import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkChe
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
-import LocationRadiusSearch from '../components/LocationRadiusSearch';
+import { tokenStorage } from '../utils/tokenStorage';
 import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
@@ -13,6 +13,8 @@ import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
+import LocationRadiusSearch from '../components/LocationRadiusSearch';
+import { getId } from '../utils/getId';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -83,7 +85,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${encodeURIComponent(email)}`)
         .then(r => r.ok ? r.json() : [])
         .then((apps: any[]) => {
-          const ids = new Set(apps.map((a: any) => a.jobId?._id || a.jobId?.id || a.jobId || '').filter(Boolean));
+          const ids = new Set(apps.map((a: any) => getId(a.jobId) || a.jobId || '').filter(Boolean));
           setAppliedJobIds(ids);
         })
         .catch(() => {});
@@ -95,12 +97,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     if (user?.name) {
       loadSavedJobsFromBackend();
     } else {
-      // Load from localStorage for non-logged users
       const userKey = `savedJobs_${user?.name || 'guest'}`;
       const saved = localStorage.getItem(userKey);
-      if (saved) {
-        setSavedJobs(JSON.parse(saved));
-      }
+      if (saved) setSavedJobs(JSON.parse(saved));
     }
   }, [user]);
 
@@ -126,12 +125,19 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const loadSavedJobsFromBackend = async () => {
     try {
-      // This would need to be implemented for regular saved jobs (not just recommended)
-      // For now, fallback to localStorage
-      const userKey = `savedJobs_${user?.name}`;
-      const saved = localStorage.getItem(userKey);
-      if (saved) {
-        setSavedJobs(JSON.parse(saved));
+      const token = tokenStorage.getAccess();
+      if (!token) {
+        const userKey = `savedJobs_${user?.name}`;
+        const saved = localStorage.getItem(userKey);
+        if (saved) setSavedJobs(JSON.parse(saved));
+        return;
+      }
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedJobs(data.jobIds || []);
       }
     } catch (error) {
       console.error('Error loading saved jobs from backend:', error);
@@ -140,7 +146,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const loadResumeSkillsFromBackend = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       if (!token) throw new Error('no token');
       localStorageMigration.setToken(token);
       const skills = await localStorageMigration.getResumeSkills();
@@ -399,7 +405,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     if (onNavigate) {
       // Store only essential job data to avoid quota issues
       const essentialJobData = {
-        _id: job._id,
+        id: getId(job),
+        _id: getId(job),
         title: job.title || job.jobTitle,
         company: job.company,
         location: job.location,
@@ -515,35 +522,45 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  const handleSaveJob = (job: any) => {
-    if (!user?.name) return; // Only allow saving if user is logged in
-    
-    const jobId = job._id || job.id;
+  const handleSaveJob = async (job: any) => {
+    if (!user?.name) return;
+    const jobId = getId(job);
     const isAlreadySaved = savedJobs.includes(jobId);
-    
-    // Use user-specific keys
-    const userKey = `savedJobs_${user.name}`;
-    const userDetailsKey = `savedJobDetails_${user.name}`;
-    
-    let updatedSavedJobs;
-    if (isAlreadySaved) {
-      // Remove from saved jobs
-      updatedSavedJobs = savedJobs.filter(id => id !== jobId);
-      // Also remove from job details
-      const existingSavedJobDetails = JSON.parse(localStorage.getItem(userDetailsKey) || '[]');
-      const updatedJobDetails = existingSavedJobDetails.filter((j: any) => (j._id || j.id) !== jobId);
-      localStorage.setItem(userDetailsKey, JSON.stringify(updatedJobDetails));
-    } else {
-      // Add to saved jobs
-      updatedSavedJobs = [...savedJobs, jobId];
-      // Also save the job details
-      const existingSavedJobDetails = JSON.parse(localStorage.getItem(userDetailsKey) || '[]');
-      const updatedJobDetails = [...existingSavedJobDetails.filter((j: any) => (j._id || j.id) !== jobId), job];
-      localStorage.setItem(userDetailsKey, JSON.stringify(updatedJobDetails));
+    // Optimistic update
+    setSavedJobs(prev => isAlreadySaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
+    try {
+      const token = tokenStorage.getAccess();
+      if (token) {
+        if (isAlreadySaved) {
+          await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+        } else {
+          await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              jobId,
+              jobTitle: job.jobTitle || job.title,
+              company: job.company,
+              location: job.location,
+              salary: job.salary,
+              jobType: job.type || job.jobType
+            })
+          });
+        }
+      } else {
+        // Fallback localStorage for guests
+        const userKey = `savedJobs_${user.name}`;
+        const updated = isAlreadySaved ? savedJobs.filter(id => id !== jobId) : [...savedJobs, jobId];
+        localStorage.setItem(userKey, JSON.stringify(updated));
+      }
+    } catch (error) {
+      // Revert optimistic update on error
+      setSavedJobs(prev => isAlreadySaved ? [...prev, jobId] : prev.filter(id => id !== jobId));
+      console.error('Error saving job:', error);
     }
-    
-    setSavedJobs(updatedSavedJobs);
-    localStorage.setItem(userKey, JSON.stringify(updatedSavedJobs));
   };
 
   const handleLoadMoreJobs = () => {
@@ -788,33 +805,34 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* Left Sidebar - Filters */}
           <div className="lg:col-span-1">
-            <div className="space-y-6">
-              {/* Trending Jobs */}
-              {trending.length > 0 && (
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-orange-500" />
-                    Trending Jobs
-                  </h3>
-                  <div className="space-y-3">
-                    {trending.map((job: any, idx: number) => (
-                      <div key={job._id || job.id || idx} className="border-l-2 border-orange-500 pl-3 cursor-pointer hover:bg-gray-50 p-2 rounded" onClick={() => { const jid = job._id || job.id; if (jid && onNavigate) onNavigate(`job-detail/${jid}`); }}>
-
-                        <h4 className="font-medium text-sm">{job.jobTitle}</h4>
-                        <p className="text-xs text-gray-600">{job.company}</p>
-                        <p className="text-xs text-gray-500">{job.views} views</p>
-                      </div>
-                    ))}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
+              {/* Trending Job Titles - Dynamic count from real data */}
+              {jobs.length > 0 && (() => {
+                const titleCounts: Record<string, number> = {};
+                jobs.forEach((job: any) => {
+                  const title = (job.jobTitle || job.title || '').trim();
+                  if (title) titleCounts[title] = (titleCounts[title] || 0) + 1;
+                });
+                const topTitles = Object.entries(titleCounts).sort((a, b) => b[1] - a[1]).slice(0, 8);
+                if (topTitles.length === 0) return null;
+                return (
+                  <div className="p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-orange-500" />
+                      Trending Jobs
+                    </h3>
+                    <div className="space-y-2">
+                      {topTitles.map(([title, count]) => (
+                        <div key={title} onClick={() => setSearchTerm(title)} className="flex items-center justify-between cursor-pointer group hover:bg-orange-50 rounded-lg px-3 py-2 transition-colors">
+                          <span className="text-sm text-gray-700 group-hover:text-orange-600 font-medium truncate pr-2">{title}</span>
+                          <span className="flex-shrink-0 text-xs font-semibold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{count}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-              
-              {/* Filters */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sticky top-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">All Filters</h3>
-
-              {/* Department / Job Category */}
-              <div className="mb-6">
+                );
+              })()}
+              <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Department</h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {[
@@ -840,7 +858,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
               
               {/* Experience */}
-              <div className="mb-6">
+              <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-1">Experience (Years)</h4>
                 <div className="flex justify-between text-xs text-blue-600 font-semibold mb-3">
                   <span>{expMin} Yrs</span>
@@ -872,7 +890,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
 
               {/* Salary */}
-              <div className="mb-6">
+              <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-1">Salary (LPA)</h4>
                 <div className="flex justify-between text-xs text-blue-600 font-semibold mb-3">
                   <span>{salaryMin} LPA</span>
@@ -903,7 +921,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
 
               {/* Location */}
-              <div className="mb-6">
+              <div className="p-6">
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="font-medium text-gray-900">
                     Location {filters.location.length > 0 && <span className="text-blue-600">({filters.location.length})</span>}
@@ -956,7 +974,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
               
               {/* Work Mode */}
-              <div className="mb-6">
+              <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Work mode</h4>
                 <div className="space-y-2">
                   {['Work from office', 'Hybrid', 'Remote'].map(mode => {
@@ -980,8 +998,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   })}
                 </div>
               </div>
-                            {/* Job Type */}
-              <div className="mb-6">
+              {/* Job Type */}
+              <div className="p-6">
                 <h4 className="font-medium text-gray-900 mb-3">Job Type</h4>
                 <div className="space-y-2">
                   {(() => {
@@ -1014,45 +1032,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   })()}
                 </div>
               </div>
-              {/* Industry Filter */}
-              {/* <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Industry</h4>
-                <div className="space-y-2">
-                  {['Technology', 'Healthcare', 'Finance', 'Education', 'Manufacturing'].map((industry) => (
-                    <label key={industry} className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="mr-2" 
-                        checked={filters.industry.includes(industry)}
-                        onChange={() => handleFilterChange('industry', industry)}
-                      />
-                      <span className="text-sm">{industry}</span>
-                    </label>
-                  ))}
-                </div>
-              </div> */}
-              
-              {/* Company Size Filter */}
-              {/* <div className="mb-6">
-                <h4 className="font-medium text-gray-900 mb-3">Company Size</h4>
-                <div className="space-y-2">
-                  {['1-10', '11-50', '51-200', '201-500', '500+'].map((size) => (
-                    <label key={size} className="flex items-center">
-                      <input 
-                        type="checkbox" 
-                        className="mr-2" 
-                        checked={filters.companySize.includes(size)}
-                        onChange={() => handleFilterChange('companySize', size)}
-                      />
-                      <span className="text-sm">{size} employees</span>
-                    </label>
-                  ))}
-                </div>
-              </div> */}
             </div>
           </div>
-        </div>
-          
+
           {/* Right Content - Job Results */}
           <div className="lg:col-span-3">
             <div className="mb-3">
@@ -1133,7 +1115,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         ) : (
           <div className="space-y-6">
             {Array.isArray(filteredJobs) && filteredJobs.map((job) => (
-            <div key={job._id || job.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+            <div key={getId(job) || job.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-start mb-3">
@@ -1159,7 +1141,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       {/* Job title */}
                       <h3
                         className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1"
-                        onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
+                        onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: getId(job), companyName: job.company, jobData: job })}
                       >
                         {decodeHtmlEntities(job.title || job.jobTitle)}
                       </h3>
@@ -1230,7 +1212,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 </div>
 
                 <div className="flex flex-col items-stretch gap-2 ml-4 min-w-[130px]">
-                  {user?.type === 'candidate' && appliedJobIds.has(job._id || job.id) && (
+                  {user?.type === 'candidate' && appliedJobIds.has(getId(job)) && (
                     <span className="flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg text-sm font-medium">
                       ✅ Applied
                     </span>
@@ -1239,17 +1221,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     <button
                       onClick={() => handleSaveJob(job)}
                       className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
-                        savedJobs.includes(job._id || job.id)
+                        savedJobs.includes(getId(job))
                           ? 'bg-blue-50 border-blue-300 text-blue-700'
                           : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      {savedJobs.includes(job._id || job.id) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-                      {savedJobs.includes(job._id || job.id) ? 'Saved' : 'Save'}
+                      {savedJobs.includes(getId(job)) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                      {savedJobs.includes(getId(job)) ? 'Saved' : 'Save'}
                     </button>
                   )}
                   <button
-                    onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: job._id || job.id, companyName: job.company, jobData: job })}
+                    onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: getId(job), companyName: job.company, jobData: job })}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center"
                   >
                     View Details

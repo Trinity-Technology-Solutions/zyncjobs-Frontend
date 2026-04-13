@@ -1,6 +1,6 @@
 // Service to handle localStorage migration to backend APIs
 import { API_ENDPOINTS } from '../config/env';
-
+import { tokenStorage } from '../utils/tokenStorage';
 class LocalStorageMigrationService {
   private static instance: LocalStorageMigrationService;
   private token: string | null = null;
@@ -19,8 +19,8 @@ class LocalStorageMigrationService {
   }
 
   private async apiCall(endpoint: string, options: RequestInit = {}) {
-    // Always try to get latest token from localStorage
-    const token = this.token || localStorage.getItem('accessToken') || localStorage.getItem('token');
+    // Always try to get latest token
+    const token = this.token || tokenStorage.getAccess();
     const headers = {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -158,7 +158,7 @@ class LocalStorageMigrationService {
 
   // Get saved recommended jobs from backend
   async getSavedRecommendedJobs(): Promise<string[]> {
-    const token = this.token || localStorage.getItem('accessToken') || localStorage.getItem('token');
+    const token = this.token || tokenStorage.getAccess();
     if (!token) return [];
     try {
       const response = await this.apiCall('/saved-recommended-jobs');

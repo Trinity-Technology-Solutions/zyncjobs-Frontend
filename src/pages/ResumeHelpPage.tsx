@@ -176,7 +176,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
                     It analyzes job descriptions and suggests improvements to increase your chances of getting noticed.
                   </p>
                   <button
-                    onClick={() => onNavigate && onNavigate('resume-templates')}
+                    onClick={() => onNavigate && onNavigate('resume-builder')}
                     className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                   >
                     Try AI Resume Builder
@@ -266,7 +266,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
           </p>
           <div className="flex justify-center">
             <button
-              onClick={() => onNavigate && onNavigate('resume-templates')}
+              onClick={() => onNavigate && onNavigate('resume-builder')}
               className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-2"
             >
               <FileText className="w-5 h-5" />

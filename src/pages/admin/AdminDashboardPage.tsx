@@ -10,6 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { API_ENDPOINTS } from '../../config/env';
+import { tokenStorage } from '../../utils/tokenStorage';
 import UserDetailsModal from './sections/UserDetailsModal';
 import VerificationsSection from './sections/VerificationsSection';
 import NotificationsSection from './sections/NotificationsSection';
@@ -74,7 +75,7 @@ const sectionLabels: Record<string, string> = {
 };
 
 function authHeaders() {
-  const token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+  const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -84,8 +85,7 @@ function authHeaders() {
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
   const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
   if (res.status === 401) {
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('accessToken');
+    tokenStorage.clear();
     onUnauthorized?.();
     throw new Error('UNAUTHORIZED');
   }

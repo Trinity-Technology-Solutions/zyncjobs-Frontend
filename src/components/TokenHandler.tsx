@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, Home, ShieldAlert, UserCircle2, Briefcase, Zap } from 'lucide-react';
+import { tokenStorage } from '../utils/tokenStorage';
 
 interface TokenHandlerProps {
   onLogin: (userData: {name: string, type: 'candidate' | 'employer' | 'admin', email?: string}) => void;
@@ -32,8 +33,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
     if (!token) return;
     if (isLinkedinImport && !token) return;
 
-    localStorage.setItem('token', token);
-    localStorage.setItem('accessToken', token);
+    tokenStorage.setAccess(token);
 
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -65,8 +65,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
               }).catch(() => {});
             }
 
-            localStorage.removeItem('token');
-            localStorage.removeItem('accessToken');
+            tokenStorage.clear();
             window.history.replaceState({}, document.title, window.location.pathname);
             setMismatch({
               actualRole: accountIsEmployer ? 'Employer' : 'Candidate',
@@ -94,8 +93,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
           onNavigate('login');
         });
     } catch {
-      localStorage.removeItem('token');
-      localStorage.removeItem('accessToken');
+          tokenStorage.clear();
       onNavigate('login');
     }
   }, [onLogin, onNavigate]);

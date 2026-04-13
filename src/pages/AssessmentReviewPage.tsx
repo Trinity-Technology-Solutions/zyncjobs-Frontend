@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, ArrowLeft, RotateCcw } from 'lucide-react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
+import { tokenStorage } from '../utils/tokenStorage';
 
 interface AssessmentReviewPageProps {
   assessmentId: string;
@@ -13,12 +13,12 @@ interface AssessmentReviewPageProps {
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 const getAuthToken = async (): Promise<string | null> => {
-  let token = localStorage.getItem('accessToken');
+  let token = tokenStorage.getAccess();
   if (!token) return null;
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
     if (payload.exp * 1000 < Date.now()) {
-      const refreshToken = localStorage.getItem('refreshToken');
+      const refreshToken = tokenStorage.getRefresh();
       if (!refreshToken) return null;
       const res = await fetch(`${API_BASE_URL}/users/refresh`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -26,8 +26,8 @@ const getAuthToken = async (): Promise<string | null> => {
       });
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem('accessToken', data.accessToken);
-        if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+        tokenStorage.setAccess(data.accessToken);
+        if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
         token = data.accessToken;
       } else return null;
     }

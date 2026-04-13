@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Search, IndianRupee, BarChart2, Award } from 'lucide-react';
+import { TrendingUp, Search, IndianRupee, BarChart2, Award, ArrowLeft } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 
 interface SalaryInsightsProps {
   defaultTitle?: string;
-  compact?: boolean; // for embedding in job detail page
+  compact?: boolean;
+  onNavigate?: (page: string) => void;
 }
 
 const fmt = (n: number) => n >= 100000
   ? `₹${(n / 100000).toFixed(1)}L`
   : `₹${n.toLocaleString('en-IN')}`;
 
-const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', compact = false }) => {
+const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', compact = false, onNavigate }) => {
   const [search, setSearch] = useState(defaultTitle);
   const [data, setData] = useState<any>(null);
   const [overview, setOverview] = useState<any>(null);
@@ -61,6 +62,15 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
     <div className={compact ? '' : 'max-w-4xl mx-auto'}>
       {!compact && (
         <div className="mb-6">
+          {onNavigate && (
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm mb-4 transition-colors group"
+            >
+              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              Back to Dashboard
+            </button>
+          )}
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
             <IndianRupee className="w-8 h-8 text-blue-600" /> Salary Insights
           </h1>

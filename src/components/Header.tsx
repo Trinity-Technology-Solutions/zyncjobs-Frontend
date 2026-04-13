@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
+import { tokenStorage } from '../utils/tokenStorage';
 
 
 interface HeaderProps {
@@ -136,14 +137,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const fetchProfileMetrics = async () => {
       if (!user) return;
       try {
-        const userData = localStorage.getItem('user');
-        if (!userData) return;
-        const parsedUser = JSON.parse(userData);
-        const userEmail = parsedUser.email;
+        // Use user prop directly — don't rely on localStorage which may be stale
+        const userEmail = (user as any).email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
         if (!userEmail) return;
 
         if (user.type === 'employer') {
-          const token = localStorage.getItem('token');
+          const token = tokenStorage.getAccess();
           const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
           const [jobsRes, appsRes] = await Promise.all([
             fetch(`${API_ENDPOINTS.JOBS}?limit=1000`, { headers }),
@@ -184,14 +183,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     };
     
     const fetchNotifications = async () => {
-      if (user) {
-        try {
-          const userData = localStorage.getItem('user');
-          if (userData) {
-            const parsedUser = JSON.parse(userData);
-            const userEmail = parsedUser.email;
-            
-            if (user.type === 'employer') {
+      if (!user) return;
+      try {
+        const userEmail = (user as any).email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+        if (!userEmail) return;
+
+        if (user.type === 'employer') {
               // Fetch employer notifications
               const [appsRes, jobsRes, interviewsRes] = await Promise.all([
                 fetch(API_ENDPOINTS.APPLICATIONS),
@@ -201,69 +198,33 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               
               const realNotifications: Array<{id: string; type: string; title: string; message: string; time: string}> = [];
               
-              // Process applications
               if (appsRes.ok) {
                 const appsData = await appsRes.json();
                 const allApps = appsData.applications || appsData || [];
                 const employerApps = allApps.filter((app: any) => app.employerEmail === userEmail);
-                const recentApps = employerApps.slice(0, 3);
-                
-                recentApps.forEach((app: any) => {
-                  realNotifications.push({
-                    id: `app_${app._id || app.id}`,
-                    type: 'application',
-                    title: 'New application received',
-                    message: `${app.candidateName || app.candidateEmail} applied for a position`,
-                    time: new Date(app.createdAt).toLocaleDateString() || '1d ago'
-                  });
+                employerApps.slice(0, 3).forEach((app: any) => {
+                  realNotifications.push({ id: `app_${app._id || app.id}`, type: 'application', title: 'New application received', message: `${app.candidateName || app.candidateEmail} applied for a position`, time: new Date(app.createdAt).toLocaleDateString() || '1d ago' });
                 });
               }
-              
-              // Process interviews
               if (interviewsRes.ok) {
-                const interviewsData = await interviewsRes.json();
-                const interviews = Array.isArray(interviewsData) ? interviewsData : [];
-                const upcomingInterviews = interviews.slice(0, 2);
-                
-                upcomingInterviews.forEach((interview: any) => {
-                  realNotifications.push({
-                    id: `interview_${interview._id}`,
-                    type: 'interview',
-                    title: 'Interview scheduled',
-                    message: `Interview with ${interview.candidateName || 'candidate'} scheduled`,
-                    time: new Date(interview.date).toLocaleDateString() || '1d ago'
-                  });
+                const interviews = Array.isArray(await interviewsRes.json()) ? await interviewsRes.clone().json() : [];
+                interviews.slice(0, 2).forEach((interview: any) => {
+                  realNotifications.push({ id: `interview_${interview._id}`, type: 'interview', title: 'Interview scheduled', message: `Interview with ${interview.candidateName || 'candidate'} scheduled`, time: new Date(interview.date).toLocaleDateString() || '1d ago' });
                 });
               }
-              
-              // Process jobs
               if (jobsRes.ok) {
-                const jobsData = await jobsRes.json();
-                const allJobs = Array.isArray(jobsData) ? jobsData : [];
-                const employerJobs = allJobs.filter((job: any) => job.postedBy === userEmail);
-                const recentJobs = employerJobs.slice(0, 2);
-                
-                recentJobs.forEach((job: any) => {
-                  realNotifications.push({
-                    id: `job_${job._id || job.id}`,
-                    type: 'job',
-                    title: 'Job posting active',
-                    message: `Your ${job.jobTitle || job.title} position is live`,
-                    time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || '2d ago'
-                  });
+                const allJobs = Array.isArray(await jobsRes.json()) ? await jobsRes.clone().json() : [];
+                allJobs.filter((job: any) => job.postedBy === userEmail).slice(0, 2).forEach((job: any) => {
+                  realNotifications.push({ id: `job_${job._id || job.id}`, type: 'job', title: 'Job posting active', message: `Your ${job.jobTitle || job.title} position is live`, time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || '2d ago' });
                 });
               }
-              
               setNotifications(realNotifications);
-            } else {
-              // For candidates, fetch different notifications
-              setNotifications([]);
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching notifications:', error);
+        } else {
           setNotifications([]);
         }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+        setNotifications([]);
       }
     };
     
