@@ -62,101 +62,34 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
         <div style={{ borderBottom: '1.5px solid #111', paddingBottom: 2, marginBottom: 6, fontWeight: 700, fontSize: 10.5, letterSpacing: 0.5 }}>
           {sec.label}
         </div>
-      )}
-      {data.certifications?.length > 0 && (
-        <div><SectionLabel label="Certifications" template="modern" />
-          {data.certifications.map(c => (
-            <div key={c.id} className="flex justify-between items-baseline mb-1">
-              <span className="text-xs font-semibold text-gray-900">{c.name}{c.issuer ? <span className="font-normal text-gray-500"> — {c.issuer}</span> : ''}</span>
-              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{c.year}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {data.awards?.length > 0 && (
-        <div><SectionLabel label="Awards & Achievements" template="modern" />
-          {data.awards.map(a => (
-            <div key={a.id} className="mb-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-semibold text-gray-900">{a.title}{a.issuer ? <span className="font-normal text-gray-500"> — {a.issuer}</span> : ''}</span>
-                <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{a.year}</span>
-              </div>
-              {a.description && <p className="text-xs text-gray-500 ml-1">{a.description}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  </div>
-);
-
-// ─── 2. CLASSIC ───────────────────────────────────────────────────────────────
-const ClassicTemplate = ({ data }: { data: ResumeData }) => (
-  <div style={{ fontFamily: 'Georgia, serif', fontSize: 11 }} className="px-6 py-5">
-    <div className="text-center border-b-2 border-gray-800 pb-4 mb-4">
-      <h1 className="text-2xl font-bold text-gray-900 uppercase tracking-widest">{data.personalInfo.name || 'Your Name'}</h1>
-      <div className="flex justify-center flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-600">
-        {data.personalInfo.email && <span>{data.personalInfo.email}</span>}
-        {data.personalInfo.phone && <span>| {data.personalInfo.phone}</span>}
-        {data.personalInfo.location && <span>| {data.personalInfo.location}</span>}
-      </div>
-      {(data.personalInfo.linkedin || data.personalInfo.portfolio) && (
-        <div className="flex justify-center flex-wrap gap-x-3 mt-0.5 text-xs text-gray-500">
-          {data.personalInfo.linkedin && <span>{data.personalInfo.linkedin}</span>}
-          {data.personalInfo.portfolio && <span>| {data.personalInfo.portfolio}</span>}
-        </div>
-      )}
-    </div>
-    <div className="space-y-4">
-      {data.summary && (<div><SectionLabel label="Professional Summary" template="classic" /><p className="text-xs text-gray-700 leading-relaxed">{data.summary}</p></div>)}
-      {data.skills.length > 0 && (<div><SectionLabel label="Core Competencies" template="classic" /><p className="text-xs text-gray-700">{data.skills.join('  •  ')}</p></div>)}
-      {data.experience.length > 0 && (
-        <div><SectionLabel label="Professional Experience" template="classic" />
-          {data.experience.map(exp => (
-            <div key={exp.id} className="mb-3">
-              <div className="flex justify-between items-baseline">
-                <span className="font-bold text-xs text-gray-900">{exp.title}{exp.company ? `, ${exp.company}` : ''}</span>
-                <span className="text-xs text-gray-500 italic flex-shrink-0 ml-2">{exp.duration}</span>
-              </div>
-              <ul className="mt-1 space-y-0.5">{exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} className="text-xs text-gray-700 ml-4">• {b}</li>)}</ul>
-            </div>
-          ))}
-        </div>
-      )}
-      {data.education.length > 0 && (
-        <div><SectionLabel label="Education" template="classic" />
-          {data.education.map(edu => (
-            <div key={edu.id} className="mb-2">
-              <div className="flex justify-between items-baseline">
-                <div><span className="font-bold text-xs text-gray-900">{edu.degree}</span>{edu.institution ? <span className="text-xs text-gray-600">, {edu.institution}</span> : null}</div>
-                <span className="text-xs text-gray-500 italic flex-shrink-0 ml-2">{edu.duration}{edu.grade ? ` | ${edu.grade}` : ''}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      {data.certifications?.length > 0 && (
-        <div><SectionLabel label="Certifications" template="classic" />
-          {data.certifications.map(c => (
-            <div key={c.id} className="flex justify-between items-baseline mb-1">
-              <span className="text-xs text-gray-900 font-semibold">{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
-              <span className="text-xs text-gray-500 italic flex-shrink-0 ml-2">{c.year}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {data.awards?.length > 0 && (
-        <div><SectionLabel label="Awards & Achievements" template="classic" />
-          {data.awards.map(a => (
-            <div key={a.id} className="mb-2">
-              <div className="flex justify-between items-baseline">
-                <span className="text-xs font-bold text-gray-900">{a.title}{a.issuer ? ` — ${a.issuer}` : ''}</span>
-                <span className="text-xs text-gray-500 italic flex-shrink-0 ml-2">{a.year}</span>
-              </div>
-              {a.description && <p className="text-xs text-gray-600 ml-2">{a.description}</p>}
         {sec.content}
       </div>
     ))}
+    {data.certifications?.length > 0 && (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ borderBottom: '1.5px solid #111', paddingBottom: 2, marginBottom: 6, fontWeight: 700, fontSize: 10.5, letterSpacing: 0.5 }}>CERTIFICATIONS</div>
+        {data.certifications.map(c => (
+          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600 }}>{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
+            <span style={{ fontSize: 10, color: '#444' }}>{c.year}</span>
+          </div>
+        ))}
+      </div>
+    )}
+    {data.awards?.length > 0 && (
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ borderBottom: '1.5px solid #111', paddingBottom: 2, marginBottom: 6, fontWeight: 700, fontSize: 10.5, letterSpacing: 0.5 }}>AWARDS & ACHIEVEMENTS</div>
+        {data.awards.map(a => (
+          <div key={a.id} style={{ marginBottom: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10.5, fontWeight: 600 }}>{a.title}{a.issuer ? ` — ${a.issuer}` : ''}</span>
+              <span style={{ fontSize: 10, color: '#444' }}>{a.year}</span>
+            </div>
+            {a.description && <p style={{ margin: '2px 0 0 0', fontSize: 10, color: '#555' }}>{a.description}</p>}
+          </div>
+        ))}
+      </div>
+    )}
   </div>
 );
 
@@ -212,6 +145,29 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
         ))}
       </Section>
     )}
+    {data.certifications?.length > 0 && (
+      <Section label="Certifications">
+        {data.certifications.map(c => (
+          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600 }}>{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
+            <span style={{ fontSize: 10, color: '#555' }}>{c.year}</span>
+          </div>
+        ))}
+      </Section>
+    )}
+    {data.awards?.length > 0 && (
+      <Section label="Awards & Achievements">
+        {data.awards.map(a => (
+          <div key={a.id} style={{ marginBottom: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10.5, fontWeight: 600 }}>{a.title}{a.issuer ? ` — ${a.issuer}` : ''}</span>
+              <span style={{ fontSize: 10, color: '#555' }}>{a.year}</span>
+            </div>
+            {a.description && <p style={{ margin: '2px 0 0 0', fontSize: 10, color: '#666' }}>{a.description}</p>}
+          </div>
+        ))}
+      </Section>
+    )}
   </div>
 );
 
@@ -261,34 +217,38 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
         <div style={{ width: 80, flexShrink: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#888', paddingTop: 2 }}>
           {sec.label}
         </div>
-      )}
-      {data.certifications?.length > 0 && (
-        <div><SectionLabel label="Certifications" template="minimal" />
-          {data.certifications.map(c => (
-            <div key={c.id} className="flex justify-between mb-1">
-              <span className="text-xs text-gray-600">{c.name}{c.issuer ? `, ${c.issuer}` : ''}</span>
-              <span className="text-xs text-gray-400">{c.year}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {data.awards?.length > 0 && (
-        <div><SectionLabel label="Awards" template="minimal" />
-          {data.awards.map(a => (
-            <div key={a.id} className="mb-1">
-              <div className="flex justify-between">
-                <span className="text-xs text-gray-700">{a.title}{a.issuer ? `, ${a.issuer}` : ''}</span>
-                <span className="text-xs text-gray-400">{a.year}</span>
-              </div>
-              {a.description && <p className="text-xs text-gray-400 ml-2">{a.description}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
         <div style={{ flex: 1, borderTop: '1px solid #ddd', paddingTop: 4 }}>{sec.body}</div>
       </div>
     ))}
+    {data.certifications?.length > 0 && (
+      <div style={{ marginBottom: 14, display: 'flex', gap: 20 }}>
+        <div style={{ width: 80, flexShrink: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#888', paddingTop: 2 }}>Certs</div>
+        <div style={{ flex: 1, borderTop: '1px solid #ddd', paddingTop: 4 }}>
+          {data.certifications.map(c => (
+            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+              <span style={{ fontSize: 10.5 }}>{c.name}{c.issuer ? `, ${c.issuer}` : ''}</span>
+              <span style={{ fontSize: 10, color: '#777' }}>{c.year}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+    {data.awards?.length > 0 && (
+      <div style={{ marginBottom: 14, display: 'flex', gap: 20 }}>
+        <div style={{ width: 80, flexShrink: 0, fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#888', paddingTop: 2 }}>Awards</div>
+        <div style={{ flex: 1, borderTop: '1px solid #ddd', paddingTop: 4 }}>
+          {data.awards.map(a => (
+            <div key={a.id} style={{ marginBottom: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 10.5 }}>{a.title}{a.issuer ? `, ${a.issuer}` : ''}</span>
+                <span style={{ fontSize: 10, color: '#777' }}>{a.year}</span>
+              </div>
+              {a.description && <p style={{ margin: '2px 0 0 0', fontSize: 10, color: '#888' }}>{a.description}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
   </div>
 );
 
@@ -330,33 +290,6 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
               <span style={{ fontWeight: 700, fontSize: 11 }}>{exp.title}</span>
               <span style={{ fontSize: 10, color: '#555' }}>{exp.duration}</span>
             </div>
-          ))}
-        </div>
-      )}
-      {data.certifications?.length > 0 && (
-        <div><SectionLabel label="Certifications" template="creative" />
-          {data.certifications.map(c => (
-            <div key={c.id} className="flex justify-between mb-1">
-              <span className="text-xs text-gray-800 font-medium">{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
-              <span className="text-xs text-purple-500 flex-shrink-0 ml-2">{c.year}</span>
-            </div>
-          ))}
-        </div>
-      )}
-      {data.awards?.length > 0 && (
-        <div><SectionLabel label="Awards" template="creative" />
-          {data.awards.map(a => (
-            <div key={a.id} className="mb-2">
-              <div className="flex justify-between">
-                <span className="text-xs font-bold text-gray-900">{a.title}</span>
-                <span className="text-xs text-purple-500 flex-shrink-0 ml-2">{a.year}</span>
-              </div>
-              {a.description && <p className="text-xs text-gray-500">{a.description}</p>}
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
             {exp.company && <div style={{ fontSize: 10.5, fontStyle: 'italic', color: '#444', marginBottom: 2 }}>{exp.company}</div>}
             <ul style={{ margin: '2px 0 0 16px', padding: 0 }}>
               {exp.bullets.filter(b => b.trim()).map((b, i) => <li key={i} style={{ fontSize: 10.5, marginBottom: 2 }}>▸ {b}</li>)}
@@ -375,6 +308,29 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
               {edu.grade && <span style={{ fontSize: 10, color: '#555' }}> · {edu.grade}</span>}
             </div>
             <span style={{ fontSize: 10, color: '#555' }}>{edu.duration}</span>
+          </div>
+        ))}
+      </ExecSection>
+    )}
+    {data.certifications?.length > 0 && (
+      <ExecSection label="Certifications">
+        {data.certifications.map(c => (
+          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+            <span style={{ fontSize: 10.5, fontWeight: 600 }}>{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
+            <span style={{ fontSize: 10, color: '#555' }}>{c.year}</span>
+          </div>
+        ))}
+      </ExecSection>
+    )}
+    {data.awards?.length > 0 && (
+      <ExecSection label="Awards & Recognition">
+        {data.awards.map(a => (
+          <div key={a.id} style={{ marginBottom: 5 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 10.5, fontWeight: 600 }}>{a.title}{a.issuer ? ` — ${a.issuer}` : ''}</span>
+              <span style={{ fontSize: 10, color: '#555' }}>{a.year}</span>
+            </div>
+            {a.description && <p style={{ margin: '2px 0 0 0', fontSize: 10, fontStyle: 'italic', color: '#666' }}>{a.description}</p>}
           </div>
         ))}
       </ExecSection>
@@ -430,6 +386,29 @@ const CompactTemplate = ({ data }: { data: ResumeData }) => (
         ))}
       </CompactSection>
     )}
+    {data.certifications?.length > 0 && (
+      <CompactSection label="CERTIFICATIONS">
+        {data.certifications.map(c => (
+          <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+            <span>{c.name}{c.issuer ? ` | ${c.issuer}` : ''}</span>
+            <span style={{ color: '#555' }}>{c.year}</span>
+          </div>
+        ))}
+      </CompactSection>
+    )}
+    {data.awards?.length > 0 && (
+      <CompactSection label="AWARDS">
+        {data.awards.map(a => (
+          <div key={a.id} style={{ marginBottom: 3 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ fontWeight: 700 }}>{a.title}{a.issuer ? ` | ${a.issuer}` : ''}</span>
+              <span style={{ color: '#555' }}>{a.year}</span>
+            </div>
+            {a.description && <p style={{ margin: '1px 0 0 0', color: '#666' }}>{a.description}</p>}
+          </div>
+        ))}
+      </CompactSection>
+    )}
   </div>
 );
 
@@ -467,27 +446,26 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
         </SideSection>
       )}
       {data.certifications?.length > 0 && (
-        <div><SectionLabel label="Certifications" template="executive" />
+        <SideSection label="CERTIFICATIONS">
           {data.certifications.map(c => (
-            <div key={c.id} className="flex justify-between mb-1">
-              <span className="text-xs text-gray-800 font-semibold">{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
-              <span className="text-xs text-amber-700 flex-shrink-0 ml-2">{c.year}</span>
+            <div key={c.id} style={{ marginBottom: 4 }}>
+              <div style={{ fontWeight: 600 }}>{c.name}</div>
+              {c.issuer && <div style={{ color: '#666' }}>{c.issuer}</div>}
+              {c.year && <div style={{ color: '#666' }}>{c.year}</div>}
             </div>
           ))}
-        </div>
+        </SideSection>
       )}
       {data.awards?.length > 0 && (
-        <div><SectionLabel label="Awards & Recognition" template="executive" />
+        <SideSection label="AWARDS">
           {data.awards.map(a => (
-            <div key={a.id} className="mb-2">
-              <div className="flex justify-between">
-                <span className="text-xs font-bold text-gray-900">{a.title}{a.issuer ? ` — ${a.issuer}` : ''}</span>
-                <span className="text-xs text-amber-700 flex-shrink-0 ml-2">{a.year}</span>
-              </div>
-              {a.description && <p className="text-xs text-gray-600 italic ml-3">{a.description}</p>}
+            <div key={a.id} style={{ marginBottom: 4 }}>
+              <div style={{ fontWeight: 600 }}>{a.title}</div>
+              {a.issuer && <div style={{ color: '#666' }}>{a.issuer}</div>}
+              {a.description && <div style={{ color: '#666' }}>{a.description}</div>}
             </div>
           ))}
-        </div>
+        </SideSection>
       )}
     </div>
 
@@ -515,27 +493,27 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
         </ProfSection>
       )}
       {data.certifications?.length > 0 && (
-        <div><SectionLabel label="Certifications" template="tech" />
+        <ProfSection label="CERTIFICATIONS">
           {data.certifications.map(c => (
-            <div key={c.id} className="flex justify-between mb-1 pl-2">
-              <span className="text-green-300 text-xs">{c.name}{c.issuer ? ` // ${c.issuer}` : ''}</span>
-              <span className="text-green-700 text-xs flex-shrink-0 ml-2">{c.year}</span>
+            <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+              <span style={{ fontSize: 10.5, fontWeight: 600 }}>{c.name}{c.issuer ? ` — ${c.issuer}` : ''}</span>
+              <span style={{ fontSize: 10, color: '#555' }}>{c.year}</span>
             </div>
           ))}
-        </div>
+        </ProfSection>
       )}
       {data.awards?.length > 0 && (
-        <div><SectionLabel label="Awards" template="tech" />
+        <ProfSection label="AWARDS & ACHIEVEMENTS">
           {data.awards.map(a => (
-            <div key={a.id} className="mb-2 pl-2">
-              <div className="flex justify-between">
-                <span className="text-green-200 text-xs font-bold">{a.title}{a.issuer ? ` @ ${a.issuer}` : ''}</span>
-                <span className="text-green-700 text-xs flex-shrink-0 ml-2">{a.year}</span>
+            <div key={a.id} style={{ marginBottom: 5 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 10.5, fontWeight: 600 }}>{a.title}{a.issuer ? ` — ${a.issuer}` : ''}</span>
+                <span style={{ fontSize: 10, color: '#555' }}>{a.year}</span>
               </div>
-              {a.description && <p className="text-green-600 text-xs">→ {a.description}</p>}
+              {a.description && <p style={{ margin: '2px 0 0 0', fontSize: 10, color: '#666' }}>{a.description}</p>}
             </div>
           ))}
-        </div>
+        </ProfSection>
       )}
     </div>
   </div>
