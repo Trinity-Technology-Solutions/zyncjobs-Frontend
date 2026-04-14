@@ -38,7 +38,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const [locationFilter, setLocationFilter] = useState('');
   const [industryInput, setIndustryInput] = useState('');
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
-  const [jobTitleFilter, setJobTitleFilter] = useState('');
+  const [locationFilter2, setLocationFilter2] = useState('');
   const [allCompanies, setAllCompanies] = useState<Company[]>([]);
 
   // Default companies
@@ -132,9 +132,8 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     if (companyFilter) filtered = filtered.filter(c => c.name.toLowerCase().includes(companyFilter.toLowerCase()));
     if (locationFilter) filtered = filtered.filter(c => c.location.toLowerCase().includes(locationFilter.toLowerCase()));
     if (industryInput) filtered = filtered.filter(c => c.industry.toLowerCase().includes(industryInput.toLowerCase()));
-    if (jobTitleFilter) filtered = filtered.filter(c =>
-      c.description?.toLowerCase().includes(jobTitleFilter.toLowerCase()) ||
-      c.industry?.toLowerCase().includes(jobTitleFilter.toLowerCase())
+    if (locationFilter2) filtered = filtered.filter(c =>
+      c.location?.toLowerCase().includes(locationFilter2.toLowerCase())
     );
     setCompanies(filtered);
   };
@@ -155,7 +154,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
 
   useEffect(() => {
     applyFilters(allCompanies);
-  }, [searchTerm, companyFilter, locationFilter, industryInput, jobTitleFilter, allCompanies]);
+  }, [searchTerm, companyFilter, locationFilter, industryInput, locationFilter2, allCompanies]);
 
   const formatSalary = (salary: number) => {
     if (salary >= 1000000) {
@@ -335,12 +334,12 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                 )}
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-4">Job title</h3>
+              <h3 className="font-semibold text-gray-900 mb-4">Location</h3>
               <input
                 type="text"
-                placeholder="Select a job title"
-                value={jobTitleFilter}
-                onChange={(e) => setJobTitleFilter(e.target.value)}
+                placeholder="E.g. Bangalore, India, Remote"
+                value={locationFilter2}
+                onChange={(e) => setLocationFilter2(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
               />
             </div>

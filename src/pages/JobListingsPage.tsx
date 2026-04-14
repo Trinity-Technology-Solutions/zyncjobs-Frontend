@@ -160,9 +160,14 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const clientFilter = useCallback((jobList: any[], term: string, loc: string) => {
     return jobList.filter(job => {
-      const text = `${job.title || job.jobTitle || ''} ${job.description || ''} ${job.company || ''}`.toLowerCase();
-      const matchTerm = !term || text.includes(term.toLowerCase());
-      const matchLoc = !loc || (job.location || '').toLowerCase().includes(loc.toLowerCase());
+      const text = [
+        job.title, job.jobTitle, job.description,
+        job.company, job.skills, job.requirements,
+        job.jobCategory, job.category
+      ].filter(Boolean).join(' ').toLowerCase();
+      const matchTerm = !term || term.toLowerCase().split(/\s+/).every(w => text.includes(w));
+      const matchLoc = !loc || (job.location || '').toLowerCase().includes(loc.toLowerCase()) ||
+        (job.country || '').toLowerCase().includes(loc.toLowerCase());
       return matchTerm && matchLoc;
     });
   }, []);
@@ -209,8 +214,22 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             return;
           }
         }
-        // Advanced search failed or returned empty — fall back to client-side filter
-        if (!append) setFilteredJobs(clientFilter(jobs, activeTerm, activeLoc));
+        // Advanced search failed or returned empty — fall back to client-side filter on all jobs
+        if (!append) {
+          // If we have jobs loaded, filter them; otherwise fetch all and filter
+          if (jobs.length > 0) {
+            const fallback = clientFilter(jobs, activeTerm, activeLoc);
+            setFilteredJobs(fallback);
+          } else {
+            const allRes = await fetch(`${API_ENDPOINTS.JOBS}?limit=200`);
+            if (allRes.ok) {
+              const allData = await allRes.json();
+              const allArr = Array.isArray(allData) ? allData : (allData.jobs || []);
+              setJobs(allArr);
+              setFilteredJobs(clientFilter(allArr, activeTerm, activeLoc));
+            }
+          }
+        }
       } else {
         url = `${API_ENDPOINTS.JOBS}?page=${page}&limit=${jobsPerPage}`;
         const response = await fetch(url);
@@ -387,6 +406,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       setCategoryTerms(initialSearch.categoryTerms || []);
     }
   }, [initialSearch]);
+
+  // Re-run search whenever URL params (q / location) change — handles hero search & popular searches
+  useEffect(() => {
+    const q = searchParams.get('q') || '';
+    const loc = searchParams.get('location') || '';
+    if (q || loc) {
+      setSearchTerm(q);
+      setLocation(loc);
+      fetchJobs(1, false, { term: q, loc });
+    }
+  }, [searchParams.get('q'), searchParams.get('location')]);
   
   useEffect(() => {
     if (jobs.length > 0) {
