@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
 
@@ -9,6 +10,7 @@ interface LoginPageProps {
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -18,7 +20,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (localStorage.getItem('user')) onNavigate('dashboard');
+                                // Clear any stale error on mount
+    setError('');
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,14 +39,15 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
       const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
       onLogin({ name: displayName, type: userType, email: response.user.email, id: response.user.id } as any);
+      // Navigate after onLogin updates App state
       const pendingApplication = localStorage.getItem('pendingJobApplication');
       if (pendingApplication) {
         const jobData = JSON.parse(pendingApplication);
         localStorage.removeItem('pendingJobApplication');
         localStorage.setItem('selectedJob', JSON.stringify(jobData));
-        onNavigate('job-application');
+        navigate('/job-application', { replace: true });
       } else {
-        onNavigate('home');
+        navigate('/dashboard', { replace: true });
       }
     } catch (err) {
       let errorMessage = 'Login failed';
@@ -208,7 +212,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
-                  if (localStorage.getItem('user')) { setError('You are already logged in!'); return; }
                   window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate?portal=candidate`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -225,7 +228,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
-                  if (localStorage.getItem('user')) { setError('You are already logged in!'); return; }
                   window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/linkedin/candidate`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors mt-3"

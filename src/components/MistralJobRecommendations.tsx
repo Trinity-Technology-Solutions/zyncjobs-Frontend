@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { rankJobs, type MatchBreakdown } from '../services/jobMatchEngine';
+import { rankJobs, computeMatchScore, type MatchBreakdown } from '../services/jobMatchEngine';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -175,20 +175,21 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const data = await res.json();
           const matched = Array.isArray(data.jobs) ? data.jobs : [];
           if (matched.length > 0) {
-            // Attach matchBreakdown shape from backend score so MatchCard renders correctly
-            setRankedJobs(matched.map((j: any) => ({
-              ...j,
-              matchBreakdown: {
-                overall: j.matchScore ?? j.matchPercentage ?? 0,
-                skillScore: j.skillScore ?? j.matchScore ?? 0,
-                titleScore: j.titleScore ?? 0,
-                locationScore: j.locationScore ?? 0,
-                matchedSkills: j.matchingSkills ?? [],
-                missingSkills: j.missingSkills ?? [],
-                bonusSkills: [],
-                explanation: j.explanation ?? [],
-              },
-            })));
+            setRankedJobs(matched.map((j: any) => {
+              const local = computeMatchScore(skillNames, experience, location, j);
+              const backendOverall = j.matchScore ?? j.matchPercentage ?? 0;
+              const breakdown: MatchBreakdown = {
+                overall: backendOverall > 0 ? backendOverall : local.overall,
+                skillScore: j.skillScore > 0 ? j.skillScore : local.skillScore,
+                titleScore: j.titleScore > 0 ? j.titleScore : local.titleScore,
+                locationScore: j.locationScore > 0 ? j.locationScore : local.locationScore,
+                matchedSkills: j.matchingSkills?.length ? j.matchingSkills : local.matchedSkills,
+                missingSkills: j.missingSkills?.length ? j.missingSkills : local.missingSkills,
+                bonusSkills: local.bonusSkills,
+                explanation: j.explanation?.length ? j.explanation : local.explanation,
+              };
+              return { ...j, matchBreakdown: breakdown };
+            }));
             return;
           }
         }
@@ -205,19 +206,21 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const data = await res.json();
           const matches = Array.isArray(data.matches) ? data.matches : [];
           if (matches.length > 0) {
-            setRankedJobs(matches.map((j: any) => ({
-              ...j,
-              matchBreakdown: {
-                overall: j.matchScore ?? j.matchPercentage ?? 0,
-                skillScore: j.skillScore ?? j.matchScore ?? 0,
-                titleScore: j.titleScore ?? 0,
-                locationScore: j.locationScore ?? 0,
-                matchedSkills: j.matchingSkills ?? [],
-                missingSkills: j.missingSkills ?? [],
-                bonusSkills: [],
-                explanation: j.explanation ?? [],
-              },
-            })));
+            setRankedJobs(matches.map((j: any) => {
+              const local = computeMatchScore(skillNames, experience, location, j);
+              const backendOverall = j.matchScore ?? j.matchPercentage ?? 0;
+              const breakdown: MatchBreakdown = {
+                overall: backendOverall > 0 ? backendOverall : local.overall,
+                skillScore: j.skillScore > 0 ? j.skillScore : local.skillScore,
+                titleScore: j.titleScore > 0 ? j.titleScore : local.titleScore,
+                locationScore: j.locationScore > 0 ? j.locationScore : local.locationScore,
+                matchedSkills: j.matchingSkills?.length ? j.matchingSkills : local.matchedSkills,
+                missingSkills: j.missingSkills?.length ? j.missingSkills : local.missingSkills,
+                bonusSkills: local.bonusSkills,
+                explanation: j.explanation?.length ? j.explanation : local.explanation,
+              };
+              return { ...j, matchBreakdown: breakdown };
+            }));
             return;
           }
         }

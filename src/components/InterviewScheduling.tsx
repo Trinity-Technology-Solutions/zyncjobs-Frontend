@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import BackButton from './BackButton';
 import { API_ENDPOINTS } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 
 const InterviewScheduling = () => {
   const [interviews, setInterviews] = useState<any[]>([]);
@@ -23,7 +24,7 @@ const InterviewScheduling = () => {
 
   const fetchInterviews = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       const response = await fetch(`${API_ENDPOINTS.INTERVIEWS}/my-interviews`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -43,7 +44,7 @@ const InterviewScheduling = () => {
 
   const fetchAvailableSlots = async (date: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       const response = await fetch(`${API_ENDPOINTS.INTERVIEWS}/available-slots?date=${date}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -63,7 +64,7 @@ const InterviewScheduling = () => {
 
   const scheduleInterview = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       const response = await fetch(`${API_ENDPOINTS.INTERVIEWS}/schedule`, {
         method: 'POST',
         headers: {
@@ -101,7 +102,7 @@ const InterviewScheduling = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${tokenStorage.getAccess()}`
         },
         body: JSON.stringify({
           platform: 'zoom',
@@ -131,7 +132,7 @@ const InterviewScheduling = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${tokenStorage.getAccess()}`
         },
         body: JSON.stringify({
           platform: 'googlemeet',
@@ -157,7 +158,7 @@ const InterviewScheduling = () => {
 
   const confirmInterview = async (interviewId: string) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       await fetch(`${API_ENDPOINTS.INTERVIEWS}/${interviewId}/confirm`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` }
@@ -170,7 +171,7 @@ const InterviewScheduling = () => {
 
   const rescheduleInterview = async (interviewId: string, newDate: Date) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       await fetch(`${API_ENDPOINTS.INTERVIEWS}/${interviewId}/reschedule`, {
         method: 'PATCH',
         headers: {

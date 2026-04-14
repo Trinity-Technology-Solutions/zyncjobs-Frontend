@@ -34,14 +34,14 @@ const SYSTEM_PROMPT = `You are ZyncJobs AI Career Coach — a friendly, expert c
 
 function renderContent(text: string) {
   return text.split('\n').map((line, i) => {
-    const bold = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    if (line.startsWith('• ') || line.startsWith('- '))
-      return <li key={i} className="ml-4 list-disc" dangerouslySetInnerHTML={{ __html: bold.replace(/^[•\-]\s/, '') }} />;
-    if (bold.trim() === '') return <br key={i} />;
-    return <p key={i} dangerouslySetInnerHTML={{ __html: bold }} />;
+    const parts = line.replace(/^[�\-]\s/, '').split(/\*\*(.*?)\*\*/g);
+    const content = parts.map((part, j) => j % 2 === 1 ? React.createElement('strong', { key: j }, part) : part);
+    if (line.startsWith('� ') || line.startsWith('- '))
+      return React.createElement('li', { key: i, className: 'ml-4 list-disc' }, ...content);
+    if (line.trim() === '') return React.createElement('br', { key: i });
+    return React.createElement('p', { key: i }, ...content);
   });
 }
-
 const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onLogout }) => {
   const firstName = user?.name?.split(' ')[0] || 'there';
   const [messages, setMessages] = useState<Message[]>([]);
@@ -110,10 +110,10 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
         </div>
       }
     >
-      <div className="flex flex-col" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%)' }}>
+      <div className="flex flex-col min-h-screen" style={{ background: 'linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #f0fdf4 100%)' }}>
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-        <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-6 py-8" style={{ minHeight: 0 }}>
+        <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-6 py-8 pb-8" style={{ minHeight: 0 }}>
           <button
             onClick={() => onNavigate?.('dashboard')}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-4"
@@ -251,7 +251,8 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
               ))}
             </div>
           </div>
-
+        </div>
+        <div className="mt-8 border-t border-gray-200">
           <Footer onNavigate={onNavigate} />
         </div>
       </div>

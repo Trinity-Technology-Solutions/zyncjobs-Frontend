@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Phone, MapPin, Briefcase, FileText, Shield, ShieldOff, Trash2, ExternalLink } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
+import { tokenStorage } from '../../../utils/tokenStorage';
 
 function authHeaders() {
-  const token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+  const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

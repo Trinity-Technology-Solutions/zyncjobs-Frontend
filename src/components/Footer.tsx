@@ -21,7 +21,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   const jobSeekerLinks = [
     { name: "Find Jobs", action: () => onNavigate && onNavigate('job-listings') },
     { name: "Browse Companies", action: () => onNavigate && onNavigate('companies') },
-    { name: "Career Resources", action: () => onNavigate && onNavigate('career-resources') },
+
   ];
 
   const employerLinks = [

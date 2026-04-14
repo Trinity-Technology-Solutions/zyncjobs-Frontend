@@ -1,12 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, Star, Edit, FileText, Search, X } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/constants';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import CandidateNotificationBell from '../components/CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
-import { API_ENDPOINTS } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 import ProfileVisibilityToggle from '../components/ProfileVisibilityToggle';
 
@@ -376,12 +377,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchMyAssessments = async () => {
     try {
-      let token = localStorage.getItem('accessToken');
+      let token = tokenStorage.getAccess();
       if (!token) return;
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.exp * 1000 < Date.now()) {
-          const refreshToken = localStorage.getItem('refreshToken');
+          const refreshToken = tokenStorage.getRefresh();
           if (!refreshToken) return;
           const res = await fetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
             method: 'POST',
@@ -390,8 +391,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           });
           if (res.ok) {
             const data = await res.json();
-            localStorage.setItem('accessToken', data.accessToken);
-            if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+            tokenStorage.setAccess(data.accessToken);
+            if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
             token = data.accessToken;
           } else return;
         }
@@ -465,8 +466,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       { w: 10, ok: () => Array.isArray(userData.skills) && userData.skills.length > 0 },
       { w: 5,  ok: () => Array.isArray(userData.languages) ? userData.languages.length > 0 : !!(userData.languages?.trim?.()) },
       { w: 10, ok: () => { const e = userData.educationCollege || userData.education; if (!e) return false; if (typeof e === 'string') return e.trim().length > 0; return !!(e.college?.trim() || e.degree?.trim()); } },
-      { w: 10, ok: () => { const e = userData.employment; return !!(e && typeof e === 'object' && (e.companyName?.trim() || e.designation?.trim())); } },
-      { w: 5,  ok: () => { const p = userData.projects; return !!(p && typeof p === 'object' && p.projectName?.trim()); } },
+      { w: 10, ok: () => { const e = userData.employment; if (!e) return false; if (Array.isArray(e)) return e.length > 0 && !!(e[0]?.companyName?.trim() || e[0]?.designation?.trim()); if (typeof e === 'string') return e.trim().length > 0; return !!(e.companyName?.trim() || e.designation?.trim()); } },
+      { w: 5,  ok: () => { const p = userData.projects; if (!p) return false; if (Array.isArray(p)) return p.length > 0 && !!p[0]?.projectName?.trim(); if (typeof p === 'string') return p.trim().length > 0; return !!(p.projectName?.trim()); } },
       { w: 5,  ok: () => !!(userData.resume || userData.resumeUrl) },
     ];
     const total = checks.reduce((s, c) => s + c.w, 0);
@@ -678,7 +679,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span className="text-gray-700">🎯 AI Job Matches</span>
+                      <span className="text-gray-700">?? AI Job Matches</span>
                     </button>
                     <button 
                       onClick={() => onNavigate('my-applications')}
@@ -943,11 +944,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               </button>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{job.company} · {job.location}</p>
+                          <p className="text-xs text-gray-600 mb-2">{job.company} ÃƒÂ¯Ã‚Â¿Ã‚Â½ {job.location}</p>
                           {job.salary && (
                             <p className="text-xs text-green-600 font-medium mb-2">
                               {typeof job.salary === 'object'
-                                ? `₹${job.salary.min || ''} - ₹${job.salary.max || ''}`
+                                ? `?${job.salary.min || ''} - ?${job.salary.max || ''}`
                                 : job.salary}
                             </p>
                           )}
@@ -971,7 +972,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               }}
                               className="text-xs text-blue-600 font-medium hover:text-blue-800"
                             >
-                              Apply Now →
+                              Apply Now ?
                             </button>
                           </div>
                         </div>
@@ -1001,8 +1002,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         applications.slice(0, 3).map((app, index) => (
                           <div
                             key={app._id || index}
-                            className="border border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer bg-white"
-                            onClick={() => onNavigate('my-applications')}
+                            className="border border-gray-200 rounded-lg p-3 hover:shadow-sm hover:border-gray-300 transition-all bg-white"
                           >
                             <div className="flex items-start justify-between gap-2 mb-2">
                               <div className="min-w-0 flex-1">
@@ -1031,7 +1031,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
                                 {app.jobId?.salary ? (
                                   typeof app.jobId.salary === 'object'
-                                    ? `₹${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
+                                    ? `?${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
                                     : app.jobId.salary
                                 ) : 'Competitive'}
                               </span>
@@ -1041,7 +1041,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <p className="text-xs text-gray-400">
                                 {new Date(app.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
-                              <span className="text-xs text-blue-600 font-medium">View Details</span>
+                              <button onClick={(e) => { e.stopPropagation(); const jobId = app.jobId?._id || app.jobId?.id || (typeof app.jobId === 'string' ? app.jobId : null); if (jobId) { localStorage.setItem('selectedJob', JSON.stringify(app.jobId)); onNavigate('job-detail/' + jobId); } else { onNavigate('my-applications'); } }} className="text-xs text-blue-600 font-medium hover:text-blue-800">View Details</button>
                             </div>
                           </div>
                         ))
@@ -1088,7 +1088,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             phone: user?.phone,
                             jobTitle: user?.jobTitle,
                             education: user?.education,
-                            // profilePhoto excluded — saved separately via upload endpoint to avoid base64 corrupting JSON
+                            // profilePhoto excluded ÃƒÂ¯Ã‚Â¿Ã‚Â½ saved separately via upload endpoint to avoid base64 corrupting JSON
                             profileFrame: user?.profileFrame,
                             profileSummary: user?.profileSummary,
                             skills: user?.skills,
@@ -1145,6 +1145,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     {/* Profile Picture with Progress Ring */}
                     <div className="relative">
                       <div className="relative w-24 h-24">
+                        {user?.openToWork && (
+                          <span className="absolute -top-2 -right-2 z-10 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
+                            #Open
+                          </span>
+                        )}
                         {/* Progress Ring */}
                         <svg className="w-24 h-24 transform -rotate-90 absolute" viewBox="0 0 36 36">
                           <path
@@ -1208,9 +1213,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" 
                             />
                           </div>
-                          <p className="text-gray-600 mb-2">
+                          <p className="text-gray-600 mb-1">
                             {user?.title || user?.jobTitle || 'Add your job title'}
                           </p>
+                          {user?.visibilityStatus && (
+                            <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
+                              user.visibilityStatus === 'actively-looking' ? 'bg-green-100 text-green-700' :
+                              user.visibilityStatus === 'passively-looking' ? 'bg-blue-100 text-blue-700' :
+                              'bg-gray-100 text-gray-500'
+                            }`}>
+                              {user.visibilityStatus === 'actively-looking' ? 'Actively Looking' :
+                               user.visibilityStatus === 'passively-looking' ? 'Open to Opportunities' :
+                               'Not Looking'}
+                            </span>
+                          )}
                           {user?.educationCollege?.college && (
                             <p className="text-gray-500 text-sm mb-3">
                               {user.educationCollege.degree ? `${user.educationCollege.degree}  ` : ''}{user.educationCollege.college}
@@ -1575,81 +1591,136 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     <button 
                       onClick={() => {
                         setActiveModal('employment');
-                        setModalData(user?.employment || {});
+                        setModalData({});
                       }}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      {user?.employment && typeof user.employment === 'object' && user.employment.companyName ? 'Edit' : 'Add'}
+                      + Add
                     </button>
                   </div>
-                  {user?.employment && typeof user.employment === 'object' && user.employment.companyName ? (
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{user.employment.designation} at {user.employment.companyName}</h3>
-                          <p className="text-gray-500 text-sm">
-                            {user.employment.startMonth} {user.employment.startYear} - {user.employment.currentlyWorking ? 'Present' : `${user.employment.endMonth} ${user.employment.endYear}`}
-                            {user.employment.experienceYears || user.employment.experienceMonths ? `  ${user.employment.experienceYears || 0} years ${user.employment.experienceMonths || 0} months` : ''}
-                          </p>
-                        </div>
+                  {(() => {
+                    const empList: any[] = Array.isArray(user?.employment)
+                      ? user.employment
+                      : user?.employment && typeof user.employment === 'object' && user.employment.companyName
+                        ? [user.employment]
+                        : [];
+                    return empList.length > 0 ? (
+                      <div className="space-y-4">
+                        {empList.map((emp: any, idx: number) => (
+                          <div key={idx} className="border-b border-gray-100 pb-4 last:border-0">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h3 className="font-semibold text-gray-900">{emp.designation} at {emp.companyName}</h3>
+                                <p className="text-gray-500 text-sm">
+                                  {emp.startMonth} {emp.startYear} - {emp.currentlyWorking ? 'Present' : `${emp.endMonth} ${emp.endYear}`}
+                                  {emp.experienceYears || emp.experienceMonths ? `  ${emp.experienceYears || 0} years ${emp.experienceMonths || 0} months` : ''}
+                                </p>
+                                <p className="text-gray-700 text-sm mt-1">{emp.description}</p>
+                              </div>
+                              <div className="flex gap-2 ml-2">
+                                <Edit onClick={() => { setActiveModal('employment'); setModalData({ ...emp, _editIndex: idx }); }} className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" />
+                                <button onClick={async () => {
+                                  const updated = empList.filter((_, i) => i !== idx);
+                                  const updatedUser = { ...user, employment: updated };
+                                  setUser(updatedUser);
+                                  localStorage.setItem('user', JSON.stringify(updatedUser));
+                                  await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, employment: updated }) });
+                                }} className="text-red-400 hover:text-red-600 text-xs">×</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-gray-700">{user.employment.description}</p>
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Talk about the company you worked at, your designation and describe what all you did there</p>
-                  )}
+                    ) : (
+                      <p className="text-gray-500">Talk about the company you worked at, your designation and describe what all you did there</p>
+                    );
+                  })()}
                 </div>
 
                 {/* Projects Section */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-gray-900">Projects</h2>
-                    <button 
-                      onClick={() => {
-                        setActiveModal('projects');
-                        setModalData(user?.projects || {});
-                      }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      {user?.projects && typeof user.projects === 'object' && user.projects.projectName ? 'Edit' : 'Add'}
-                    </button>
+                    <button onClick={() => { setActiveModal('projects'); setModalData({}); }} className="text-blue-600 hover:text-blue-800 text-sm font-medium">+ Add</button>
                   </div>
-                  {user?.projects && typeof user.projects === 'object' && user.projects.projectName ? (
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{user.projects.projectName}</h3>
-                      <p className="text-gray-700 mb-2">{user.projects.description}</p>
-                      {user.projects.skills && <p className="text-gray-600 text-sm mb-1"><span className="font-medium">Skills:</span> {user.projects.skills}</p>}
-                      {user.projects.projectUrl && <a href={user.projects.projectUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">{user.projects.projectUrl}</a>}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Talk about your projects that made you proud and contributed to your learnings</p>
-                  )}
+                  {(() => {
+                    const list: any[] = Array.isArray(user?.projects)
+                      ? user.projects
+                      : user?.projects && typeof user.projects === 'object' && user.projects.projectName
+                        ? [user.projects]
+                        : [];
+                    return list.length > 0 ? (
+                      <div className="space-y-4">
+                        {list.map((proj: any, idx: number) => (
+                          <div key={idx} className="border-b border-gray-100 pb-4 last:border-0">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-gray-900">{proj.projectName}</h3>
+                                <p className="text-gray-700 text-sm mb-1">{proj.description}</p>
+                                {proj.skills && <p className="text-gray-600 text-sm"><span className="font-medium">Skills:</span> {proj.skills}</p>}
+                                {proj.projectUrl && <a href={proj.projectUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">{proj.projectUrl}</a>}
+                              </div>
+                              <div className="flex gap-2 ml-2">
+                                <Edit onClick={() => { setActiveModal('projects'); setModalData({ ...proj, _editIndex: idx }); }} className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" />
+                                <button onClick={async () => {
+                                  const updated = list.filter((_, i) => i !== idx);
+                                  const updatedUser = { ...user, projects: updated };
+                                  setUser(updatedUser);
+                                  localStorage.setItem('user', JSON.stringify(updatedUser));
+                                  await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, projects: updated }) });
+                                }} className="text-red-400 hover:text-red-600 text-xs">?</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">Talk about your projects that made you proud and contributed to your learnings</p>
+                    );
+                  })()}
                 </div>
 
                 {/* Internships Section */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-xl font-semibold text-gray-900">Internships</h2>
-                    <button 
-                      onClick={() => {
-                        setActiveModal('internships');
-                        setModalData(user?.internships || {});
-                      }}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      {user?.internships && typeof user.internships === 'object' && user.internships.companyName ? 'Edit' : 'Add'}
-                    </button>
+                    <button onClick={() => { setActiveModal('internships'); setModalData({}); }} className="text-blue-600 hover:text-blue-800 text-sm font-medium">+ Add</button>
                   </div>
-                  {user?.internships && typeof user.internships === 'object' && user.internships.companyName ? (
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{user.internships.companyName}</h3>
-                      <p className="text-gray-500 text-sm mb-2">{user.internships.startMonth} {user.internships.startYear} - {user.internships.endMonth} {user.internships.endYear}</p>
-                      <p className="text-gray-700 mb-2">{user.internships.description}</p>
-                      {user.internships.skills && <p className="text-gray-600 text-sm"><span className="font-medium">Skills:</span> {user.internships.skills}</p>}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500">Talk about the company you interned at, what projects you undertook and what special skills you learned</p>
-                  )}
+                  {(() => {
+                    const list: any[] = Array.isArray(user?.internships)
+                      ? user.internships
+                      : user?.internships && typeof user.internships === 'object' && user.internships.companyName
+                        ? [user.internships]
+                        : [];
+                    return list.length > 0 ? (
+                      <div className="space-y-4">
+                        {list.map((intern: any, idx: number) => (
+                          <div key={idx} className="border-b border-gray-100 pb-4 last:border-0">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h3 className="font-semibold text-gray-900">{intern.companyName}</h3>
+                                <p className="text-gray-500 text-sm mb-1">{intern.startMonth} {intern.startYear} - {intern.endMonth} {intern.endYear}</p>
+                                <p className="text-gray-700 text-sm mb-1">{intern.description}</p>
+                                {intern.skills && <p className="text-gray-600 text-sm"><span className="font-medium">Skills:</span> {intern.skills}</p>}
+                              </div>
+                              <div className="flex gap-2 ml-2">
+                                <Edit onClick={() => { setActiveModal('internships'); setModalData({ ...intern, _editIndex: idx }); }} className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" />
+                                <button onClick={async () => {
+                                  const updated = list.filter((_, i) => i !== idx);
+                                  const updatedUser = { ...user, internships: updated };
+                                  setUser(updatedUser);
+                                  localStorage.setItem('user', JSON.stringify(updatedUser));
+                                  await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, internships: updated }) });
+                                }} className="text-red-400 hover:text-red-600 text-xs">?</button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500">Talk about the company you interned at, what projects you undertook and what special skills you learned</p>
+                    );
+                  })()}
                 </div>
 
                 {/* Accomplishments Section */}
@@ -1816,7 +1887,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               formData.append('resume', file);
                               if (user?.id) formData.append('userId', user.id);
                               if (user?.email) formData.append('userEmail', user.email);
-                              const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                              const token = tokenStorage.getAccess();
                               const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                                 method: 'POST',
                                 headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1869,7 +1940,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             formData.append('resume', file);
                             if (user?.id) formData.append('userId', user.id);
                             if (user?.email) formData.append('userEmail', user.email);
-                            const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
+                            const token = tokenStorage.getAccess();
                             const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                               method: 'POST',
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -2865,7 +2936,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, employment: modalData };
+                    const existing: any[] = Array.isArray(user?.employment)
+                      ? user.employment
+                      : user?.employment && typeof user.employment === 'object' && user.employment.companyName
+                        ? [user.employment] : [];
+                    const editIdx = modalData._editIndex;
+                    const { _editIndex, ...cleanData } = modalData;
+                    const updated = editIdx !== undefined
+                      ? existing.map((e, i) => i === editIdx ? cleanData : e)
+                      : [...existing, cleanData];
+                    const updatedUser = { ...user, employment: updated };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
@@ -2873,7 +2953,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, employment: modalData })
+                        body: JSON.stringify({ email: user?.email, employment: updated })
                       });
                       if (res.ok) {
                         setNotification({ type: 'success', message: 'Employment details saved successfully!', isVisible: true });
@@ -2958,7 +3038,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, projects: modalData };
+                    const existing: any[] = Array.isArray(user?.projects)
+                      ? user.projects
+                      : user?.projects && typeof user.projects === 'object' && user.projects.projectName
+                        ? [user.projects] : [];
+                    const editIdx = modalData._editIndex;
+                    const { _editIndex, ...cleanData } = modalData;
+                    const updated = editIdx !== undefined
+                      ? existing.map((e, i) => i === editIdx ? cleanData : e)
+                      : [...existing, cleanData];
+                    const updatedUser = { ...user, projects: updated };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
@@ -2966,7 +3055,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, projects: modalData })
+                        body: JSON.stringify({ email: user?.email, projects: updated })
                       });
                       if (res.ok) {
                         setNotification({ type: 'success', message: 'Project details saved successfully!', isVisible: true });
@@ -3079,7 +3168,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, internships: modalData };
+                    const existing: any[] = Array.isArray(user?.internships)
+                      ? user.internships
+                      : user?.internships && typeof user.internships === 'object' && user.internships.companyName
+                        ? [user.internships] : [];
+                    const editIdx = modalData._editIndex;
+                    const { _editIndex, ...cleanData } = modalData;
+                    const updated = editIdx !== undefined
+                      ? existing.map((e, i) => i === editIdx ? cleanData : e)
+                      : [...existing, cleanData];
+                    const updatedUser = { ...user, internships: updated };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
@@ -3087,7 +3185,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, internships: modalData })
+                        body: JSON.stringify({ email: user?.email, internships: updated })
                       });
                       if (res.ok) {
                         setNotification({ type: 'success', message: 'Internship details saved successfully!', isVisible: true });

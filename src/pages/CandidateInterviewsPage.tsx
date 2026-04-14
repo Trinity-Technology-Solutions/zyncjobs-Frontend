@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, Search, RefreshCw, Bell } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, Search, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -33,8 +33,11 @@ interface CandidateInterviewsPageProps {
 
 const getCountdown = (dateStr: string, timeStr: string): string => {
   try {
+    if (!dateStr || !timeStr) return '';
     const [hours, minutes] = timeStr.split(':').map(Number);
+    if (isNaN(hours) || isNaN(minutes)) return '';
     const target = new Date(dateStr);
+    if (isNaN(target.getTime())) return '';
     target.setHours(hours, minutes, 0, 0);
     const diff = target.getTime() - Date.now();
     if (diff <= 0) return 'Started';
@@ -356,10 +359,6 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                             >
                               <Video className="w-4 h-4" /> Join Interview
                             </a>
-                          ) : isUpcoming ? (
-                            <button className="flex items-center gap-2 bg-gray-100 text-gray-400 text-sm px-4 py-2 rounded-lg font-semibold cursor-not-allowed" disabled>
-                              <Bell className="w-4 h-4" /> Remind Me
-                            </button>
                           ) : null}
                         </div>
                       </div>

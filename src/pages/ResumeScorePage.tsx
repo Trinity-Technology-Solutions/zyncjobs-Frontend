@@ -12,14 +12,15 @@ const API_BASE = import.meta.env.VITE_API_URL || '/api';
 type ScoreResult = ResumeAnalysis;
 
 const ScoreCircle = ({ score, label, size = 'lg' }: { score: number; label: string; size?: 'lg' | 'sm' }) => {
-  const color = score >= 75 ? 'text-green-600' : score >= 50 ? 'text-yellow-500' : 'text-red-500';
-  const ring = score >= 75 ? 'border-green-400' : score >= 50 ? 'border-yellow-400' : 'border-red-400';
-  const bg = score >= 75 ? 'bg-green-50' : score >= 50 ? 'bg-yellow-50' : 'bg-red-50';
-  const dim = size === 'lg' ? 'w-24 h-24 text-3xl' : 'w-14 h-14 text-lg';
+  const rounded = Math.round(score);
+  const color = rounded >= 75 ? 'text-green-600' : rounded >= 50 ? 'text-yellow-500' : 'text-red-500';
+  const ring = rounded >= 75 ? 'border-green-400' : rounded >= 50 ? 'border-yellow-400' : 'border-red-400';
+  const bg = rounded >= 75 ? 'bg-green-50' : rounded >= 50 ? 'bg-yellow-50' : 'bg-red-50';
+  const dim = size === 'lg' ? 'w-24 h-24 text-2xl' : 'w-14 h-14 text-base';
   return (
     <div className="flex flex-col items-center gap-1">
       <div className={`${dim} ${bg} ${ring} border-4 rounded-full flex items-center justify-center font-bold ${color}`}>
-        {score}
+        {rounded}%
       </div>
       <p className="text-xs text-gray-500 text-center">{label}</p>
     </div>
@@ -210,11 +211,11 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                     <div key={key} className="flex flex-col gap-1">
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600 capitalize">{key.replace(/([A-Z])/g, ' $1')}</span>
-                        <span className="font-medium">{val}%</span>
+                        <span className="font-medium">{Math.round(val as number)}%</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-2">
-                        <div className={`h-2 rounded-full ${val >= 75 ? 'bg-green-500' : val >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}
-                          style={{ width: `${val}%` }} />
+                        <div className={`h-2 rounded-full ${(val as number) >= 75 ? 'bg-green-500' : (val as number) >= 50 ? 'bg-yellow-400' : 'bg-red-400'}`}
+                          style={{ width: `${Math.round(val as number)}%` }} />
                       </div>
                     </div>
                   ))}
@@ -305,7 +306,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
 
               {/* Actions */}
               <div className="flex flex-wrap gap-3">
-                <button onClick={() => onNavigate('resume-templates')}
+                <button onClick={() => onNavigate('resume-builder')}
                   className="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-green-700">
                   Improve Resume →
                 </button>

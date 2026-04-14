@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Clock, CheckCircle, ArrowLeft, Search, ExternalLink } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { tokenStorage } from '../utils/tokenStorage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -58,13 +59,13 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   };
 
   const getAuthToken = async (): Promise<string | null> => {
-    let token = localStorage.getItem('accessToken');
+    let token = tokenStorage.getAccess();
     if (!token) return null;
     // Try to refresh if expired
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (payload.exp * 1000 < Date.now()) {
-        const refreshToken = localStorage.getItem('refreshToken');
+        const refreshToken = tokenStorage.getRefresh();
         if (!refreshToken) return null;
         const res = await fetch(`${API_BASE_URL}/users/refresh`, {
           method: 'POST',
@@ -73,8 +74,8 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
         });
         if (res.ok) {
           const data = await res.json();
-          localStorage.setItem('accessToken', data.accessToken);
-          if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken);
+          tokenStorage.setAccess(data.accessToken);
+          if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
           token = data.accessToken;
         } else {
           return null;
@@ -108,21 +109,32 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
         setStartError('Please log in to take an assessment.');
         return;
       }
-      const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ skill: selectedSkill, questionCount: 10 })
-      });
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        if (response.status === 503) {
-          setStartError('The AI question service is temporarily unavailable. Please try again in a moment.');
-        } else {
-          setStartError(err.error || 'Failed to start assessment. Please try again.');
+
+      // Race: backend vs 6-second timeout → fallback to local questions
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      let data: any = null;
+      try {
+        const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ skill: selectedSkill, questionCount: 10 }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (response.ok) {
+          data = await response.json();
         }
-        return;
+      } catch {
+        clearTimeout(timeoutId);
+        // timeout or network error — fall through to local
       }
-      const data = await response.json();
+
+      if (!data) {
+        data = generateLocalAssessment(selectedSkill);
+      }
+
       setAssessment(data);
       setAnswers(new Array(data.totalQuestions).fill(-1));
       setTimeLeft(data.timeLimit * 60);
@@ -132,6 +144,63 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateLocalAssessment = (skill: string) => {
+    const bank: Record<string, any[]> = {
+      JavaScript: [
+        { question: 'What does `typeof null` return in JavaScript?', options: ['null', 'undefined', 'object', 'string'], correct: 2 },
+        { question: 'Which method removes the last element from an array?', options: ['shift()', 'pop()', 'splice()', 'slice()'], correct: 1 },
+        { question: 'What is a closure in JavaScript?', options: ['A loop construct', 'A function with access to its outer scope', 'An error handler', 'A class method'], correct: 1 },
+        { question: 'What does `===` check?', options: ['Value only', 'Type only', 'Value and type', 'Reference'], correct: 2 },
+        { question: 'Which keyword declares a block-scoped variable?', options: ['var', 'let', 'function', 'const only'], correct: 1 },
+        { question: 'What does `Array.prototype.map()` return?', options: ['The original array', 'A new array', 'undefined', 'A boolean'], correct: 1 },
+        { question: 'What is the event loop in JavaScript?', options: ['A for loop', 'A mechanism to handle async operations', 'A DOM event', 'A CSS animation'], correct: 1 },
+        { question: 'Which of these is NOT a JavaScript data type?', options: ['Symbol', 'BigInt', 'Float', 'undefined'], correct: 2 },
+        { question: 'What does `Promise.all()` do?', options: ['Runs promises sequentially', 'Runs all promises in parallel and waits for all', 'Returns the first resolved', 'Cancels all promises'], correct: 1 },
+        { question: 'What is hoisting?', options: ['Moving code to the server', 'Variable/function declarations moved to top of scope', 'A CSS property', 'An async pattern'], correct: 1 },
+      ],
+      Python: [
+        { question: 'What is the output of `type([])`?', options: ['list', '<class list>', "<class 'list'>", 'array'], correct: 2 },
+        { question: 'Which keyword is used to define a function in Python?', options: ['function', 'def', 'fun', 'lambda'], correct: 1 },
+        { question: 'What does `len([1,2,3])` return?', options: ['2', '3', '4', 'Error'], correct: 1 },
+        { question: 'What is a list comprehension?', options: ['A loop', 'A concise way to create lists', 'A dictionary method', 'A class'], correct: 1 },
+        { question: 'Which of these is immutable in Python?', options: ['list', 'dict', 'tuple', 'set'], correct: 2 },
+        { question: 'What does `*args` do in a function?', options: ['Passes keyword args', 'Passes variable positional args', 'Multiplies args', 'Unpacks a dict'], correct: 1 },
+        { question: 'What is a decorator in Python?', options: ['A CSS concept', 'A function that wraps another function', 'A class attribute', 'A loop modifier'], correct: 1 },
+        { question: 'What does `__init__` do?', options: ['Destroys an object', 'Initializes a class instance', 'Imports a module', 'Defines a static method'], correct: 1 },
+        { question: 'Which module is used for regular expressions?', options: ['regex', 're', 'regexp', 'pattern'], correct: 1 },
+        { question: 'What is GIL in Python?', options: ['Global Import Lock', 'Global Interpreter Lock', 'General Input Layer', 'Graph Interface Library'], correct: 1 },
+      ],
+      React: [
+        { question: 'What hook is used for side effects in React?', options: ['useState', 'useEffect', 'useContext', 'useRef'], correct: 1 },
+        { question: 'What does JSX stand for?', options: ['JavaScript XML', 'Java Syntax Extension', 'JSON XML', 'JavaScript Extension'], correct: 0 },
+        { question: 'What is the virtual DOM?', options: ['A real browser DOM', 'A lightweight copy of the DOM', 'A CSS framework', 'A database'], correct: 1 },
+        { question: 'Which hook manages local component state?', options: ['useEffect', 'useContext', 'useState', 'useReducer'], correct: 2 },
+        { question: 'What is a React key used for?', options: ['Styling', 'Identifying list items uniquely', 'Event handling', 'API calls'], correct: 1 },
+        { question: 'What is prop drilling?', options: ['A build tool', 'Passing props through many component levels', 'A CSS technique', 'A testing method'], correct: 1 },
+        { question: 'What does `useCallback` do?', options: ['Fetches data', 'Memoizes a function', 'Creates a ref', 'Manages state'], correct: 1 },
+        { question: 'What is React Context used for?', options: ['Routing', 'Global state sharing without prop drilling', 'Styling', 'Testing'], correct: 1 },
+        { question: 'What is a controlled component?', options: ['A component with no state', 'A form element whose value is controlled by React state', 'A class component', 'A pure component'], correct: 1 },
+        { question: 'What does `React.memo` do?', options: ['Stores data', 'Prevents re-render if props unchanged', 'Creates a context', 'Handles errors'], correct: 1 },
+      ],
+    };
+
+    const questions = (bank[skill] || bank['JavaScript']).map((q, i) => ({
+      id: i + 1,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correct,
+    }));
+
+    return {
+      assessmentId: `local-${Date.now()}`,
+      skill,
+      questions,
+      totalQuestions: questions.length,
+      timeLimit: 30,
+      isLocal: true,
+    };
   };
 
   const submitAssessment = async () => {

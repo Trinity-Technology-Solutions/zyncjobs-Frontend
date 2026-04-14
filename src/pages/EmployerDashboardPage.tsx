@@ -7,9 +7,9 @@ import {
 import { API_ENDPOINTS } from '../config/constants';
 import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
 import BackButton from '../components/BackButton';
+import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
-import CandidateCredentialing from '../components/CandidateCredentialing';
-import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
+import { tokenStorage } from '../utils/tokenStorage';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -59,7 +59,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appSearch, setAppSearch] = useState('');
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
 
-  const getToken = () => localStorage.getItem('token') || localStorage.getItem('accessToken');
+  const getToken = () => tokenStorage.getAccess();
 
   // Fetch recent conversations for sidebar Messages panel
   useEffect(() => {
@@ -814,7 +814,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     const stored = localStorage.getItem('user');
                     const userData = stored ? JSON.parse(stored) : {};
                     const userId = userData.id || userData._id;
-                    const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+                    const token = tokenStorage.getAccess();
                     if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
                     const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',

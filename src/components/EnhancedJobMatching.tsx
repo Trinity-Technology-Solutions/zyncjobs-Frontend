@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, MapPin, DollarSign, TrendingUp, Brain, Target, ChevronRight, BookOpen } from 'lucide-react';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
+import { tokenStorage } from '../utils/tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -228,7 +229,7 @@ const EnhancedJobMatching: React.FC<EnhancedJobMatchingProps> = ({ user, onJobSe
       const stored = localStorage.getItem('user');
       const u = stored ? JSON.parse(stored) : {};
       const identifier = u.id || u.email;
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getAccess();
       const res = await fetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

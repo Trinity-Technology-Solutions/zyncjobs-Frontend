@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Building, Phone, Globe, MapPin, ChevronRight, CheckCircle2, Users, Briefcase, ArrowLeft } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
-
+import { tokenStorage } from '../utils/tokenStorage';
 interface Props {
   onNavigate: (page: string) => void;
   user?: any;
@@ -105,7 +105,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
     try {
       const stored = localStorage.getItem('user');
       const userData = stored ? JSON.parse(stored) : {};
-      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
 
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/save`, {
         method: 'POST',
@@ -203,9 +203,9 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
           <button
             type="button"
             onClick={() => {
-              localStorage.removeItem('token');
-              localStorage.removeItem('accessToken');
-              localStorage.removeItem('refreshToken');
+              tokenStorage.clear();
+
+
               localStorage.removeItem('user');
               sessionStorage.clear();
               const apiUrl = import.meta.env.VITE_API_URL || '/api';

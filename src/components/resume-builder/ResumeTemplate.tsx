@@ -1,6 +1,21 @@
 import React from 'react';
 import { ResumeData } from '../../store/useResumeStore';
 
+// summary can be a string (legacy) or string[] (new multi-point)
+function SummaryContent({ summary, style }: { summary: any; style?: React.CSSProperties }) {
+  const points: string[] = Array.isArray(summary)
+    ? summary.filter(Boolean)
+    : summary ? [summary] : [];
+  if (!points.length) return null;
+  if (points.length === 1)
+    return <p style={{ margin: 0, fontSize: 10.5, ...style }}>{points[0]}</p>;
+  return (
+    <ul style={{ margin: 0, paddingLeft: 16 }}>
+      {points.map((p, i) => <li key={i} style={{ fontSize: 10.5, marginBottom: 2, ...style }}>{p}</li>)}
+    </ul>
+  );
+}
+
 interface Props { data: ResumeData; scale?: number; }
 
 const s = { fontFamily: 'Arial, sans-serif', fontSize: 11, color: '#111', lineHeight: 1.4 };
@@ -26,7 +41,7 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
 
     {/* Section helper */}
     {[
-      data.summary && { label: 'PROFESSIONAL SUMMARY', content: <p style={{ margin: 0, fontSize: 10.5 }}>{data.summary}</p> },
+      data.summary && { label: 'PROFESSIONAL SUMMARY', content: <SummaryContent summary={data.summary} /> },
       data.skills.length > 0 && { label: 'CORE COMPETENCIES', content: <p style={{ margin: 0, fontSize: 10.5 }}>{data.skills.join('  •  ')}</p> },
       data.experience.length > 0 && {
         label: 'PROFESSIONAL EXPERIENCE', content: (
@@ -107,7 +122,7 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
 
     {data.summary && (
       <Section label="Summary">
-        <p style={{ margin: 0, fontSize: 10.5 }}>{data.summary}</p>
+        <SummaryContent summary={data.summary} />
       </Section>
     )}
     {data.skills.length > 0 && (
@@ -185,7 +200,7 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
     </div>
 
     {[
-      data.summary && { label: 'About', body: <p style={{ margin: 0, fontSize: 10.5, color: '#222' }}>{data.summary}</p> },
+      data.summary && { label: 'About', body: <SummaryContent summary={data.summary} style={{ color: '#222' }} /> },
       data.skills.length > 0 && { label: 'Skills', body: <p style={{ margin: 0, fontSize: 10.5, color: '#222' }}>{data.skills.join(', ')}</p> },
       data.experience.length > 0 && {
         label: 'Experience', body: (
@@ -272,7 +287,7 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
 
     {data.summary && (
       <ExecSection label="Executive Summary">
-        <p style={{ margin: 0, fontSize: 10.5, fontStyle: 'italic' }}>{data.summary}</p>
+        <SummaryContent summary={data.summary} style={{ fontStyle: 'italic' }} />
       </ExecSection>
     )}
     {data.skills.length > 0 && (
@@ -353,7 +368,7 @@ const CompactTemplate = ({ data }: { data: ResumeData }) => (
 
     {data.summary && (
       <CompactSection label="SUMMARY">
-        <p style={{ margin: 0 }}>{data.summary}</p>
+        <SummaryContent summary={data.summary} />
       </CompactSection>
     )}
     {data.skills.length > 0 && (
@@ -473,7 +488,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
     <div style={{ flex: 1, padding: '28px 20px' }}>
       {data.summary && (
         <ProfSection label="PROFESSIONAL SUMMARY">
-          <p style={{ margin: 0, fontSize: 10.5 }}>{data.summary}</p>
+          <SummaryContent summary={data.summary} />
         </ProfSection>
       )}
       {data.experience.length > 0 && (

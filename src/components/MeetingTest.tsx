@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_BASE_URL } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 import { Video, Phone, Calendar, Clock } from 'lucide-react';
 
 const MeetingTest = () => {
@@ -22,7 +23,7 @@ const MeetingTest = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'test-token'}`
+          'Authorization': `Bearer ${tokenStorage.getAccess() || 'test-token'}`
         },
         body: JSON.stringify(formData)
       });

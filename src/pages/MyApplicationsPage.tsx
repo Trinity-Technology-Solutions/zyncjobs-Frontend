@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
+import { getId } from '../utils/getId';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -444,7 +445,10 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                                   const company = application.jobId?.company || 'Company';
                                   const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase();
                                   target.style.display = 'none';
-                                  target.parentElement!.innerHTML = `<div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-semibold text-xs">${initials}</div>`;
+                                  const fb = document.createElement('div');
+                                  fb.className = 'w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-semibold text-xs';
+                                  fb.textContent = initials;
+                                  target.parentElement!.appendChild(fb);
                                 }}
                               />
                             </div>
@@ -594,7 +598,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                         <div className="flex flex-col space-y-2">
                           <div className="flex space-x-2">
                             <button 
-                              onClick={() => onNavigate('job-detail', { jobId: application.jobId?._id, jobData: application.jobId })}
+                              onClick={() => onNavigate('job-detail', { jobId: getId(application.jobId) || (typeof application.jobId === 'string' ? application.jobId : ''), jobData: application.jobId })}
                               className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
                             >
                               View Job

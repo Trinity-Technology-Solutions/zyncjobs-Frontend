@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy } from 'lucide-react';
-import CandidateProfileModal from '../components/CandidateProfileModal';
+import { tokenStorage } from '../utils/tokenStorage';
 import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -690,7 +690,7 @@ return (
                           </button>
                           <button onClick={() => {
                             const userData = JSON.parse(localStorage.getItem('user') || '{}');
-                            const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
+                            const token = tokenStorage.getAccess();
                             if (!token) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to save candidates" } })); setOpenContactMenu(null); return; }
                             const payload = {
                               candidateId: candidate._id,

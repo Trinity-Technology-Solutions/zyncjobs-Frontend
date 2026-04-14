@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, CheckCircle, XCircle, BookOpen, TrendingUp, Loader, Zap, Brain, Target } from 'lucide-react';
 import Header from '../components/Header';
-import Footer from '../components/Footer';
+import { tokenStorage } from '../utils/tokenStorage';
 import { API_ENDPOINTS } from '../config/env';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
@@ -38,7 +38,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
         const u = JSON.parse(saved);
         const identifier = u.id || u.email;
         if (!identifier) return;
-        const token = localStorage.getItem('accessToken');
+        const token = tokenStorage.getAccess();
         const res = await fetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
@@ -102,7 +102,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
       const u = JSON.parse(saved);
       const email = u.email;
       if (!email) return;
-      const token = localStorage.getItem('accessToken');
+      const token = tokenStorage.getAccess();
       await fetch(`${API_BASE}/profile/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },

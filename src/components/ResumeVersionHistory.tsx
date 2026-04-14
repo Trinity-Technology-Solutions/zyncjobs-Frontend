@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, RotateCcw, Eye, Download, Loader2, CheckCircle } from 'lucide-react';
+import { tokenStorage } from '../utils/tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -28,7 +29,7 @@ export default function ResumeVersionHistory({ resumeId, onRestore }: ResumeVers
   const loadVersions = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       const res = await fetch(`${API_BASE}/resume-versions/${resumeId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -48,7 +49,7 @@ export default function ResumeVersionHistory({ resumeId, onRestore }: ResumeVers
 
     setRestoring(version);
     try {
-      const token = localStorage.getItem('token');
+      const token = tokenStorage.getAccess();
       const res = await fetch(`${API_BASE}/resume-versions/${resumeId}/${version}/restore`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },

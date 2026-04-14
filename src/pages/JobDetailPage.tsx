@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
@@ -54,6 +55,8 @@ interface JobDetailPageProps {
 }
 
 const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }) => {
+  const { slug } = useParams<{ slug?: string }>();
+  const navigate = useNavigate();
   const [job, setJob] = useState<any>(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
   const [jobPoster, setJobPoster] = useState<any>(null);
@@ -86,25 +89,31 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         const urlJobId = params.get('id');
         const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
 
-        console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId);
+        console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId, '| slug =', slug);
 
-        if (!resolvedJobId) {
+        if (!resolvedJobId && !slug) {
           setJob(null);
           setLoading(false);
           return;
         }
 
-        // Try by UUID/id first
-        let response = await fetch(`${API_ENDPOINTS.JOBS}/${resolvedJobId}`);
         let jobResult = null;
 
-        if (response.ok) {
-          jobResult = await response.json();
-        } else {
-          // Try by positionId
-          const posResponse = await fetch(`${API_ENDPOINTS.JOBS}/position/${resolvedJobId}`);
-          if (posResponse.ok) {
-            jobResult = await posResponse.json();
+        // If slug route, fetch by slug first
+        if (slug) {
+          const slugRes = await fetch(`${API_ENDPOINTS.JOBS}/slug/${slug}`);
+          if (slugRes.ok) jobResult = await slugRes.json();
+        }
+
+        // Try by UUID/id
+        if (!jobResult && resolvedJobId) {
+          let response = await fetch(`${API_ENDPOINTS.JOBS}/${resolvedJobId}`);
+          if (response.ok) {
+            jobResult = await response.json();
+          } else {
+            // Try by positionId
+            const posResponse = await fetch(`${API_ENDPOINTS.JOBS}/position/${resolvedJobId}`);
+            if (posResponse.ok) jobResult = await posResponse.json();
           }
         }
 
@@ -115,6 +124,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
         const jobData = jobResult;
         setJob(jobData);
+
+        // If we loaded via ?id= but job has a slug, upgrade the URL silently
+        if (jobData.slug && !slug) {
+          navigate(`/jobs/${jobData.slug}`, { replace: true });
+        }
 
         // Fetch company logo from companies API
         try {
@@ -135,7 +149,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         } catch {}
 
         if (user?.email && (jobData.id || jobData._id)) {
-          await checkApplicationStatus(jobData.id || jobData._id, user.email);
+          await checkApplicationStatus(jobData.id || jobData._id || '', user.email);
         }
 
         if (jobData.employerEmail || jobData.postedBy) {
@@ -174,7 +188,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     
     // Use backend OG tags route for social sharing
     const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    const ogUrl = `${backendUrl}/job-detail?id=${job._id}`;
+    // Prefer SEO slug URL, fallback to ?id= URL
+    const jobSlug = job.slug;
+    const ogUrl = jobSlug
+      ? `${window.location.origin}/jobs/${jobSlug}`
+      : `${backendUrl}/job-detail?id=${job.id || job._id}`;
+    const canonicalUrl = jobSlug
+      ? `${window.location.origin}/jobs/${jobSlug}`
+      : `${backendUrl}/job-detail?id=${job.id || job._id}`;
+    document.title = `${jobTitle} at ${companyName} | ZyncJobs`;
     
     const setMeta = (property: string, content: string) => {
       let el = document.querySelector(`meta[property='${property}']`) as HTMLMetaElement;
@@ -182,20 +204,21 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       el.setAttribute('content', content);
     };
     
-    // Set canonical URL to backend route for social crawlers
+    // Set canonical URL
     let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canonicalEl) {
       canonicalEl = document.createElement('link');
       canonicalEl.rel = 'canonical';
       document.head.appendChild(canonicalEl);
     }
-    canonicalEl.href = ogUrl;
+    canonicalEl.href = canonicalUrl;
     
     setMeta('og:title', `${jobTitle} at ${companyName}`);
     setMeta('og:description', description.substring(0, 160) + '...');
     setMeta('og:url', ogUrl);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'ZyncJobs');
+    if (job.jobHeaderImage) setMeta('og:image', job.jobHeaderImage);
     
     // Set Twitter meta tags
     const setTwitterMeta = (name: string, content: string) => {
@@ -208,6 +231,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     setTwitterMeta('twitter:title', `${jobTitle} at ${companyName}`);
     setTwitterMeta('twitter:description', description.substring(0, 160) + '...');
     setTwitterMeta('twitter:url', ogUrl);
+    if (job.jobHeaderImage) setTwitterMeta('twitter:image', job.jobHeaderImage);
   }, [job]);
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
@@ -457,7 +481,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   ) : (
                     <>
                       <QuickApplyButton
-                        jobId={job._id || jobId}
+                        jobId={job.id || job._id || String(jobId || '')}
                         jobTitle={job.jobTitle || job.title}
                         company={job.company}
                         user={user}
@@ -465,17 +489,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                           setHasApplied(true);
                           setApplicationStatus('applied');
                           setTimeout(() => {
-                            if (user?.email && (job._id || jobId)) {
-                              checkApplicationStatus(job._id || jobId, user.email);
-                            }
+                            const jid = job.id || job._id || String(jobId || '');
+                            if (user?.email && jid) checkApplicationStatus(jid, user.email);
                           }, 1000);
                         }}
                       />
                       <button 
                         onClick={() => {
+                          const jid = job.id || job._id || String(jobId || '');
                           if (user && (user.name || user.fullName)) {
                             sessionStorage.setItem('selectedJob', JSON.stringify({
-                              _id: job._id || jobId,
+                              _id: jid, id: jid,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
                               location: job.location,
@@ -487,7 +511,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             onNavigate('job-application');
                           } else {
                             sessionStorage.setItem('pendingJobApplication', JSON.stringify({
-                              jobId: job._id || jobId,
+                              jobId: jid,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
                               jobData: job
@@ -699,7 +723,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <div
                       key={sj._id || sj.id}
                       className="border border-gray-100 rounded-lg p-3 hover:shadow-md cursor-pointer transition-shadow"
-                      onClick={() => onNavigate(`job-detail/${sj._id || sj.id}`)}
+                      onClick={() => {
+                        const sjSlug = sj.slug;
+                        const sjId = sj._id || sj.id;
+                        if (sjSlug) navigate(`/jobs/${sjSlug}`);
+                        else onNavigate(`job-detail/${sjId}`);
+                      }}
                     >
                       {/* Logo + Company */}
                       <div className="flex items-center justify-between mb-2">
@@ -766,7 +795,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     <>
                       {user && (user.name || user.fullName) && (
                         <QuickApplyButton
-                          jobId={job._id || jobId}
+                          jobId={job.id || job._id || String(jobId || '')}
                           jobTitle={job.jobTitle || job.title}
                           company={job.company}
                           user={user}
@@ -774,9 +803,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             setHasApplied(true);
                             setApplicationStatus('applied');
                             setTimeout(() => {
-                              if (user?.email && (job._id || jobId)) {
-                                checkApplicationStatus(job._id || jobId, user.email);
-                              }
+                              const jid = job.id || job._id || String(jobId || '');
+                              if (user?.email && jid) checkApplicationStatus(jid, user.email);
                             }, 1000);
                           }}
                           className="w-full justify-center"
@@ -784,9 +812,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       )}
                       <button 
                         onClick={() => {
+                          const jid2 = job.id || job._id || String(jobId || '');
                           if (user && user.name) {
                             sessionStorage.setItem('selectedJob', JSON.stringify({
-                              _id: job._id || jobId,
+                              _id: jid2, id: jid2,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
                               location: job.location,
@@ -798,7 +827,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             onNavigate('job-application');
                           } else {
                             sessionStorage.setItem('pendingJobApplication', JSON.stringify({
-                              jobId: job._id || jobId,
+                              jobId: jid2,
                               jobTitle: job.jobTitle || job.title,
                               company: job.company,
                               jobData: job

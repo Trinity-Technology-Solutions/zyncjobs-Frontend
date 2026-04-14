@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Save, RefreshCw, AlertCircle, CheckCircle, Settings, ToggleLeft, ToggleRight, Server } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
+import { tokenStorage } from '../../../utils/tokenStorage';
 
 function authHeaders() {
-  const token = localStorage.getItem('adminToken') || localStorage.getItem('accessToken');
+  const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
   return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
 }
 

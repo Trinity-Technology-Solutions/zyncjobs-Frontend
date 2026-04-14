@@ -197,6 +197,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       awards: safeStr(data.awards || ''),
       gender: data.gender || '',
       birthday: data.birthday || '',
+      openToWork: data.openToWork ?? false,
+      visibilityStatus: data.visibilityStatus ?? 'passively-looking',
+      profileVisibility: data.profileVisibility ?? 'public',
     };
   }
 
@@ -267,21 +270,39 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex flex-col sm:flex-row gap-6">
             <div className="flex-shrink-0 flex justify-center sm:justify-start">
-              {candidate.profilePhoto ? (
-                <img src={candidate.profilePhoto} alt={candidate.name}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              ) : (
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
-                  {initials}
-                </div>
-              )}
+              <div className="relative">
+                {candidate.profilePhoto ? (
+                  <img src={candidate.profilePhoto} alt={candidate.name}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                ) : (
+                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl font-bold text-white shadow-lg">
+                    {initials}
+                  </div>
+                )}
+                {candidate.openToWork && (
+                  <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow">
+                    #OpenToWork
+                  </span>
+                )}
+              </div>
             </div>
 
             <div className="flex-1 text-center sm:text-left">
               <h1 className="text-2xl font-bold text-gray-900">{candidate.name}</h1>
-              {candidate.title && <p className="text-gray-500 text-sm mb-3">{candidate.title}</p>}
+              {candidate.title && <p className="text-gray-500 text-sm mb-1">{candidate.title}</p>}
+              {candidate.visibilityStatus && (
+                <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-3 ${
+                  candidate.visibilityStatus === 'actively-looking' ? 'bg-green-100 text-green-700' :
+                  candidate.visibilityStatus === 'passively-looking' ? 'bg-blue-100 text-blue-700' :
+                  'bg-gray-100 text-gray-500'
+                }`}>
+                  {candidate.visibilityStatus === 'actively-looking' ? 'Actively Looking' :
+                   candidate.visibilityStatus === 'passively-looking' ? 'Open to Opportunities' :
+                   'Not Looking'}
+                </span>
+              )}
 
               <div className="flex flex-wrap justify-center sm:justify-start gap-3 text-sm text-gray-600 mb-4">
                 {candidate.location && (
