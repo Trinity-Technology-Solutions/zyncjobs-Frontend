@@ -10,6 +10,16 @@ import { tokenStorage } from '../utils/tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
+function assertSafeUrl(url: string): void {
+  // Allow relative paths (e.g. /api/jobs)
+  if (url.startsWith('/')) return;
+  // Allow only URLs that target the configured API base
+  const base = API_BASE.startsWith('http') ? API_BASE : window.location.origin + API_BASE;
+  if (!url.startsWith(base)) {
+    throw new Error(`Blocked request to disallowed URL: ${url}`);
+  }
+}
+
 let isRefreshing = false;
 let refreshQueue: Array<(token: string) => void> = [];
 
@@ -50,6 +60,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
+  assertSafeUrl(url);
   const response = await fetch(url, { ...options, headers });
 
   // Not expired — return as-is
@@ -67,7 +78,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     return new Promise(resolve => {
       refreshQueue.push(async (newToken: string) => {
         headers.set('Authorization', `Bearer ${newToken}`);
-        resolve(fetch(url, { ...options, headers }));
+        resolve(fetch(url, { ...options, headers })); // url already validated above
       });
     });
   }
@@ -85,5 +96,5 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
   // Retry original request with new token
   headers.set('Authorization', `Bearer ${newToken}`);
-  return fetch(url, { ...options, headers });
+  return fetch(url, { ...options, headers }); // url already validated above
 }

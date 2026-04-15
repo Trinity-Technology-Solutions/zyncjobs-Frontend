@@ -22,8 +22,8 @@ export const accountAPI = {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (!payload || payload.exp * 1000 < Date.now()) return null;
 
-      // Try to get full user data using the actual user ID from token
-      const userId = payload.id || payload._id || payload.sub;
+      // JWT uses 'userId' field (not 'id' or 'sub')
+      const userId = payload.userId || payload.id || payload._id || payload.sub;
       if (userId) {
         const res = await apiFetch(`${API}/users/${userId}`);
         if (res.ok) return res.json();
@@ -31,10 +31,11 @@ export const accountAPI = {
 
       // Fallback: return what we have from token payload
       return {
-        id: payload.id || payload._id || payload.sub,
+        id: payload.userId || payload.id || payload._id || payload.sub,
         email: payload.email,
         name: payload.name,
         userType: payload.userType || payload.role || 'candidate',
+        role: payload.role || payload.userType || 'candidate',
       };
     } catch {
       return null;
