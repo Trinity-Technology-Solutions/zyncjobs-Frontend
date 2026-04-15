@@ -1705,10 +1705,18 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         <div>
                           <p className="text-gray-900 font-medium">{user.certifications.certificationName}</p>
                           {user.certifications.completionId && <p className="text-gray-600 text-sm">ID: {user.certifications.completionId}</p>}
-                          <p className="text-gray-500 text-sm">
-                            {user.certifications.startMonth} {user.certifications.startYear} - {user.certifications.noExpiry ? 'No Expiry' : `${user.certifications.endMonth} ${user.certifications.endYear}`}
-                          </p>
-                          {user.certifications.certificationUrl && <a href={user.certifications.certificationUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">{user.certifications.certificationUrl}</a>}
+                          {(user.certifications.startMonth || user.certifications.startYear) && (
+                            <p className="text-gray-500 text-sm">
+                              {[user.certifications.startMonth, user.certifications.startYear].filter(Boolean).join(' ')}
+                              {' - '}
+                              {user.certifications.noExpiry ? 'No Expiry' : [user.certifications.endMonth, user.certifications.endYear].filter(Boolean).join(' ') || ''}
+                            </p>
+                          )}
+                          {user.certifications.certificationUrl && (
+                            <a href={user.certifications.certificationUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm break-all">
+                              {user.certifications.certificationUrl}
+                            </a>
+                          )}
                         </div>
                       ) : (
                         <p className="text-gray-500 text-sm">Talk about any certified courses that you completed</p>

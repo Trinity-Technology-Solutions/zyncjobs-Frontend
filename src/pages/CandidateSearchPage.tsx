@@ -6,7 +6,6 @@ import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import CandidateProfileModal from '../components/CandidateProfileModal';
 
 interface Candidate {
   _id: string;
@@ -47,8 +46,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [totalCandidates, setTotalCandidates] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [openContactMenu, setOpenContactMenu] = useState<string | null>(null);
   const [skillSuggestions, setSkillSuggestions] = useState<string[]>([]);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
@@ -251,13 +248,15 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   };
 
   const handleViewProfile = (candidate: Candidate) => {
-    setSelectedCandidate(candidate);
-    setIsModalOpen(true);
-  };
-
-  const handleCloseModal = () => {
-    setIsModalOpen(false);
-    setSelectedCandidate(null);
+    const cid = candidate.email || candidate._id || '';
+    if (!cid) return;
+    sessionStorage.setItem('viewCandidateId', cid);
+    sessionStorage.setItem('viewCandidateData', JSON.stringify({
+      name: getCandidateName(candidate),
+      email: candidate.email || '',
+      skills: candidate.skills || [],
+    }));
+    onNavigate('candidate-profile-view', { candidateId: cid });
   };
 
 return (
@@ -754,12 +753,6 @@ return (
         )}
       </div>
       
-
-      <CandidateProfileModal
-        candidate={selectedCandidate}
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-      />
 
       {selectedCandidateForMessage && (
         <DirectMessage

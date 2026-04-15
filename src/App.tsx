@@ -216,6 +216,7 @@ function App() {
       const cid = params?.candidateId || '';
       if (cid) { sessionStorage.setItem('viewCandidateId', cid); navigate(`/candidate-profile-view?id=${encodeURIComponent(cid)}`); }
       else { const stored = sessionStorage.getItem('viewCandidateId') || ''; navigate(stored ? `/candidate-profile-view?id=${encodeURIComponent(stored)}` : '/candidate-profile-view'); }
+      window.scrollTo({ top: 0, behavior: 'instant' });
       return;
     }
     if (page === 'candidate-messages') { navigate('/candidate-messages'); return; }
