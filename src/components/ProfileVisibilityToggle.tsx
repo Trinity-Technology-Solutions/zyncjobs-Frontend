@@ -77,7 +77,12 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
         onSave?.(payload);
         try {
           const stored = localStorage.getItem('user');
-          if (stored) localStorage.setItem('user', JSON.stringify({ ...JSON.parse(stored), ...payload }));
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            localStorage.setItem('user', JSON.stringify({ ...parsed, ...payload }));
+            // Dispatch event so dashboard re-reads user from localStorage
+            window.dispatchEvent(new Event('storage'));
+          }
         } catch { /* silent */ }
       }
     } catch { /* silent */ }
@@ -111,19 +116,11 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
           {saved && <span className="text-xs text-green-600 font-medium">✓ Saved</span>}
         </div>
         {/* Open to Work toggle */}
-        <div className="flex items-center gap-2 mb-3 p-2 bg-green-50 rounded-lg border border-green-200">
+        <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border border-green-200">
           <Briefcase className="w-4 h-4 text-green-600 flex-shrink-0" />
           <span className="text-sm font-medium text-green-800 flex-1">Open to Work</span>
           <Toggle on={openToWork} onToggle={toggleOpenToWork} />
         </div>
-        {/* Status select */}
-        <select
-          value={visibilityStatus}
-          onChange={e => changeVisibility(e.target.value)}
-          className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-blue-500"
-        >
-          {VISIBILITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
       </div>
     );
   }
