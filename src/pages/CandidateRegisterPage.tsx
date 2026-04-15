@@ -75,7 +75,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
       // Record GDPR consent
       const userId = (registered as any)?.id || (registered as any)?._id || formData.email;
       const consentTypes = ['terms', ...(consentResume ? ['resume_storage'] : [])];
-      gdprAPI.recordConsent(userId, consentTypes).catch(() => {});
+      gdprAPI.recordConsent(consentTypes).catch(() => {});
       const msg = 'Account created successfully! You can now sign in.';
       setSuccess(msg);
       showToast(msg, 'success');

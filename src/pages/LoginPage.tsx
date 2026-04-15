@@ -30,7 +30,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
     setError('');
     try {
       const response = await authAPI.login({ email, password });
-      if (response.user.userType === 'employer') {
+      if ((response.user.userType as string) === 'employer') {
         setError('This is an employer account. Please use "Employer Login" instead.');
         setLoading(false);
         return;
