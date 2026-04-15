@@ -212,7 +212,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate?portal=candidate`;
+                  const base = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:3001';
+                  window.location.href = `${base}/api/auth/google/candidate?portal=candidate`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
@@ -228,7 +229,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/linkedin/candidate`;
+                  const base = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:3001';
+                  window.location.href = `${base}/api/auth/linkedin/candidate`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors mt-3"
               >
