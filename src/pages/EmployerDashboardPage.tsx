@@ -6,9 +6,12 @@ import {
 } from 'recharts';
 import { API_ENDPOINTS } from '../config/constants';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
 =======
 >>>>>>> f04c5aecc66498811b8ac01ba4b73d4409f600c4
+=======
+>>>>>>> 78b06e7cebd2233c4ee300c4321256f87833d367
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import CandidateCredentialing from '../components/CandidateCredentialing';
