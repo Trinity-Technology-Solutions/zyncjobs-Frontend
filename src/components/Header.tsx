@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
+import { io } from 'socket.io-client';
 import { API_ENDPOINTS } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
@@ -207,13 +208,15 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 });
               }
               if (interviewsRes.ok) {
-                const interviews = Array.isArray(await interviewsRes.json()) ? await interviewsRes.clone().json() : [];
+                const interviewsData = await interviewsRes.json();
+                const interviews = Array.isArray(interviewsData) ? interviewsData : [];
                 interviews.slice(0, 2).forEach((interview: any) => {
                   realNotifications.push({ id: `interview_${interview._id}`, type: 'interview', title: 'Interview scheduled', message: `Interview with ${interview.candidateName || 'candidate'} scheduled`, time: new Date(interview.date).toLocaleDateString() || '1d ago' });
                 });
               }
               if (jobsRes.ok) {
-                const allJobs = Array.isArray(await jobsRes.json()) ? await jobsRes.clone().json() : [];
+                const jobsData = await jobsRes.json();
+                const allJobs = Array.isArray(jobsData) ? jobsData : [];
                 allJobs.filter((job: any) => job.postedBy === userEmail).slice(0, 2).forEach((job: any) => {
                   realNotifications.push({ id: `job_${job._id || job.id}`, type: 'job', title: 'Job posting active', message: `Your ${job.jobTitle || job.title} position is live`, time: new Date(job.createdAt || job.datePosted).toLocaleDateString() || '2d ago' });
                 });
@@ -240,7 +243,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
           if (userEmail) {
-            const socketUrl = (import.meta.env.VITE_API_URL || '/api').replace('/api', '');
+            const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
             socket = io(socketUrl, { transports: ['websocket', 'polling'] });
             socket.on(`analytics_update:${userEmail}`, () => {
               fetchProfileMetrics();
