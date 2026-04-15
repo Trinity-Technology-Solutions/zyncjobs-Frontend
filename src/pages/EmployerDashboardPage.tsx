@@ -1132,18 +1132,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 </div>
               </div>
 
-              {/* Lottie Animation - Bottom Right */}
-              <div className="mt-6 flex justify-end">
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-4 shadow-md border-2 border-blue-100">
-                  <dotlottie-wc 
-                    src="https://lottie.host/cac79d7d-c73d-4f6a-ad2a-4f75c2c53c8c/ie3zPqytVz.lottie" 
-                    style={{width: '500px', height: '500px'}} 
-                    autoplay 
-                    loop
-                  />
-                </div>
-              </div>
-
               </div>{/* end white container */}
 
             </>
