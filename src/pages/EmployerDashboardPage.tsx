@@ -7,7 +7,6 @@ import {
 import { API_ENDPOINTS } from '../config/constants';
 import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
 import BackButton from '../components/BackButton';
-import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import { tokenStorage } from '../utils/tokenStorage';
 import ResumeModal from '../components/ResumeModal';

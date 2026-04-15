@@ -46,7 +46,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [jobTitles, setJobTitles] = useState<any[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
-  const [profileSaved, setProfileSaved] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [chatMessage, setChatMessage] = useState('');
@@ -312,6 +311,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 ...parsedUser, 
                 ...profileData,
                 profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
+                coverPhoto: pick(profileData.coverPhoto, parsedUser.coverPhoto),
                 profileFrame: pick(profileData.profileFrame, parsedUser.profileFrame, 'none'),
                 profileSummary: pick(profileData.profileSummary, parsedUser.profileSummary),
                 employment: pick(profileData.employment, parsedUser.employment),
@@ -531,6 +531,21 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     }
   }, [JSON.stringify(user?.skills), JSON.stringify(user?.keySkills)]);
 
+  // Sync openToWork and profileFrame from localStorage when toggled externally
+  useEffect(() => {
+    const handleStorage = () => {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setUser((prev: any) => prev ? { ...prev, openToWork: parsed.openToWork, profileFrame: parsed.profileFrame } : prev);
+        }
+      } catch { /* silent */ }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   return (
     <>
       <Notification
@@ -679,7 +694,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span className="text-gray-700">?? AI Job Matches</span>
+                      <span className="text-gray-700">AI Job Matches</span>
                     </button>
                     <button 
                       onClick={() => onNavigate('my-applications')}
@@ -944,7 +959,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               </button>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-600 mb-2">{job.company} ÃƒÂ¯Ã‚Â¿Ã‚Â½ {job.location}</p>
+                          <p className="text-xs text-gray-600 mb-2">{job.company}{job.location ? ` · ${job.location}` : ''}</p>
                           {job.salary && (
                             <p className="text-xs text-green-600 font-medium mb-2">
                               {typeof job.salary === 'object'
@@ -972,7 +987,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               }}
                               className="text-xs text-blue-600 font-medium hover:text-blue-800"
                             >
-                              Apply Now ?
+                              Apply Now
                             </button>
                           </div>
                         </div>
@@ -1066,135 +1081,89 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
               {/* Main Content Area */}
               <div className="md:col-span-3">
-                {!readOnly && (
-                <>{/* Save All Button */}
-                {!profileSaved && <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-blue-900 mb-1">Save Your Profile</h3>
-                    <p className="text-sm text-blue-700">Click the button below to save all your profile changes permanently</p>
+                {/* Profile Header Card — LinkedIn style with cover */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
+                  {/* Cover Photo */}
+                  <div className="relative h-52 bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200 group">
+                    {user?.coverPhoto ? (
+                      <img src={user.coverPhoto} alt="Cover" className="w-full h-full object-cover" />
+                    ) : null}
+                    {/* Cover upload button */}
+                    {!readOnly && (
+                      <label className="absolute top-3 right-3 bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full cursor-pointer shadow transition-all">
+                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          try {
+                            const formData = new FormData();
+                            formData.append('photo', file);
+                            const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
+                            let coverUrl: string;
+                            if (uploadRes.ok) {
+                              const data = await uploadRes.json();
+                              coverUrl = data.photoUrl?.startsWith('http')
+                                ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
+                                : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
+                            } else {
+                              coverUrl = await new Promise<string>((resolve) => { const r = new FileReader(); r.onloadend = () => resolve(r.result as string); r.readAsDataURL(file); });
+                            }
+                            const updatedUser = { ...user, coverPhoto: coverUrl };
+                            setUser(updatedUser);
+                            localStorage.setItem('user', JSON.stringify(updatedUser));
+                            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
+                            setNotification({ type: 'success', message: 'Cover photo updated!', isVisible: true });
+                          } catch { /* silent */ }
+                        }} />
+                      </label>
+                    )}
                   </div>
-                  <button
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ 
-                            email: user?.email,
-                            name: user?.name,
-                            gender: user?.gender,
-                            birthday: user?.birthday,
-                            location: user?.location,
-                            phone: user?.phone,
-                            jobTitle: user?.jobTitle,
-                            education: user?.education,
-                            // profilePhoto excluded ÃƒÂ¯Ã‚Â¿Ã‚Â½ saved separately via upload endpoint to avoid base64 corrupting JSON
-                            profileFrame: user?.profileFrame,
-                            profileSummary: user?.profileSummary,
-                            skills: user?.skills,
-                            languages: user?.languages,
-                            employment: user?.employment,
-                            projects: user?.projects,
-                            internships: user?.internships,
-                            certifications: user?.certifications,
-                            awards: user?.awards,
-                            clubsCommittees: user?.clubsCommittees,
-                            competitiveExams: user?.competitiveExams,
-                            academicAchievements: user?.academicAchievements,
-                            educationCollege: user?.educationCollege,
-                            educationClass12: user?.educationClass12,
-                            educationClass10: user?.educationClass10,
-                            careerPreferences: user?.careerPreferences,
-                            resume: user?.resume
-                          })
-                        });
-                        if (response.ok) {
-                          setNotification({
-                            type: 'success',
-                            message: 'All profile details saved successfully!',
-                            isVisible: true
-                          });
-                          setProfileSaved(true);
-                        } else {
-                          setNotification({
-                            type: 'error',
-                            message: 'Failed to save profile',
-                            isVisible: true
-                          });
-                        }
-                      } catch (error) {
-                        console.error('Error saving profile:', error);
-                        setNotification({
-                          type: 'error',
-                          message: 'Failed to save profile',
-                          isVisible: true
-                        });
-                      }
-                    }}
-                    className="bg-blue-600 text-white px-8 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium whitespace-nowrap"
-                  >
-                    Save All Changes
-                  </button>
-                </div>}
-                </>
-                )}
 
-                {/* Profile Header Card */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                  <div className="flex items-start space-x-6">
-                    {/* Profile Picture with Progress Ring */}
-                    <div className="relative">
-                      <div className="relative w-24 h-24">
+                  {/* Profile photo overlapping cover */}
+                  <div className="px-6 pb-6">
+                    <div className="flex items-end justify-between -mt-14 mb-4">
+                      {/* Profile photo */}
+                      <div className="relative flex-shrink-0">
+                        {(() => {
+                          const frameColor =
+                            user?.profileFrame === 'blue'   ? '#0A66C2' :
+                            user?.profileFrame === 'green'  ? '#057642' :
+                            user?.profileFrame === 'purple' ? '#7C3AED' :
+                            user?.profileFrame === 'gold'   ? '#F59E0B' :
+                            user?.openToWork               ? '#22c55e' : null;
+                          return (
+                            <div
+                              className="w-28 h-28 rounded-full overflow-hidden cursor-pointer bg-white"
+                              style={{
+                                border: frameColor ? `4px solid ${frameColor}` : '4px solid white',
+                                boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+                              }}
+                              onClick={() => !readOnly && setShowPhotoEditor(true)}
+                            >
+                              {user?.profilePhoto ? (
+                                <img src={user.profilePhoto} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gray-300 rounded-full flex items-center justify-center text-white font-semibold text-sm hover:bg-gray-400 transition-colors">
+                                  {!readOnly ? 'Add photo' : (user?.name?.charAt(0) || '?')}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                         {user?.openToWork && (
-                          <span className="absolute -top-2 -right-2 z-10 bg-green-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow">
-                            #Open
+                          <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-green-600 text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow">
+                            #OpenToWork
                           </span>
                         )}
-                        {/* Progress Ring */}
-                        <svg className="w-24 h-24 transform -rotate-90 absolute" viewBox="0 0 36 36">
-                          <path
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            fill="none"
-                            stroke="#e5e7eb"
-                            strokeWidth="2"
-                          />
-                          <path
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                            fill="none"
-                            stroke="#ef4444"
-                            strokeWidth="2"
-                            strokeDasharray={`${completionPercentage}, 100`}
-                          />
-                        </svg>
-                        {/* Profile Photo */}
-                        <div className="absolute inset-2">
-                          {user?.profilePhoto ? (
-                            <img 
-                              src={user.profilePhoto} 
-                              alt="Profile" 
-                              className="w-full h-full rounded-full object-cover cursor-pointer"
-                              onClick={() => setShowPhotoEditor(true)}
-                            />
-                          ) : (
-                            <div 
-                              className="w-full h-full bg-gray-400 rounded-full flex items-center justify-center text-white font-semibold cursor-pointer hover:bg-gray-500 transition-colors text-xs"
-                              onClick={() => setShowPhotoEditor(true)}
-                            >
-                              Add photo
-                            </div>
-                          )}
-                        </div>
-                        {/* Percentage */}
-                        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                          <span className="text-xs font-semibold text-red-600 bg-white px-1 rounded">{completionPercentage}%</span>
-                        </div>
                       </div>
                     </div>
 
                     {/* Profile Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
                           <div className="flex items-center space-x-2 mb-1">
                             <h1 className="text-2xl font-semibold text-gray-900">
                               {user?.name || user?.fullName || 'Add your name'}
@@ -1216,17 +1185,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <p className="text-gray-600 mb-1">
                             {user?.title || user?.jobTitle || 'Add your job title'}
                           </p>
-                          {user?.visibilityStatus && (
-                            <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${
-                              user.visibilityStatus === 'actively-looking' ? 'bg-green-100 text-green-700' :
-                              user.visibilityStatus === 'passively-looking' ? 'bg-blue-100 text-blue-700' :
-                              'bg-gray-100 text-gray-500'
-                            }`}>
-                              {user.visibilityStatus === 'actively-looking' ? 'Actively Looking' :
-                               user.visibilityStatus === 'passively-looking' ? 'Open to Opportunities' :
-                               'Not Looking'}
-                            </span>
-                          )}
+
                           {user?.educationCollege?.college && (
                             <p className="text-gray-500 text-sm mb-3">
                               {user.educationCollege.degree ? `${user.educationCollege.degree}  ` : ''}{user.educationCollege.college}
@@ -1350,7 +1309,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       </div>
                     </div>
                   </div>
-                </div>
 
                 {/* Your career preferences */}
                 <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
@@ -1996,9 +1954,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       <div className="flex items-center">
                         <div className="flex-shrink-0">
                           <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <svg width="100" height="100" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4ZM12 20C9.33 20 6.94 18.66 5.5 16.63C5.53 14.47 9.83 13.3 12 13.3C14.17 13.3 18.47 14.47 18.5 16.63C17.06 18.66 14.67 20 12 20Z" fill="currentColor"/>
-</svg>
+                            <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 4C13.66 4 15 5.34 15 7C15 8.66 13.66 10 12 10C10.34 10 9 8.66 9 7C9 5.34 10.34 4 12 4ZM12 20C9.33 20 6.94 18.66 5.5 16.63C5.53 14.47 9.83 13.3 12 13.3C14.17 13.3 18.47 14.47 18.5 16.63C17.06 18.66 14.67 20 12 20Z" fill="currentColor"/>
+                            </svg>
 
                           </div>
                         </div>
