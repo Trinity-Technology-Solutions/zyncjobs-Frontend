@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Plus, Users, UserPlus, Folder, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
 import {
-  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { API_ENDPOINTS } from '../config/constants';
-import { decodeHtmlEntities, formatDate, formatSalary } from '../utils/textUtils';
-import BackButton from '../components/BackButton';
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
+import CandidateCredentialing from '../components/CandidateCredentialing';
+import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
@@ -491,9 +491,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
   };
 
-  const getFallbackLogo = (name: string) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=6366f1&color=ffffff&bold=true`;
-  };
 
   const getDisplayLogo = () => {
     // 1. Use stored logo from profile/localStorage (set during complete-profile or register)
@@ -527,15 +524,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
   };
 
-  const getJobCompanyLogo = (job: any) => {
-    const company = job.company || job.companyName || companyName;
-    
-    if (job.companyLogo && !job.companyLogo.includes('clearbit.com') && !job.companyLogo.includes('gstatic.com')) {
-      return job.companyLogo;
-    }
-    
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(company)}&size=40&background=6366f1&color=ffffff&bold=true`;
-  };
 
   // ── Analytics helpers ──────────────────────────────────────────────
   const analyticsRange = useMemo(() => {
@@ -589,18 +577,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       .slice(0, 5);
   }, [jobs, applications]);
 
-  const funnelData = useMemo(() => [
-    { stage: 'Applied',     count: applications.length },
-    { stage: 'Reviewed',    count: applications.filter(a => ['reviewed','shortlisted','interviewed','hired'].includes(a.status)).length },
-    { stage: 'Shortlisted', count: applications.filter(a => ['shortlisted','interviewed','hired'].includes(a.status)).length },
-    { stage: 'Interviewed', count: applications.filter(a => ['interviewed','hired'].includes(a.status)).length },
-    { stage: 'Hired',       count: applications.filter(a => a.status === 'hired').length },
-  ], [applications]);
 
   const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
   
   // ── Calculate dynamic percentage changes (last 30 days vs previous 30 days) ──
-  const calculatePercentageChange = (currentData: any[], field: string) => {
+  const calculatePercentageChange = (currentData: any[]) => {
     const now = new Date();
     const last30days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     const last60days = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
@@ -621,15 +602,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   };
 
   // Calculate dynamic percentages for each metric
-  const jobsPercentage = useMemo(() => calculatePercentageChange(jobs, 'createdAt'), [jobs]);
-  const applicationsPercentage = useMemo(() => calculatePercentageChange(applications, 'createdAt'), [applications]);
+  const jobsPercentage = useMemo(() => calculatePercentageChange(jobs), [jobs]);
+  const applicationsPercentage = useMemo(() => calculatePercentageChange(applications), [applications]);
   const interviewsPercentage = useMemo(() => {
     const interviewed = applications.filter(a => ['interviewed','hired'].includes(a.status));
-    return calculatePercentageChange(interviewed, 'updatedAt');
+    return calculatePercentageChange(interviewed);
   }, [applications]);
   const hiredPercentage = useMemo(() => {
     const hired = applications.filter(a => a.status === 'hired');
-    return calculatePercentageChange(hired, 'updatedAt');
+    return calculatePercentageChange(hired);
   }, [applications]);
   // ────────────────────────────────────────────────────────────────────
 
@@ -1064,7 +1045,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   ) : (
                     <div className="space-y-3">
                       {topJobs.slice(0,5).map((job, i) => {
-                        const jId = String(jobs[i]?.id || jobs[i]?._id || '');
                         const total = Math.max(job.applications, 1);
                         return (
                           <div key={i}>

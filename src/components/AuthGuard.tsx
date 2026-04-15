@@ -6,6 +6,7 @@ interface AuthGuardProps {
   user: { type: 'candidate' | 'employer' | 'admin' | 'super_admin' } | null;
   allowedRoles?: Array<'candidate' | 'employer' | 'admin' | 'super_admin'>;
   redirectTo?: string;
+  userLoading?: boolean;
 }
 
 const RedirectWithAlert: React.FC<{ message: string; to: string }> = ({ message, to }) => {
@@ -13,8 +14,17 @@ const RedirectWithAlert: React.FC<{ message: string; to: string }> = ({ message,
   return <Navigate to={to} replace />;
 };
 
-const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, redirectTo = '/login' }) => {
+const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, redirectTo = '/login', userLoading = false }) => {
   const location = useLocation();
+
+  // Wait for session restore before redirecting
+  if (userLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      </div>
+    );
+  }
 
   if (!user) return <Navigate to={redirectTo} state={{ from: location }} replace />;
 

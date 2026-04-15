@@ -76,7 +76,7 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
 
   useEffect(() => {
     if (!userEmail) return;
-    const socketUrl = (import.meta.env.VITE_API_URL || '/api').replace('/api', '');
+    const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
     const socket: Socket = io(socketUrl, { transports: ['websocket', 'polling'] });
     socket.on(`analytics_update:${userEmail}`, ({ eventType }: { eventType: string }) => {
       if (eventType === 'search_appearance' || eventType === 'profile_view') {

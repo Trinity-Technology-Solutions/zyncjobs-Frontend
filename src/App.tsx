@@ -236,12 +236,19 @@ function App() {
     setUser(null);
     tokenStorage.clear();
     sessionStorage.clear();
+    localStorage.removeItem('user');
     navigate('/', { replace: true });
   }, [navigate]);
 
-  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string }) => {
+  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {
     setUser(userData);
     closeModals();
+    // Persist user to localStorage for fast restore on refresh
+    localStorage.setItem('user', JSON.stringify({
+      ...userData,
+      userType: userData.type,
+      role: userData.type,
+    }));
     const token = tokenStorage.getAccess();
     if (token && (userData.type === 'candidate' || userData.type === 'employer')) {
       localStorageMigration.setToken(token);
@@ -265,6 +272,17 @@ function App() {
     window.addEventListener('zync:logout', handleForceLogout);
 
     const restoreSession = async () => {
+      // Fast restore: use localStorage user data immediately to prevent wrong dashboard flash
+      const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+      if (storedUser.email && (storedUser.userType || storedUser.role)) {
+        const rawType = storedUser.userType || storedUser.role || 'candidate';
+        let fastType: UserType['type'] = 'candidate';
+        if (rawType === 'employer') fastType = 'employer';
+        else if (rawType === 'admin') fastType = 'admin';
+        else if (rawType === 'super_admin') fastType = 'super_admin';
+        setUser({ name: storedUser.name || storedUser.email?.split('@')[0] || 'User', type: fastType, email: storedUser.email });
+      }
+
       let token = tokenStorage.getAccess();
 
       // No access token in sessionStorage (e.g. after page refresh)
@@ -283,6 +301,19 @@ function App() {
             tokenStorage.setAccess(data.accessToken);
             if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
             token = data.accessToken;
+            // If refresh response includes user role, restore immediately
+            if (data.user?.role || data.user?.userType) {
+              const rawType = data.user.role || data.user.userType || 'candidate';
+              let userType: UserType['type'] = 'candidate';
+              if (rawType === 'employer') userType = 'employer';
+              else if (rawType === 'admin') userType = 'admin';
+              else if (rawType === 'super_admin') userType = 'super_admin';
+              // Store for getMe() to confirm, but set early to prevent wrong dashboard
+              const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+              if (storedUser.email) {
+                setUser({ name: storedUser.name || storedUser.email?.split('@')[0] || 'User', type: userType, email: storedUser.email });
+              }
+            }
           } else {
             // Refresh token expired/invalid — clear and stay logged out
             tokenStorage.clear();
@@ -303,9 +334,10 @@ function App() {
           setUser(null);
         } else {
           let userType: UserType['type'] = 'candidate';
-          if (userData.userType === 'employer') userType = 'employer';
-          if (userData.userType === 'admin') userType = 'admin';
-          if (userData.userType === 'super_admin') userType = 'super_admin';
+          const rawType = userData.userType || userData.role || '';
+          if (rawType === 'employer') userType = 'employer';
+          else if (rawType === 'admin') userType = 'admin';
+          else if (rawType === 'super_admin') userType = 'super_admin';
           setUser({ name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User', type: userType, email: userData.email });
         }
       } catch {
@@ -335,7 +367,20 @@ function App() {
   }, []);
 
   // Early returns AFTER all hooks
-  if (userLoading) return <LoadingFallback />;
+  // Always show loader for protected routes until session is fully restored
+  if (userLoading) {
+    const protectedPaths = ['/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
+      '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
+      '/resume-score', '/resume-parser', '/skill-assessment', '/career-coach', '/career-roadmap',
+      '/job-application', '/candidate-messages', '/interviews', '/alerts', '/privacy-settings',
+      '/application-management', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
+      '/candidate-profile-view', '/recruiter-actions', '/search-appearances', '/resume-upload',
+      '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
+      '/admin'];
+    if (protectedPaths.some(p => location.pathname.startsWith(p))) {
+      return <LoadingFallback />;
+    }
+  }
 
   if (maintenance && !location.pathname.startsWith('/admin')) {
     const handleRetry = async () => {
@@ -350,7 +395,7 @@ function App() {
     return <TokenHandler onLogin={handleLogin} onNavigate={handleNavigation} />;
   }
 
-  const nav = { onNavigate: handleNavigation, user: user as any, onLogout: handleLogout };
+  const nav = { onNavigate: handleNavigation, user: user as any, onLogout: handleLogout, userLoading };
 
   return (
     <>
@@ -446,9 +491,9 @@ function App() {
 
           {/* -- Protected: any logged-in user -- */}
           <Route path="/dashboard" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
-              {user?.type === 'employer' ? (
+              {userLoading ? null : user?.type === 'employer' ? (
                 <>
                   <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                   <EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} />
@@ -462,7 +507,7 @@ function App() {
           } />
 
           <Route path="/candidate-messages" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <div className="flex flex-col" style={{height: '100dvh'}}>
                 <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                 <div className="flex-1 min-h-0 overflow-hidden">
@@ -473,13 +518,13 @@ function App() {
           } />
 
           <Route path="/settings" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <WithLayout {...nav}><SettingsPage {...nav} /></WithLayout>
             </AuthGuard>
           } />
 
           <Route path="/my-jobs" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <>
                 <Header {...nav} />
                 <MyJobsPage {...nav} />
@@ -488,7 +533,7 @@ function App() {
           } />
 
           <Route path="/my-applications" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <MyApplicationsPage {...nav} />
             </AuthGuard>
           } />
@@ -509,8 +554,8 @@ function App() {
           } />
 
           <Route path="/interviews" element={
-            <AuthGuard user={user}>
-              {user?.type === 'candidate' ? (
+            <AuthGuard user={user} userLoading={userLoading}>
+              {userLoading ? null : user?.type === 'candidate' ? (
                 <CandidateInterviewsPage {...nav} />
               ) : (
                 <WithLayout {...nav}><InterviewScheduling /></WithLayout>
@@ -578,7 +623,7 @@ function App() {
           } />
 
           <Route path="/resume-builder" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <ResumeBuilderPage {...nav} />
             </AuthGuard>
           } />
@@ -617,14 +662,14 @@ function App() {
           } />
 
           <Route path="/job-application" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <JobApplicationPage onNavigate={handleNavigation} />
             </AuthGuard>
           } />
 
 
           <Route path="/candidate-profile-view" element={
-            <AuthGuard user={user}>
+            <AuthGuard user={user} userLoading={userLoading}>
               <WithLayout {...nav}>
                 <ErrorBoundary fallback={
                   <div className="min-h-[60vh] flex items-center justify-center">
@@ -644,7 +689,7 @@ function App() {
 
           {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <WithLayout {...nav}>
                 <JobPostingPage {...nav} mode={undefined} parsedData={undefined} />
               </WithLayout>
@@ -652,7 +697,7 @@ function App() {
           } />
 
           <Route path="/job-posting-selection" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <WithLayout {...nav}>
                 <JobPostingSelectionPage onNavigate={handleNavigation} user={user as any} />
               </WithLayout>
@@ -660,7 +705,7 @@ function App() {
           } />
 
           <Route path="/job-parsing" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <WithLayout {...nav}>
                 <JobParsingPage onNavigate={handleNavigation} user={user as any} />
               </WithLayout>
@@ -668,19 +713,19 @@ function App() {
           } />
 
           <Route path="/job-management" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <JobManagementPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/candidate-search" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <CandidateSearchPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/candidate-review" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <CandidateReviewPage onNavigate={handleNavigation} jobId="" />
             </AuthGuard>
           } />
@@ -698,13 +743,13 @@ function App() {
           } />
 
           <Route path="/application-management" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <ApplicationManagementPage {...nav} />
             </AuthGuard>
           } />
 
           <Route path="/employer-profile" element={
-            <AuthGuard user={user} allowedRoles={['employer', 'admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
               <WithLayout {...nav}>
                 <EmployerProfilePage onNavigate={handleNavigation} />
               </WithLayout>
@@ -722,7 +767,7 @@ function App() {
           } />
 
           <Route path="/admin/dashboard" element={
-            <AuthGuard user={user} allowedRoles={['admin', 'super_admin']}>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin']}>
               <AdminDashboardPage
                 user={{ name: user?.name || 'Admin', email: user?.email }}
                 onNavigate={handleNavigation}

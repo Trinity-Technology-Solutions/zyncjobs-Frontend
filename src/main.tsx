@@ -1,4 +1,3 @@
-import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
@@ -16,28 +15,32 @@ Sentry.init({
 
 // Suppress browser extension errors
 window.addEventListener('error', (e) => {
-  if (e.message.includes('message channel closed') || 
-      e.message.includes('Extension context invalidated')) {
+  if (
+    e.message.includes('message channel closed') || 
+    e.message.includes('Extension context invalidated') ||
+    e.message.includes('listener indicated an asynchronous response')
+  ) {
     e.stopImmediatePropagation();
     return true;
   }
 });
 
 window.addEventListener('unhandledrejection', (e) => {
-  if (e.reason?.message?.includes('message channel closed') || 
-      e.reason?.message?.includes('Extension context invalidated')) {
+  if (
+    e.reason?.message?.includes('message channel closed') || 
+    e.reason?.message?.includes('Extension context invalidated') ||
+    e.reason?.message?.includes('listener indicated an asynchronous response')
+  ) {
     e.stopImmediatePropagation();
     e.preventDefault();
   }
 });
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </BrowserRouter>
-  </StrictMode>
+  <BrowserRouter>
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  </BrowserRouter>
 );
 

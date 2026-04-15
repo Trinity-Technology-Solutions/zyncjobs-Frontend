@@ -6,6 +6,7 @@ import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import CandidateProfileModal from '../components/CandidateProfileModal';
 
 interface Candidate {
   _id: string;

@@ -13,42 +13,72 @@ export class AISuggestionService {
 
   private async callAI(prompt: string): Promise<string[]> {
     try {
-      // Call OpenRouter API with Mistral model
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const response = await fetch(`${apiBase}/ai-suggestions/suggest`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_REACT_APP_OPENROUTER_API_KEY || import.meta.env.VITE_OPENROUTER_API_KEY}`,
-          'HTTP-Referer': window.location.origin,
-          'X-Title': 'Trinity Jobs'
-        },
-        body: JSON.stringify({
-          model: 'mistralai/mistral-7b-instruct',
-          messages: [{
-            role: 'user',
-            content: prompt
-          }],
-          max_tokens: 200,
-          temperature: 0.7
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
       });
-
-      if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status}`);
-      }
-
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
       const data = await response.json();
-      const content = data.choices[0]?.message?.content || '';
-      
-      // Parse the response into an array
-      return content.split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => line.length > 0)
-        .slice(0, 8);
+      return (data.suggestions || []).filter((s: string) => s.trim().length > 0).slice(0, 8);
     } catch (error) {
-      console.error('OpenRouter API error:', error);
       return this.fallbackSuggestions(prompt);
     }
+  }
+
+  async getJobSuggestions(input: string): Promise<string[]> {
+    if (!input || input.length < 1) return [];
+    const cacheKey = `job_${input.toLowerCase()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) return cached.data;
+
+    // Use backend job_titles.json first — instant & reliable
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/jobs/titles`);
+      if (res.ok) {
+        const data = await res.json();
+        const titles: string[] = data.job_titles || [];
+        const matched = titles.filter(t => t.toLowerCase().includes(input.toLowerCase())).slice(0, 8);
+        if (matched.length > 0) {
+          this.cache.set(cacheKey, { data: matched, timestamp: Date.now() });
+          return matched;
+        }
+      }
+    } catch {}
+
+    // Fallback to local patterns
+    const suggestions = this.generateJobSuggestions(input.toLowerCase());
+    this.cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
+    return suggestions;
+  }
+
+  async getLocationSuggestions(input: string): Promise<string[]> {
+    if (!input || input.length < 1) return [];
+    const cacheKey = `location_${input.toLowerCase()}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) return cached.data;
+
+    // Use backend locations.json first — instant & reliable
+    try {
+      const apiBase = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${apiBase}/locations`);
+      if (res.ok) {
+        const data = await res.json();
+        const locs: string[] = data.locations || [];
+        const matched = locs.filter(l => l.toLowerCase().includes(input.toLowerCase())).slice(0, 8);
+        if (matched.length > 0) {
+          this.cache.set(cacheKey, { data: matched, timestamp: Date.now() });
+          return matched;
+        }
+      }
+    } catch {}
+
+    // Fallback to local patterns
+    const suggestions = this.generateLocationSuggestions(input.toLowerCase());
+    this.cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
+    return suggestions;
   }
 
   private fallbackSuggestions(input: string): string[] {
@@ -134,40 +164,6 @@ export class AISuggestionService {
   private isLocationQuery(input: string): boolean {
     const locationKeywords = ['city', 'country', 'remote', 'office', 'location'];
     return locationKeywords.some(keyword => input.includes(keyword)) || input.length <= 4;
-  }
-
-  async getJobSuggestions(input: string): Promise<string[]> {
-    if (!input || input.length < 1) return [];
-
-    const cacheKey = `job_${input.toLowerCase()}`;
-    const cached = this.cache.get(cacheKey);
-    
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
-    }
-
-    const prompt = `Generate 8 relevant job titles for "${input}". Return only job titles, one per line.`;
-    
-    const suggestions = await this.callAI(prompt);
-    this.cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
-    return suggestions;
-  }
-
-  async getLocationSuggestions(input: string): Promise<string[]> {
-    if (!input || input.length < 1) return [];
-
-    const cacheKey = `location_${input.toLowerCase()}`;
-    const cached = this.cache.get(cacheKey);
-    
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
-    }
-
-    const prompt = `Generate 8 relevant locations for "${input}". Include cities, countries. Return only location names, one per line.`;
-    
-    const suggestions = await this.callAI(prompt);
-    this.cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
-    return suggestions;
   }
 
   async getSkillSuggestions(input: string): Promise<string[]> {
