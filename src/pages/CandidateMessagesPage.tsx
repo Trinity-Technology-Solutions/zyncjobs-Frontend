@@ -385,7 +385,6 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                       <h3 className="font-semibold text-gray-900 truncate">{conv.employerName}</h3>
                       <span className="text-xs text-gray-500 ml-2 flex-shrink-0">{formatTime(conv.lastMessageTime)}</span>
                     </div>
-                    <p className="text-sm text-gray-600 truncate">{conv.companyName || 'Employer'}</p>
                     <p className="text-sm text-gray-500 truncate">{conv.lastMessage || 'No messages yet'}</p>
                   </div>
 

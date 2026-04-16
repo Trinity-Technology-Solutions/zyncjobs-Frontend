@@ -682,20 +682,18 @@ function App() {
 
           <Route path="/candidate-profile-view" element={
             <AuthGuard user={user} userLoading={userLoading}>
-              <WithLayout {...nav}>
-                <ErrorBoundary fallback={
-                  <div className="min-h-[60vh] flex items-center justify-center">
-                    <div className="text-center bg-white rounded-xl p-8 shadow-sm border max-w-sm mx-4">
-                      <div className="text-4xl mb-4">👤</div>
-                      <h3 className="font-semibold text-gray-900 mb-2">Profile Not Available</h3>
-                      <p className="text-sm text-gray-500 mb-4">This candidate hasn't set up their profile yet.</p>
-                      <button onClick={() => window.history.back()} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Go Back</button>
-                    </div>
+              <ErrorBoundary fallback={
+                <div className="min-h-[60vh] flex items-center justify-center">
+                  <div className="text-center bg-white rounded-xl p-8 shadow-sm border max-w-sm mx-4">
+                    <div className="text-4xl mb-4">👤</div>
+                    <h3 className="font-semibold text-gray-900 mb-2">Profile Not Available</h3>
+                    <p className="text-sm text-gray-500 mb-4">This candidate hasn't set up their profile yet.</p>
+                    <button onClick={() => window.history.back()} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Go Back</button>
                   </div>
-                }>
-                  <CandidateProfileViewWrapper onNavigate={handleNavigation} onBack={() => window.history.back()} />
-                </ErrorBoundary>
-              </WithLayout>
+                </div>
+              }>
+                <CandidateProfileViewWrapper onNavigate={handleNavigation} onBack={() => window.history.back()} />
+              </ErrorBoundary>
             </AuthGuard>
           } />
 

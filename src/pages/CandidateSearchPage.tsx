@@ -256,6 +256,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       email: candidate.email || '',
       skills: candidate.skills || [],
     }));
+    sessionStorage.setItem('profileViewSource', 'candidate-search');
     onNavigate('candidate-profile-view', { candidateId: cid });
   };
 
@@ -264,7 +265,7 @@ return (
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Hero Header Section */}
-      <div className="relative bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 text-white overflow-hidden">
+      <div className="relative bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 text-white">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -369,20 +370,25 @@ return (
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
                     />
                     {showSkillSuggestions && skillSuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {skillSuggestions.map((skill, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onMouseDown={() => {
-                              setSelectedSkill(skill);
-                              setShowSkillSuggestions(false);
-                            }}
-                            className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
-                          >
-                            {skill}
-                          </button>
-                        ))}
+                      <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
+                        <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
+                          {skillSuggestions.map((skill, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onMouseDown={() => {
+                                setSelectedSkill(skill);
+                                setShowSkillSuggestions(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
+                            >
+                              <span className="flex items-center gap-2">
+                                <Code className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                {skill}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -411,20 +417,25 @@ return (
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
                     />
                     {showLocationSuggestions && locationSuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                        {locationSuggestions.map((location, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onMouseDown={() => {
-                              setSelectedLocation(location);
-                              setShowLocationSuggestions(false);
-                            }}
-                            className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors"
-                          >
-                            {location}
-                          </button>
-                        ))}
+                      <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
+                        <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
+                          {locationSuggestions.map((location, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onMouseDown={() => {
+                                setSelectedLocation(location);
+                                setShowLocationSuggestions(false);
+                              }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
+                            >
+                              <span className="flex items-center gap-2">
+                                <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                {location}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
