@@ -273,6 +273,17 @@ function App() {
     window.addEventListener('zync:logout', handleForceLogout);
 
     const restoreSession = async () => {
+      // Clean up any base64 images stored in localStorage (they cause quota errors)
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          let cleaned = false;
+          if (parsed.profilePhoto?.startsWith('data:')) { parsed.profilePhoto = ''; cleaned = true; }
+          if (parsed.coverPhoto?.startsWith('data:')) { parsed.coverPhoto = ''; cleaned = true; }
+          if (cleaned) localStorage.setItem('user', JSON.stringify(parsed));
+        }
+      } catch { /* silent */ }
       // Fast restore: use localStorage user data immediately to prevent wrong dashboard flash
       const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
       if (storedUser.email && (storedUser.userType || storedUser.role)) {

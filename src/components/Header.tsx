@@ -243,7 +243,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
           if (userEmail) {
-            const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
+            const socketUrl = (import.meta.env.VITE_API_URL || '/api').replace(/\/api$/, '');
             socket = io(socketUrl, { transports: ['websocket', 'polling'] });
             socket.on(`analytics_update:${userEmail}`, () => {
               fetchProfileMetrics();

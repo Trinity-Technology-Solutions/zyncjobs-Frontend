@@ -361,47 +361,43 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
           </button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="text-2xl font-bold text-gray-900">{statusCounts.all}</div>
-            <div className="text-sm text-gray-600">Total Applied</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="text-2xl font-bold text-yellow-600">{statusCounts.applied}</div>
-            <div className="text-sm text-gray-600">Applied</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="text-2xl font-bold text-blue-600">{statusCounts.reviewed}</div>
-            <div className="text-sm text-gray-600">Reviewed</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="text-2xl font-bold text-green-600">{statusCounts.shortlisted}</div>
-            <div className="text-sm text-gray-600">Shortlisted</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="text-2xl font-bold text-red-600">{statusCounts.rejected}</div>
-            <div className="text-sm text-gray-600">Rejected</div>
-          </div>
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
-            <div className="text-2xl font-bold text-purple-600">{statusCounts.hired}</div>
-            <div className="text-sm text-gray-600">Hired</div>
-          </div>
+          {[
+            { label: 'Total Applied', value: statusCounts.all, color: 'text-gray-900', border: 'border-gray-200', icon: <Briefcase className="w-5 h-5 text-gray-400" /> },
+            { label: 'Applied', value: statusCounts.applied, color: 'text-blue-600', border: 'border-blue-200', icon: <Clock className="w-5 h-5 text-blue-400" /> },
+            { label: 'Reviewed', value: statusCounts.reviewed, color: 'text-yellow-600', border: 'border-yellow-200', icon: <Eye className="w-5 h-5 text-yellow-400" /> },
+            { label: 'Shortlisted', value: statusCounts.shortlisted, color: 'text-green-600', border: 'border-green-200', icon: <CheckCircle className="w-5 h-5 text-green-400" /> },
+            { label: 'Rejected', value: statusCounts.rejected, color: 'text-red-600', border: 'border-red-200', icon: <XCircle className="w-5 h-5 text-red-400" /> },
+            { label: 'Hired', value: statusCounts.hired, color: 'text-purple-600', border: 'border-purple-200', icon: <CheckCircle className="w-5 h-5 text-purple-400" /> },
+          ].map((stat) => (
+            <div key={stat.label} className={`p-4 rounded-xl bg-white shadow-md hover:shadow-xl transition-all border ${stat.border}`}>
+              <div className="flex justify-between items-center mb-2">
+                <p className="text-gray-500 text-xs font-medium">{stat.label}</p>
+                {stat.icon}
+              </div>
+              <h2 className={`text-2xl font-bold ${stat.color}`}>{stat.value}</h2>
+            </div>
+          ))}
         </div>
 
         {/* Filter Tabs */}
         <div className="bg-white rounded-lg shadow-sm border mb-6">
           <div className="p-4 border-b">
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
-              {['all', 'applied', 'reviewed', 'shortlisted', 'rejected', 'hired', 'withdrawn'].map((status) => (
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: 'all', label: 'All', active: 'bg-gray-800 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
+                { key: 'applied', label: 'Applied', active: 'bg-blue-600 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600' },
+                { key: 'reviewed', label: 'Reviewed', active: 'bg-yellow-500 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-yellow-50 hover:text-yellow-600' },
+                { key: 'shortlisted', label: 'Shortlisted', active: 'bg-green-600 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-green-50 hover:text-green-600' },
+                { key: 'rejected', label: 'Rejected', active: 'bg-red-500 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-600' },
+                { key: 'hired', label: 'Hired', active: 'bg-purple-600 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-purple-50 hover:text-purple-600' },
+                { key: 'withdrawn', label: 'Withdrawn', active: 'bg-gray-500 text-white', inactive: 'bg-gray-100 text-gray-600 hover:bg-gray-200' },
+              ].map((f) => (
                 <button
-                  key={status}
-                  onClick={() => setFilter(status)}
-                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                    filter === status
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${filter === f.key ? f.active : f.inactive}`}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)} ({statusCounts[status as keyof typeof statusCounts]})
+                  {f.label} ({statusCounts[f.key as keyof typeof statusCounts]})
                 </button>
               ))}
             </div>
@@ -428,18 +424,18 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               ) : (
                 filteredApplications.map((application) => (
                   application && application.jobId ? (
-                  <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+                  <div key={application._id} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all border border-gray-100">
                     <div className="flex items-start justify-between">
                       {/* Left side - Job info */}
                       <div className="flex items-start space-x-4 flex-1">
                         <div className="flex-1">
                           {/* Company logo + name row */}
                           <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 rounded-lg flex items-center justify-center overflow-hidden bg-white border border-gray-200">
+                            <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-blue-50 border border-blue-100">
                               <img 
                                 src={getCompanyLogo(application.jobId?.company || '')} 
                                 alt={`${application.jobId?.company || 'Company'} Logo`} 
-                                className="w-8 h-8 object-contain"
+                                className="w-10 h-10 object-contain"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
                                   const company = application.jobId?.company || 'Company';
@@ -460,7 +456,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             <h3 className="font-semibold text-lg text-gray-900">
                               {application.jobId?.jobTitle || 'Job Title Not Available'}
                             </h3>
-                            <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(application.status)}`}>
+                            <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(application.status)}`}>
                               {getStatusIcon(application.status)}
                               <span className="ml-2">{toDisplay(application.status).charAt(0).toUpperCase() + toDisplay(application.status).slice(1)}</span>
                             </div>
@@ -525,6 +521,28 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             </div>
                           )}
                           
+                          {/* Progress bar */}
+                          {(() => {
+                            const steps = ['applied','reviewed','shortlisted','hired'];
+                            const displayStatus = toDisplay(application.status);
+                            const idx = steps.indexOf(displayStatus);
+                            const pct = idx >= 0 ? Math.round(((idx + 1) / steps.length) * 100) : 0;
+                            const barColor = displayStatus === 'rejected' ? 'bg-red-500' : displayStatus === 'hired' ? 'bg-purple-500' : 'bg-green-500';
+                            return displayStatus !== 'withdrawn' ? (
+                              <div className="mb-3">
+                                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                                  <span>Progress</span><span>{pct}%</span>
+                                </div>
+                                <div className="h-1.5 bg-gray-100 rounded-full">
+                                  <div className={`h-1.5 ${barColor} rounded-full transition-all`} style={{ width: `${pct}%` }}></div>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-300 mt-1">
+                                  {steps.map(s => <span key={s} className={displayStatus === s ? 'text-blue-500 font-semibold' : ''}>{s.charAt(0).toUpperCase()+s.slice(1)}</span>)}
+                                </div>
+                              </div>
+                            ) : null;
+                          })()}
+
                           {/* Status message */}
                           <div className="mb-3">
                             <div className="text-sm text-gray-600">
@@ -599,7 +617,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           <div className="flex space-x-2">
                             <button 
                               onClick={() => onNavigate('job-detail', { jobId: getId(application.jobId) || (typeof application.jobId === 'string' ? application.jobId : ''), jobData: application.jobId })}
-                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
                             >
                               View Job
                             </button>
@@ -608,7 +626,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           {(application.status === 'applied' || application.status === 'ai_rejected') && (
                             <button
                               onClick={() => setWithdrawingApp(application._id)}
-                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-sm rounded hover:bg-red-50 transition-colors"
+                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors"
                             >
                               <X className="w-4 h-4" />
                               <span>Withdraw</span>
@@ -618,7 +636,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           {scheduledAppIds.has(application._id) && (
                             <button
                               onClick={() => onNavigate('candidate-interviews')}
-                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded hover:bg-indigo-50 transition-colors"
+                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 transition-colors"
                             >
                               <Calendar className="w-4 h-4" />
                               <span>View Interview</span>
@@ -628,7 +646,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           {application.status === 'withdrawn' && (
                             <button
                               onClick={() => handleReapply(application)}
-                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-green-300 text-green-600 text-sm rounded hover:bg-green-50 transition-colors"
+                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-green-300 text-green-600 text-sm rounded-lg hover:bg-green-50 transition-colors"
                             >
                               <CheckCircle className="w-4 h-4" />
                               <span>Reapply</span>

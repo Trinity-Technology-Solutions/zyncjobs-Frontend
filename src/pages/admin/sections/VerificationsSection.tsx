@@ -95,6 +95,8 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
                   <div>
                     <p className="font-medium text-gray-200">{v.companyName || v.company || '—'}</p>
                     <p className="text-sm text-gray-400">{v.employerName || v.name} · {v.email}</p>
+                    {v.phone && <p className="text-xs text-gray-500 mt-0.5">📞 {v.phone}</p>}
+                    {v.location && <p className="text-xs text-gray-500">📍 {v.location}</p>}
                     {v.website && (
                       <a href={v.website} target="_blank" rel="noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 mt-1">
