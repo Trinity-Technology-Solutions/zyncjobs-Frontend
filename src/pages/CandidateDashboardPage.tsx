@@ -278,7 +278,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 hasLanguages: !!profileData.languages,
                 hasEmployment: !!profileData.employment,
                 internships: profileData.internships,
-                languages: profileData.languages
+                languages: profileData.languages,
+                coverPhoto: profileData.coverPhoto,
               });
               // Merge database data with localStorage data, prioritizing database data
               const normalizePhotoUrl = (url: string) => {
@@ -311,7 +312,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 ...parsedUser, 
                 ...profileData,
                 profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
-                coverPhoto: pick(profileData.coverPhoto, parsedUser.coverPhoto),
+                coverPhoto: normalizePhotoUrl(profileData.coverPhoto || parsedUser.coverPhoto || ''),
                 profileFrame: pick(profileData.profileFrame, parsedUser.profileFrame, 'none'),
                 profileSummary: pick(profileData.profileSummary, parsedUser.profileSummary),
                 employment: pick(profileData.employment, parsedUser.employment),
@@ -677,7 +678,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       onClick={() => onNavigate('salary-insights')}
                       className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
                     >
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       <span className="text-gray-700">Salary Insights</span>
                     </button>
                     <button 
@@ -691,7 +692,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       }}
                       className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
                     >
-                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <span className="text-gray-700">AI Job Matches</span>
@@ -960,13 +961,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             </div>
                           </div>
                           <p className="text-xs text-gray-600 mb-2">{job.company}{job.location ? ` · ${job.location}` : ''}</p>
-                          {job.salary && (
-                            <p className="text-xs text-green-600 font-medium mb-2">
-                              {typeof job.salary === 'object'
-                                ? `?${job.salary.min || ''} - ?${job.salary.max || ''}`
-                                : job.salary}
-                            </p>
-                          )}
+                          {job.salary && (() => {
+                            const salaryText = typeof job.salary === 'object'
+                              ? (job.salary.min || job.salary.max ? `₹${job.salary.min || ''} - ₹${job.salary.max || ''}` : null)
+                              : job.salary;
+                            return salaryText ? (
+                              <p className="flex items-center gap-1 text-xs text-green-600 font-medium mb-2">
+                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
+                                {salaryText}
+                              </p>
+                            ) : null;
+                          })()}
                           {Array.isArray(job.skills) && job.skills.length > 0 && (
                             <div className="flex flex-wrap gap-1 mb-2">
                               {job.skills.slice(0, 3).map((skill: string, idx: number) => (
@@ -1041,12 +1046,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                 {app.jobId?.location || 'Remote'}
                               </span>
                               <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-1 rounded">
+                                <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                                 {app.jobId?.salary ? (
                                   typeof app.jobId.salary === 'object'
-                                    ? `?${app.jobId.salary.min || ''}-${app.jobId.salary.max || ''}`
+                                    ? (app.jobId.salary.min || app.jobId.salary.max ? `₹${app.jobId.salary.min || ''}-₹${app.jobId.salary.max || ''}` : 'Competitive')
                                     : app.jobId.salary
                                 ) : 'Competitive'}
                               </span>
@@ -1088,37 +1095,74 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     {user?.coverPhoto ? (
                       <img src={user.coverPhoto} alt="Cover" className="w-full h-full object-cover" />
                     ) : null}
-                    {/* Cover upload button */}
+                    {/* Cover upload + remove buttons */}
                     {!readOnly && (
-                      <label className="absolute top-3 right-3 bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full cursor-pointer shadow transition-all">
-                        <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          try {
-                            const formData = new FormData();
-                            formData.append('photo', file);
-                            const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
-                            let coverUrl: string;
-                            if (uploadRes.ok) {
+                      <div className="absolute top-3 right-3 flex gap-2">
+                        <label className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full cursor-pointer shadow transition-all" title="Change cover photo">
+                          <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            try {
+                              // Compress image before upload
+                              const compressedBlob = await new Promise<Blob>((resolve) => {
+                                const img = new Image();
+                                const url = URL.createObjectURL(file);
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  const MAX = 1200;
+                                  let w = img.width, h = img.height;
+                                  if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+                                  canvas.width = w; canvas.height = h;
+                                  canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+                                  canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8);
+                                  URL.revokeObjectURL(url);
+                                };
+                                img.src = url;
+                              });
+                              const formData = new FormData();
+                              formData.append('photo', compressedBlob, 'cover.jpg');
+                              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
+                              if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
                               const data = await uploadRes.json();
-                              coverUrl = data.photoUrl?.startsWith('http')
+                              console.log('📸 Cover upload response:', data);
+                              const coverUrl = data.photoUrl?.startsWith('http')
                                 ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
                                 : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
-                            } else {
-                              coverUrl = await new Promise<string>((resolve) => { const r = new FileReader(); r.onloadend = () => resolve(r.result as string); r.readAsDataURL(file); });
+                              const updatedUser = { ...user, coverPhoto: coverUrl };
+                              setUser(updatedUser);
+                              // Only store path in localStorage, never base64
+                              const userForStorage = { ...updatedUser, coverPhoto: coverUrl };
+                              try { localStorage.setItem('user', JSON.stringify(userForStorage)); } catch { /* quota full, skip */ }
+                              const saveRes = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
+                              const saveData = await saveRes.json();
+                              console.log('💾 Cover save response:', saveData?.profile?.coverPhoto);
+                              setNotification({ type: 'success', message: 'Cover photo updated!', isVisible: true });
+                            } catch(err) {
+                              console.error('Cover upload error:', err);
+                              setNotification({ type: 'error', message: 'Cover photo upload failed. Try a smaller image.', isVisible: true });
                             }
-                            const updatedUser = { ...user, coverPhoto: coverUrl };
-                            setUser(updatedUser);
-                            localStorage.setItem('user', JSON.stringify(updatedUser));
-                            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
-                            setNotification({ type: 'success', message: 'Cover photo updated!', isVisible: true });
-                          } catch { /* silent */ }
-                        }} />
-                      </label>
+                          }} />
+                        </label>
+                        {user?.coverPhoto && (
+                          <button
+                            title="Remove cover photo"
+                            className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full shadow transition-all"
+                            onClick={async () => {
+                              const updatedUser = { ...user, coverPhoto: '' };
+                              setUser(updatedUser);
+                              localStorage.setItem('user', JSON.stringify(updatedUser));
+                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: '' }) });
+                              setNotification({ type: 'success', message: 'Cover photo removed!', isVisible: true });
+                            }}
+                          >
+                            <X className="w-4 h-4 text-gray-600" />
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, CheckCircle, XCircle, BookOpen, TrendingUp, Loader, Zap, Brain, Target } from 'lucide-react';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
 import { API_ENDPOINTS } from '../config/env';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
@@ -144,17 +145,17 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
       <div className="min-h-screen bg-gray-50">
 
         {/* Compact Hero Banner */}
-        <div className="bg-gradient-to-r from-blue-700 to-purple-700 text-white px-4 py-5">
-          <div className="max-w-6xl mx-auto">
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white px-4 py-5">
+          <div className="max-w-6xl mx-auto relative overflow-hidden">
+            <div className="absolute right-6 top-0 text-yellow-300 text-4xl opacity-80">⚡</div>
             <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-blue-200 hover:text-white text-sm mb-2">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
             </button>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">Skill Gap Analysis</h1>
-                <p className="text-blue-200 text-sm mt-0.5">Compare your skills against any job · Get AI-powered learning roadmap</p>
-              </div>
-              <Zap className="w-9 h-9 text-yellow-300 opacity-80" />
+            <h1 className="text-2xl font-bold">Skill Gap Analysis</h1>
+            <p className="text-blue-100 text-sm mt-1">Compare your skills against any job · Get AI-powered learning roadmap</p>
+            <div className="mt-3 flex gap-2">
+              <span className="px-3 py-1 bg-white/20 rounded-full text-xs">AI Powered</span>
+              <span className="px-3 py-1 bg-white/20 rounded-full text-xs">Real-time Insights</span>
             </div>
           </div>
         </div>
@@ -169,32 +170,24 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
               <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                 <span className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 text-xs">✦</span>
                 Your Skills
-                <span className="ml-auto text-sm text-gray-400 font-normal">{userSkills.length} added</span>
+                <span className="ml-auto text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-medium">{userSkills.length} added</span>
               </h2>
-              <div className="flex gap-2 mb-3">
+              <div className="flex flex-wrap gap-2 border border-gray-200 rounded-lg p-2 focus-within:ring-2 focus-within:ring-blue-500 mb-2 min-h-[44px]">
+                {userSkills.map(skill => (
+                  <span key={skill} className="flex items-center gap-1 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm">
+                    {skill}
+                    <button onClick={() => removeSkill(skill)} className="text-blue-400 hover:text-blue-700 font-bold leading-none">×</button>
+                  </span>
+                ))}
                 <input
                   value={skillInput}
                   onChange={e => setSkillInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && addSkill()}
-                  placeholder="Add a skill (e.g. React)"
-                  className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  placeholder={userSkills.length === 0 ? 'Add a skill (e.g. React, Node.js...)' : 'Add more...'}
+                  className="flex-1 outline-none text-sm p-1 min-w-[120px]"
                 />
-                <button onClick={addSkill} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 font-medium">
-                  Add
-                </button>
               </div>
-              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                {userSkills.length === 0 ? (
-                  <p className="text-sm text-gray-400 py-2">No skills added yet. Type above and press Enter.</p>
-                ) : (
-                  userSkills.map(skill => (
-                    <span key={skill} className="flex items-center gap-1 bg-blue-50 border border-blue-200 text-blue-800 px-3 py-1 rounded-full text-sm">
-                      {skill}
-                      <button onClick={() => removeSkill(skill)} className="text-blue-400 hover:text-blue-700 font-bold leading-none">×</button>
-                    </span>
-                  ))
-                )}
-              </div>
+              <p className="text-xs text-gray-400">Press Enter to add skills</p>
             </div>
 
             {/* Job Selection */}
@@ -202,7 +195,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
               <h2 className="text-base font-semibold text-gray-800 mb-3 flex items-center gap-2">
                 <span className="w-5 h-5 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 text-xs">🎯</span>
                 Select Job to Compare
-                {selectedJob && <span className="ml-auto text-sm text-purple-600 font-normal truncate max-w-[140px]">{selectedJob.jobTitle || selectedJob.title}</span>}
+                {selectedJob && <span className="ml-auto text-xs bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full font-medium truncate max-w-[140px]">{selectedJob.jobTitle || selectedJob.title}</span>}
               </h2>
               <div className="relative mb-2">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -213,23 +206,23 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                   className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
                 />
               </div>
-              <div className="max-h-40 overflow-y-auto space-y-1">
+              <div className="max-h-[250px] overflow-y-auto space-y-1">
                 {filteredJobs.length === 0 ? (
                   <p className="text-sm text-gray-400 text-center py-3">No jobs found.</p>
                 ) : (
-                  filteredJobs.slice(0, 20).map(job => (
-                    <button
-                      key={job._id}
+                  filteredJobs.slice(0, 20).map((job, idx) => (
+                    <div
+                      key={job._id || job.id || idx}
                       onClick={() => setSelectedJob(job)}
-                      className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
                         selectedJob?._id === job._id
-                          ? 'border-purple-400 bg-purple-50 text-purple-800'
+                          ? 'border-purple-400 bg-purple-50 shadow-sm'
                           : 'border-gray-100 hover:border-purple-200 hover:bg-gray-50'
                       }`}
                     >
                       <div className="font-medium text-sm text-gray-800">{job.jobTitle || job.title}</div>
-                      <div className="text-xs text-gray-400">{job.company} · {job.location}</div>
-                    </button>
+                      <div className="text-xs text-gray-400 mt-0.5">{job.company} · {job.location}</div>
+                    </div>
                   ))
                 )}
               </div>
@@ -453,10 +446,10 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
             </div>
           ) : (
             /* Empty state — compact */
-            <div className="bg-white rounded-xl border border-dashed border-gray-300 py-10 text-center">
-              <TrendingUp className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-              <p className="text-base text-gray-500 font-medium">Select a job above to see your skill gap analysis</p>
-              <p className="text-sm text-gray-400 mt-1">Add your skills on the left, pick a job on the right</p>
+            <div className="bg-white rounded-xl border border-dashed border-gray-300 py-16 text-center">
+              <div className="text-4xl mb-3">📊</div>
+              <h3 className="font-medium text-gray-600 mb-1">No Analysis Yet</h3>
+              <p className="text-sm text-gray-400">Add skills &amp; select a job to see AI insights</p>
             </div>
           )}
         </div>
