@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { matchAPI } from '../services/matchAPI';
 import { CandidateMatchCard } from '../components/match/CandidateMatchCard';
 
-export const CandidateMatchesPage: React.FC = () => {
+export const CandidateMatchesPage: React.FC<{ onNavigate?: (page: string, data?: any) => void }> = ({ onNavigate }) => {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -78,7 +78,12 @@ export const CandidateMatchesPage: React.FC = () => {
                   key={candidate.userId}
                   candidate={candidate.profile || candidate}
                   matchScore={candidate.score || 0}
-                  onViewProfile={() => console.log('View profile:', candidate.userId)}
+                  onViewProfile={() => {
+                    const cid = (candidate.profile || candidate).email || candidate.userId || '';
+                    if (!cid || !onNavigate) return;
+                    sessionStorage.setItem('viewCandidateId', cid);
+                    onNavigate('candidate-profile-view', { candidateId: cid });
+                  }}
                   onShortlist={() => console.log('Shortlist:', candidate.userId)}
                 />
               ))}

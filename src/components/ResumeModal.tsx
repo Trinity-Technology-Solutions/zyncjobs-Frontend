@@ -51,17 +51,17 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     setNoResume(false);
     setCandidateName(directCandidateName || '');
 
-    // Always fetch latest resume from profile first (candidate may have updated it)
-    // Only use directResumeUrl as a last fallback
+    // Priority 1: use the resume submitted with the application
+    if (directResumeUrl && directResumeUrl !== 'resume_from_quick_apply') {
+      const resolved = buildFullUrl(directResumeUrl);
+      if (resolved) { setResumeFileUrl(resolved); return; }
+    }
+
+    // Priority 2: fetch from candidate profile as fallback
     if (candidateEmail) {
       fetchFromProfile(candidateEmail, directResumeUrl);
     } else {
-      const resolved = directResumeUrl ? buildFullUrl(directResumeUrl) : null;
-      if (resolved) {
-        setResumeFileUrl(resolved);
-      } else {
-        setNoResume(true);
-      }
+      setNoResume(true);
     }
   }, [isOpen, applicationId, directResumeUrl, candidateEmail]);
 
@@ -141,11 +141,31 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
 
   const handleDownload = () => {
     if (!resumeFileUrl) return;
-    const a = document.createElement('a');
-    a.href = resumeFileUrl;
-    a.download = 'resume.pdf';
-    a.target = '_blank';
-    a.click();
+    // Extract just the filename from the URL and use the dedicated download route
+    const filenameMatch = resumeFileUrl.match(/\/uploads\/resumes\/([^?#]+)/);
+    if (filenameMatch) {
+      const backendBase = API_BASE_URL.replace('/api', '');
+      const name = (candidateName || 'candidate').replace(/\s+/g, '_');
+      const downloadUrl = `${backendBase}/uploads/download/${encodeURIComponent(filenameMatch[1])}?name=${encodeURIComponent(name)}`;
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      // Fallback: blob fetch
+      fetch(resumeFileUrl, { mode: 'cors', credentials: 'omit' })
+        .then(r => r.blob())
+        .then(blob => {
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = `${(candidateName || 'candidate').replace(/\s+/g, '_')}_resume.pdf`;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        })
+        .catch(() => window.open(resumeFileUrl, '_blank'));
+    }
   };
 
   if (!isOpen) return null;

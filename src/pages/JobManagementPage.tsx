@@ -437,10 +437,19 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         <div className="text-xs text-gray-500">Total Responses</div>
                       </button>
                       
-                      <div key="shortlisted" className="text-center">
+                      <button
+                        key="shortlisted"
+                        onClick={() => {
+                          sessionStorage.setItem('selectedJobId', jobId!);
+                          sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
+                          sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
+                          onNavigate('application-management');
+                        }}
+                        className="text-center hover:bg-green-50 p-2 rounded transition-colors cursor-pointer"
+                      >
                         <div className="text-lg font-semibold text-green-600">{job.shortlistedCount || 0}</div>
                         <div className="text-xs text-gray-500">Shortlisted</div>
-                      </div>
+                      </button>
                       
                       <div key="sent" className="text-right">
                         <div className="text-sm text-gray-600">sent by Me</div>

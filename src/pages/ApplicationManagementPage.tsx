@@ -141,7 +141,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [searchQuery, setSearchQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
-  const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
+  const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({}); 
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -244,16 +244,46 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   };
 
   const downloadAllResumes = async () => {
-    const appsWithResume = filtered.filter(app => app.resumeUrl && app.resumeUrl !== 'resume_from_quick_apply');
-    if (!appsWithResume.length) { alert('No resumes available.'); return; }
+    if (!filtered.length) { alert('No applications available.'); return; }
     setBulkDownloading(true);
-    for (const app of appsWithResume) {
-      const url = app.resumeUrl.startsWith('http') ? app.resumeUrl : `${import.meta.env.VITE_API_URL || '/api'}/${app.resumeUrl.replace(/^\//, '')}`;
-      const a = document.createElement('a'); a.href = url; a.download = `${(app.candidateName || 'candidate').replace(/\s+/g, '_')}_resume.pdf`; a.target = '_blank';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      await new Promise(r => setTimeout(r, 600));
+    let downloaded = 0;
+    for (const app of filtered) {
+      try {
+        // Try to get resume URL from profile first
+        let fileUrl: string | null = null;
+        if (app.candidateEmail) {
+          const profileRes = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(app.candidateEmail)}`);
+          if (profileRes.ok) {
+            const data = await profileRes.json();
+            const resume = data.resume || data.user?.resume;
+            if (resume?.url) fileUrl = resume.url;
+            else if (resume?.fileUrl) fileUrl = resume.fileUrl;
+            else if (resume?.filename) fileUrl = `/uploads/${resume.filename}`;
+            else if (resume?.path) fileUrl = resume.path;
+            else if (data.resumeUrl) fileUrl = data.resumeUrl;
+          }
+        }
+        // Fallback to application resumeUrl
+        if (!fileUrl && app.resumeUrl && app.resumeUrl !== 'resume_from_quick_apply') {
+          fileUrl = app.resumeUrl;
+        }
+        if (!fileUrl) continue;
+
+        const filenameMatch = fileUrl.match(/\/uploads\/resumes\/([^?#]+)/);
+        if (filenameMatch) {
+          const backendBase = API_ENDPOINTS.BASE_URL.replace('/api', '');
+          const name = (app.candidateName || 'candidate').replace(/\s+/g, '_');
+          const downloadUrl = `${backendBase}/uploads/download/${encodeURIComponent(filenameMatch[1])}?name=${encodeURIComponent(name)}`;
+          const a = document.createElement('a');
+          a.href = downloadUrl;
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          downloaded++;
+          await new Promise(r => setTimeout(r, 700));
+        }
+      } catch {}
     }
     setBulkDownloading(false);
+    if (downloaded === 0) alert('No resumes available to download.');
   };
 
   const filtered = useMemo(() =>
