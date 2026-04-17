@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
-import mistralAIService from '../services/mistralAIService';
+import { sendAIMessage } from '../services/aiChatService';
 
 interface JobParsingPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -100,35 +100,101 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
         workAuth:        extractWorkAuth(description)
       };
     } catch (error) {
-      console.warn('Backend parse failed, using regex fallback:', error);
-      const fallbackSalary = extractSalaryIfNumeric(description);
-      const jobLocation = extractLocation(description);
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const country = await inferCountryFromCity(API_BASE, jobLocation);
-      return {
-        jobTitle:        extractJobTitle(description),
-        companyName:     '',
-        jobLocation,
-        country,
-        jobType:         extractJobType(description),
-        experienceRange: extractExperience(description),
-        skills:          extractSkills(description),
-        minSalary:       fallbackSalary.min,
-        maxSalary:       fallbackSalary.max,
-        currency:        fallbackSalary.currency,
-        payRate:         fallbackSalary.payRate,
-        benefits:        extractBenefits(description),
-        educationLevel:  extractEducation(description),
-        jobDescription:  extractJobDescription(description),
-        responsibilities: extractResponsibilities(description),
-        requirements:    extractRequirements(description),
-        jobCategory:     extractJobCategory(description),
-        priority:        extractPriority(description),
-        clientName:      extractClientName(description),
-        reportingManager: extractReportingManager(description),
-        workAuth:        extractWorkAuth(description)
-      };
+      console.warn('Backend parse failed, trying AI...', error);
+      return await parseWithAIOrRegex(description);
     }
+  };
+
+  const parseWithAIOrRegex = async (description: string) => {
+    try {
+      const prompt = `Extract job details from this job description and return ONLY valid JSON:
+{
+  "jobTitle": "",
+  "jobLocation": "",
+  "jobType": "",
+  "experienceRange": "",
+  "skills": [],
+  "minSalary": "",
+  "maxSalary": "",
+  "currency": "INR",
+  "educationLevel": "",
+  "jobCategory": "",
+  "responsibilities": [],
+  "requirements": []
+}
+
+Job Description:
+${description.slice(0, 2000)}`;
+
+      const reply = await sendAIMessage(
+        [{ role: 'user', content: prompt }],
+        'You are a job description parser. Extract structured data and return only valid JSON.',
+        undefined,
+        800
+      );
+
+      const match = reply.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('Invalid AI response');
+      const d = JSON.parse(match[0]);
+
+      const salary = extractSalaryIfNumeric(description);
+      return {
+        jobTitle:         d.jobTitle         || extractJobTitle(description),
+        companyName:      '',
+        jobLocation:      d.jobLocation      || extractLocation(description),
+        country:          '',
+        jobType:          d.jobType          ? [d.jobType] : extractJobType(description),
+        experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
+        skills:           Array.isArray(d.skills) && d.skills.length ? d.skills : extractSkills(description),
+        minSalary:        d.minSalary        || salary.min,
+        maxSalary:        d.maxSalary        || salary.max,
+        currency:         d.currency         || salary.currency,
+        payRate:          salary.payRate,
+        benefits:         extractBenefits(description),
+        educationLevel:   d.educationLevel   || extractEducation(description),
+        jobDescription:   description,
+        responsibilities: Array.isArray(d.responsibilities) && d.responsibilities.length ? d.responsibilities : extractResponsibilities(description),
+        requirements:     Array.isArray(d.requirements) && d.requirements.length ? d.requirements : extractRequirements(description),
+        jobCategory:      d.jobCategory      || extractJobCategory(description),
+        priority:         extractPriority(description),
+        clientName:       extractClientName(description),
+        reportingManager: extractReportingManager(description),
+        workAuth:         extractWorkAuth(description),
+      };
+    } catch {
+      // Final fallback: pure regex
+      return buildFromRegex(description);
+    }
+  };
+
+  const buildFromRegex = async (description: string) => {
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const jobLocation = extractLocation(description);
+    const country = await inferCountryFromCity(API_BASE, jobLocation);
+    const salary = extractSalaryIfNumeric(description);
+    return {
+      jobTitle:         extractJobTitle(description),
+      companyName:      '',
+      jobLocation,
+      country,
+      jobType:          extractJobType(description),
+      experienceRange:  extractExperience(description),
+      skills:           extractSkills(description),
+      minSalary:        salary.min,
+      maxSalary:        salary.max,
+      currency:         salary.currency,
+      payRate:          salary.payRate,
+      benefits:         extractBenefits(description),
+      educationLevel:   extractEducation(description),
+      jobDescription:   description,
+      responsibilities: extractResponsibilities(description),
+      requirements:     extractRequirements(description),
+      jobCategory:      extractJobCategory(description),
+      priority:         extractPriority(description),
+      clientName:       extractClientName(description),
+      reportingManager: extractReportingManager(description),
+      workAuth:         extractWorkAuth(description),
+    };
   };
 
   const inferCountryFromCity = async (apiBase: string, city: string): Promise<string> => {
@@ -1183,105 +1249,135 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       />
 
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <BackButton 
-              onClick={() => onNavigate('job-posting-selection')}
-              text="Back"
-            />
-            <h1 className="text-3xl font-bold text-gray-800">New Job</h1>
-            <button 
-              onClick={() => onNavigate('dashboard')} 
-              className="text-gray-500 text-2xl hover:text-gray-700"
+
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+            <BackButton onClick={() => onNavigate('job-posting-selection')} text="Back" />
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15M14.25 3.104c.251.023.501.05.75.082M19.8 15l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.607L5 14.5m14.8.5l1.196 4.784A2.25 2.25 0 0118.8 21.75H5.2a2.25 2.25 0 01-2.196-1.966L4 15m1 0l-.804-.201" />
+                </svg>
+              </div>
+              <h1 className="text-lg font-semibold text-gray-900">AI Job Parser</h1>
+            </div>
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-              ×
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
+        </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">Paste Job Details</h2>
-              <p className="text-gray-600">Copy and paste a job description from any source. Our AI will automatically extract and organize the details.</p>
+        <div className="max-w-5xl mx-auto px-6 py-8">
+
+          {/* How it works */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[
+              {
+                step: '01',
+                title: 'Paste Job Description',
+                desc: 'Copy any job posting from LinkedIn, company websites, or job boards',
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+                  </svg>
+                ),
+              },
+              {
+                step: '02',
+                title: 'AI Extraction',
+                desc: 'Our AI extracts job title, skills, salary, requirements and more',
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                ),
+              },
+              {
+                step: '03',
+                title: 'Review & Post',
+                desc: 'Review the extracted details and publish your job posting instantly',
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ),
+              },
+            ].map((item) => (
+              <div key={item.step} className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    {item.icon}
+                  </div>
+                  <span className="text-xs font-bold text-blue-600 tracking-widest">STEP {item.step}</span>
+                </div>
+                <p className="text-sm font-semibold text-gray-800 mb-1">{item.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Main Card */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Paste Job Description</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Copy and paste a job description from any source</p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full">
+                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+                Powered by AI
+              </div>
             </div>
 
             <div className="p-6">
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste your job description here...
-
-Example:
-Software Engineer - Full Stack Developer
-
-We are looking for a talented Full Stack Developer to join our growing team at TechCorp. 
-
-Requirements:
-- 3-5 years of experience in web development
-- Proficiency in JavaScript, React, Node.js
-- Experience with databases (MongoDB, PostgreSQL)
-- Bachelor's degree in Computer Science
-
-Benefits:
-- Competitive salary $70,000 - $90,000
-- Health insurance
-- Remote work options
-- Flexible hours"
-                className="w-full p-4 min-h-[400px] border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: '1.5' }}
+                placeholder={`Paste your job description here...\n\nExample:\nSoftware Engineer - Full Stack Developer\n\nWe are looking for a talented Full Stack Developer to join our growing team at TechCorp.\n\nRequirements:\n- 3-5 years of experience in web development\n- Proficiency in JavaScript, React, Node.js\n- Experience with databases (MongoDB, PostgreSQL)\n- Bachelor's degree in Computer Science\n\nBenefits:\n- Competitive salary $70,000 - $90,000\n- Health insurance\n- Remote work options`}
+                className="w-full p-4 min-h-[360px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 text-sm leading-relaxed placeholder-gray-300 transition-colors"
               />
 
-              {/* Action Buttons */}
-              <div className="flex justify-end mt-6 space-x-4">
-                <button
-                  onClick={() => onNavigate('job-posting-selection')}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleStartParsing}
-                  disabled={!jobDescription.trim() || isParsing}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                >
-                  {isParsing ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      <span>Parsing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🤖</span>
-                      <span>Start Parsing</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Help Section */}
-          <div className="mt-8 bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-3">How it works</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-              <div className="flex items-start space-x-2">
-                <span className="bg-blue-200 text-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span>
-                <div>
-                  <p className="font-medium">Paste Job Description</p>
-                  <p>Copy any job posting from LinkedIn, company websites, or job boards</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <span className="bg-blue-200 text-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span>
-                <div>
-                  <p className="font-medium">AI Parsing</p>
-                  <p>Our AI extracts job title, requirements, skills, salary, and more</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <span className="bg-blue-200 text-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</span>
-                <div>
-                  <p className="font-medium">Review & Post</p>
-                  <p>Review the extracted details and publish your job posting</p>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-xs text-gray-400">
+                  {jobDescription.length > 0 ? `${jobDescription.length} characters` : 'Supports LinkedIn, Indeed, Naukri, and any job board format'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onNavigate('job-posting-selection')}
+                    className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleStartParsing}
+                    disabled={!jobDescription.trim() || isParsing}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+                  >
+                    {isParsing ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Parsing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        Parse with AI
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

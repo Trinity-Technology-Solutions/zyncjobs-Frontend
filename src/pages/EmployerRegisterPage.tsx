@@ -39,7 +39,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   }, []);
 
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', companyName: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', companyName: '', otp: '' });
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -98,13 +101,95 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setShowSuggestions(false);
   };
 
-  const handleStep1Next = () => {
+  const handleStep1Next = async () => {
     if (!formData.name.trim()) { setError('Please enter your full name.'); return; }
     if (!formData.companyName.trim()) { setError('Please enter your company name.'); return; }
     if (!formData.email.trim()) { setError('Please enter your company email.'); return; }
     setError('');
-    setStep(2);
+    setLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.OTP_SEND, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, name: formData.name, userType: 'employer' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setOtpSent(true);
+        setStep(2);
+        setResendTimer(60);
+        showToast('Verification code sent to your email', 'success');
+      } else {
+        setError(data.error || 'Failed to send verification code');
+        showToast(data.error || 'Failed to send verification code', 'error');
+      }
+    } catch (err) {
+      setError('Failed to send verification code');
+      showToast('Failed to send verification code', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleVerifyOTP = async () => {
+    if (!formData.otp || formData.otp.length !== 6) {
+      setError('Please enter the 6-digit code');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(API_ENDPOINTS.OTP_VERIFY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, otp: formData.otp })
+      });
+      const data = await response.json();
+      if (response.ok && data.verified) {
+        setOtpVerified(true);
+        setStep(3);
+        showToast('Email verified successfully!', 'success');
+      } else {
+        setError(data.error || 'Invalid verification code');
+        showToast(data.error || 'Invalid verification code', 'error');
+      }
+    } catch (err) {
+      setError('Verification failed');
+      showToast('Verification failed', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (resendTimer > 0) return;
+    setLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.OTP_RESEND, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, name: formData.name, userType: 'employer' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setResendTimer(60);
+        showToast('New code sent to your email', 'success');
+      } else {
+        showToast(data.error || 'Failed to resend code', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to resend code', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +296,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 
               {/* Step Indicator */}
               <div className="flex items-center justify-between mb-6">
-                {['Company Info', 'Security'].map((label, i) => {
+                {['Company Info', 'Verify Email', 'Security'].map((label, i) => {
                   const num = i + 1;
                   const isActive = step === num;
                   const isDone = step > num;
@@ -225,7 +310,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         </div>
                         <span className={`text-xs font-medium ${isActive ? 'text-orange-500' : isDone ? 'text-green-500' : 'text-gray-400'}`}>{label}</span>
                       </div>
-                      {i === 0 && <div className={`flex-1 h-0.5 mx-2 mb-4 transition-all ${step > 1 ? 'bg-green-400' : 'bg-gray-200'}`} />}
+                      {i < 2 && <div className={`flex-1 h-0.5 mx-2 mb-4 transition-all ${step > i + 1 ? 'bg-green-400' : 'bg-gray-200'}`} />}
                     </React.Fragment>
                   );
                 })}
@@ -326,8 +411,60 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 </div>
               )}
 
-              {/* STEP 2 */}
+              {/* STEP 2 - OTP Verification */}
               {step === 2 && (
+                <div>
+                  <div className="mb-5">
+                    <h2 className="text-xl font-bold text-gray-900">Verify Your Email</h2>
+                    <p className="text-gray-500 text-sm mt-1">Enter the 6-digit code sent to {formData.email}</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Verification Code</label>
+                      <input
+                        type="text"
+                        name="otp"
+                        value={formData.otp}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setFormData({ ...formData, otp: value });
+                        }}
+                        className="w-full h-11 px-4 border border-gray-200 rounded-xl text-center text-2xl font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
+                        placeholder="000000"
+                        maxLength={6}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleVerifyOTP}
+                      disabled={loading || formData.otp.length !== 6}
+                      className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Verifying...' : 'Verify Email'}
+                    </button>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleResendOTP}
+                        disabled={resendTimer > 0 || loading}
+                        className="text-sm text-orange-500 hover:text-orange-600 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+                      >
+                        {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setStep(1); setError(''); setFormData({ ...formData, otp: '' }); }}
+                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all"
+                    >
+                      ← Back
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3 - Password */}
+              {step === 3 && (
                 <form onSubmit={handleSubmit}>
                   <div className="mb-5">
                     <h2 className="text-xl font-bold text-gray-900">Set Your Password</h2>

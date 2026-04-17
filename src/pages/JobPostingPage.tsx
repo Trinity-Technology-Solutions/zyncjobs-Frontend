@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
-import mistralAIService from '../services/mistralAIService';
+import { sendAIMessage } from '../services/aiChatService';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { API_ENDPOINTS } from '../config/constants';
 import { generatePositionId } from '../utils/jobMigrationUtils';
 
@@ -224,6 +225,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [skillInput, setSkillInput] = useState('');
   const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
 
   const [salaryModified, setSalaryModified] = useState(() => {
     const min = getSalaryMin(editJob) || parsedData?.minSalary || parsedData?.salary?.min;
@@ -1023,12 +1025,37 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     };
   };
 
+  const fetchAISkillsForTitle = async (title: string) => {
+    if (!title || title.length < 3) return;
+    const key = cacheKey('job-skills', title.toLowerCase());
+    const cached = getCached<string[]>(key);
+    if (cached) { setAiSuggestedSkills(cached); return; }
+    try {
+      const reply = await sendAIMessage(
+        [{ role: 'user', content: `List exactly 10 key skills required for a "${title}" job role. Return ONLY a JSON array of skill names, no explanation: ["skill1","skill2",...]` }],
+        'You are a job skills expert. Return only a valid JSON array of skill strings.',
+        undefined,
+        200
+      );
+      const match = reply.match(/\[[\s\S]*\]/);
+      if (match) {
+        const skills: string[] = JSON.parse(match[0]).slice(0, 10);
+        setCached(key, skills, 60 * 60 * 1000); // cache 1 hour
+        setAiSuggestedSkills(skills);
+      }
+    } catch {
+      // fallback to getJobTitleDefaults
+      const { skills } = getJobTitleDefaults(title);
+      setAiSuggestedSkills(skills);
+    }
+  };
+
   // Select suggestions
   const selectJobTitle = (title: string) => {
     updateJobData('jobTitle', title);
     setShowJobTitleSuggestions(false);
     setJobTitleSuggestions([]);
-    // Generate description after title is selected
+    fetchAISkillsForTitle(title);
     setTimeout(() => generateJobDescription(title), 500);
   };
 
@@ -1350,6 +1377,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               type="text"
               value={jobData.jobTitle}
               onChange={handleJobTitleChange}
+              onBlur={() => { if (jobData.jobTitle.length >= 3) fetchAISkillsForTitle(jobData.jobTitle); }}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. Software Engineer"
             />
@@ -2073,31 +2101,36 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             )}
           </div>
           
-          {/* Predefined Skills */}
-          <div className="flex flex-wrap gap-3 mt-4">
-            {[
-              'AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux',
-              'Python', 'SQL', 'Version control', 'React', 'Node.js'
-            ].map((skill) => (
-              <button
-                key={skill}
-                type="button"
-                onClick={() => {
-                  const newSkills = jobData.skills.includes(skill)
-                    ? jobData.skills.filter(s => s !== skill)
-                    : [...jobData.skills, skill];
-                  updateJobData('skills', newSkills);
-                }}
-                className={`px-3 py-2 border rounded-lg text-sm transition-colors ${
-                  jobData.skills.includes(skill)
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                {jobData.skills.includes(skill) ? '✓' : '+'} {skill}
-              </button>
-            ))}
-          </div>
+          {/* AI Suggested Skills based on Job Title */}
+          {(aiSuggestedSkills.length > 0 || jobData.jobTitle) && (
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                AI suggested for "{jobData.jobTitle || 'your role'}"
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(aiSuggestedSkills.length > 0 ? aiSuggestedSkills : getJobTitleDefaults(jobData.jobTitle).skills).map((skill) => (
+                  <button
+                    key={skill}
+                    type="button"
+                    onClick={() => {
+                      const newSkills = jobData.skills.includes(skill)
+                        ? jobData.skills.filter(s => s !== skill)
+                        : [...jobData.skills, skill];
+                      updateJobData('skills', newSkills);
+                    }}
+                    className={`px-3 py-1.5 border rounded-lg text-sm transition-colors ${
+                      jobData.skills.includes(skill)
+                        ? 'border-blue-600 text-blue-600 bg-blue-50'
+                        : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                    }`}
+                  >
+                    {jobData.skills.includes(skill) ? '✓' : '+'} {skill}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         
         <div>

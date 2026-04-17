@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
-import { ChatTyping } from './LoadingStates';
-import { API_ENDPOINTS } from '../config/env';
+import { sendAIMessageStream } from '../services/aiChatService';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
 
 interface Message {
   text: string;
   sender: 'user' | 'bot';
-  sources?: string[];
 }
+
+const SYSTEM_PROMPT = 'You are a helpful assistant for ZyncJobs, a job portal. Help users with job searching, resume tips, interview prep, and career advice. Be concise and friendly.';
 
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,42 +17,66 @@ const ChatWidget = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => `session_${Date.now()}`);
+  const abortRef = useRef<AbortController | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-    
-    const userMessage = inputValue;
+
+    // Abort any in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const userMessage = inputValue.trim();
     setInputValue("");
-    setMessages(prev => [...prev, { text: userMessage, sender: "user" }]);
+
+    const history = messages.map(m => ({ role: m.sender === 'user' ? 'user' as const : 'assistant' as const, content: m.text }));
+    const newHistory = [...history, { role: 'user' as const, content: userMessage }];
+
+    setMessages(prev => [...prev, { text: userMessage, sender: 'user' }]);
     setIsLoading(true);
-    
+
+    // Check cache
+    const key = cacheKey('chat', userMessage);
+    const cached = getCached<string>(key);
+    if (cached) {
+      setMessages(prev => [...prev, { text: cached, sender: 'bot' }]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Add empty bot message to stream into
+    setMessages(prev => [...prev, { text: '', sender: 'bot' }]);
+    let full = '';
+
     try {
-      const response = await fetch(API_ENDPOINTS.CHAT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      await sendAIMessageStream(
+        newHistory,
+        SYSTEM_PROMPT,
+        (chunk) => {
+          full += chunk;
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { text: full, sender: 'bot' };
+            return updated;
+          });
         },
-        body: JSON.stringify({
-          message: userMessage,
-          session_id: sessionId,
-          language: 'en'
-        })
-      });
-      
-      if (!response.ok) throw new Error('Failed to get response');
-      
-      const data = await response.json();
-      setMessages(prev => [...prev, {
-        text: data.response,
-        sender: "bot",
-        sources: data.sources
-      }]);
-    } catch (error) {
-      setMessages(prev => [...prev, {
-        text: "Sorry, I'm having trouble connecting. Please try again later.",
-        sender: "bot"
-      }]);
+        controller.signal
+      );
+      if (full) setCached(key, full, 5 * 60 * 1000);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        setMessages(prev => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { text: "Sorry, I'm having trouble connecting. Please try again.", sender: 'bot' };
+          return updated;
+        });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -91,20 +116,15 @@ const ChatWidget = () => {
             {messages.map((msg, index) => (
               <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs p-2 rounded-lg text-sm ${
-                  msg.sender === 'user' 
-                    ? 'bg-blue-600 text-white' 
+                  msg.sender === 'user'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {msg.text}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-1 text-xs opacity-70">
-                      Sources: {msg.sources.join(', ')}
-                    </div>
-                  )}
+                  {msg.text || (isLoading && index === messages.length - 1 ? <span className="animate-pulse">▍</span> : '')}
                 </div>
               </div>
             ))}
-            {isLoading && <ChatTyping />}
+            <div ref={bottomRef} />
           </div>
           
           <div className="p-3 border-t flex gap-2">

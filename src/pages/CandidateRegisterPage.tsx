@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Briefcase, TrendingUp, Award, Users } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
-import { generateEmployerId } from '../utils/employerIdUtils';
 
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
   const existingToast = document.getElementById('toast');
@@ -12,7 +11,6 @@ const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'inf
   toast.id = 'toast';
   const colors = { success: 'bg-green-500 text-white', error: 'bg-red-500 text-white', warning: 'bg-yellow-500 text-white', info: 'bg-blue-500 text-white' };
   toast.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full ${colors[type]}`;
-
   const wrapper = document.createElement('div');
   wrapper.className = 'flex items-center';
   const span = document.createElement('span');
@@ -24,152 +22,158 @@ const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'inf
   wrapper.appendChild(span);
   wrapper.appendChild(btn);
   toast.appendChild(wrapper);
-
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.remove('translate-x-full'), 100);
   setTimeout(() => toast.remove(), 4000);
 };
 
-interface EmployerRegisterPageProps {
+interface CandidateRegisterPageProps {
   onNavigate: (page: string) => void;
-  onLogin: (userData: { name: string; type: 'candidate' | 'employer' | 'admin'; email?: string }) => void;
 }
 
-const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate }) => {
+const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     if (localStorage.getItem('user')) onNavigate('dashboard');
   }, []);
 
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', companyName: '' });
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', otp: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [companyLogo, setCompanyLogo] = useState('');
-  const [companySuggestions, setCompanySuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [agreedToDeclaration, setAgreedToDeclaration] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const fallbackCompanies = [
-    { id: 1,   name: 'Zoho',                           domain: 'zoho.com',        logoUrl: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 2,   name: 'TCS',                            domain: 'tcs.com',         logoUrl: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 3,   name: 'Infosys',                        domain: 'infosys.com',     logoUrl: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 10,  name: 'Google',                         domain: 'google.com',      logoUrl: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 9,   name: 'Microsoft',                      domain: 'microsoft.com',   logoUrl: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 101, name: 'Trinity Technology Solutions LLC', domain: 'trinitetech.com', logoUrl: 'https://img.logo.dev/trinitetech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80&retina=true' },
-  ];
-
-  const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFormData({ ...formData, companyName: value });
-    setCompanyLogo('');
-    if (value.trim().length >= 1) {
-      try {
-        const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);
-        if (response.ok) {
-          const data = await response.json();
-          const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-          setCompanySuggestions(list.slice(0, 8));
-          // Auto-set logo if exact match found
-          const exact = list.find((c: any) =>
-            (c.name || c.companyName || '').toLowerCase() === value.toLowerCase()
-          );
-          if (exact) {
-            const logo = exact.logo || exact.logoUrl || exact.imageUrl || exact.image || '';
-            if (logo) setCompanyLogo(logo);
-          }
-        } else {
-          setCompanySuggestions(fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 8));
-        }
-        setShowSuggestions(true);
-      } catch {
-        const filtered = fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 8);
-        setCompanySuggestions(filtered);
-        setShowSuggestions(filtered.length > 0);
-      }
-    } else {
-      setShowSuggestions(false);
-      setCompanyLogo('');
-    }
-  };
-
-  const fetchLogoOnBlur = async (name: string) => {
-    if (!name.trim() || companyLogo) return;
-    // Try companies API first
+  const handleSendOTP = async () => {
+    if (!formData.name.trim()) { setError('Please enter your full name.'); showToast('Please enter your full name.', 'error'); return; }
+    if (!formData.email.trim()) { setError('Please enter your email.'); showToast('Please enter your email.', 'error'); return; }
+    setError('');
+    setLoading(true);
     try {
-      const res = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(name)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-        const match = list.find((c: any) =>
-          (c.name || c.companyName || '').toLowerCase().includes(name.toLowerCase())
-        );
-        if (match) {
-          const logo = match.logo || match.logoUrl || match.imageUrl || match.image || '';
-          if (logo) { setCompanyLogo(logo); return; }
-        }
+      const response = await fetch(API_ENDPOINTS.OTP_SEND, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, name: formData.name, userType: 'candidate' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setOtpSent(true);
+        setStep(2);
+        setResendTimer(60);
+        showToast('Verification code sent to your email', 'success');
+      } else {
+        setError(data.error || 'Failed to send verification code');
+        showToast(data.error || 'Failed to send verification code', 'error');
       }
-    } catch {}
-    // Fallback: logo.dev
-    const domainMap: Record<string, string> = {
-      zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
-      google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
-      accenture: 'accenture.com', cognizant: 'cognizant.com', hcl: 'hcltech.com',
-      oracle: 'oracle.com', ibm: 'ibm.com', trinity: 'trinitetech.com',
-    };
-    const n = name.toLowerCase();
-    for (const [key, domain] of Object.entries(domainMap)) {
-      if (n.includes(key)) { setCompanyLogo(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`); return; }
+    } catch (err) {
+      setError('Failed to send verification code');
+      showToast('Failed to send verification code', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const selectCompany = (company: any) => {
-    setFormData({ ...formData, companyName: company.name });
-    setCompanyLogo(company.logoUrl || company.logo);
-    setShowSuggestions(false);
+  const handleVerifyOTP = async () => {
+    if (!formData.otp || formData.otp.length !== 6) {
+      setError('Please enter the 6-digit code');
+      showToast('Please enter the 6-digit code', 'error');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(API_ENDPOINTS.OTP_VERIFY, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, otp: formData.otp })
+      });
+      const data = await response.json();
+      if (response.ok && data.verified) {
+        setOtpVerified(true);
+        setStep(3);
+        showToast('Email verified successfully!', 'success');
+      } else {
+        setError(data.error || 'Invalid verification code');
+        showToast(data.error || 'Invalid verification code', 'error');
+      }
+    } catch (err) {
+      setError('Verification failed');
+      showToast('Verification failed', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleResendOTP = async () => {
+    if (resendTimer > 0) return;
+    setLoading(true);
+    try {
+      const response = await fetch(API_ENDPOINTS.OTP_RESEND, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email, name: formData.name, userType: 'candidate' })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        setResendTimer(60);
+        showToast('New code sent to your email', 'success');
+      } else {
+        showToast(data.error || 'Failed to resend code', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to resend code', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendTimer]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    setSuccess('');
+    if (!otpVerified) {
+      setError('Please verify your email first');
+      showToast('Please verify your email first', 'error');
+      return;
+    }
     if (formData.password !== formData.confirmPassword) {
-      const msg = 'Passwords do not match';
-      setError(msg); showToast(msg, 'error'); setLoading(false); return;
+      setError('Passwords do not match');
+      showToast('Passwords do not match', 'error');
+      return;
     }
     if (formData.password.length < 6) {
-      const msg = 'Password must be at least 6 characters long';
-      setError(msg); showToast(msg, 'error'); setLoading(false); return;
+      setError('Password must be at least 6 characters');
+      showToast('Password must be at least 6 characters', 'error');
+      return;
     }
-    if (!agreedToTerms || !agreedToDeclaration) {
-      const msg = 'Please agree to the Terms & Conditions and Employer Declaration to continue';
-      setError(msg); showToast(msg, 'error'); setLoading(false); return;
+    if (!agreedToTerms) {
+      setError('Please agree to the Terms & Conditions');
+      showToast('Please agree to the Terms & Conditions', 'error');
+      return;
     }
+    setLoading(true);
+    setError('');
     try {
-      const employerId = generateEmployerId();
       const response = await authAPI.register({
-        email: formData.email, password: formData.password, name: formData.name,
-        companyName: formData.companyName, companyLogo, userType: 'employer', employerId,
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+        userType: 'candidate'
       });
-      const isVerified = response.verificationStatus === 'verified';
-      const msg = isVerified
-        ? '✅ Account created and verified! Redirecting to sign in...'
-        : '⏳ Account created! Pending admin verification. You will be notified once approved.';
-      setSuccess(msg);
-      showToast(msg, isVerified ? 'success' : 'warning');
-      if (response.user) {
-        if (!response.user.employerId) response.user.employerId = employerId;
-        localStorage.setItem('user', JSON.stringify(response.user));
-      }
-      setFormData({ name: '', email: '', password: '', confirmPassword: '', companyName: '' });
-      setTimeout(() => onNavigate('employer-login'), isVerified ? 2000 : 4000);
+      showToast('✅ Account created successfully! Redirecting to login...', 'success');
+      setTimeout(() => onNavigate('login'), 2000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       setError(msg);
@@ -184,37 +188,35 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       <Header onNavigate={onNavigate} />
 
       <div className="flex flex-1">
-
         {/* LEFT PANEL */}
         <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
-          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
+          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-blue-100 opacity-40" />
+          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
 
           <div className="relative z-10 flex flex-col px-16 py-8 w-full justify-start gap-6">
-            <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-orange-500 hover:text-orange-700 transition-colors w-fit">
+            <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-blue-500 hover:text-blue-700 transition-colors w-fit">
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">Back to Home</span>
             </button>
 
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
-                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                Employer Portal
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-blue-50 text-blue-600 border border-blue-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 inline-block" />
+                Job Seeker Portal
               </div>
               <h1 className="text-4xl font-bold leading-tight mb-3 text-gray-900">
-                Build Your<br />
-                <span className="text-orange-500">Dream Team</span>
+                Find Your<br />
+                <span className="text-blue-500">Dream Job</span>
               </h1>
               <p className="text-gray-500 text-base mb-6">
-                Create your employer account and start connecting with top talent across the globe.
+                Create your account and start your career journey today.
               </p>
               <div className="space-y-3">
                 {[
-                  { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: Zap,       text: 'Instant Job Posting',           color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Briefcase, text: 'Access Thousands of Jobs', color: 'text-blue-600', bg: 'bg-blue-50' },
+                  { icon: TrendingUp, text: 'AI-Powered Job Matching', color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Award, text: 'Build Professional Profile', color: 'text-blue-600', bg: 'bg-blue-50' },
+                  { icon: Users, text: 'Connect with Top Companies', color: 'text-orange-500', bg: 'bg-orange-50' },
                 ].map(({ icon: Icon, text, color, bg }) => (
                   <div key={text} className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${bg}`}>
@@ -226,18 +228,8 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
               </div>
             </div>
 
-            {/* Lottie Animation */}
-            <div className="flex justify-center items-center my-4">
-              <dotlottie-wc 
-                src="https://lottie.host/cac79d7d-c73d-4f6a-ad2a-4f75c2c53c8c/ie3zPqytVz.lottie" 
-                style={{width: '350px', height: '350px'}} 
-                autoplay 
-                loop
-              />
-            </div>
-
             <div className="grid grid-cols-3 gap-4">
-              {[['10K+', 'Companies', 'text-orange-500'], ['500K+', 'Candidates', 'text-blue-600'], ['48hr', 'Avg. Hire Time', 'text-orange-500']].map(([num, label, clr]) => (
+              {[['50K+', 'Active Jobs', 'text-blue-500'], ['100K+', 'Job Seekers', 'text-orange-500'], ['5K+', 'Companies', 'text-blue-500']].map(([num, label, clr]) => (
                 <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className={`text-2xl font-bold ${clr}`}>{num}</div>
                   <div className="text-gray-500 text-xs mt-1">{label}</div>
@@ -250,131 +242,182 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
         {/* RIGHT PANEL */}
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
           <div className="w-full max-w-md">
-            <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-orange-500 hover:text-orange-700 mb-6 transition-colors">
+            <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-blue-500 hover:text-blue-700 mb-6 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">Back to Home</span>
             </button>
 
             <div className="bg-white rounded-2xl shadow-xl p-8">
-              <div className="mb-7">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-100">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                  Employer Portal
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900">Create Employer Account</h2>
-                <p className="text-gray-500 mt-1 text-sm">Start hiring top talent today</p>
+              {/* Step Indicator */}
+              <div className="flex items-center justify-between mb-6">
+                {['Basic Info', 'Verify Email', 'Password'].map((label, i) => {
+                  const num = i + 1;
+                  const isActive = step === num;
+                  const isDone = step > num;
+                  return (
+                    <React.Fragment key={label}>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                          isDone ? 'bg-green-500 text-white' : isActive ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'
+                        }`}>
+                          {isDone ? '✓' : num}
+                        </div>
+                        <span className={`text-xs font-medium ${isActive ? 'text-blue-500' : isDone ? 'text-green-500' : 'text-gray-400'}`}>{label}</span>
+                      </div>
+                      {i < 2 && <div className={`flex-1 h-0.5 mx-2 mb-4 transition-all ${step > i + 1 ? 'bg-green-400' : 'bg-gray-200'}`} />}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
+              <div className="mb-5">
+                <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+                <p className="text-gray-500 text-sm mt-1">Start your career journey</p>
               </div>
 
               {error && (
-                <div className="mb-5 flex items-start space-x-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                   <span className="text-red-500 text-xs mt-0.5">⚠</span>
                   <span className="text-red-600 text-sm">{error}</span>
                 </div>
               )}
-              {success && (
-                <div className="mb-5 flex items-start space-x-2 bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-                  <span className="text-green-500 text-xs mt-0.5">✓</span>
-                  <span className="text-green-600 text-sm">{success}</span>
-                </div>
-              )}
 
-              <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
-                  <input
-                    type="text" name="name" value={formData.name} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-                    placeholder="Enter your full name" required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Name</label>
-                  <div className="relative">
-                    {/* Logo preview inside input */}
-                    {companyLogo && (
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded overflow-hidden flex-shrink-0 z-10">
-                        <img src={companyLogo} alt="" className="w-full h-full object-contain"
-                          onError={() => setCompanyLogo('')} />
-                      </div>
-                    )}
-                    <input
-                      type="text" name="companyName" value={formData.companyName}
-                      onChange={handleCompanyNameChange}
-                      onFocus={() => formData.companyName.length >= 1 && setShowSuggestions(true)}
-                      onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); fetchLogoOnBlur(formData.companyName); }}
-                      className={`w-full py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition ${companyLogo ? 'pl-10 pr-4' : 'px-4'}`}
-                      placeholder="Enter your company name" required
-                    />
-                    {showSuggestions && companySuggestions.length > 0 && (
-                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                        {companySuggestions.map((company) => (
-                          <button
-                            key={company.id} type="button" onMouseDown={() => selectCompany(company)}
-                            className="w-full text-left px-4 py-3 hover:bg-orange-50 border-b last:border-b-0 transition-colors flex items-center space-x-3"
-                          >
-                            <div className="bg-gray-100 w-8 h-8 rounded flex items-center justify-center p-1 flex-shrink-0">
-                              <img src={company.logoUrl || company.logo} alt={company.name} className="w-full h-full object-contain"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                            </div>
-                            <div>
-                              <div className="font-medium text-gray-900 text-sm">{company.name}</div>
-                              <div className="text-xs text-gray-500">{company.domain}</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Email</label>
-                  <input
-                    type="email" name="email" value={formData.email} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-                    placeholder="Enter company email" autoComplete="off" required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
-                      className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-                      placeholder="Create a password" autoComplete="new-password" required
-                    />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {/* STEP 1 - Basic Info */}
+                {step === 1 && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
+                      <input
+                        type="text" name="name" value={formData.name} onChange={handleChange}
+                        className="w-full h-11 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                        placeholder="Enter your full name" required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email Address</label>
+                      <input
+                        type="email" name="email" value={formData.email} onChange={handleChange}
+                        className="w-full h-11 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                        placeholder="Enter your email" required
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendOTP}
+                      disabled={loading}
+                      className="w-full h-11 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Sending...' : 'Continue →'}
                     </button>
-                  </div>
-                </div>
+                  </>
+                )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
-                  <div className="relative">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
-                      className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
-                      placeholder="Confirm your password" autoComplete="new-password" required
-                    />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {/* STEP 2 - OTP Verification */}
+                {step === 2 && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Verification Code</label>
+                      <p className="text-xs text-gray-500 mb-2">Enter the 6-digit code sent to {formData.email}</p>
+                      <input
+                        type="text"
+                        name="otp"
+                        value={formData.otp}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                          setFormData({ ...formData, otp: value });
+                        }}
+                        className="w-full h-14 px-4 border border-gray-200 rounded-xl text-center text-2xl font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                        placeholder="000000"
+                        maxLength={6}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleVerifyOTP}
+                      disabled={loading || formData.otp.length !== 6}
+                      className="w-full h-11 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Verifying...' : 'Verify Email'}
                     </button>
-                  </div>
-                </div>
+                    <div className="text-center">
+                      <button
+                        type="button"
+                        onClick={handleResendOTP}
+                        disabled={resendTimer > 0 || loading}
+                        className="text-sm text-blue-500 hover:text-blue-600 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
+                      >
+                        {resendTimer > 0 ? `Resend code in ${resendTimer}s` : 'Resend code'}
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setStep(1); setError(''); setFormData({ ...formData, otp: '' }); }}
+                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all"
+                    >
+                      ← Back
+                    </button>
+                  </>
+                )}
 
-                <button
-                  type="submit" disabled={loading || !agreedToTerms || !agreedToDeclaration}
-                  className={`w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 ${
-                    agreedToTerms && agreedToDeclaration && !loading
-                      ? 'bg-orange-500 hover:bg-orange-600 cursor-pointer shadow-sm hover:shadow-md'
-                      : 'bg-gray-300 text-gray-400 cursor-not-allowed'
-                  }`}
-                >
-                  {loading ? 'Creating Account...' : 'Create Employer Account'}
-                </button>
+                {/* STEP 3 - Password */}
+                {step === 3 && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
+                          className="w-full h-11 px-4 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                          placeholder="Create a password" required
+                        />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
+                          className="w-full h-11 px-4 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                          placeholder="Confirm your password" required
+                        />
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                      <input
+                        type="checkbox" id="terms-candidate" checked={agreedToTerms}
+                        onChange={e => setAgreedToTerms(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 accent-blue-500 cursor-pointer flex-shrink-0"
+                      />
+                      <label htmlFor="terms-candidate" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
+                        I agree to ZyncJobs'{' '}
+                        <button type="button" onClick={() => onNavigate('terms')} className="text-blue-500 hover:text-blue-700 underline font-semibold">Terms & Conditions</button>
+                        {' '}and{' '}
+                        <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-500 hover:text-blue-700 underline font-semibold">Privacy Policy</button>.
+                      </label>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={loading || !agreedToTerms || !otpVerified}
+                      className="w-full h-11 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loading ? 'Creating Account...' : 'Create Account'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setStep(2); setError(''); }}
+                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all"
+                    >
+                      ← Back
+                    </button>
+                  </>
+                )}
               </form>
 
               <div className="my-5 flex items-center gap-3">
@@ -385,11 +428,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 
               <button
                 type="button"
-                onClick={() => {
-                  if (localStorage.getItem('user')) { showToast('You are already logged in!', 'warning'); return; }
-                  if (!agreedToTerms || !agreedToDeclaration) { showToast('Please agree to the Terms & Conditions and Employer Declaration before continuing.', 'error'); return; }
-                  window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/employer`;
-                }}
+                onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate`; }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -401,53 +440,24 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 Continue with Google
               </button>
 
-              <div className="mt-4 space-y-2">
-                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <input
-                    type="checkbox" id="terms-employer" checked={agreedToTerms}
-                    onChange={e => setAgreedToTerms(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
-                  />
-                  <label htmlFor="terms-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
-                    I agree to ZyncJobs'{' '}
-                    <button type="button" onClick={() => onNavigate('terms')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Terms & Conditions</button>
-                    {' '}and{' '}
-                    <button type="button" onClick={() => onNavigate('privacy')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Privacy Policy</button>.
-                  </label>
-                </div>
-                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToDeclaration ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                  <input
-                    type="checkbox" id="declaration-employer" checked={agreedToDeclaration}
-                    onChange={e => setAgreedToDeclaration(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
-                  />
-                  <label htmlFor="declaration-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
-                    I am an authorized representative of this company and agree to the{' '}
-                    <button type="button" onClick={() => { window.open('/terms#employer-declaration', '_blank'); }} className="text-orange-500 hover:text-orange-700 underline font-semibold">Employer Declaration</button>
-                    {' '}— including posting accurate jobs and lawful use of candidate data.
-                  </label>
-                </div>
-              </div>
-
               <p className="text-center text-sm text-gray-500 mt-6">
                 Already have an account?{' '}
-                <button onClick={() => onNavigate('employer-login')} className="font-semibold text-orange-500 hover:text-orange-600">
+                <button onClick={() => onNavigate('login')} className="font-semibold text-blue-500 hover:text-blue-600">
                   Sign in
                 </button>
               </p>
               <p className="text-center text-xs text-gray-400 mt-3">
-                Looking for a job?{' '}
-                <button onClick={() => onNavigate('login')} className="font-medium text-blue-500 hover:text-blue-700 underline">
-                  Job seeker login
+                Looking to hire?{' '}
+                <button onClick={() => onNavigate('employer-register')} className="font-medium text-orange-500 hover:text-orange-700 underline">
+                  Employer registration
                 </button>
               </p>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
 };
 
-export default EmployerRegisterPage;
+export default CandidateRegisterPage;

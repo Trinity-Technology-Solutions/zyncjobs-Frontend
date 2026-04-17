@@ -1,9 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
+import { sendAIMessageStream, callAIWithFallback } from '../services/aiChatService';
+import { useTypewriter } from '../hooks/useTypewriter';
 
 interface AIRecruiterAssistantProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -66,6 +69,8 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   const [jobContext, setJobContext] = useState<any[]>([]);
   const chatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const { streamingText, isTyping, typeText } = useTypewriter();
 
   useEffect(() => {
     const loadJobs = async () => {
@@ -88,37 +93,78 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
   }, [messages, loading]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     const userMsg: Message = { role: 'user', content: trimmed, timestamp: new Date() };
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
     setLoading(true);
+    // Check cache
+    const key = cacheKey('recruiter', trimmed);
+    const cached = getCached<string>(key);
+    if (cached) {
+      setMessages(prev => [...prev, { role: 'assistant', content: cached, timestamp: new Date() }]);
+      setLoading(false);
+      return;
+    }
     const jobContextStr = jobContext.length > 0
       ? `\n\nEmployer context — Active jobs: ${jobContext.map(j => j.jobTitle || j.title).join(', ')}`
       : '';
     try {
-      const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updated.map(m => ({ role: m.role, content: m.content })),
-          systemPrompt: SYSTEM_PROMPT + jobContextStr,
-        }),
-      });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
-      const reply = data.reply || data.message || data.content || data.text || data.answer || '';
-      if (!reply) throw new Error('Empty response');
-      setMessages(prev => [...prev, { role: 'assistant', content: reply, timestamp: new Date() }]);
-    } catch {
+      let usedBackend = false;
+      let backendReply = '';
+      try {
+        const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: updated.map(m => ({ role: m.role, content: m.content })),
+            systemPrompt: SYSTEM_PROMPT + jobContextStr,
+          }),
+          signal: abortRef.current.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          backendReply = data.reply || data.message || data.content || data.text || data.answer || '';
+          if (backendReply) usedBackend = true;
+        }
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+
+      if (usedBackend) {
+        setCached(key, backendReply);
+        setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
+        setLoading(false);
+        typeText(backendReply, () => {
+          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: backendReply, timestamp: new Date() }; return u; });
+        });
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
+        setLoading(false);
+        let full = '';
+        await sendAIMessageStream(
+          updated.map(m => ({ role: m.role, content: m.content })),
+          SYSTEM_PROMPT + jobContextStr,
+          (chunk) => {
+            full += chunk;
+            setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
+          },
+          abortRef.current.signal
+        );
+        if (full) setCached(key, full);
+      }
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed), timestamp: new Date() }]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [messages, loading, jobContext]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
@@ -252,14 +298,17 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
                       ? 'bg-gray-50 text-gray-800 rounded-tl-sm border border-gray-100'
                       : 'bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-tr-sm'
                   }`}>
-                    {msg.content}
+                    {i === messages.length - 1 && msg.role === 'assistant' && isTyping ? streamingText : msg.content}
+                    {i === messages.length - 1 && msg.role === 'assistant' && isTyping && (
+                      <span className="inline-block w-1 h-4 bg-blue-400 animate-pulse ml-0.5 align-middle" />
+                    )}
                   </div>
                   <span className="text-xs text-gray-400 px-1">{formatTime(msg.timestamp)}</span>
                 </div>
               </div>
             ))}
 
-            {loading && (
+            {loading && !isTyping && (
               <div className="flex gap-3">
                 <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
                   <Sparkles className="w-4 h-4 text-white" />
