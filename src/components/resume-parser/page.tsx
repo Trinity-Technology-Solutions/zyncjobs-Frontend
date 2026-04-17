@@ -158,14 +158,18 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
 
   return (
     <div className="max-w-7xl mx-auto p-6">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          {user?.type === 'employer' ? 'Candidate Resume Parser' : 'Resume Parser'}
+      <div className="mb-8 flex flex-col items-center text-center">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-3">
+          <span className="text-blue-500 text-xs">⚡</span>
+          <span className="text-xs font-semibold text-blue-600 tracking-wide">AI Powered</span>
+        </div>
+        <h1 style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900 mb-2">
+          AI Resume Analysis
         </h1>
-        <p className="text-gray-600">
-          {user?.type === 'employer' 
-            ? 'Parse candidate resumes to extract key information for efficient screening'
-            : 'Upload your resume to extract and analyze key information for better job matching'
+        <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }}>
+          {user?.type === 'employer'
+            ? 'Upload candidate resumes to get instant insights, skill analysis, and job matching recommendations.'
+            : 'Upload your resume to get instant insights, skill analysis, and job matching recommendations.'
           }
         </p>
       </div>
