@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
-import { sendAIMessageStream } from '../services/aiChatService';
-import { getCached, setCached, cacheKey } from '../services/aiCache';
+import { API_ENDPOINTS } from '../config/env';
 
 interface Message {
   text: string;
@@ -27,56 +26,43 @@ const ChatWidget = () => {
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
-    // Abort any in-flight request
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-
     const userMessage = inputValue.trim();
     setInputValue("");
-
-    const history = messages.map(m => ({ role: m.sender === 'user' ? 'user' as const : 'assistant' as const, content: m.text }));
-    const newHistory = [...history, { role: 'user' as const, content: userMessage }];
 
     setMessages(prev => [...prev, { text: userMessage, sender: 'user' }]);
     setIsLoading(true);
 
-    // Check cache
-    const key = cacheKey('chat', userMessage);
-    const cached = getCached<string>(key);
-    if (cached) {
-      setMessages(prev => [...prev, { text: cached, sender: 'bot' }]);
-      setIsLoading(false);
-      return;
-    }
-
     // Add empty bot message to stream into
     setMessages(prev => [...prev, { text: '', sender: 'bot' }]);
-    let full = '';
 
     try {
-      await sendAIMessageStream(
-        newHistory,
-        SYSTEM_PROMPT,
-        (chunk) => {
-          full += chunk;
-          setMessages(prev => {
-            const updated = [...prev];
-            updated[updated.length - 1] = { text: full, sender: 'bot' };
-            return updated;
-          });
-        },
-        controller.signal
-      );
-      if (full) setCached(key, full, 5 * 60 * 1000);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/ai/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          message: userMessage,
+          history: messages.map(m => ({ 
+            role: m.sender === 'user' ? 'user' : 'assistant', 
+            content: m.text 
+          }))
+        })
+      });
+
+      if (!response.ok) throw new Error('Backend error');
+      
+      const data = await response.json();
+      
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { text: data.reply || data.message, sender: 'bot' };
+        return updated;
+      });
     } catch (err: any) {
-      if (err?.name !== 'AbortError') {
-        setMessages(prev => {
-          const updated = [...prev];
-          updated[updated.length - 1] = { text: "Sorry, I'm having trouble connecting. Please try again.", sender: 'bot' };
-          return updated;
-        });
-      }
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { text: "Sorry, I'm having trouble connecting. Please try again.", sender: 'bot' };
+        return updated;
+      });
     } finally {
       setIsLoading(false);
     }

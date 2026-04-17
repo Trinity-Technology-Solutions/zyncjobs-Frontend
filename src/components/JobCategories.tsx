@@ -88,7 +88,8 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
         ([entry]) => {
           if (entry.isIntersecting) {
             setTimeout(() => setVisible(v => { const n = [...v]; n[i] = true; return n; }), i * 80);
-            obs.disconnect();
+          } else {
+            setVisible(v => { const n = [...v]; n[i] = false; return n; });
           }
         },
         { threshold: 0.15 }

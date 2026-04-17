@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 interface TalentedPeopleProps {
@@ -8,8 +8,38 @@ interface TalentedPeopleProps {
 const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   // Animated counter for stats
   const [counts, setCounts] = useState({ candidates: 0, accuracy: 0 });
+  const [isVisible, setIsVisible] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+
+  // Intersection Observer for scroll animation
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Trigger animation when entering viewport
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        } else {
+          // Reset animation when leaving viewport
+          setIsVisible(false);
+        }
+      },
+      { threshold: 0.2 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => {
+      if (sectionRef.current) {
+        observer.unobserve(sectionRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
+    if (!isVisible) return;
+
     const duration = 2000; // 2 seconds
     const steps = 60;
     const interval = duration / steps;
@@ -33,7 +63,7 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
     }, interval);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isVisible]);
 
   const formatNumber = (num: number) => {
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K+`;
@@ -41,11 +71,15 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-20 bg-white">
+    <section ref={sectionRef} className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
         
         {/* LEFT CONTENT */}
-        <div className="space-y-8">
+        <div 
+          className={`space-y-8 transition-all duration-1000 ${
+            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-20'
+          }`}
+        >
           
           <h2 className="text-4xl md:text-5xl font-semibold leading-tight text-gray-900">
             Join 10,000+ Professionals Finding Jobs Smarter
@@ -71,14 +105,14 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
           {/* CTA Buttons */}
           <div className="flex gap-4">
             <button 
-              onClick={() => onNavigate && onNavigate('role-selection')}
+              onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('role-selection'); }}
               className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
             >
               Get Started
               <TrendingUp className="w-5 h-5" />
             </button>
             <button 
-              onClick={() => onNavigate && onNavigate('job-listings')}
+              onClick={() => { window.scrollTo(0, 0); onNavigate && onNavigate('job-listings'); }}
               className="border-2 border-gray-300 text-gray-700 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-300"
             >
               Browse Jobs
@@ -87,7 +121,11 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
         </div>
 
         {/* RIGHT IMAGE */}
-        <div className="relative">
+        <div 
+          className={`relative transition-all duration-1000 delay-300 ${
+            isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-20'
+          }`}
+        >
           <img
             src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
             alt="Team collaboration and success"

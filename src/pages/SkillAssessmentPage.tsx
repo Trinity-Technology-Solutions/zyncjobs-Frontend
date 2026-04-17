@@ -3,8 +3,6 @@ import { Clock, CheckCircle, ArrowLeft, Search, ExternalLink } from 'lucide-reac
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
-import { generateAssessmentQuestions } from '../services/aiChatService';
-import { getCached, setCached, cacheKey } from '../services/aiCache';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -104,73 +102,294 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   const startAssessment = async () => {
     if (!selectedSkill) return;
     setStartError('');
+    setLoading(true);
+
+    const token = await getAuthToken();
+    let data: any = null;
+    let backendError = '';
+
+    // Try backend with longer timeout for AI generation
     try {
-      setLoading(true);
-      const token = await getAuthToken();
-      if (!token) {
-        setStartError('Please log in to take an assessment.');
-        return;
-      }
-
-      // Race backend against 2s timeout — whichever wins is used
+      console.log(`🚀 Requesting ${selectedSkill} assessment from backend...`);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds for AI
 
-      let data: any = null;
-      try {
-        const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ skill: selectedSkill, questionCount: 10 }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        if (response.ok) data = await response.json();
-      } catch {
-        clearTimeout(timeoutId);
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ skill: selectedSkill, questionCount: 10 }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        data = await response.json();
+        console.log(`✅ Backend returned ${data.totalQuestions} questions for ${selectedSkill}`);
+        // Mark as backend-generated so we can handle submission failures
+        data.isBackendGenerated = true;
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        backendError = `Backend error: ${response.status} - ${errorData.error || 'Unknown'}`;
+        console.error(backendError, errorData);
       }
-
-      if (!data) {
-        // Try AI-generated questions via OpenRouter
-        const key = cacheKey('assessment-questions', selectedSkill);
-        const cachedQs = getCached<any[]>(key);
-        if (cachedQs) {
-          data = { assessmentId: `ai-${Date.now()}`, skill: selectedSkill, questions: cachedQs, totalQuestions: cachedQs.length, timeLimit: 30, isAI: true };
-        } else {
-          const aiQuestions = await generateAssessmentQuestions(selectedSkill);
-          setCached(key, aiQuestions, 30 * 60 * 1000); // cache 30 min
-          data = { assessmentId: `ai-${Date.now()}`, skill: selectedSkill, questions: aiQuestions, totalQuestions: aiQuestions.length, timeLimit: 30, isAI: true };
-        }
+    } catch (err: any) {
+      // Silently fall back to local questions
+      if (err.name === 'AbortError') {
+        backendError = 'Backend timeout (15s)';
+        console.warn(backendError + ' - using local questions');
+      } else if (err.message.includes('Failed to fetch')) {
+        backendError = 'Backend not reachable';
+        console.warn(backendError + ' - is the backend running on port 5000?');
+      } else {
+        backendError = err.message;
+        console.warn('Backend error:', backendError);
       }
-
-      setAssessment(data);
-      setAnswers(new Array(data.totalQuestions).fill(-1));
-      setTimeLeft(data.timeLimit * 60);
-      setCurrentQuestion(0);
-    } catch {
-      setStartError('Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
     }
+
+    // Use local questions if backend failed
+    if (!data) {
+      console.log(`📝 Using local questions for ${selectedSkill}${backendError ? ` (${backendError})` : ''}`);
+      data = generateLocalAssessment(selectedSkill);
+    }
+
+    setAssessment(data);
+    setAnswers(new Array(data.totalQuestions).fill(-1));
+    setTimeLeft(data.timeLimit * 60);
+    setCurrentQuestion(0);
+    setLoading(false);
+  };
+
+  const generateLocalAssessment = (skill: string) => {
+    const bank: Record<string, any[]> = {
+      JavaScript: [
+        { question: 'What does `typeof null` return in JavaScript?', options: ['null', 'undefined', 'object', 'string'], correct: 2 },
+        { question: 'Which method removes the last element from an array?', options: ['shift()', 'pop()', 'splice()', 'slice()'], correct: 1 },
+        { question: 'What is a closure in JavaScript?', options: ['A loop construct', 'A function with access to its outer scope', 'An error handler', 'A class method'], correct: 1 },
+        { question: 'What does `===` check?', options: ['Value only', 'Type only', 'Value and type', 'Reference'], correct: 2 },
+        { question: 'Which keyword declares a block-scoped variable?', options: ['var', 'let', 'function', 'const only'], correct: 1 },
+        { question: 'What does `Array.prototype.map()` return?', options: ['The original array', 'A new array', 'undefined', 'A boolean'], correct: 1 },
+        { question: 'What is the event loop in JavaScript?', options: ['A for loop', 'A mechanism to handle async operations', 'A DOM event', 'A CSS animation'], correct: 1 },
+        { question: 'Which of these is NOT a JavaScript data type?', options: ['Symbol', 'BigInt', 'Float', 'undefined'], correct: 2 },
+        { question: 'What does `Promise.all()` do?', options: ['Runs promises sequentially', 'Runs all promises in parallel and waits for all', 'Returns the first resolved', 'Cancels all promises'], correct: 1 },
+        { question: 'What is hoisting?', options: ['Moving code to the server', 'Variable/function declarations moved to top of scope', 'A CSS property', 'An async pattern'], correct: 1 },
+      ],
+      Python: [
+        { question: 'What is the output of `type([])`?', options: ['list', '<class list>', "<class 'list'>", 'array'], correct: 2 },
+        { question: 'Which keyword is used to define a function in Python?', options: ['function', 'def', 'fun', 'lambda'], correct: 1 },
+        { question: 'What does `len([1,2,3])` return?', options: ['2', '3', '4', 'Error'], correct: 1 },
+        { question: 'What is a list comprehension?', options: ['A loop', 'A concise way to create lists', 'A dictionary method', 'A class'], correct: 1 },
+        { question: 'Which of these is immutable in Python?', options: ['list', 'dict', 'tuple', 'set'], correct: 2 },
+        { question: 'What does `*args` do in a function?', options: ['Passes keyword args', 'Passes variable positional args', 'Multiplies args', 'Unpacks a dict'], correct: 1 },
+        { question: 'What is a decorator in Python?', options: ['A CSS concept', 'A function that wraps another function', 'A class attribute', 'A loop modifier'], correct: 1 },
+        { question: 'What does `__init__` do?', options: ['Destroys an object', 'Initializes a class instance', 'Imports a module', 'Defines a static method'], correct: 1 },
+        { question: 'Which module is used for regular expressions?', options: ['regex', 're', 'regexp', 'pattern'], correct: 1 },
+        { question: 'What is GIL in Python?', options: ['Global Import Lock', 'Global Interpreter Lock', 'General Input Layer', 'Graph Interface Library'], correct: 1 },
+      ],
+      React: [
+        { question: 'What hook is used for side effects in React?', options: ['useState', 'useEffect', 'useContext', 'useRef'], correct: 1 },
+        { question: 'What does JSX stand for?', options: ['JavaScript XML', 'Java Syntax Extension', 'JSON XML', 'JavaScript Extension'], correct: 0 },
+        { question: 'What is the virtual DOM?', options: ['A real browser DOM', 'A lightweight copy of the DOM', 'A CSS framework', 'A database'], correct: 1 },
+        { question: 'Which hook manages local component state?', options: ['useEffect', 'useContext', 'useState', 'useReducer'], correct: 2 },
+        { question: 'What is a React key used for?', options: ['Styling', 'Identifying list items uniquely', 'Event handling', 'API calls'], correct: 1 },
+        { question: 'What is prop drilling?', options: ['A build tool', 'Passing props through many component levels', 'A CSS technique', 'A testing method'], correct: 1 },
+        { question: 'What does `useCallback` do?', options: ['Fetches data', 'Memoizes a function', 'Creates a ref', 'Manages state'], correct: 1 },
+        { question: 'What is React Context used for?', options: ['Routing', 'Global state sharing without prop drilling', 'Styling', 'Testing'], correct: 1 },
+        { question: 'What is a controlled component?', options: ['A component with no state', 'A form element whose value is controlled by React state', 'A class component', 'A pure component'], correct: 1 },
+        { question: 'What does `React.memo` do?', options: ['Stores data', 'Prevents re-render if props unchanged', 'Creates a context', 'Handles errors'], correct: 1 },
+      ],
+    };
+
+    const questions = (bank[skill] || bank['JavaScript']).map((q, i) => ({
+      id: i + 1,
+      question: q.question,
+      options: q.options,
+      correctAnswer: q.correct,
+    }));
+
+    return {
+      assessmentId: `local-${Date.now()}`,
+      skill,
+      questions,
+      totalQuestions: questions.length,
+      timeLimit: 30,
+      isLocal: true,
+    };
   };
 
   const submitAssessment = async () => {
     try {
       setLoading(true);
+      
+      // Calculate score locally
+      const correctAnswers = answers.reduce((count, answer, index) => {
+        if (answer === assessment.questions[index].correctAnswer) {
+          return count + 1;
+        }
+        return count;
+      }, 0);
+      
+      const score = Math.round((correctAnswers / assessment.totalQuestions) * 100);
+      
+      // If this is a local assessment, show result immediately
+      if (assessment.isLocal || assessment.assessmentId.startsWith('local-')) {
+        // Store in localStorage for review page
+        const localAssessmentId = assessment.assessmentId.startsWith('local-') 
+          ? assessment.assessmentId 
+          : `local-${Date.now()}`;
+        const localResult = {
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true,
+          questions: assessment.questions.map((q: any, i: number) => ({
+            ...q,
+            userAnswer: answers[i]
+          })),
+          completedAt: new Date().toISOString()
+        };
+        const storageKey = `assessment_${localAssessmentId}`;
+        localStorage.setItem(storageKey, JSON.stringify(localResult));
+        console.log('💾 Saved assessment to localStorage:', storageKey);
+        console.log('Data:', localResult);
+        
+        // Verify it was saved
+        const verify = localStorage.getItem(storageKey);
+        console.log('✅ Verification - Data exists in localStorage:', !!verify);
+        
+        setResult({
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true
+        });
+        setAssessment(null);
+        setLoading(false);
+        
+        // Navigate to review page after 2.5 seconds (give time for localStorage to sync)
+        setTimeout(() => {
+          console.log('👉 Navigating to review page with ID:', localAssessmentId);
+          onNavigate('assessment-review', { assessmentId: localAssessmentId });
+        }, 2500);
+        return;
+      }
+      
+      // Try to submit to backend
       const token = await getAuthToken();
+      if (!token) {
+        console.warn('No auth token, treating as local assessment');
+        throw new Error('No authentication token');
+      }
+      
       const response = await fetch(`${API_BASE_URL}/skill-assessments/submit/${assessment.assessmentId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ answers, timeSpent: 1800 - timeLeft })
       });
+      
+      if (response.status === 404) {
+        // Assessment not found in backend, treat as local
+        console.warn('Assessment not found in backend (404), converting to local assessment');
+        // Convert to local assessment
+        const localAssessmentId = `local-${Date.now()}`;
+        const correctAnswers = answers.reduce((count, answer, index) => 
+          answer === assessment.questions[index].correctAnswer ? count + 1 : count, 0);
+        const score = Math.round((correctAnswers / assessment.totalQuestions) * 100);
+        
+        const localResult = {
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true,
+          questions: assessment.questions.map((q: any, i: number) => ({ ...q, userAnswer: answers[i] })),
+          completedAt: new Date().toISOString()
+        };
+        
+        localStorage.setItem(`assessment_${localAssessmentId}`, JSON.stringify(localResult));
+        console.log('💾 Saved as local assessment:', localAssessmentId);
+        
+        setResult({
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true
+        });
+        setAssessment(null);
+        setLoading(false);
+        
+        setTimeout(() => {
+          console.log('👉 Navigating to review page with ID:', localAssessmentId);
+          onNavigate('assessment-review', { assessmentId: localAssessmentId });
+        }, 2500);
+        return;
+      }
+      
       if (!response.ok) throw new Error('Failed to submit');
+      
       const data = await response.json();
       setResult(data);
       setAssessment(null);
       fetchMyAssessments();
       setTimeout(() => onNavigate('assessment-review', { assessmentId: data.assessmentId }), 2000);
-    } catch {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to submit assessment. Please try again." } }));
+    } catch (err) {
+      console.error('Submit error:', err);
+      // On error, calculate and show local result
+      const localAssessmentId = `local-${Date.now()}`;
+      const correctAnswers = answers.reduce((count, answer, index) => {
+        if (answer === assessment.questions[index].correctAnswer) {
+          return count + 1;
+        }
+        return count;
+      }, 0);
+      const score = Math.round((correctAnswers / assessment.totalQuestions) * 100);
+      
+      const localResult = {
+        assessmentId: localAssessmentId,
+        skill: assessment.skill,
+        score,
+        correctAnswers,
+        totalQuestions: assessment.totalQuestions,
+        timeSpent: 1800 - timeLeft,
+        isPractice: true,
+        questions: assessment.questions.map((q: any, i: number) => ({
+          ...q,
+          userAnswer: answers[i]
+        })),
+        completedAt: new Date().toISOString()
+      };
+      const storageKey = `assessment_${localAssessmentId}`;
+      localStorage.setItem(storageKey, JSON.stringify(localResult));
+      console.log('💾 Saved local assessment after error:', storageKey);
+      
+      setResult({
+        assessmentId: localAssessmentId,
+        skill: assessment.skill,
+        score,
+        correctAnswers,
+        totalQuestions: assessment.totalQuestions,
+        timeSpent: 1800 - timeLeft,
+        isPractice: true
+      });
+      setAssessment(null);
+      setTimeout(() => {
+        console.log('👉 Navigating to review page with ID:', localAssessmentId);
+        onNavigate('assessment-review', { assessmentId: localAssessmentId });
+      }, 2500);
     } finally {
       setLoading(false);
     }
@@ -299,7 +518,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
     return (
       <>
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="min-h-screen flex items-center justify-center py-8" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+        <div className="min-h-screen flex items-center justify-center py-8 bg-white">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mx-4">
 
             {/* Top bar */}

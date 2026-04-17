@@ -278,7 +278,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
                 </div>
 
                 {/* Steps */}
-                {roadmap.steps.map((step, idx) => {
+                {roadmap.steps && roadmap.steps.map((step, idx) => {
                   const color = STEP_COLORS[idx % STEP_COLORS.length];
                   const isExpanded = expandedStep === idx;
                   return (
@@ -315,16 +315,18 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
                             <p className="text-sm text-gray-700 mt-3 mb-3">{step.description}</p>
 
                             {/* Skills */}
-                            <div className="mb-3">
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Skills to Learn</p>
-                              <div className="flex flex-wrap gap-2">
-                                {step.skills.map((skill, i) => (
-                                  <span key={i} className={`text-sm px-3 py-1 rounded-full font-medium border ${color.border} ${color.text} bg-white`}>
-                                    {skill}
-                                  </span>
-                                ))}
+                            {step.skills && step.skills.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Skills to Learn</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {step.skills.map((skill, i) => (
+                                    <span key={i} className={`text-sm px-3 py-1 rounded-full font-medium border ${color.border} ${color.text} bg-white`}>
+                                      {skill}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
+                            )}
 
                             {/* Milestone */}
                             <div className={`flex items-start gap-2 bg-white border ${color.border} rounded-lg p-3`}>

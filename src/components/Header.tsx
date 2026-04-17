@@ -243,14 +243,28 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
           if (userEmail) {
-            const socketUrl = (import.meta.env.VITE_API_URL || '/api').replace(/\/api$/, '');
-            socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+            // Connect to backend Socket.io server
+            const backendUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
+            socket = io(backendUrl, { 
+              transports: ['websocket', 'polling'],
+              reconnection: true,
+              reconnectionDelay: 1000,
+              reconnectionAttempts: 3
+            });
+            socket.on('connect', () => {
+              console.log('✅ Socket.io connected');
+            });
+            socket.on('connect_error', (err: any) => {
+              console.warn('Socket.io connection error:', err.message);
+            });
             socket.on(`analytics_update:${userEmail}`, () => {
               fetchProfileMetrics();
             });
           }
         }
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.warn('Socket.io setup failed:', err);
+      }
     }
 
     // Listen for manual analytics refresh event

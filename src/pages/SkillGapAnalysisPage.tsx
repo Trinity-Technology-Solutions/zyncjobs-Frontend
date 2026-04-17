@@ -101,6 +101,14 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     }
   };
 
+  const jobSkills: string[] = selectedJob
+    ? (selectedJob.skills || []).map((s: string) => s.trim()).filter(Boolean)
+    : [];
+  const userSkillsLower = userSkills.map(s => s.toLowerCase());
+  const matched = jobSkills.filter(s => userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
+  const missing = jobSkills.filter(s => !userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
+  const matchPct = jobSkills.length > 0 ? Math.round((matched.length / jobSkills.length) * 100) : 0;
+
   // Fetch all missing skill resources in parallel when job is selected
   useEffect(() => {
     if (!selectedJob || missing.length === 0) return;
@@ -142,14 +150,6 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     setUserSkills(updated);
     saveSkillsToDB(updated);
   };
-
-  const jobSkills: string[] = selectedJob
-    ? (selectedJob.skills || []).map((s: string) => s.trim()).filter(Boolean)
-    : [];
-  const userSkillsLower = userSkills.map(s => s.toLowerCase());
-  const matched = jobSkills.filter(s => userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
-  const missing = jobSkills.filter(s => !userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
-  const matchPct = jobSkills.length > 0 ? Math.round((matched.length / jobSkills.length) * 100) : 0;
 
   const matchColor = matchPct >= 70 ? 'text-green-600' : matchPct >= 40 ? 'text-yellow-600' : 'text-red-500';
   const barColor = matchPct >= 70 ? 'bg-green-500' : matchPct >= 40 ? 'bg-yellow-500' : 'bg-red-500';
