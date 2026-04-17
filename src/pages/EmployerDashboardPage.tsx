@@ -405,7 +405,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
-          const now = new Date();
           
           // Fetch job details for each interview
           const interviewsWithJobDetails = await Promise.all(
@@ -426,16 +425,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             })
           );
           
-          // Filter out past interviews and completed/cancelled status interviews
-          const filteredInterviews = interviewsWithJobDetails.filter((interview: any) => {
-            const interviewDate = new Date(interview.date);
-            const isPast = interviewDate < now;
-            const isCompletedOrCancelled = interview.status === 'completed' || interview.status === 'cancelled';
-            return !isPast && !isCompletedOrCancelled;
-          });
-          
-          setInterviews(filteredInterviews);
-          dashboardStats.interviews = filteredInterviews.length;
+          setInterviews(interviewsWithJobDetails);
+          dashboardStats.interviews = interviewsWithJobDetails.length;
         } else {
           setInterviews([]);
         }
@@ -1440,7 +1431,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             </div>
 
                             {interview.meetingLink && (
-                              <div className="mb-3">
+                              <div className="mb-3 flex items-center gap-2">
                                 <a
                                   href={interview.meetingLink}
                                   target="_blank"
@@ -1450,6 +1441,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   <Video className="w-4 h-4" />
                                   <span>Join Meeting</span>
                                 </a>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(interview.meetingLink);
+                                    showToast('Meeting link copied!', 'success');
+                                  }}
+                                  className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                  title="Copy meeting link"
+                                >
+                                  Copy Link
+                                </button>
                               </div>
                             )}
 
@@ -1934,6 +1935,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             setSelectedApplication(null);
           }}
           onSuccess={() => {
+            // Re-fetch interviews specifically after scheduling
+            const userData = localStorage.getItem('user');
+            if (userData) {
+              const u = JSON.parse(userData);
+              const userId = u.id || u._id;
+              const userEmail = u.email;
+              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`)
+                .then(r => r.ok ? r.json() : [])
+                .then((data: any[]) => {
+                  setInterviews(Array.isArray(data) ? data : []);
+                  setActiveMenu('interviews');
+                })
+                .catch(() => {});
+            }
             fetchDashboardData(user);
           }}
         />
