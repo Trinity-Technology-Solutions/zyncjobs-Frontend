@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Search, BarChart2, Shield, Zap, ArrowLeft } from 'lucide-react';
 import { authAPI } from '../api/auth';
+import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
 import { generateEmployerId } from '../utils/employerIdUtils';
 
@@ -25,8 +26,21 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
     setError('');
     try {
       const response = await authAPI.login({ email, password });
-      if (response.user.userType !== 'employer' && response.user.role !== 'employer') {
+      const userType = response.user.userType || response.user.role;
+      if (userType !== 'employer') {
         setError('This is a candidate account. Please use regular "Login" instead.');
+        setLoading(false);
+        return;
+      }
+      // Check if employer account is pending admin verification
+      const verificationStatus = (response.user as any).verificationStatus;
+      if (verificationStatus === 'pending') {
+        setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
+        setLoading(false);
+        return;
+      }
+      if (verificationStatus === 'rejected') {
+        setError('Your employer account verification was rejected. Please contact support.');
         setLoading(false);
         return;
       }
@@ -191,7 +205,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                 type="button"
                 onClick={() => {
                   if (localStorage.getItem('user')) { alert('You are already logged in!'); return; }
-                  window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/employer?portal=employer`;
+                  window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/employer?portal=employer`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >

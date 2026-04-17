@@ -112,23 +112,27 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
           {/* Steps */}
           <div className="space-y-3 mb-5">
             {[
-              { step: '1', text: 'Go to linkedin.com and login', icon: '🌐' },
-              { step: '2', text: 'Click your Profile photo → View Profile', icon: '👤' },
-              { step: '3', text: 'Click "More" button → Save to PDF', icon: '📄' },
-              { step: '4', text: 'Upload that downloaded PDF below', icon: '⬆️' },
+              { step: '1', text: 'Go to linkedin.com and login', icon: <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg> },
+              { step: '2', text: 'Click your Profile photo → View Profile', icon: <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> },
+              { step: '3', text: 'Click "More" button → Save to PDF', icon: <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg> },
+              { step: '4', text: 'Upload that downloaded PDF below', icon: <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg> },
             ].map(({ step, text, icon }) => (
               <div key={step} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2.5 border border-blue-100">
                 <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
                   {step}
                 </div>
-                <span className="text-sm text-gray-700">{icon} {text}</span>
+                <span className="text-blue-500 shrink-0">{icon}</span>
+                <span className="text-sm text-gray-700">{text}</span>
               </div>
             ))}
           </div>
 
           {/* What gets imported */}
           <div className="bg-white rounded-lg p-3 border border-blue-100 mb-4">
-            <p className="text-xs font-semibold text-gray-600 mb-2">✅ What gets auto-filled:</p>
+            <div className="flex items-center gap-1.5 mb-2">
+              <svg className="w-3.5 h-3.5 text-green-500" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <p className="text-xs font-semibold text-gray-600">What gets auto-filled:</p>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {['Name', 'Email', 'Phone', 'Location', 'Job Title', 'Skills', 'Experience', 'Education', 'Summary'].map(f => (
                 <span key={f} className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">{f}</span>

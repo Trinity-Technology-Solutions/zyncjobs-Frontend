@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft, Briefcase, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
-import { gdprAPI } from '../api/gdpr';
 import Header from '../components/Header';
-import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
+import { generateEmployerId } from '../utils/employerIdUtils';
 
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
   const existingToast = document.getElementById('toast');
   if (existingToast) existingToast.remove();
-
   const toast = document.createElement('div');
   toast.id = 'toast';
   const colors = { success: 'bg-green-500 text-white', error: 'bg-red-500 text-white', warning: 'bg-yellow-500 text-white', info: 'bg-blue-500 text-white' };
@@ -31,26 +30,109 @@ const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'inf
   setTimeout(() => toast.remove(), 4000);
 };
 
-interface CandidateRegisterPageProps {
+interface EmployerRegisterPageProps {
   onNavigate: (page: string) => void;
+  onLogin: (userData: { name: string; type: 'candidate' | 'employer' | 'admin'; email?: string }) => void;
 }
 
-const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigate }) => {
+const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     if (localStorage.getItem('user')) onNavigate('dashboard');
   }, []);
 
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', companyName: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [companyLogo, setCompanyLogo] = useState('');
+  const [companySuggestions, setCompanySuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [consentResume, setConsentResume] = useState(false);
+  const [agreedToDeclaration, setAgreedToDeclaration] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const fallbackCompanies = [
+    { id: 1,   name: 'Zoho',                           domain: 'zoho.com',        logoUrl: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+    { id: 2,   name: 'TCS',                            domain: 'tcs.com',         logoUrl: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+    { id: 3,   name: 'Infosys',                        domain: 'infosys.com',     logoUrl: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+    { id: 10,  name: 'Google',                         domain: 'google.com',      logoUrl: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+    { id: 9,   name: 'Microsoft',                      domain: 'microsoft.com',   logoUrl: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+    { id: 101, name: 'Trinity Technology Solutions LLC', domain: 'trinitetech.com', logoUrl: 'https://img.logo.dev/trinitetech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80&retina=true' },
+  ];
+
+  const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, companyName: value });
+    setCompanyLogo('');
+    if (value.trim().length >= 1) {
+      try {
+        const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);
+        if (response.ok) {
+          const data = await response.json();
+          const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+          setCompanySuggestions(list.slice(0, 8));
+          // Auto-set logo if exact match found
+          const exact = list.find((c: any) =>
+            (c.name || c.companyName || '').toLowerCase() === value.toLowerCase()
+          );
+          if (exact) {
+            const logo = exact.logo || exact.logoUrl || exact.imageUrl || exact.image || '';
+            if (logo) setCompanyLogo(logo);
+          }
+        } else {
+          setCompanySuggestions(fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 8));
+        }
+        setShowSuggestions(true);
+      } catch {
+        const filtered = fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 8);
+        setCompanySuggestions(filtered);
+        setShowSuggestions(filtered.length > 0);
+      }
+    } else {
+      setShowSuggestions(false);
+      setCompanyLogo('');
+    }
+  };
+
+  const fetchLogoOnBlur = async (name: string) => {
+    if (!name.trim() || companyLogo) return;
+    // Try companies API first
+    try {
+      const res = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+        const match = list.find((c: any) =>
+          (c.name || c.companyName || '').toLowerCase().includes(name.toLowerCase())
+        );
+        if (match) {
+          const logo = match.logo || match.logoUrl || match.imageUrl || match.image || '';
+          if (logo) { setCompanyLogo(logo); return; }
+        }
+      }
+    } catch {}
+    // Fallback: logo.dev
+    const domainMap: Record<string, string> = {
+      zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
+      google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
+      accenture: 'accenture.com', cognizant: 'cognizant.com', hcl: 'hcltech.com',
+      oracle: 'oracle.com', ibm: 'ibm.com', trinity: 'trinitetech.com',
+    };
+    const n = name.toLowerCase();
+    for (const [key, domain] of Object.entries(domainMap)) {
+      if (n.includes(key)) { setCompanyLogo(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`); return; }
+    }
+  };
+
+  const selectCompany = (company: any) => {
+    setFormData({ ...formData, companyName: company.name });
+    setCompanyLogo(company.logoUrl || company.logo);
+    setShowSuggestions(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -66,34 +148,32 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
       const msg = 'Password must be at least 6 characters long';
       setError(msg); showToast(msg, 'error'); setLoading(false); return;
     }
-    if (!agreedToTerms) {
-      const msg = 'Please agree to the Terms & Conditions to continue';
+    if (!agreedToTerms || !agreedToDeclaration) {
+      const msg = 'Please agree to the Terms & Conditions and Employer Declaration to continue';
       setError(msg); showToast(msg, 'error'); setLoading(false); return;
     }
     try {
-      const registered = await authAPI.register({ email: formData.email, password: formData.password, name: formData.name, userType: 'candidate' });
-      // Record GDPR consent
-      const userId = (registered as any)?.id || (registered as any)?._id || formData.email;
-      const consentTypes = ['terms', ...(consentResume ? ['resume_storage'] : [])];
-      gdprAPI.recordConsent(consentTypes).catch(() => {});
-      const msg = 'Account created successfully! You can now sign in.';
+      const employerId = generateEmployerId();
+      const response = await authAPI.register({
+        email: formData.email, password: formData.password, name: formData.name,
+        companyName: formData.companyName, companyLogo, userType: 'employer', employerId,
+      });
+      const isVerified = response.verificationStatus === 'verified';
+      const msg = isVerified
+        ? '✅ Account created and verified! Redirecting to sign in...'
+        : '⏳ Account created! Pending admin verification. You will be notified once approved.';
       setSuccess(msg);
-      showToast(msg, 'success');
-      setFormData({ name: '', email: '', password: '', confirmPassword: '' });
-      setTimeout(() => onNavigate('login'), 2000);
+      showToast(msg, isVerified ? 'success' : 'warning');
+      if (response.user) {
+        if (!response.user.employerId) response.user.employerId = employerId;
+        localStorage.setItem('user', JSON.stringify(response.user));
+      }
+      setFormData({ name: '', email: '', password: '', confirmPassword: '', companyName: '' });
+      setTimeout(() => onNavigate('employer-login'), isVerified ? 2000 : 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
-      if (msg.includes('already exists')) {
-        setError('This email is already registered. Please sign in instead.');
-        showToast('This email is already registered. Please sign in instead.', 'warning');
-        setTimeout(async () => {
-          const yes = await (window as any).confirmAsync('This email is already registered. Would you like to sign in instead?');
-          if (yes) onNavigate('login');
-        }, 500);
-      } else {
-        setError(msg);
-        showToast(msg, 'error');
-      }
+      setError(msg);
+      showToast(msg, 'error');
     } finally {
       setLoading(false);
     }
@@ -107,29 +187,34 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
 
         {/* LEFT PANEL */}
         <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-          <div className="absolute top-10 right-10 w-80 h-80 rounded-full bg-blue-100 opacity-40" />
-          <div className="absolute bottom-10 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-50 opacity-60" />
+          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
+          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
 
           <div className="relative z-10 flex flex-col px-16 py-8 w-full justify-start gap-6">
-            <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors w-fit">
+            <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-orange-500 hover:text-orange-700 transition-colors w-fit">
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">Back to Home</span>
             </button>
 
             <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                Employer Portal
+              </div>
               <h1 className="text-4xl font-bold leading-tight mb-3 text-gray-900">
-                Start Your <span className="text-blue-600">Career Journey</span>
+                Build Your<br />
+                <span className="text-orange-500">Dream Team</span>
               </h1>
               <p className="text-gray-500 text-base mb-6">
-                Join thousands of candidates and connect with top employers across the globe.
+                Create your employer account and start connecting with top talent across the globe.
               </p>
               <div className="space-y-3">
                 {[
-                  { icon: Briefcase,   text: '50,000+ Active Job Listings', color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: Users,       text: 'Top Companies Hiring Now',    color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: TrendingUp,  text: 'AI-Powered Job Matching',     color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: CheckCircle, text: 'One-Click Easy Apply',        color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Zap,       text: 'Instant Job Posting',           color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
                 ].map(({ icon: Icon, text, color, bg }) => (
                   <div key={text} className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${bg}`}>
@@ -144,7 +229,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
             {/* Lottie Animation */}
             <div className="flex justify-center items-center my-4">
               <dotlottie-wc 
-                src="https://lottie.host/9c22dcff-4c93-48d8-b9ed-92f46ea5608f/wBQ6dCH7VB.lottie" 
+                src="https://lottie.host/cac79d7d-c73d-4f6a-ad2a-4f75c2c53c8c/ie3zPqytVz.lottie" 
                 style={{width: '350px', height: '350px'}} 
                 autoplay 
                 loop
@@ -152,7 +237,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {[['2M+', 'Job Seekers', 'text-blue-600'], ['50K+', 'Companies', 'text-orange-500'], ['95%', 'Success Rate', 'text-blue-600']].map(([num, label, clr]) => (
+              {[['10K+', 'Companies', 'text-orange-500'], ['500K+', 'Candidates', 'text-blue-600'], ['48hr', 'Avg. Hire Time', 'text-orange-500']].map(([num, label, clr]) => (
                 <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className={`text-2xl font-bold ${clr}`}>{num}</div>
                   <div className="text-gray-500 text-xs mt-1">{label}</div>
@@ -165,15 +250,19 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
         {/* RIGHT PANEL */}
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
           <div className="w-full max-w-md">
-            <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6 transition-colors">
+            <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-orange-500 hover:text-orange-700 mb-6 transition-colors">
               <ArrowLeft className="w-4 h-4" />
               <span className="text-sm font-medium">Back to Home</span>
             </button>
 
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="mb-7">
-                <h2 className="text-2xl font-bold text-gray-900">Create your account</h2>
-                <p className="text-gray-500 mt-1 text-sm">Join the ZyncJobs network as a candidate</p>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-100">
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                  Employer Portal
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Create Employer Account</h2>
+                <p className="text-gray-500 mt-1 text-sm">Start hiring top talent today</p>
               </div>
 
               {error && (
@@ -194,17 +283,57 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
                   <input
                     type="text" name="name" value={formData.name} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
                     placeholder="Enter your full name" required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Name</label>
+                  <div className="relative">
+                    {/* Logo preview inside input */}
+                    {companyLogo && (
+                      <div className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded overflow-hidden flex-shrink-0 z-10">
+                        <img src={companyLogo} alt="" className="w-full h-full object-contain"
+                          onError={() => setCompanyLogo('')} />
+                      </div>
+                    )}
+                    <input
+                      type="text" name="companyName" value={formData.companyName}
+                      onChange={handleCompanyNameChange}
+                      onFocus={() => formData.companyName.length >= 1 && setShowSuggestions(true)}
+                      onBlur={() => { setTimeout(() => setShowSuggestions(false), 200); fetchLogoOnBlur(formData.companyName); }}
+                      className={`w-full py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition ${companyLogo ? 'pl-10 pr-4' : 'px-4'}`}
+                      placeholder="Enter your company name" required
+                    />
+                    {showSuggestions && companySuggestions.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {companySuggestions.map((company) => (
+                          <button
+                            key={company.id} type="button" onMouseDown={() => selectCompany(company)}
+                            className="w-full text-left px-4 py-3 hover:bg-orange-50 border-b last:border-b-0 transition-colors flex items-center space-x-3"
+                          >
+                            <div className="bg-gray-100 w-8 h-8 rounded flex items-center justify-center p-1 flex-shrink-0">
+                              <img src={company.logoUrl || company.logo} alt={company.name} className="w-full h-full object-contain"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            </div>
+                            <div>
+                              <div className="font-medium text-gray-900 text-sm">{company.name}</div>
+                              <div className="text-xs text-gray-500">{company.domain}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Company Email</label>
                   <input
                     type="email" name="email" value={formData.email} onChange={handleChange}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                    placeholder="Enter your email" autoComplete="off" required
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
+                    placeholder="Enter company email" autoComplete="off" required
                   />
                 </div>
 
@@ -213,7 +342,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                   <div className="relative">
                     <input
                       type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
-                      className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
                       placeholder="Create a password" autoComplete="new-password" required
                     />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -227,7 +356,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                   <div className="relative">
                     <input
                       type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
-                      className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                      className="w-full px-4 py-3 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent transition"
                       placeholder="Confirm your password" autoComplete="new-password" required
                     />
                     <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -237,14 +366,14 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 </div>
 
                 <button
-                  type="submit" disabled={loading || !agreedToTerms}
+                  type="submit" disabled={loading || !agreedToTerms || !agreedToDeclaration}
                   className={`w-full py-3 rounded-xl text-white font-semibold text-sm transition-all duration-200 ${
-                    agreedToTerms && !loading
-                      ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer shadow-sm hover:shadow-md'
+                    agreedToTerms && agreedToDeclaration && !loading
+                      ? 'bg-orange-500 hover:bg-orange-600 cursor-pointer shadow-sm hover:shadow-md'
                       : 'bg-gray-300 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  {loading ? 'Creating Account...' : 'Create Account'}
+                  {loading ? 'Creating Account...' : 'Create Employer Account'}
                 </button>
               </form>
 
@@ -258,8 +387,8 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 type="button"
                 onClick={() => {
                   if (localStorage.getItem('user')) { showToast('You are already logged in!', 'warning'); return; }
-                  if (!agreedToTerms) { showToast('Please agree to the Terms & Conditions before continuing.', 'error'); return; }
-                  window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate`;
+                  if (!agreedToTerms || !agreedToDeclaration) { showToast('Please agree to the Terms & Conditions and Employer Declaration before continuing.', 'error'); return; }
+                  window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/employer`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
@@ -272,61 +401,48 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 Continue with Google
               </button>
 
-              <LinkedInConnect
-                mode="modal"
-                className="w-full mt-2"
-                onImport={(profile: LinkedInProfile) => {
-                  if (!agreedToTerms) { showToast('Please agree to the Terms & Conditions before continuing.', 'error'); return; }
-                  setFormData(prev => ({
-                    ...prev,
-                    name: profile.name || prev.name,
-                    email: profile.email || prev.email,
-                  }));
-                  showToast('LinkedIn profile imported! Review your details and complete registration.', 'success');
-                }}
-              />
-
-              <div className="space-y-2 mt-4">
-                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+              <div className="mt-4 space-y-2">
+                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
                   <input
-                    type="checkbox" id="terms-candidate" checked={agreedToTerms}
+                    type="checkbox" id="terms-employer" checked={agreedToTerms}
                     onChange={e => setAgreedToTerms(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+                    className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
                   />
-                  <label htmlFor="terms-candidate" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
-                    By creating an account, I agree to ZyncJobs'{' '}
-                    <button type="button" onClick={() => onNavigate('terms')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Terms & Conditions</button>
+                  <label htmlFor="terms-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
+                    I agree to ZyncJobs'{' '}
+                    <button type="button" onClick={() => onNavigate('terms')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Terms & Conditions</button>
                     {' '}and{' '}
-                    <button type="button" onClick={() => onNavigate('privacy')} className="text-blue-600 hover:text-blue-800 underline font-semibold">Privacy Policy</button>.
+                    <button type="button" onClick={() => onNavigate('privacy')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Privacy Policy</button>.
                   </label>
                 </div>
-                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${consentResume ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200'}`}>
+                <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToDeclaration ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
                   <input
-                    type="checkbox" id="consent-resume" checked={consentResume}
-                    onChange={e => setConsentResume(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-green-600 cursor-pointer flex-shrink-0"
+                    type="checkbox" id="declaration-employer" checked={agreedToDeclaration}
+                    onChange={e => setAgreedToDeclaration(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0"
                   />
-                  <label htmlFor="consent-resume" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
-                    I agree to store my resume for job matching and opportunities. Your data may be processed using AI to improve recommendations.{' '}
-                    <button type="button" onClick={() => onNavigate('privacy-settings')} className="text-blue-600 hover:text-blue-800 underline">Manage privacy settings</button>.
+                  <label htmlFor="declaration-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
+                    I am an authorized representative of this company and agree to the{' '}
+                    <button type="button" onClick={() => { window.open('/terms#employer-declaration', '_blank'); }} className="text-orange-500 hover:text-orange-700 underline font-semibold">Employer Declaration</button>
+                    {' '}— including posting accurate jobs and lawful use of candidate data.
                   </label>
                 </div>
               </div>
 
               <p className="text-center text-sm text-gray-500 mt-6">
                 Already have an account?{' '}
-                <button onClick={() => onNavigate('login')} className="font-semibold text-blue-600 hover:text-blue-700">
+                <button onClick={() => onNavigate('employer-login')} className="font-semibold text-orange-500 hover:text-orange-600">
                   Sign in
                 </button>
               </p>
               <p className="text-center text-xs text-gray-400 mt-3">
-                Are you an employer?{' '}
-                <button onClick={() => onNavigate('employer-register')} className="font-medium text-orange-500 hover:text-orange-600 underline">
-                  Register your company
+                Looking for a job?{' '}
+                <button onClick={() => onNavigate('login')} className="font-medium text-blue-500 hover:text-blue-700 underline">
+                  Job seeker login
                 </button>
               </p>
             </div>
-            </div>
+          </div>
         </div>
 
       </div>
@@ -334,4 +450,4 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   );
 };
 
-export default CandidateRegisterPage;
+export default EmployerRegisterPage;

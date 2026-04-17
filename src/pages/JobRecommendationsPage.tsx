@@ -138,30 +138,46 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Hero Banner */}
-      <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-600 text-white">
-        <div className="max-w-6xl mx-auto px-4 py-10">
+      <div className="px-4 py-8">
+        <div className="max-w-6xl mx-auto">
+          <button
+            onClick={() => onNavigate?.('dashboard')}
+            className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm mb-4 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
+            Back to Dashboard
+          </button>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full">AI-Powered</span>
+            <div className="flex flex-col items-center text-center md:items-start md:text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> AI Powered
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg> Personalized
+                </span>
               </div>
-              <h1 className="text-3xl font-bold mb-1">Hey {userName}, here are your top job matches 🎯</h1>
-              <p className="text-blue-100 text-sm">Personalized recommendations based on your skills, experience, and preferences</p>
+              <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
+                <span className="text-gray-900">AI</span>
+                <span className="text-blue-600"> Job Matches</span>
+              </h1>
+              <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
+                Personalized job recommendations based on your skills, experience, and preferences.
+              </p>
             </div>
             {!loading && jobs.length > 0 && (
               <div className="flex gap-4 flex-shrink-0">
-                <div className="bg-white/15 backdrop-blur rounded-xl px-5 py-3 text-center">
-                  <div className="text-2xl font-bold">{jobs.length}</div>
-                  <div className="text-xs text-blue-100">Matches Found</div>
+                <div className="text-center px-5 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+                  <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>
+                  <div className="text-xs text-gray-500">Matches Found</div>
                 </div>
-                <div className="bg-white/15 backdrop-blur rounded-xl px-5 py-3 text-center">
-                  <div className="text-2xl font-bold">{topMatches}</div>
-                  <div className="text-xs text-blue-100">Strong Matches</div>
+                <div className="text-center px-5 py-3 bg-green-50 border border-green-100 rounded-xl">
+                  <div className="text-2xl font-bold text-green-600">{topMatches}</div>
+                  <div className="text-xs text-gray-500">Strong Matches</div>
                 </div>
-                <div className="bg-white/15 backdrop-blur rounded-xl px-5 py-3 text-center">
-                  <div className="text-2xl font-bold">{avgScore}%</div>
-                  <div className="text-xs text-blue-100">Avg. Match Score</div>
+                <div className="text-center px-5 py-3 bg-indigo-50 border border-indigo-100 rounded-xl">
+                  <div className="text-2xl font-bold text-indigo-600">{avgScore}%</div>
+                  <div className="text-xs text-gray-500">Avg. Match Score</div>
                 </div>
               </div>
             )}
@@ -325,10 +341,13 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                               const userSkills = getUserSkills();
                               const isMatched = userSkills.some(us => us.includes(normalizeSkill(skill)) || normalizeSkill(skill).includes(us));
                               return (
-                                <span key={i} className={`text-xs px-2 py-0.5 rounded font-medium ${
+                                <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${
                                   isMatched ? 'bg-green-100 text-green-700' : 'bg-indigo-50 text-indigo-700'
                                 }`}>
-                                  {isMatched ? '✓ ' : ''}{String(skill)}
+                                  {isMatched && (
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                                  )}
+                                  {String(skill)}
                                 </span>
                               );
                             })}

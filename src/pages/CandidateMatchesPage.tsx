@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Target, Zap } from 'lucide-react';
 import { matchAPI } from '../services/matchAPI';
 import { CandidateMatchCard } from '../components/match/CandidateMatchCard';
 
@@ -32,9 +33,22 @@ export const CandidateMatchesPage: React.FC<{ onNavigate?: (page: string, data?:
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">🎯 Top Candidates</h1>
-          <p className="text-gray-600">AI-matched candidates for your job posting</p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
+              <Zap className="w-3 h-3" /> AI Powered
+            </span>
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
+              <Target className="w-3 h-3" /> Smart Matching
+            </span>
+          </div>
+          <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
+            <span className="text-gray-900">AI</span>
+            <span className="text-blue-600"> Candidate Matches</span>
+          </h1>
+          <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
+            AI-matched top candidates ranked by skills, experience, and job fit score.
+          </p>
         </div>
 
         {loading ? (

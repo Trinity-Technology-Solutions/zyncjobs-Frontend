@@ -14,6 +14,9 @@ async function authFetch(url: string, options: RequestInit = {}) {
   return res.json();
 }
 
+const GENERIC_DOMAINS = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'live.com', 'icloud.com', 'aol.com', 'protonmail.com', 'ymail.com'];
+const isGenericEmail = (email: string) => GENERIC_DOMAINS.includes(email?.split('@')[1]?.toLowerCase() || '');
+
 export default function VerificationsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [verifications, setVerifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +29,10 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
     setError('');
     try {
       const res = await authFetch(`${API_ENDPOINTS.BASE_URL}/admin/verifications?status=${filter}`);
-      setVerifications(res.verifications ?? res.data ?? res ?? []);
+      const all: any[] = res.verifications ?? res.data ?? res ?? [];
+      // Only show personal/generic email accounts for admin verification
+      // Company domain emails are auto-verified and should not appear here
+      setVerifications(filter === 'pending' ? all.filter(v => isGenericEmail(v.email)) : all);
     } catch (e: any) {
       if (e.message === '401') { onUnauthorized(); return; }
       setError('Failed to load verifications.');
