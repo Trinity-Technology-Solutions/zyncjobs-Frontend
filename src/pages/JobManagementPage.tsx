@@ -19,7 +19,7 @@ interface Job {
   views: number;
   company: string;
   applicationCount?: number;
-  shortlistedCount?: number;
+  hiredCount?: number;
   [key: string]: any;
 }
 
@@ -85,7 +85,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               const jobId = job.id || job._id;
               if (!jobId) {
                 console.log('⚠️ Job without id:', job);
-                return { ...job, applicationCount: 0, shortlistedCount: 0 };
+                return { ...job, applicationCount: 0, hiredCount: 0 };
               }
               
               console.log('🔍 Fetching applications for job:', jobId, job.jobTitle);
@@ -95,15 +95,15 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 const applications = await appResponse.json();
                 console.log('✅ Applications for', job.jobTitle, ':', applications.length);
                 const applicationCount = applications.length;
-                const shortlistedCount = applications.filter((app: any) => app.status === 'shortlisted').length;
-                return { ...job, applicationCount, shortlistedCount };
+                const hiredCount = applications.filter((app: any) => app.status === 'hired').length;
+                return { ...job, applicationCount, hiredCount };
               } else {
                 console.log('❌ Failed to fetch applications for', job.jobTitle, ':', appResponse.status);
               }
             } catch (error) {
               console.error('Error fetching applications for job:', job._id, error);
             }
-            return { ...job, applicationCount: 0, shortlistedCount: 0 };
+            return { ...job, applicationCount: 0, hiredCount: 0 };
           })
         );
         
@@ -447,8 +447,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         }}
                         className="text-center hover:bg-green-50 p-2 rounded transition-colors cursor-pointer"
                       >
-                        <div className="text-lg font-semibold text-green-600">{job.shortlistedCount || 0}</div>
-                        <div className="text-xs text-gray-500">Shortlisted</div>
+                        <div className="text-lg font-semibold text-green-600">{job.hiredCount || 0}</div>
+                        <div className="text-xs text-gray-500">Hired</div>
                       </button>
                       
                       <div key="sent" className="text-right">
