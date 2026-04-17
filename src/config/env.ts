@@ -104,6 +104,9 @@ export const API_ENDPOINTS = {
   ADMIN_SYSTEM_HEALTH: `${config.API_URL}/admin/system/health`,
 };
 
+// Google OAuth base — strips /api suffix to get server root
+export const GOOGLE_AUTH_BASE = config.API_URL.replace(/\/api\/?$/, '');
+
 // Legacy exports for backward compatibility
 export const API_BASE_URL = config.API_URL;
 

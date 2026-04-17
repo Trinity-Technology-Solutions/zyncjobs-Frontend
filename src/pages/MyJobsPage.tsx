@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
-import { getCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 import BackButton from '../components/BackButton';
@@ -31,7 +31,29 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [employerApplications, setEmployerApplications] = useState<any[]>([]);
   const [allJobs, setAllJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [companyLogos, setCompanyLogos] = useState<{ [key: string]: string }>({});
+  const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+
+  const fetchCompanyLogos = async (jobList: any[]) => {
+    try {
+      const res = await fetch(API_ENDPOINTS.COMPANIES);
+      if (!res.ok) return;
+      const data = await res.json();
+      const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+      const map: Record<string, string> = {};
+      companies.forEach((c: any) => {
+        const name = (c.name || c.companyName || '').toLowerCase();
+        const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
+        if (name && logo) map[name] = logo;
+      });
+      jobList.forEach((j: any) => {
+        const name = (j.company || j.companyName || '').toLowerCase();
+        const logo = j.companyLogo || j.logoUrl || '';
+        if (name && logo && !map[name]) map[name] = logo;
+      });
+      setCompanyLogos(map);
+    } catch {}
+  };
+
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
@@ -44,7 +66,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       const userKey = `savedJobDetails_${user.name || 'user'}`;
       const savedJobDetails = localStorage.getItem(userKey);
       if (savedJobDetails) {
-        setSavedJobs(JSON.parse(savedJobDetails));
+        const jobs = JSON.parse(savedJobDetails);
+        setSavedJobs(jobs);
+        fetchCompanyLogos(jobs);
       }
       fetchAppliedJobs();
     } else if (user?.type === 'employer') {
@@ -290,14 +314,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         <div className="flex gap-4 flex-1 min-w-0">
           {/* Company Logo */}
           <div className="flex-shrink-0">
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 w-16 h-16 rounded-xl flex items-center justify-center p-2 border-2 border-blue-100 shadow-sm">
-              <img 
-                src={getCompanyLogo(job.company)}
-                alt={`${job.company} logo`}
-                className="w-full h-full object-contain"
+            <div className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
+              <img
+                src={companyLogos[(job.company || job.companyName || '').toLowerCase()] || getSafeCompanyLogo(job)}
+                alt={`${job.company || job.companyName} logo`}
+                className="w-8 h-8 object-contain"
                 onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.onerror = null; target.src = `https://ui-avatars.com/api/?name=C&size=64&background=3b82f6&color=ffffff&bold=true`;
+                  const img = e.target as HTMLImageElement;
+                  const name = job.company || job.companyName || '';
+                  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+                  img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
                 }}
               />
             </div>
@@ -580,7 +606,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 <>
                   {postedJobs.length > 0 ? (
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                      {postedJobs.map((job) => renderJobCard(job, true, 'posted'))}
+                      {postedJobs.map((job) => {
+                        const k = getId(job) || `posted-${Math.random()}`;
+                        return <React.Fragment key={k}>{renderJobCard(job, true, 'posted')}</React.Fragment>;
+                      })}
                       {hasMoreJobs && (
                         <div className="text-center py-6">
                           <button
@@ -685,7 +714,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {user?.type === 'candidate' && activeTab === 'Saved' && (
                 savedJobs.length > 0 ? (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                  {savedJobs.map((job) => renderJobCard(job, true, 'saved'))}
+                  {savedJobs.map((job) => {
+                    const k = getId(job) || `saved-${Math.random()}`;
+                    return <React.Fragment key={k}>{renderJobCard(job, true, 'saved')}</React.Fragment>;
+                  })}
                   </div>
                 ) : (
                   <EmptyState
@@ -709,17 +741,19 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               {/* Company logo + name row */}
                               <div className="flex items-center gap-3 mb-2">
                                 <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                                  <img 
-                                    src={getCompanyLogo(application.jobId?.company || '')}
+                                  <img
+                                    src={companyLogos[(application.jobId?.company || application.jobId?.companyName || '').toLowerCase()] || getSafeCompanyLogo(application.jobId || {})}
                                     alt={`${application.jobId?.company || 'Company'} logo`}
                                     className="w-8 h-8 object-contain"
                                     onError={(e) => {
-                                      const target = e.target as HTMLImageElement;
-                                      target.onerror = null; target.src = `https://ui-avatars.com/api/?name=C&size=64&background=3b82f6&color=ffffff&bold=true`;
+                                      const img = e.target as HTMLImageElement;
+                                      const name = application.jobId?.company || application.jobId?.companyName || '';
+                                      const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
+                                      img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
                                     }}
                                   />
                                 </div>
-                                <span className="text-blue-600 font-semibold text-base">{application.jobId?.company}</span>
+                                <span className="text-blue-600 font-semibold text-base">{application.jobId?.company || application.jobId?.companyName}</span>
                               </div>
 
                               {/* Job title + status */}

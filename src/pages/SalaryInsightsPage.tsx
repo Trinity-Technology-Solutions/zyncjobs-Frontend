@@ -65,16 +65,29 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
           {onNavigate && (
             <button
               onClick={() => onNavigate('dashboard')}
-              className="flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm mb-4 transition-colors group"
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm mb-4 transition-colors"
             >
-              <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+              <ArrowLeft className="w-4 h-4" />
               Back to Dashboard
             </button>
           )}
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-            <IndianRupee className="w-8 h-8 text-blue-600" /> Salary Insights
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">Explore market salary data based on real job postings</p>
+          <div className="flex flex-col items-center text-center">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
+                <TrendingUp className="w-3 h-3" /> AI Powered
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
+                <BarChart2 className="w-3 h-3" /> Real-time Data
+              </span>
+            </div>
+            <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
+              <span className="text-gray-900">AI</span>
+              <span className="text-blue-600"> Salary Insights</span>
+            </h1>
+            <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
+              Explore real-time market salary data and get AI-powered compensation insights for any job role.
+            </p>
+          </div>
         </div>
       )}
 

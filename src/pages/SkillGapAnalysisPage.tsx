@@ -145,17 +145,27 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
       <div className="min-h-screen bg-gray-50">
 
         {/* Compact Hero Banner */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white px-4 py-5">
+        <div className="text-white px-4 py-5">
           <div className="max-w-6xl mx-auto relative overflow-hidden">
-            <div className="absolute right-6 top-0 text-yellow-300 text-4xl opacity-80">⚡</div>
-            <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-blue-200 hover:text-white text-sm mb-2">
+            <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-gray-500 hover:text-gray-800 text-sm mb-3">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
             </button>
-            <h1 className="text-2xl font-bold">Skill Gap Analysis</h1>
-            <p className="text-blue-100 text-sm mt-1">Compare your skills against any job · Get AI-powered learning roadmap</p>
-            <div className="mt-3 flex gap-2">
-              <span className="px-3 py-1 bg-white/20 rounded-full text-xs">AI Powered</span>
-              <span className="px-3 py-1 bg-white/20 rounded-full text-xs">Real-time Insights</span>
+            <div className="flex flex-col items-center text-center">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">
+                  <Zap className="w-3 h-3" /> AI Powered
+                </span>
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1.5 rounded-full">
+                  <TrendingUp className="w-3 h-3" /> Real-time Insights
+                </span>
+              </div>
+              <h1 style={{ fontSize: '34px', fontWeight: 700, letterSpacing: '-0.5px' }} className="text-gray-900">
+                <span className="text-gray-900">AI</span>
+                <span className="text-blue-600"> Skill Gap Insights</span>
+              </h1>
+              <p style={{ fontSize: '16px', color: '#6B7280', maxWidth: '600px' }} className="mt-2">
+                Compare your skills with job requirements and get a personalized AI learning roadmap.
+              </p>
             </div>
           </div>
         </div>
