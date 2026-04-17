@@ -261,77 +261,74 @@ export default function PreviewStep() {
     setPdfLoading(true);
     const fileName = `${data.personalInfo.name || 'Resume'}_Resume.pdf`;
     try {
-      // Render the actual ResumeTemplate component to canvas → PDF
       const { default: html2canvas } = await import('html2canvas');
       const API_BASE = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${API_BASE}/pdf/generate-resume`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ resumeData: data }),
-      });
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        return;
-      }
-      console.warn('Backend PDF failed, status:', res.status);
-    } catch (e) {
-      console.warn('Backend PDF unavailable, using client fallback:', e);
-    }
-
-    // Client-side fallback using jsPDF text rendering (no html2canvas)
-    try {
-      const { default: jsPDF } = await import('jspdf');
-
-      const element = previewRef.current;
-      if (!element) throw new Error('Preview not found');
-
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: data.template === 'tech' ? '#030712' : '#ffffff',
-        logging: false,
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pdfW = pdf.internal.pageSize.getWidth();
-      const pdfH = pdf.internal.pageSize.getHeight();
-      const imgW = canvas.width;
-      const imgH = canvas.height;
-      const ratio = Math.min(pdfW / imgW, pdfH / imgH);
-      const scaledW = imgW * ratio;
-      const scaledH = imgH * ratio;
-      const offsetX = (pdfW - scaledW) / 2;
-
-      // If content is taller than one page, split into pages
-      if (scaledH <= pdfH) {
-        pdf.addImage(imgData, 'PNG', offsetX, 0, scaledW, scaledH);
-      } else {
-        let yPos = 0;
-        while (yPos < imgH) {
-          const sliceH = Math.min(pdfH / ratio, imgH - yPos);
-          const sliceCanvas = document.createElement('canvas');
-          sliceCanvas.width = imgW;
-          sliceCanvas.height = sliceH;
-          const ctx = sliceCanvas.getContext('2d')!;
-          ctx.drawImage(canvas, 0, yPos, imgW, sliceH, 0, 0, imgW, sliceH);
-          const sliceData = sliceCanvas.toDataURL('image/png');
-          if (yPos > 0) pdf.addPage();
-          pdf.addImage(sliceData, 'PNG', offsetX, 0, scaledW, sliceH * ratio);
-          yPos += sliceH;
+      let backendOk = false;
+      try {
+        const res = await fetch(`${API_BASE}/pdf/generate-resume`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeData: data }),
+        });
+        if (res.ok) {
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          backendOk = true;
         }
+      } catch (e) {
+        console.warn('Backend PDF unavailable, using client fallback:', e);
       }
 
-      pdf.save(fileName);
+      if (!backendOk) {
+        const { default: jsPDF } = await import('jspdf');
+        const element = previewRef.current;
+        if (!element) throw new Error('Preview not found');
+
+        const canvas = await html2canvas(element, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: data.template === 'tech' ? '#030712' : '#ffffff',
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pdfW = pdf.internal.pageSize.getWidth();
+        const pdfH = pdf.internal.pageSize.getHeight();
+        const imgW = canvas.width;
+        const imgH = canvas.height;
+        const ratio = Math.min(pdfW / imgW, pdfH / imgH);
+        const scaledW = imgW * ratio;
+        const scaledH = imgH * ratio;
+        const offsetX = (pdfW - scaledW) / 2;
+
+        if (scaledH <= pdfH) {
+          pdf.addImage(imgData, 'PNG', offsetX, 0, scaledW, scaledH);
+        } else {
+          let yPos = 0;
+          while (yPos < imgH) {
+            const sliceH = Math.min(pdfH / ratio, imgH - yPos);
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = imgW;
+            sliceCanvas.height = sliceH;
+            const ctx = sliceCanvas.getContext('2d')!;
+            ctx.drawImage(canvas, 0, yPos, imgW, sliceH, 0, 0, imgW, sliceH);
+            const sliceData = sliceCanvas.toDataURL('image/png');
+            if (yPos > 0) pdf.addPage();
+            pdf.addImage(sliceData, 'PNG', offsetX, 0, scaledW, sliceH * ratio);
+            yPos += sliceH;
+          }
+        }
+        pdf.save(fileName);
+      }
     } catch (err) {
       console.error('PDF export failed, falling back to text:', err);
       downloadTxt();
