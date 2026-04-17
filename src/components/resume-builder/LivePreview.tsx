@@ -13,20 +13,29 @@ export default function LivePreview() {
     data.education.length > 0 ||
     data.skills.length > 0;
 
-  // ATS-style score (simple calc)
-  const fields = [
-    data.personalInfo.name, data.personalInfo.email, data.personalInfo.phone,
-    data.personalInfo.location, data.summary,
-  ].filter(Boolean).length;
-  const score = Math.min(
-    100,
-    Math.round(
-      (fields / 5) * 30 +
-      Math.min(data.experience.length, 3) * 15 +
-      Math.min(data.education.length, 2) * 10 +
-      Math.min(data.skills.length, 10) * 2
-    )
-  );
+  // ATS score — mirrors backend /ats-score logic exactly
+  const hasName = !!data.personalInfo.name;
+  const hasEmail = !!data.personalInfo.email;
+  const hasPhone = !!data.personalInfo.phone;
+  const summaryVal = Array.isArray(data.summary)
+    ? (data.summary as string[]).filter(Boolean).join(' ')
+    : data.summary || '';
+  const hasSummary = !!summaryVal.trim();
+  const skillsCount = data.skills.length;
+  const bulletsCount = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim())).length;
+  const hasEducation = data.education.length > 0;
+  const hasExperience = data.experience.length > 0;
+
+  let score = 0;
+  if (hasName) score += 10;
+  if (hasEmail && hasPhone) score += 10;
+  else if (hasEmail || hasPhone) score += 5;
+  if (hasSummary) score += 20;
+  score += Math.min(20, skillsCount * 2);
+  if (hasExperience) score += 20;
+  score += Math.min(10, bulletsCount * 2);
+  if (hasEducation) score += 10;
+  score = Math.min(100, score);
 
   const scoreColor = score >= 80 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-500' : 'bg-red-400';
 

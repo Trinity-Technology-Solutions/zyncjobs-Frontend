@@ -103,7 +103,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               </p>
               <div className="space-y-4">
                 {[
-                  { icon: Briefcase,   text: '50,000+ Active Job Listings', color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: Briefcase,   text: 'Jobs across Engineering, MBA, Arts & more', color: 'text-blue-600',   bg: 'bg-blue-50' },
                   { icon: Users,       text: 'Top Companies Hiring Now',    color: 'text-orange-500', bg: 'bg-orange-50' },
                   { icon: TrendingUp,  text: 'AI-Powered Job Matching',     color: 'text-blue-600',   bg: 'bg-blue-50' },
                   { icon: CheckCircle, text: 'One-Click Easy Apply',        color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -119,7 +119,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {[['2M+', 'Job Seekers', 'text-blue-600'], ['50K+', 'Companies', 'text-orange-500'], ['95%', 'Success Rate', 'text-blue-600']].map(([num, label, clr]) => (
+              {[['100%', 'Free to Use', 'text-blue-600'], ['All Fields', 'Every Industry', 'text-orange-500'], ['AI-First', 'Smart Matching', 'text-blue-600']].map(([num, label, clr]) => (
                 <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className={`text-2xl font-bold ${clr}`}>{num}</div>
                   <div className="text-gray-500 text-xs mt-1">{label}</div>

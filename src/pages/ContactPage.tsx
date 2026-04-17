@@ -223,7 +223,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
             <div className="space-y-4">
               <div className="border-l-4 border-blue-600 pl-4">
                 <h3 className="font-semibold text-gray-900 mb-2">What is ZyncJobs?</h3>
-                <p className="text-gray-600 text-sm">ZyncJobs is an AI-powered job portal connecting tech professionals with their dream careers.</p>
+                <p className="text-gray-600 text-sm">ZyncJobs is an AI-powered job portal connecting professionals across all fields with their dream careers.</p>
               </div>
               <div className="border-l-4 border-blue-600 pl-4">
                 <h3 className="font-semibold text-gray-900 mb-2">How do I create an account?</h3>
