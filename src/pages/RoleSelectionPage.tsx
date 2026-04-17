@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { User, Building2, ArrowRight, Sparkles, Zap, Shield, TrendingUp, Users, Briefcase, Star } from 'lucide-react';
+import { User, Building2, ArrowRight, Sparkles, Zap, Shield, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -38,9 +38,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
     return () => observer.disconnect();
   }, []);
 
-  const users = useCounter(10000, 2000, statsVisible);
-  const companies = useCounter(500, 2000, statsVisible);
-  const hires = useCounter(95, 2000, statsVisible);
+
 
   return (
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #f8faff 0%, #f0f4ff 50%, #faf5ff 100%)' }}>
@@ -59,16 +57,17 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 bg-white border border-blue-100 text-blue-600 text-xs font-semibold px-4 py-2 rounded-full mb-6 shadow-sm">
             <Sparkles className="w-3.5 h-3.5" />
-            Join 10,000+ professionals on ZyncJobs
+            🚀 India’s Smartest Job Platform is Live
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-5">
-            Where Tech Meets
+            Get Hired.
             <span className="block" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Talent 🚀
+              Hire Better. 🚀
             </span>
           </h1>
-          <p className="text-gray-500 text-lg max-w-xl mx-auto leading-relaxed">
-            Connect with top companies or hire the best talent — all in one powerful platform.
+          <p className="text-gray-500 text-base max-w-2xl mx-auto leading-relaxed whitespace-nowrap">
+            Stop scrolling. Start winning. Find your dream job or your next star hire — ZyncJobs makes it{' '}
+            <span className="font-semibold text-blue-600">hit different.</span>
           </p>
         </div>
 
@@ -160,7 +159,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
 
               <h2 className="text-2xl font-bold text-white mb-2">Hire Talent</h2>
               <p className="text-orange-100 text-sm mb-6 leading-relaxed">
-                Find and hire top tech talent faster with AI-powered candidate matching.
+                Find and hire the right candidates across all fields faster with AI-powered matching.
               </p>
 
               <div className="space-y-2 mb-8">
@@ -186,22 +185,20 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Feature highlights — no static numbers */}
         <div ref={statsRef} className="max-w-3xl mx-auto mb-12">
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 px-8 py-6 grid grid-cols-3 gap-6">
             {[
-              { icon: Users, value: users, suffix: '+', label: 'Users', color: '#3b82f6' },
-              { icon: Briefcase, value: companies, suffix: '+', label: 'Companies', color: '#f97316' },
-              { icon: Star, value: hires, suffix: '%', label: 'Success Rate', color: '#6366f1' },
-            ].map(({ icon: Icon, value, suffix, label, color }) => (
+              { icon: Zap,       emoji: '⚡', label: 'AI-Powered Matching',   desc: 'Right job, right person — instantly',  color: '#3b82f6' },
+              { icon: Shield,    emoji: '🛡️', label: 'Verified Listings',     desc: 'Every job & employer is screened',      color: '#f97316' },
+              { icon: TrendingUp,emoji: '📈', label: 'Career Growth Tools',   desc: 'Resume builder, tips & skill checks',   color: '#6366f1' },
+            ].map(({ icon: Icon, emoji, label, desc, color }) => (
               <div key={label} className="text-center">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2" style={{ background: `${color}15` }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3" style={{ background: `${color}15` }}>
                   <Icon className="w-5 h-5" style={{ color }} />
                 </div>
-                <div className="text-2xl font-bold text-gray-900">
-                  {value.toLocaleString()}{suffix}
-                </div>
-                <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+                <div className="text-sm font-bold text-gray-900 mb-1">{label}</div>
+                <div className="text-xs text-gray-400 leading-relaxed">{desc}</div>
               </div>
             ))}
           </div>

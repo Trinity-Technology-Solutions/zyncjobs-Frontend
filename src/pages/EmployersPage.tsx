@@ -17,10 +17,10 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
           <div className="text-center">
             <h1 className="text-4xl lg:text-6xl font-bold text-white mb-6">
-              Find and hire technology professionals with the AI and tech skills you need.
+              Find and hire the right professionals across every field and industry.
             </h1>
             <p className="text-xl text-gray-100 mb-8 max-w-3xl mx-auto">
-              Access the largest network of tech professionals and find your next hire with precision targeting and AI-powered matching.
+              Access a growing network of verified professionals and find your next hire with AI-powered matching.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 
@@ -48,7 +48,7 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               Why choose ZyncJobs for hiring?
             </h2>
             <p className="text-xl text-gray-600">
-              Connect with the best tech talent in the industry
+              Connect with the right talent across every industry
             </p>
           </div>
           
@@ -58,8 +58,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               <div className="w-16 h-16 mx-auto mb-4 bg-blue-100 rounded-full flex items-center justify-center">
                 <Users className="w-8 h-8 text-blue-600" />
               </div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">7.5M</div>
-              <p className="text-gray-600 font-medium">Tech pros at your fingertips</p>
+              <div className="text-4xl font-bold text-gray-900 mb-2">AI-First</div>
+              <p className="text-gray-600 font-medium">Professionals across all fields</p>
             </div>
 
             {/* Stat 2 */}
@@ -67,8 +67,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               <div className="w-16 h-16 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
                 <Search className="w-8 h-8 text-green-600" />
               </div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">32%</div>
-              <p className="text-gray-600 font-medium">Members not found on generalist platforms</p>
+              <div className="text-4xl font-bold text-gray-900 mb-2">All Fields</div>
+              <p className="text-gray-600 font-medium">Unique candidates not on other portals</p>
             </div>
 
             {/* Stat 3 */}
@@ -76,8 +76,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               <div className="w-16 h-16 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
                 <TrendingUp className="w-8 h-8 text-purple-600" />
               </div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">70K+</div>
-              <p className="text-gray-600 font-medium">New members per month</p>
+              <div className="text-4xl font-bold text-gray-900 mb-2">Free</div>
+              <p className="text-gray-600 font-medium">No cost for job seekers, always</p>
             </div>
 
             {/* Stat 4 */}
@@ -85,8 +85,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
               <div className="w-16 h-16 mx-auto mb-4 bg-orange-100 rounded-full flex items-center justify-center">
                 <UserCheck className="w-8 h-8 text-orange-600" />
               </div>
-              <div className="text-4xl font-bold text-gray-900 mb-2">99%</div>
-              <p className="text-gray-600 font-medium">Complete candidate profiles</p>
+              <div className="text-4xl font-bold text-gray-900 mb-2">Verified</div>
+              <p className="text-gray-600 font-medium">Every profile is screened & complete</p>
             </div>
           </div>
         </div>

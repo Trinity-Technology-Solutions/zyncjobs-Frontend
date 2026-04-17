@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import BackButton from '../components/BackButton';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
@@ -345,8 +344,6 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <div style={{marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px'}}>
-        <BackButton onClick={() => onNavigate('job-management')} text="Back to Job Management" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-4" />
-
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>

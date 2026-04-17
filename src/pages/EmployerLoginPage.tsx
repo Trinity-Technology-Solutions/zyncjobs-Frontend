@@ -95,10 +95,10 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
               </p>
               <div className="space-y-4">
                 {[
-                  { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
-                  { icon: Zap,       text: 'Instant Job Posting',           color: 'text-blue-600',   bg: 'bg-blue-50' },
-                  { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Search,    text: 'AI-Powered Candidate Search',        color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: BarChart2, text: 'Hire Across All Fields & Industries', color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Zap,       text: 'Post Jobs in Under 2 Minutes',        color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: Shield,    text: 'Screened & Verified Profiles',        color: 'text-orange-500', bg: 'bg-orange-50' },
                 ].map(({ icon: Icon, text, color, bg }) => (
                   <div key={text} className="flex items-center space-x-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
@@ -111,7 +111,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {[['10K+', 'Companies', 'text-orange-500'], ['500K+', 'Candidates', 'text-blue-600'], ['48hr', 'Avg. Hire Time', 'text-orange-500']].map(([num, label, clr]) => (
+              {[['Free', 'No Hidden Fees', 'text-orange-500'], ['All Fields', 'Every Industry', 'text-blue-600'], ['AI-First', 'Smart Shortlisting', 'text-orange-500']].map(([num, label, clr]) => (
                 <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
                   <div className={`text-2xl font-bold ${clr}`}>{num}</div>
                   <div className="text-gray-500 text-xs mt-1">{label}</div>

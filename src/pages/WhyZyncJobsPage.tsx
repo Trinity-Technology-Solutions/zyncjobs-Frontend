@@ -16,7 +16,7 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
       <div className="bg-gradient-to-r from-green-600 to-green-800 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-5xl font-bold mb-4">Why ZyncJobs?</h1>
-          <p className="text-xl text-green-100">The Platform Built for Tech Professionals and Employers</p>
+          <p className="text-xl text-green-100">The Platform Built for Every Job Seeker and Employer</p>
         </div>
       </div>
       
@@ -43,7 +43,7 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
                 <span className="text-blue-600 font-bold mr-3">→</span>
                 <div>
                   <h3 className="font-semibold text-gray-900">Skill Assessments</h3>
-                  <p className="text-sm text-gray-600">Validate and showcase your technical skills</p>
+                  <p className="text-sm text-gray-600">Validate and showcase your skills across any domain</p>
                 </div>
               </li>
               <li className="flex items-start">
@@ -71,7 +71,7 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
                   <span className="text-green-600 font-bold mr-3">→</span>
                   <div>
                     <h3 className="font-semibold text-gray-900">Smart Candidate Matching</h3>
-                    <p className="text-sm text-gray-600">Find the right talent using AI-powered filtering</p>
+                    <p className="text-sm text-gray-600">Find the right talent using AI-powered filtering across all fields</p>
                   </div>
                 </li>
                 <li className="flex items-start">
@@ -116,11 +116,11 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
             </div>
             <div className="border border-gray-200 rounded-lg p-6">
               <div className="text-3xl font-bold text-blue-600 mb-2">500+</div>
-              <p className="text-gray-600">Top Tech Companies</p>
+              <p className="text-gray-600">Active Job Listings</p>
             </div>
             <div className="border border-gray-200 rounded-lg p-6">
               <div className="text-3xl font-bold text-blue-600 mb-2">100K+</div>
-              <p className="text-gray-600">Registered Professionals</p>
+              <p className="text-gray-600">Hiring Companies</p>
             </div>
           </div>
         </div>
@@ -135,8 +135,8 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
                 </div>
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-semibold text-gray-900">Technology-First Approach</h3>
-                <p className="text-gray-600">Leveraging AI and machine learning for better matches</p>
+                <h3 className="text-lg font-semibold text-gray-900">People-First Approach</h3>
+                <p className="text-gray-600">Built for every professional, every field, every ambition</p>
               </div>
             </div>
             <div className="flex items-start">
@@ -147,7 +147,7 @@ const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onL
               </div>
               <div className="ml-4">
                 <h3 className="text-lg font-semibold text-gray-900">Community-Driven</h3>
-                <p className="text-gray-600">Built by tech professionals for tech professionals</p>
+                <p className="text-gray-600">Built by professionals, for professionals — across all industries</p>
               </div>
             </div>
             <div className="flex items-start">

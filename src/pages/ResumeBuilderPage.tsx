@@ -39,17 +39,29 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
   const CurrentStepComponent = steps[currentStep].component;
 
   const canGoNext = () => {
-    if (currentStep === 1) {
-      return data.personalInfo.name && data.personalInfo.email && data.personalInfo.phone;
+    switch (currentStep) {
+      case 1: // Personal Info
+        return !!(data.personalInfo.name && data.personalInfo.email && data.personalInfo.phone);
+      case 2: { // Summary
+        const summaryVal = Array.isArray(data.summary)
+          ? (data.summary as any[]).filter(Boolean).join('').trim()
+          : (data.summary || '').trim();
+        return summaryVal.length > 0;
+      }
+      case 3: // Experience — at least one entry with title, company, duration
+        return data.experience.length > 0 &&
+          data.experience.every((e) => e.title.trim() && e.company.trim() && e.duration.trim());
+      case 4: // Education — at least one entry with degree, institution, duration
+        return data.education.length > 0 &&
+          data.education.every((e) => e.degree.trim() && e.institution.trim() && e.duration.trim());
+      case 5: // Skills — at least 1 skill
+        return data.skills.length > 0;
+      default:
+        return true;
     }
-    return true;
   };
 
   const handleNext = () => {
-    if (currentStep === steps.length - 1) {
-      onNavigate?.('resume-studio');
-      return;
-    }
     if (currentStep < steps.length - 1) setCurrentStep(currentStep + 1);
   };
 
@@ -131,12 +143,12 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
               </div>
 
               <button
-                onClick={handleNext}
-                disabled={currentStep < steps.length - 1 && !canGoNext()}
+                onClick={isLastStep ? () => onNavigate?.('resume-studio') : handleNext}
+                disabled={!isLastStep && !canGoNext()}
                 className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {currentStep === steps.length - 1 ? 'Finish' : 'Next'}
-                <ChevronRight className="w-4 h-4" />
+                {isLastStep ? 'Done ✓' : 'Next'}
+                {!isLastStep && <ChevronRight className="w-4 h-4" />}
               </button>
             </div>
           {/* ── Step content ── */}
@@ -160,11 +172,11 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
             </span>
 
             <button
-              onClick={handleNext}
-              disabled={isLastStep || !canGoNext()}
+              onClick={isLastStep ? () => onNavigate?.('resume-studio') : handleNext}
+              disabled={!isLastStep && !canGoNext()}
               className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
-              {isLastStep ? 'Finish' : `Next: ${steps[currentStep + 1].name}`}
+              {isLastStep ? 'Done ✓' : `Next: ${steps[currentStep + 1].name}`}
               {!isLastStep && <ChevronRight className="w-4 h-4" />}
             </button>
           </div>

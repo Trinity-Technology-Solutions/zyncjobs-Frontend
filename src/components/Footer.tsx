@@ -63,7 +63,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
             className="h-32 w-auto mb-6"
           />
           <p className="text-gray-600 mb-6 leading-relaxed max-w-2xl">
-            The leading platform connecting tech professionals with their dream careers. Find jobs, hire talent, and grow your career in tech.
+            The smart platform connecting job seekers and employers across every field and industry. Find jobs, hire talent, and grow your career.
           </p>
 
         </div>
