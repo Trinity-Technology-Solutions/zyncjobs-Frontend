@@ -138,7 +138,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
           <div className="text-center mb-8">
             <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 mx-auto mb-4 object-contain" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Create Account</h2>
-            <p className="text-gray-600">Join thousands of tech professionals</p>
+            <p className="text-gray-600">Join thousands of job seekers across all fields</p>
           </div>
 
           {error && (

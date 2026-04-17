@@ -303,10 +303,10 @@ return (
             </div>
             
             <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
-              Find Top Tech Talent 🎯
+              Find Top Talent Across All Fields 🎯
             </h1>
             <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
-              Browse our pool of verified tech professionals and find the perfect candidates for your team
+              Browse our pool of verified professionals and find the perfect candidates for your team
             </p>
             
             {/* Stats */}
@@ -441,7 +441,7 @@ return (
                   </div>
                   <button onClick={() => fetchCandidates()} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
                     <Filter className="w-5 h-5" />
-                    <span>Search Talent</span>
+                    <span>Search Candidates</span>
                   </button>
                 </div>
               </div>
