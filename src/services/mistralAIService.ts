@@ -1,7 +1,22 @@
 import { API_ENDPOINTS } from '../config/env';
 
 import { API_BASE_URL } from '../config/env';
+import { getCached, setCached, cacheKey } from './aiCache';
 const SUGGEST_API_URL = `${API_BASE_URL}/suggest`;
+
+// Simple debounce helper
+function debounce<T extends (...args: any[]) => Promise<any>>(fn: T, ms: number): T {
+  let timer: ReturnType<typeof setTimeout>;
+  let resolve: ((v: any) => void) | null = null;
+  return ((...args: any[]) => {
+    clearTimeout(timer);
+    if (resolve) resolve([]);
+    return new Promise(r => {
+      resolve = r;
+      timer = setTimeout(() => { resolve = null; fn(...args).then(r); }, ms);
+    });
+  }) as T;
+}
 
 class MistralAIService {
   private async callBackendAPI(endpoint: string, data: any): Promise<any> {
@@ -26,30 +41,45 @@ class MistralAIService {
   }
 
   async getJobTitleSuggestions(input: string): Promise<string[]> {
+    const key = cacheKey('suggest-job', input);
+    const cached = getCached<string[]>(key);
+    if (cached) return cached;
     try {
       const response = await fetch(`${SUGGEST_API_URL}?q=${encodeURIComponent(input)}&type=job`);
       const data = await response.json();
-      return data.suggestions || [];
+      const result = data.suggestions || [];
+      setCached(key, result);
+      return result;
     } catch (error) {
       return this.getFallbackJobTitles(input);
     }
   }
 
   async getSkillSuggestions(input: string): Promise<string[]> {
+    const key = cacheKey('suggest-skill', input);
+    const cached = getCached<string[]>(key);
+    if (cached) return cached;
     try {
       const response = await fetch(`${SUGGEST_API_URL}?q=${encodeURIComponent(input)}&type=skill`);
       const data = await response.json();
-      return data.suggestions || [];
+      const result = data.suggestions || [];
+      setCached(key, result);
+      return result;
     } catch (error) {
       return this.getFallbackSkills(input);
     }
   }
 
   async getLocationSuggestions(input: string): Promise<string[]> {
+    const key = cacheKey('suggest-loc', input);
+    const cached = getCached<string[]>(key);
+    if (cached) return cached;
     try {
       const response = await fetch(`${SUGGEST_API_URL}?q=${encodeURIComponent(input)}&type=location`);
       const data = await response.json();
-      return data.suggestions || [];
+      const result = data.suggestions || [];
+      setCached(key, result);
+      return result;
     } catch (error) {
       return this.getFallbackLocations(input);
     }

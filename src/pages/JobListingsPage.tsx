@@ -702,12 +702,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             </div>
             
             <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
-              {selectedCategory ? `${selectedCategory} Jobs` : 'Find Your Dream Job'}
+              {selectedCategory ? `${selectedCategory} Jobs` : 'Discover Your Next Career Move'}
             </h1>
             <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
               {selectedCategory 
-                ? `Discover ${selectedCategory.toLowerCase()} opportunities from top companies` 
-                : 'Discover thousands of opportunities from top companies worldwide'
+                ? `Explore ${selectedCategory.toLowerCase()} opportunities from leading companies` 
+                : 'AI-powered job matching connects you with the right opportunities faster'
               }
             </p>
             
@@ -715,17 +715,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="flex justify-center items-center gap-8 mb-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">{loading ? '...' : filteredJobs.length}+</div>
-                <div className="text-white/80 text-sm">Active Jobs</div>
+                <div className="text-white/80 text-sm">Live Opportunities</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">{statsCompanies > 0 ? `${statsCompanies}+` : `...`}</div>
-                <div className="text-white/80 text-sm">Companies</div>
+                <div className="text-white/80 text-sm">Hiring Partners</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-white">{statsJobSeekers > 0 ? `${statsJobSeekers}+` : `...`}</div>
-                <div className="text-white/80 text-sm">Job Seekers</div>
+                <div className="text-white/80 text-sm">Career Seekers</div>
               </div>
             </div>
           </div>

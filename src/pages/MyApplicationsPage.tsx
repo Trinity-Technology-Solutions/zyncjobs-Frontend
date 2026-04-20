@@ -721,7 +721,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               </button>
               
               <button
-                onClick={() => onNavigate('settings')}
+                onClick={() => onNavigate('dashboard')}
                 className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all text-left"
               >
                 <div className="flex items-center">

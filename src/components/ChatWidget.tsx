@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageCircle, X, Send } from 'lucide-react';
-import { ChatTyping } from './LoadingStates';
 import { API_ENDPOINTS } from '../config/env';
 
 interface Message {
   text: string;
   sender: 'user' | 'bot';
-  sources?: string[];
 }
+
+const SYSTEM_PROMPT = 'You are a helpful assistant for ZyncJobs, a job portal. Help users with job searching, resume tips, interview prep, and career advice. Be concise and friendly.';
 
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,42 +16,53 @@ const ChatWidget = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => `session_${Date.now()}`);
+  const abortRef = useRef<AbortController | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
 
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
-    
-    const userMessage = inputValue;
+
+    const userMessage = inputValue.trim();
     setInputValue("");
-    setMessages(prev => [...prev, { text: userMessage, sender: "user" }]);
+
+    setMessages(prev => [...prev, { text: userMessage, sender: 'user' }]);
     setIsLoading(true);
-    
+
+    // Add empty bot message to stream into
+    setMessages(prev => [...prev, { text: '', sender: 'bot' }]);
+
     try {
-      const response = await fetch(API_ENDPOINTS.CHAT, {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/ai/chat`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
           message: userMessage,
-          session_id: sessionId,
-          language: 'en'
+          history: messages.map(m => ({ 
+            role: m.sender === 'user' ? 'user' : 'assistant', 
+            content: m.text 
+          }))
         })
       });
-      
-      if (!response.ok) throw new Error('Failed to get response');
+
+      if (!response.ok) throw new Error('Backend error');
       
       const data = await response.json();
-      setMessages(prev => [...prev, {
-        text: data.response,
-        sender: "bot",
-        sources: data.sources
-      }]);
-    } catch (error) {
-      setMessages(prev => [...prev, {
-        text: "Sorry, I'm having trouble connecting. Please try again later.",
-        sender: "bot"
-      }]);
+      
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { text: data.reply || data.message, sender: 'bot' };
+        return updated;
+      });
+    } catch (err: any) {
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = { text: "Sorry, I'm having trouble connecting. Please try again.", sender: 'bot' };
+        return updated;
+      });
     } finally {
       setIsLoading(false);
     }
@@ -91,20 +102,15 @@ const ChatWidget = () => {
             {messages.map((msg, index) => (
               <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                 <div className={`max-w-xs p-2 rounded-lg text-sm ${
-                  msg.sender === 'user' 
-                    ? 'bg-blue-600 text-white' 
+                  msg.sender === 'user'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {msg.text}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <div className="mt-1 text-xs opacity-70">
-                      Sources: {msg.sources.join(', ')}
-                    </div>
-                  )}
+                  {msg.text || (isLoading && index === messages.length - 1 ? <span className="animate-pulse">▍</span> : '')}
                 </div>
               </div>
             ))}
-            {isLoading && <ChatTyping />}
+            <div ref={bottomRef} />
           </div>
           
           <div className="p-3 border-t flex gap-2">

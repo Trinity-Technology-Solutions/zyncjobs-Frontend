@@ -6,6 +6,7 @@ import { tokenStorage } from '../utils/tokenStorage';
 import { API_ENDPOINTS } from '../config/env';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -70,27 +71,49 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
   useEffect(() => {
     if (!selectedJob) { setCareerPath(null); return; }
     const jobTitle = selectedJob.jobTitle || selectedJob.title || '';
+    const key = cacheKey('career-path', jobTitle, userSkills.join(','));
+    const cached = getCached<CareerPath>(key);
+    if (cached) { setCareerPath(cached); return; }
     setLoadingCareerPath(true);
     fetch(`${API_BASE}/skill-assessments/career-path?jobTitle=${encodeURIComponent(jobTitle)}&skills=${encodeURIComponent(userSkills.join(','))}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => setCareerPath(data))
+      .then(data => { if (data) setCached(key, data); setCareerPath(data); })
       .catch(() => setCareerPath(null))
       .finally(() => setLoadingCareerPath(false));
   }, [selectedJob]);
 
   const fetchLearningResources = async (skill: string) => {
     if (learningResources[skill] !== undefined || loadingResources[skill]) return;
+    const key = cacheKey('learning', skill);
+    const cached = getCached<LearningResource[]>(key);
+    if (cached) { setLearningResources(prev => ({ ...prev, [skill]: cached })); return; }
     setLoadingResources(prev => ({ ...prev, [skill]: true }));
     try {
       const res = await fetch(`${API_BASE}/skill-assessments/learning-resources?skill=${encodeURIComponent(skill)}`);
       const data = res.ok ? await res.json() : { resources: [] };
-      setLearningResources(prev => ({ ...prev, [skill]: data.resources || [] }));
+      const resources = data.resources || [];
+      setCached(key, resources);
+      setLearningResources(prev => ({ ...prev, [skill]: resources }));
     } catch {
       setLearningResources(prev => ({ ...prev, [skill]: [] }));
     } finally {
       setLoadingResources(prev => ({ ...prev, [skill]: false }));
     }
   };
+
+  const jobSkills: string[] = selectedJob
+    ? (selectedJob.skills || []).map((s: string) => s.trim()).filter(Boolean)
+    : [];
+  const userSkillsLower = userSkills.map(s => s.toLowerCase());
+  const matched = jobSkills.filter(s => userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
+  const missing = jobSkills.filter(s => !userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
+  const matchPct = jobSkills.length > 0 ? Math.round((matched.length / jobSkills.length) * 100) : 0;
+
+  // Fetch all missing skill resources in parallel when job is selected
+  useEffect(() => {
+    if (!selectedJob || missing.length === 0) return;
+    missing.forEach(skill => fetchLearningResources(skill));
+  }, [selectedJob, missing.join(',')]);
 
   const filteredJobs = jobs.filter(j =>
     (j.jobTitle || j.title || '').toLowerCase().includes(jobSearch.toLowerCase())
@@ -127,14 +150,6 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     setUserSkills(updated);
     saveSkillsToDB(updated);
   };
-
-  const jobSkills: string[] = selectedJob
-    ? (selectedJob.skills || []).map((s: string) => s.trim()).filter(Boolean)
-    : [];
-  const userSkillsLower = userSkills.map(s => s.toLowerCase());
-  const matched = jobSkills.filter(s => userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
-  const missing = jobSkills.filter(s => !userSkillsLower.some(u => u.includes(s.toLowerCase()) || s.toLowerCase().includes(u)));
-  const matchPct = jobSkills.length > 0 ? Math.round((matched.length / jobSkills.length) * 100) : 0;
 
   const matchColor = matchPct >= 70 ? 'text-green-600' : matchPct >= 40 ? 'text-yellow-600' : 'text-red-500';
   const barColor = matchPct >= 70 ? 'bg-green-500' : matchPct >= 40 ? 'bg-yellow-500' : 'bg-red-500';

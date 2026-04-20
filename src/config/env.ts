@@ -34,6 +34,12 @@ export const API_ENDPOINTS = {
   FORGOT_PASSWORD: `${config.API_URL}/forgot-password`,
   RESET_PASSWORD: `${config.API_URL}/reset-password`,
   
+  // OTP
+  OTP_SEND: `${config.API_URL}/otp/send`,
+  OTP_VERIFY: `${config.API_URL}/otp/verify`,
+  OTP_RESEND: `${config.API_URL}/otp/resend`,
+  BASE: config.API_URL,
+  
   // Jobs
   JOBS: `${config.API_URL}/jobs`,
   SEARCH: `${config.API_URL}/search`,

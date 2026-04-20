@@ -102,48 +102,65 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   const startAssessment = async () => {
     if (!selectedSkill) return;
     setStartError('');
+    setLoading(true);
+
+    const token = await getAuthToken();
+    let data: any = null;
+    let backendError = '';
+
+    // Try backend with longer timeout for AI generation
     try {
-      setLoading(true);
-      const token = await getAuthToken();
-      if (!token) {
-        setStartError('Please log in to take an assessment.');
-        return;
-      }
-
-      // Race: backend vs 6-second timeout → fallback to local questions
+      console.log(`🚀 Requesting ${selectedSkill} assessment from backend...`);
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds for AI
 
-      let data: any = null;
-      try {
-        const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ skill: selectedSkill, questionCount: 10 }),
-          signal: controller.signal,
-        });
-        clearTimeout(timeoutId);
-        if (response.ok) {
-          data = await response.json();
-        }
-      } catch {
-        clearTimeout(timeoutId);
-        // timeout or network error — fall through to local
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ skill: selectedSkill, questionCount: 10 }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        data = await response.json();
+        console.log(`✅ Backend returned ${data.totalQuestions} questions for ${selectedSkill}`);
+        // Mark as backend-generated so we can handle submission failures
+        data.isBackendGenerated = true;
+      } else {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        backendError = `Backend error: ${response.status} - ${errorData.error || 'Unknown'}`;
+        console.error(backendError, errorData);
       }
-
-      if (!data) {
-        data = generateLocalAssessment(selectedSkill);
+    } catch (err: any) {
+      // Silently fall back to local questions
+      if (err.name === 'AbortError') {
+        backendError = 'Backend timeout (15s)';
+        console.warn(backendError + ' - using local questions');
+      } else if (err.message.includes('Failed to fetch')) {
+        backendError = 'Backend not reachable';
+        console.warn(backendError + ' - is the backend running on port 5000?');
+      } else {
+        backendError = err.message;
+        console.warn('Backend error:', backendError);
       }
-
-      setAssessment(data);
-      setAnswers(new Array(data.totalQuestions).fill(-1));
-      setTimeLeft(data.timeLimit * 60);
-      setCurrentQuestion(0);
-    } catch {
-      setStartError('Network error. Please check your connection and try again.');
-    } finally {
-      setLoading(false);
     }
+
+    // Use local questions if backend failed
+    if (!data) {
+      console.log(`📝 Using local questions for ${selectedSkill}${backendError ? ` (${backendError})` : ''}`);
+      data = generateLocalAssessment(selectedSkill);
+    }
+
+    setAssessment(data);
+    setAnswers(new Array(data.totalQuestions).fill(-1));
+    setTimeLeft(data.timeLimit * 60);
+    setCurrentQuestion(0);
+    setLoading(false);
   };
 
   const generateLocalAssessment = (skill: string) => {
@@ -206,20 +223,173 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   const submitAssessment = async () => {
     try {
       setLoading(true);
+      
+      // Calculate score locally
+      const correctAnswers = answers.reduce((count, answer, index) => {
+        if (answer === assessment.questions[index].correctAnswer) {
+          return count + 1;
+        }
+        return count;
+      }, 0);
+      
+      const score = Math.round((correctAnswers / assessment.totalQuestions) * 100);
+      
+      // If this is a local assessment, show result immediately
+      if (assessment.isLocal || assessment.assessmentId.startsWith('local-')) {
+        // Store in localStorage for review page
+        const localAssessmentId = assessment.assessmentId.startsWith('local-') 
+          ? assessment.assessmentId 
+          : `local-${Date.now()}`;
+        const localResult = {
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true,
+          questions: assessment.questions.map((q: any, i: number) => ({
+            ...q,
+            userAnswer: answers[i]
+          })),
+          completedAt: new Date().toISOString()
+        };
+        const storageKey = `assessment_${localAssessmentId}`;
+        localStorage.setItem(storageKey, JSON.stringify(localResult));
+        console.log('💾 Saved assessment to localStorage:', storageKey);
+        console.log('Data:', localResult);
+        
+        // Verify it was saved
+        const verify = localStorage.getItem(storageKey);
+        console.log('✅ Verification - Data exists in localStorage:', !!verify);
+        
+        setResult({
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true
+        });
+        setAssessment(null);
+        setLoading(false);
+        
+        // Navigate to review page after 2.5 seconds (give time for localStorage to sync)
+        setTimeout(() => {
+          console.log('👉 Navigating to review page with ID:', localAssessmentId);
+          onNavigate('assessment-review', { assessmentId: localAssessmentId });
+        }, 2500);
+        return;
+      }
+      
+      // Try to submit to backend
       const token = await getAuthToken();
+      if (!token) {
+        console.warn('No auth token, treating as local assessment');
+        throw new Error('No authentication token');
+      }
+      
       const response = await fetch(`${API_BASE_URL}/skill-assessments/submit/${assessment.assessmentId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ answers, timeSpent: 1800 - timeLeft })
       });
+      
+      if (response.status === 404) {
+        // Assessment not found in backend, treat as local
+        console.warn('Assessment not found in backend (404), converting to local assessment');
+        // Convert to local assessment
+        const localAssessmentId = `local-${Date.now()}`;
+        const correctAnswers = answers.reduce((count, answer, index) => 
+          answer === assessment.questions[index].correctAnswer ? count + 1 : count, 0);
+        const score = Math.round((correctAnswers / assessment.totalQuestions) * 100);
+        
+        const localResult = {
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true,
+          questions: assessment.questions.map((q: any, i: number) => ({ ...q, userAnswer: answers[i] })),
+          completedAt: new Date().toISOString()
+        };
+        
+        localStorage.setItem(`assessment_${localAssessmentId}`, JSON.stringify(localResult));
+        console.log('💾 Saved as local assessment:', localAssessmentId);
+        
+        setResult({
+          assessmentId: localAssessmentId,
+          skill: assessment.skill,
+          score,
+          correctAnswers,
+          totalQuestions: assessment.totalQuestions,
+          timeSpent: 1800 - timeLeft,
+          isPractice: true
+        });
+        setAssessment(null);
+        setLoading(false);
+        
+        setTimeout(() => {
+          console.log('👉 Navigating to review page with ID:', localAssessmentId);
+          onNavigate('assessment-review', { assessmentId: localAssessmentId });
+        }, 2500);
+        return;
+      }
+      
       if (!response.ok) throw new Error('Failed to submit');
+      
       const data = await response.json();
       setResult(data);
       setAssessment(null);
       fetchMyAssessments();
       setTimeout(() => onNavigate('assessment-review', { assessmentId: data.assessmentId }), 2000);
-    } catch {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to submit assessment. Please try again." } }));
+    } catch (err) {
+      console.error('Submit error:', err);
+      // On error, calculate and show local result
+      const localAssessmentId = `local-${Date.now()}`;
+      const correctAnswers = answers.reduce((count, answer, index) => {
+        if (answer === assessment.questions[index].correctAnswer) {
+          return count + 1;
+        }
+        return count;
+      }, 0);
+      const score = Math.round((correctAnswers / assessment.totalQuestions) * 100);
+      
+      const localResult = {
+        assessmentId: localAssessmentId,
+        skill: assessment.skill,
+        score,
+        correctAnswers,
+        totalQuestions: assessment.totalQuestions,
+        timeSpent: 1800 - timeLeft,
+        isPractice: true,
+        questions: assessment.questions.map((q: any, i: number) => ({
+          ...q,
+          userAnswer: answers[i]
+        })),
+        completedAt: new Date().toISOString()
+      };
+      const storageKey = `assessment_${localAssessmentId}`;
+      localStorage.setItem(storageKey, JSON.stringify(localResult));
+      console.log('💾 Saved local assessment after error:', storageKey);
+      
+      setResult({
+        assessmentId: localAssessmentId,
+        skill: assessment.skill,
+        score,
+        correctAnswers,
+        totalQuestions: assessment.totalQuestions,
+        timeSpent: 1800 - timeLeft,
+        isPractice: true
+      });
+      setAssessment(null);
+      setTimeout(() => {
+        console.log('👉 Navigating to review page with ID:', localAssessmentId);
+        onNavigate('assessment-review', { assessmentId: localAssessmentId });
+      }, 2500);
     } finally {
       setLoading(false);
     }
@@ -348,7 +518,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
     return (
       <>
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-        <div className="min-h-screen flex items-center justify-center py-8" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+        <div className="min-h-screen flex items-center justify-center py-8 bg-white">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mx-4">
 
             {/* Top bar */}

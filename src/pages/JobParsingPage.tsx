@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
-import mistralAIService from '../services/mistralAIService';
+import { sendAIMessage } from '../services/aiChatService';
 
 interface JobParsingPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -59,82 +59,202 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
   };
 
   const parseJobDescription = async (description: string) => {
+    // Try backend first, silently fall back on any error (404, 500, network)
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE}/api/parse-job-post`, {
+      const base = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(`${base}/parse-job-post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: description })
+        body: JSON.stringify({ text: description }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
-      if (!response.ok) throw new Error('Backend parse failed');
+      if (response.ok) {
+        const result = await response.json();
+        const d = result.data || result;
+        const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
+        const jobLocation = d.location || extractLocation(description);
+        const country = d.country || await inferCountryFromCity(base, jobLocation);
+        return {
+          jobTitle:         d.jobTitle         || extractJobTitle(description),
+          companyName:      d.companyName      || extractCompanyName(description),
+          jobLocation,
+          country,
+          jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
+          experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
+          skills:           d.skills?.length   ? d.skills   : extractSkills(description),
+          minSalary:        backendSalary.min,
+          maxSalary:        backendSalary.max,
+          currency:         backendSalary.currency,
+          payRate:          backendSalary.payRate,
+          benefits:         extractBenefits(description),
+          educationLevel:   d.educationLevel   || extractEducation(description),
+          jobDescription:   d.description      || description,
+          responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
+          requirements:     d.requirements?.length     ? d.requirements    : extractRequirements(description),
+          jobCategory:      d.jobCategory      || extractJobCategory(description),
+          priority:         d.priority         || extractPriority(description),
+          clientName:       extractClientName(description),
+          reportingManager: extractReportingManager(description),
+          workAuth:         extractWorkAuth(description),
+        };
+      }
+    } catch {
+      // backend unavailable or timed out — fall through to AI/regex
+    }
+    return parseWithAIOrRegex(description);
+  };
 
-      const result = await response.json();
-      const d = result.data;
+  const parseWithAIOrRegex = async (description: string) => {
+    try {
+      const prompt = `Extract job details from this job description and return ONLY valid JSON:
+{
+  "jobTitle": "",
+  "jobLocation": "",
+  "jobType": "",
+  "experienceRange": "",
+  "skills": [],
+  "minSalary": "",
+  "maxSalary": "",
+  "currency": "INR",
+  "educationLevel": "",
+  "jobCategory": "",
+  "responsibilities": [],
+  "requirements": []
+}
 
-      const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
-      const jobLocation = d.location || extractLocation(description);
-      const country = d.country || await inferCountryFromCity(API_BASE, jobLocation);
+Job Description:
+${description.slice(0, 2000)}`;
 
+      const reply = await sendAIMessage(
+        [{ role: 'user', content: prompt }],
+        'You are a job description parser. Extract structured data and return only valid JSON.',
+        undefined,
+        800
+      );
+
+      const match = reply.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('Invalid AI response');
+      const d = JSON.parse(match[0]);
+
+      const salary = extractSalaryIfNumeric(description);
       return {
-        jobTitle:        d.jobTitle        || extractJobTitle(description),
-        companyName:     '',
-        jobLocation,
-        country,
-        jobType:         d.jobType         ? [d.jobType] : extractJobType(description),
-        experienceRange: normalizeExperienceRange(d.experienceRange) || extractExperience(description),
-        skills:          d.skills?.length  ? d.skills   : extractSkills(description),
-        minSalary:       backendSalary.min,
-        maxSalary:       backendSalary.max,
-        currency:        backendSalary.currency,
-        payRate:         backendSalary.payRate,
-        benefits:        extractBenefits(description),
-        educationLevel:  d.educationLevel  || extractEducation(description),
-        jobDescription:  d.description     || description,
-        responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
-        requirements:    d.requirements?.length    ? d.requirements    : extractRequirements(description),
-        jobCategory:     d.jobCategory     || extractJobCategory(description),
-        priority:        d.priority        || extractPriority(description),
-        clientName:      extractClientName(description),
+        jobTitle:         d.jobTitle         || extractJobTitle(description),
+        companyName:      d.companyName      || extractCompanyName(description),
+        jobLocation:      d.jobLocation      || extractLocation(description),
+        country:          '',
+        jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
+        experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
+        skills:           Array.isArray(d.skills) && d.skills.length ? d.skills : extractSkills(description),
+        minSalary:        d.minSalary        || salary.min,
+        maxSalary:        d.maxSalary        || salary.max,
+        currency:         d.currency         || salary.currency,
+        payRate:          salary.payRate,
+        benefits:         extractBenefits(description),
+        educationLevel:   d.educationLevel   || extractEducation(description),
+        jobDescription:   description,
+        responsibilities: Array.isArray(d.responsibilities) && d.responsibilities.length ? d.responsibilities : extractResponsibilities(description),
+        requirements:     Array.isArray(d.requirements) && d.requirements.length ? d.requirements : extractRequirements(description),
+        jobCategory:      d.jobCategory      || extractJobCategory(description),
+        priority:         extractPriority(description),
+        clientName:       extractClientName(description),
         reportingManager: extractReportingManager(description),
-        workAuth:        extractWorkAuth(description)
+        workAuth:         extractWorkAuth(description),
       };
-    } catch (error) {
-      console.warn('Backend parse failed, using regex fallback:', error);
-      const fallbackSalary = extractSalaryIfNumeric(description);
-      const jobLocation = extractLocation(description);
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const country = await inferCountryFromCity(API_BASE, jobLocation);
-      return {
-        jobTitle:        extractJobTitle(description),
-        companyName:     '',
-        jobLocation,
-        country,
-        jobType:         extractJobType(description),
-        experienceRange: extractExperience(description),
-        skills:          extractSkills(description),
-        minSalary:       fallbackSalary.min,
-        maxSalary:       fallbackSalary.max,
-        currency:        fallbackSalary.currency,
-        payRate:         fallbackSalary.payRate,
-        benefits:        extractBenefits(description),
-        educationLevel:  extractEducation(description),
-        jobDescription:  extractJobDescription(description),
-        responsibilities: extractResponsibilities(description),
-        requirements:    extractRequirements(description),
-        jobCategory:     extractJobCategory(description),
-        priority:        extractPriority(description),
-        clientName:      extractClientName(description),
-        reportingManager: extractReportingManager(description),
-        workAuth:        extractWorkAuth(description)
-      };
+    } catch {
+      // Final fallback: pure regex
+      return buildFromRegex(description);
     }
   };
 
+  const buildFromRegex = async (description: string) => {
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const jobLocation = extractLocation(description);
+    const country = await inferCountryFromCity(API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`, jobLocation);
+    const salary = extractSalaryIfNumeric(description);
+    return {
+      jobTitle:         extractJobTitle(description),
+      companyName:      extractCompanyName(description),
+      jobLocation,
+      country,
+      jobType:          extractJobType(description),
+      experienceRange:  extractExperience(description),
+      skills:           extractSkills(description),
+      minSalary:        salary.min,
+      maxSalary:        salary.max,
+      currency:         salary.currency,
+      payRate:          salary.payRate,
+      benefits:         extractBenefits(description),
+      educationLevel:   extractEducation(description),
+      jobDescription:   description,
+      responsibilities: extractResponsibilities(description),
+      requirements:     extractRequirements(description),
+      jobCategory:      extractJobCategory(description),
+      priority:         extractPriority(description),
+      clientName:       extractClientName(description),
+      reportingManager: extractReportingManager(description),
+      workAuth:         extractWorkAuth(description),
+    };
+  };
+
   const inferCountryFromCity = async (apiBase: string, city: string): Promise<string> => {
-    if (!city || city === 'Remote') return '';
+    if (!city || city === 'Remote' || city === 'Hybrid' || city === 'On-site') return '';
+    // Client-side city→country map (no API needed)
+    const cityCountryMap: Record<string, string> = {
+      // India
+      'Mumbai': 'India', 'Delhi': 'India', 'New Delhi': 'India', 'Bangalore': 'India',
+      'Bengaluru': 'India', 'Chennai': 'India', 'Hyderabad': 'India', 'Kolkata': 'India',
+      'Pune': 'India', 'Ahmedabad': 'India', 'Surat': 'India', 'Jaipur': 'India',
+      'Lucknow': 'India', 'Kanpur': 'India', 'Nagpur': 'India', 'Indore': 'India',
+      'Thane': 'India', 'Bhopal': 'India', 'Visakhapatnam': 'India', 'Patna': 'India',
+      'Vadodara': 'India', 'Ghaziabad': 'India', 'Ludhiana': 'India', 'Agra': 'India',
+      'Nashik': 'India', 'Faridabad': 'India', 'Meerut': 'India', 'Rajkot': 'India',
+      'Varanasi': 'India', 'Srinagar': 'India', 'Aurangabad': 'India', 'Dhanbad': 'India',
+      'Amritsar': 'India', 'Navi Mumbai': 'India', 'Allahabad': 'India', 'Ranchi': 'India',
+      'Howrah': 'India', 'Coimbatore': 'India', 'Jabalpur': 'India', 'Gwalior': 'India',
+      'Vijayawada': 'India', 'Jodhpur': 'India', 'Madurai': 'India', 'Raipur': 'India',
+      'Kota': 'India', 'Guwahati': 'India', 'Chandigarh': 'India', 'Mysore': 'India',
+      'Gurgaon': 'India', 'Noida': 'India', 'Kochi': 'India', 'Dehradun': 'India',
+      'Bhubaneswar': 'India', 'Mangalore': 'India', 'Erode': 'India', 'Trichy': 'India',
+      'Tiruchirappalli': 'India', 'Salem': 'India', 'Tirunelveli': 'India', 'Vellore': 'India',
+      'Pondicherry': 'India', 'Puducherry': 'India', 'Kolhapur': 'India', 'Nanded': 'India',
+      'Solapur': 'India', 'Hubli': 'India', 'Dharwad': 'India',
+      // US
+      'New York': 'United States', 'Los Angeles': 'United States', 'Chicago': 'United States',
+      'Houston': 'United States', 'Phoenix': 'United States', 'Philadelphia': 'United States',
+      'San Antonio': 'United States', 'San Diego': 'United States', 'Dallas': 'United States',
+      'San Jose': 'United States', 'Austin': 'United States', 'San Francisco': 'United States',
+      'Seattle': 'United States', 'Denver': 'United States', 'Boston': 'United States',
+      'Nashville': 'United States', 'Atlanta': 'United States', 'Miami': 'United States',
+      'Portland': 'United States', 'Las Vegas': 'United States',
+      // UK
+      'London': 'United Kingdom', 'Manchester': 'United Kingdom', 'Birmingham': 'United Kingdom',
+      'Leeds': 'United Kingdom', 'Glasgow': 'United Kingdom', 'Edinburgh': 'United Kingdom',
+      // Others
+      'Toronto': 'Canada', 'Vancouver': 'Canada', 'Montreal': 'Canada',
+      'Sydney': 'Australia', 'Melbourne': 'Australia', 'Brisbane': 'Australia',
+      'Singapore': 'Singapore', 'Dubai': 'United Arab Emirates', 'Abu Dhabi': 'United Arab Emirates',
+      'Berlin': 'Germany', 'Munich': 'Germany', 'Hamburg': 'Germany', 'Frankfurt': 'Germany',
+      'Paris': 'France', 'Lyon': 'France', 'Madrid': 'Spain', 'Barcelona': 'Spain',
+      'Rome': 'Italy', 'Milan': 'Italy', 'Amsterdam': 'Netherlands', 'Zurich': 'Switzerland',
+      'Tokyo': 'Japan', 'Osaka': 'Japan', 'Seoul': 'South Korea', 'Beijing': 'China',
+      'Shanghai': 'China', 'Kuala Lumpur': 'Malaysia', 'Jakarta': 'Indonesia',
+    };
+    // Try exact match first
+    const exact = cityCountryMap[city];
+    if (exact) return exact;
+    // Try case-insensitive partial match
+    const lower = city.toLowerCase();
+    for (const [c, country] of Object.entries(cityCountryMap)) {
+      if (c.toLowerCase() === lower || lower.includes(c.toLowerCase())) return country;
+    }
+    // Fallback to API
     try {
-      const res = await fetch(`${apiBase}/api/locations/city-country/${encodeURIComponent(city)}`);
+      const res = await fetch(`${apiBase}/locations/city-country/${encodeURIComponent(city)}`);
       const data = await res.json();
       return data.country || '';
     } catch {
@@ -187,28 +307,37 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
     if (!raw) return '';
     const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
 
-    // Extract the first number mentioned
-    const nums = text.match(/(\d+)/g)?.map(Number) || [];
-    if (nums.length === 0) {
-      if (/fresher|entry|no experience|0/i.test(text)) return '0-1 years';
-      if (/junior/i.test(text)) return '1-2 years';
-      if (/mid|intermediate/i.test(text)) return '3-5 years';
-      if (/senior/i.test(text)) return '5-7 years';
-      if (/lead|principal|expert/i.test(text)) return '10+ years';
-      return '';
+    const snapMin = (n: number) => {
+      const opts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20];
+      const c = opts.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+      return `${c} year${c !== 1 ? 's' : ''}`;
+    };
+    const snapMax = (n: number) => {
+      const opts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25];
+      const c = opts.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+      return `${c} year${c !== 1 ? 's' : ''}`;
+    };
+
+    // Try to extract two numbers (range)
+    const rangeMatch = text.match(/(\d+)\s*[-–to]+\s*(\d+)/);
+    if (rangeMatch) {
+      return `${snapMin(parseInt(rangeMatch[1]))} - ${snapMax(parseInt(rangeMatch[2]))}`;
     }
 
-    const min = Math.min(...nums);
-    const max = nums.length > 1 ? Math.max(...nums) : min;
+    // Single number
+    const singleMatch = text.match(/(\d+)/);
+    if (singleMatch) {
+      const n = parseInt(singleMatch[1]);
+      return `${snapMin(n)} - ${snapMax(Math.min(n + 2, 25))}`;
+    }
 
-    // Map to the exact dropdown values
-    if (max <= 1)  return '0-1 years';
-    if (max <= 2)  return '1-2 years';
-    if (max <= 3)  return '2-3 years';
-    if (max <= 5)  return '3-5 years';
-    if (max <= 7)  return '5-7 years';
-    if (max <= 10) return '7-10 years';
-    return '10+ years';
+    // Keyword fallbacks
+    if (/fresher|entry|no experience|0/i.test(text)) return '0 years - 1 year';
+    if (/junior/i.test(text)) return '1 year - 2 years';
+    if (/mid|intermediate/i.test(text)) return '3 years - 5 years';
+    if (/senior/i.test(text)) return '5 years - 7 years';
+    if (/lead|principal|expert/i.test(text)) return '10 years - 12 years';
+    return '';
   };
 
   // Helper functions to extract information
@@ -368,13 +497,53 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
   };
 
   const extractLocation = (text: string): string => {
+    // --- Priority 1: explicit label on its own line or after colon ---
+    const labelPatterns = [
+      /^\s*(?:location|job\s+location|work\s+location|office\s+location)\s*[:\-]\s*([^\n\r,\(]{2,50})/im,
+      /(?:location|based\s+in|located\s+in|office\s+location)\s*[:\-]\s*([^\n\r,\(]{2,50})/i,
+      /work\s+(?:location|place)\s*[:\-]\s*([^\n\r,\(]{2,50})/i,
+    ];
+    for (const p of labelPatterns) {
+      const m = text.match(p);
+      if (m?.[1]) {
+        const loc = m[1].trim().replace(/\s+/g, ' ');
+        // reject if it looks like a sentence (too many words or contains verbs)
+        if (loc.length > 1 && loc.length < 50 && loc.split(/\s+/).length <= 5
+            && !/\b(?:is|are|will|can|the|and|for|with|from|that|this|have|has)\b/i.test(loc)) {
+          return loc.charAt(0).toUpperCase() + loc.slice(1);
+        }
+      }
+    }
+
+    // --- Priority 2: work arrangement keywords ---
+    if (/\bremote\b/i.test(text) && /\bhybrid\b/i.test(text)) return 'Hybrid';
+    if (/\bfully\s+remote\b|\b100%\s+remote\b|\bwork\s+from\s+home\b|\bwfh\b/i.test(text)) return 'Remote';
+    if (/\bhybrid\b/i.test(text)) return 'Hybrid';
+
+    // --- Priority 3: known Indian cities (most JDs are Indian) ---
+    const indianCities = [
+      'Mumbai','Delhi','New Delhi','Bangalore','Bengaluru','Chennai','Hyderabad',
+      'Kolkata','Pune','Ahmedabad','Surat','Jaipur','Lucknow','Kanpur','Nagpur',
+      'Indore','Thane','Bhopal','Visakhapatnam','Patna','Vadodara','Ghaziabad',
+      'Ludhiana','Agra','Nashik','Faridabad','Meerut','Rajkot','Varanasi',
+      'Srinagar','Aurangabad','Dhanbad','Amritsar','Navi Mumbai','Allahabad',
+      'Ranchi','Howrah','Coimbatore','Jabalpur','Gwalior','Vijayawada','Jodhpur',
+      'Madurai','Raipur','Kota','Guwahati','Chandigarh','Mysore','Gurgaon',
+      'Noida','Kochi','Dehradun','Bhubaneswar','Mangalore','Erode','Trichy',
+      'Tiruchirappalli','Salem','Tirunelveli','Vellore','Coimbatore','Pondicherry',
+      'Puducherry','Kolhapur','Nashik','Nanded','Solapur','Hubli','Dharwad',
+    ];
+    for (const city of indianCities) {
+      if (new RegExp(`\\b${city}\\b`, 'i').test(text)) return city;
+    }
+
     const locationPatterns = [
-      // Explicit location labels
-      /(?:location|based\s+in|office|workplace|address|city|state|country)\s*[:\-]\s*([^\n\r\(,]+)/i,
-      // Work from patterns
-      /work\s+from\s+([^\n\r\(,]+)/i,
-      // Located in patterns
-      /located\s+in\s+([^\n\r\(,]+)/i,
+      // Major US cities with states
+      /((?:New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|El Paso|Nashville|Detroit|Oklahoma City|Portland|Las Vegas|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|Stockton|Toledo|St. Paul|Newark|Greensboro|Plano|Henderson|Lincoln|Buffalo|Jersey City|Chula Vista|Fort Wayne|Orlando|St. Petersburg|Chandler|Laredo|Norfolk|Durham|Madison|Lubbock|Irvine|Winston-Salem|Glendale|Garland|Hialeah|Reno|Chesapeake|Gilbert|Baton Rouge|Irving|Scottsdale|North Las Vegas|Fremont|Boise|Richmond|San Bernardino|Birmingham|Spokane|Rochester|Des Moines|Modesto|Fayetteville|Tacoma|Oxnard|Fontana|Columbus|Montgomery|Moreno Valley|Shreveport|Aurora|Yonkers|Akron|Huntington Beach|Little Rock|Augusta|Amarillo|Glendale|Mobile|Grand Rapids|Salt Lake City|Tallahassee|Huntsville|Grand Prairie|Knoxville|Worcester|Newport News|Brownsville|Overland Park|Santa Clarita|Providence|Garden Grove|Chattanooga|Oceanside|Jackson|Fort Lauderdale|Santa Rosa|Rancho Cucamonga|Port St. Lucie|Tempe|Ontario|Vancouver|Cape Coral|Sioux Falls|Springfield|Peoria|Pembroke Pines|Elk Grove|Salem|Lancaster|Corona|Eugene|Palmdale|Salinas|Springfield|Pasadena|Fort Collins|Hayward|Pomona|Cary|Rockford|Alexandria|Escondido|McKinney|Kansas City|Joliet|Sunnyvale|Torrance|Bridgeport|Lakewood|Hollywood|Paterson|Naperville|Syracuse|Mesquite|Dayton|Savannah|Clarksville|Orange|Pasadena|Fullerton|Killeen|Frisco|Hampton|McAllen|Warren|Bellevue|West Valley City|Columbia|Olathe|Sterling Heights|New Haven|Miramar|Waco|Thousand Oaks|Cedar Rapids|Charleston|Round Rock|Rialto|Davenport|Miami Gardens|Burbank|Richardson|Pompano Beach|North Charleston|Broken Arrow|Boulder|West Palm Beach|Surprise|Thornton|League City|Dearborn|Roseville|Beaumont|Brownsville|Independence|Murfreesboro|Ann Arbor|Fargo|Wilmington|Abilene|Odessa|Columbia|Pearland|Temecula|Carrollton|Lewisville|Victorville|Santa Maria|Berkeley|Topeka|Norman|Elgin|Clearwater|Westminster|Billings|Lowell|Stamford|Fontana|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Evansville|Fort Wayne|Provo|Charleston|Springfield|Lakewood|Peoria|High Point|Waterbury|West Jordan|Antioch|Everett|West Palm Beach|Centennial|Inglewood|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman)(?:,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY))?)/i,
+      // International cities
+      /(London|Paris|Berlin|Madrid|Rome|Amsterdam|Vienna|Brussels|Prague|Warsaw|Budapest|Stockholm|Copenhagen|Oslo|Helsinki|Dublin|Zurich|Geneva|Barcelona|Milan|Munich|Hamburg|Frankfurt|Singapore|Dubai|Toronto|Sydney|Melbourne)/i,
+      // City, State/Country patterns
+      /([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*,\s*(?:[A-Z]{2}|[A-Z][a-z]+))/,
       // Major US cities with states
       /((?:New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|El Paso|Nashville|Detroit|Oklahoma City|Portland|Las Vegas|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|Stockton|Toledo|St. Paul|Newark|Greensboro|Plano|Henderson|Lincoln|Buffalo|Jersey City|Chula Vista|Fort Wayne|Orlando|St. Petersburg|Chandler|Laredo|Norfolk|Durham|Madison|Lubbock|Irvine|Winston-Salem|Glendale|Garland|Hialeah|Reno|Chesapeake|Gilbert|Baton Rouge|Irving|Scottsdale|North Las Vegas|Fremont|Boise|Richmond|San Bernardino|Birmingham|Spokane|Rochester|Des Moines|Modesto|Fayetteville|Tacoma|Oxnard|Fontana|Columbus|Montgomery|Moreno Valley|Shreveport|Aurora|Yonkers|Akron|Huntington Beach|Little Rock|Augusta|Amarillo|Glendale|Mobile|Grand Rapids|Salt Lake City|Tallahassee|Huntsville|Grand Prairie|Knoxville|Worcester|Newport News|Brownsville|Overland Park|Santa Clarita|Providence|Garden Grove|Chattanooga|Oceanside|Jackson|Fort Lauderdale|Santa Rosa|Rancho Cucamonga|Port St. Lucie|Tempe|Ontario|Vancouver|Cape Coral|Sioux Falls|Springfield|Peoria|Pembroke Pines|Elk Grove|Salem|Lancaster|Corona|Eugene|Palmdale|Salinas|Springfield|Pasadena|Fort Collins|Hayward|Pomona|Cary|Rockford|Alexandria|Escondido|McKinney|Kansas City|Joliet|Sunnyvale|Torrance|Bridgeport|Lakewood|Hollywood|Paterson|Naperville|Syracuse|Mesquite|Dayton|Savannah|Clarksville|Orange|Pasadena|Fullerton|Killeen|Frisco|Hampton|McAllen|Warren|Bellevue|West Valley City|Columbia|Olathe|Sterling Heights|New Haven|Miramar|Waco|Thousand Oaks|Cedar Rapids|Charleston|Sioux City|Round Rock|Rialto|Davenport|Miami Gardens|Burbank|Richardson|Pompano Beach|North Charleston|Broken Arrow|Boulder|West Palm Beach|Surprise|Thornton|League City|Dearborn|Roseville|Palmdale|Salinas|Beaumont|Brownsville|Independence|Murfreesboro|Ann Arbor|Fargo|Wilmington|Abilene|Odessa|Columbia|Pearland|Huntington Beach|Temecula|Richardson|Carrollton|Lewisville|Victorville|Santa Maria|Berkeley|Topeka|Norman|Elgin|Columbia|Clearwater|Westminster|Billings|Lowell|Stamford|Fontana|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Evansville|Fort Wayne|Provo|Charleston|Springfield|Lakewood|Peoria|High Point|Waterbury|Pompano Beach|West Jordan|Antioch|Everett|West Palm Beach|Centennial|Lowell|Richardson|Broken Arrow|Inglewood|Sandy Springs|Jurupa Valley|Hillsboro|Waterbury|Santa Clara|Costa Mesa|Miami Gardens|Concord|Peoria|Downey|Roseville|Thornton|Manchester|Allentown|Elgin|Sterling Heights|West Valley City|Columbia|Surprise|Sunnyvale|Clarksville|Roseville|Peoria|Inglewood|Evansville|Salem|Santa Clara|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina)(?:,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming))?)/i,
       // International cities
@@ -445,18 +614,17 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       return 'On-site';
     }
 
-    return 'Remote';
+    return '';
   };
 
   const extractJobType = (text: string): string[] => {
-    const types = [];
+    const types: string[] = [];
     const jobTypePatterns = [
-      { pattern: /full.?time|permanent|regular/i, type: 'Full-time' },
-      { pattern: /part.?time/i, type: 'Part-time' },
-      { pattern: /contract|contractor|freelance|consulting/i, type: 'Contract' },
-      { pattern: /intern|internship|trainee/i, type: 'Internship' },
-      { pattern: /temporary|temp|seasonal/i, type: 'Temporary' },
-      { pattern: /volunteer/i, type: 'Volunteer' }
+      { pattern: /\bfull[\s\-]?time\b|\bpermanent\b|\bregular\s+employment\b/i, type: 'Full-time' },
+      { pattern: /\bpart[\s\-]?time\b/i, type: 'Part-time' },
+      { pattern: /\bcontract\b|\bcontractor\b|\bfreelance\b|\bconsulting\b|\bc2c\b|\bcorp[\s\-]to[\s\-]corp\b/i, type: 'Contract' },
+      { pattern: /\bintern\b|\binternship\b|\btrainee\b|\bapprentice\b/i, type: 'Internship' },
+      { pattern: /\btemporary\b|\btemp\b|\bseasonal\b/i, type: 'Temporary' },
     ];
 
     for (const { pattern, type } of jobTypePatterns) {
@@ -465,7 +633,12 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       }
     }
 
-    return types.length > 0 ? types : ['Full-time'];
+    // Only default to Full-time if the JD has strong employment signals but no explicit type
+    if (types.length === 0 && /\b(?:salary|benefits|annual\s+leave|pf|provident\s+fund|esi|health\s+insurance|joining\s+date|notice\s+period)\b/i.test(text)) {
+      types.push('Full-time');
+    }
+
+    return types;
   };
 
   const extractExperience = (text: string): string => {
@@ -1183,105 +1356,135 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       />
 
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <BackButton 
-              onClick={() => onNavigate('job-posting-selection')}
-              text="Back"
-            />
-            <h1 className="text-3xl font-bold text-gray-800">New Job</h1>
-            <button 
-              onClick={() => onNavigate('dashboard')} 
-              className="text-gray-500 text-2xl hover:text-gray-700"
+
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+            <BackButton onClick={() => onNavigate('job-posting-selection')} text="Back" />
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15M14.25 3.104c.251.023.501.05.75.082M19.8 15l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.607L5 14.5m14.8.5l1.196 4.784A2.25 2.25 0 0118.8 21.75H5.2a2.25 2.25 0 01-2.196-1.966L4 15m1 0l-.804-.201" />
+                </svg>
+              </div>
+              <h1 className="text-lg font-semibold text-gray-900">AI Job Parser</h1>
+            </div>
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             >
-              ×
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
           </div>
+        </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-semibold text-gray-800 mb-2">Paste Job Details</h2>
-              <p className="text-gray-600">Copy and paste a job description from any source. Our AI will automatically extract and organize the details.</p>
+        <div className="max-w-5xl mx-auto px-6 py-8">
+
+          {/* How it works */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            {[
+              {
+                step: '01',
+                title: 'Paste Job Description',
+                desc: 'Copy any job posting from LinkedIn, company websites, or job boards',
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
+                  </svg>
+                ),
+              },
+              {
+                step: '02',
+                title: 'AI Extraction',
+                desc: 'Our AI extracts job title, skills, salary, requirements and more',
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                  </svg>
+                ),
+              },
+              {
+                step: '03',
+                title: 'Review & Post',
+                desc: 'Review the extracted details and publish your job posting instantly',
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ),
+              },
+            ].map((item) => (
+              <div key={item.step} className="bg-white border border-gray-200 rounded-xl p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    {item.icon}
+                  </div>
+                  <span className="text-xs font-bold text-blue-600 tracking-widest">STEP {item.step}</span>
+                </div>
+                <p className="text-sm font-semibold text-gray-800 mb-1">{item.title}</p>
+                <p className="text-xs text-gray-500 leading-relaxed">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Main Card */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900">Paste Job Description</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Copy and paste a job description from any source</p>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-400 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full">
+                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+                Powered by AI
+              </div>
             </div>
 
             <div className="p-6">
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                placeholder="Paste your job description here...
-
-Example:
-Software Engineer - Full Stack Developer
-
-We are looking for a talented Full Stack Developer to join our growing team at TechCorp. 
-
-Requirements:
-- 3-5 years of experience in web development
-- Proficiency in JavaScript, React, Node.js
-- Experience with databases (MongoDB, PostgreSQL)
-- Bachelor's degree in Computer Science
-
-Benefits:
-- Competitive salary $70,000 - $90,000
-- Health insurance
-- Remote work options
-- Flexible hours"
-                className="w-full p-4 min-h-[400px] border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800"
-                style={{ fontFamily: 'Arial, sans-serif', fontSize: '14px', lineHeight: '1.5' }}
+                placeholder={`Paste your job description here...\n\nExample:\nSoftware Engineer - Full Stack Developer\n\nWe are looking for a talented Full Stack Developer to join our growing team at TechCorp.\n\nRequirements:\n- 3-5 years of experience in web development\n- Proficiency in JavaScript, React, Node.js\n- Experience with databases (MongoDB, PostgreSQL)\n- Bachelor's degree in Computer Science\n\nBenefits:\n- Competitive salary $70,000 - $90,000\n- Health insurance\n- Remote work options`}
+                className="w-full p-4 min-h-[360px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 text-sm leading-relaxed placeholder-gray-300 transition-colors"
               />
 
-              {/* Action Buttons */}
-              <div className="flex justify-end mt-6 space-x-4">
-                <button
-                  onClick={() => onNavigate('job-posting-selection')}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleStartParsing}
-                  disabled={!jobDescription.trim() || isParsing}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                >
-                  {isParsing ? (
-                    <>
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-                      <span>Parsing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🤖</span>
-                      <span>Start Parsing</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Help Section */}
-          <div className="mt-8 bg-blue-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 mb-3">How it works</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-800">
-              <div className="flex items-start space-x-2">
-                <span className="bg-blue-200 text-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span>
-                <div>
-                  <p className="font-medium">Paste Job Description</p>
-                  <p>Copy any job posting from LinkedIn, company websites, or job boards</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <span className="bg-blue-200 text-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">2</span>
-                <div>
-                  <p className="font-medium">AI Parsing</p>
-                  <p>Our AI extracts job title, requirements, skills, salary, and more</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-2">
-                <span className="bg-blue-200 text-blue-900 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">3</span>
-                <div>
-                  <p className="font-medium">Review & Post</p>
-                  <p>Review the extracted details and publish your job posting</p>
+              <div className="flex items-center justify-between mt-4">
+                <p className="text-xs text-gray-400">
+                  {jobDescription.length > 0 ? `${jobDescription.length} characters` : 'Supports LinkedIn, Indeed, Naukri, and any job board format'}
+                </p>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => onNavigate('job-posting-selection')}
+                    className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleStartParsing}
+                    disabled={!jobDescription.trim() || isParsing}
+                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+                  >
+                    {isParsing ? (
+                      <>
+                        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        Parsing...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        Parse with AI
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>

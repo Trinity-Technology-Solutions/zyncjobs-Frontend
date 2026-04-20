@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
-import mistralAIService from '../services/mistralAIService';
+import { sendAIMessage } from '../services/aiChatService';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { API_ENDPOINTS } from '../config/constants';
 import { generatePositionId } from '../utils/jobMigrationUtils';
+import mistralAIService from '../services/mistralAIService';
 
 
 interface JobPostingPageProps {
@@ -71,22 +73,41 @@ const formatSalary = (value: string): string => {
   return value;
 };
 
+// Snap a raw number to the nearest available dropdown option value
+const snapToDropdownYear = (n: number, isMax: boolean): string => {
+  const minOpts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20];
+  const maxOpts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25];
+  const opts = isMax ? maxOpts : minOpts;
+  const closest = opts.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+  return `${closest} year${closest !== 1 ? 's' : ''}`;
+};
+
 const extractExperienceFromText = (text: string): string => {
   if (!text) return '';
-  // Match patterns like: 3-5 years, 2+ years, 5 to 7 years, minimum 3 years, 3 years experience
   const patterns = [
     /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
-    /(\d+)\+\s*(?:years?|yrs?)/i,
     /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
-    /minimum\s+(\d+)\s*(?:years?|yrs?)/i,
-    /at\s+least\s+(\d+)\s*(?:years?|yrs?)/i,
+    /minimum\s+(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(\d+)\+\s*(?:years?|yrs?)/i,
     /(\d+)\s*(?:years?|yrs?)\s+(?:of\s+)?experience/i,
+    /experience\s*[:\-]?\s*(\d+)\s*[-–to]+\s*(\d+)/i,
+    /experience\s*[:\-]?\s*(\d+)\+?/i,
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) {
-      if (match[2]) return `${match[1]}-${match[2]} years`;
-      return `${match[1]}+ years`;
+      if (match[1] && match[2]) {
+        const min = snapToDropdownYear(parseInt(match[1]), false);
+        const max = snapToDropdownYear(parseInt(match[2]), true);
+        return `${min} - ${max}`;
+      }
+      if (match[1]) {
+        const n = parseInt(match[1]);
+        const min = snapToDropdownYear(n, false);
+        const max = snapToDropdownYear(Math.min(n + 2, 25), true);
+        return `${min} - ${max}`;
+      }
     }
   }
   return '';
@@ -156,8 +177,16 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
 
   const [jobData, setJobData] = useState<JobData>({
     jobTitle: editJob?.jobTitle || editJob?.title || parsedData?.jobTitle || '',
-    locationType: editJob?.locationType || 'In person',
-    jobLocation: editJob?.location || editJob?.jobLocation || parsedData?.jobLocation || '',
+    locationType: editJob?.locationType || (() => {
+      const loc = parsedData?.jobLocation || '';
+      if (/^remote$/i.test(loc.trim())) return 'Remote';
+      if (/^hybrid$/i.test(loc.trim())) return 'Hybrid';
+      return 'In person';
+    })(),
+    jobLocation: editJob?.location || editJob?.jobLocation || (() => {
+      const loc = parsedData?.jobLocation || '';
+      return /^(remote|hybrid)$/i.test(loc.trim()) ? loc : loc;
+    })(),
     expandCandidateSearch: false,
     experienceRange: editJob?.experienceRange || editJob?.experience || editJob?.experienceLevel || parsedData?.experienceRange || '',
     country: editJob?.country || parsedData?.country || '',
@@ -196,7 +225,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     skills: editJob?.skills || parsedData?.skills || [],
     educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: editJob?.company || editJob?.companyName || '',
+    companyName: editJob?.company || editJob?.companyName || sanitizeParsedCompany(parsedData?.companyName) || '',
     companyLogo: editJob?.companyLogo || '',
     companyId: ''
   });
@@ -224,6 +253,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [skillInput, setSkillInput] = useState('');
   const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
+  const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
 
   const [salaryModified, setSalaryModified] = useState(() => {
     const min = getSalaryMin(editJob) || parsedData?.minSalary || parsedData?.salary?.min;
@@ -231,6 +261,51 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     return !!(min && max && parseInt(String(min)) > 0 && parseInt(String(max)) > 0);
   });
   const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
+
+  const cityCountryMap: Record<string, string> = {
+    'Mumbai': 'India', 'Delhi': 'India', 'New Delhi': 'India', 'Bangalore': 'India',
+    'Bengaluru': 'India', 'Chennai': 'India', 'Hyderabad': 'India', 'Kolkata': 'India',
+    'Pune': 'India', 'Ahmedabad': 'India', 'Surat': 'India', 'Jaipur': 'India',
+    'Lucknow': 'India', 'Kanpur': 'India', 'Nagpur': 'India', 'Indore': 'India',
+    'Thane': 'India', 'Bhopal': 'India', 'Visakhapatnam': 'India', 'Patna': 'India',
+    'Vadodara': 'India', 'Ghaziabad': 'India', 'Ludhiana': 'India', 'Agra': 'India',
+    'Nashik': 'India', 'Faridabad': 'India', 'Meerut': 'India', 'Rajkot': 'India',
+    'Varanasi': 'India', 'Srinagar': 'India', 'Aurangabad': 'India', 'Dhanbad': 'India',
+    'Amritsar': 'India', 'Navi Mumbai': 'India', 'Allahabad': 'India', 'Ranchi': 'India',
+    'Howrah': 'India', 'Coimbatore': 'India', 'Jabalpur': 'India', 'Gwalior': 'India',
+    'Vijayawada': 'India', 'Jodhpur': 'India', 'Madurai': 'India', 'Raipur': 'India',
+    'Kota': 'India', 'Guwahati': 'India', 'Chandigarh': 'India', 'Mysore': 'India',
+    'Gurgaon': 'India', 'Noida': 'India', 'Kochi': 'India', 'Dehradun': 'India',
+    'Bhubaneswar': 'India', 'Mangalore': 'India', 'Erode': 'India', 'Trichy': 'India',
+    'Tiruchirappalli': 'India', 'Salem': 'India', 'Tirunelveli': 'India', 'Vellore': 'India',
+    'Pondicherry': 'India', 'Puducherry': 'India', 'Kolhapur': 'India', 'Nanded': 'India',
+    'Solapur': 'India', 'Hubli': 'India', 'Dharwad': 'India',
+    'New York': 'United States', 'Los Angeles': 'United States', 'Chicago': 'United States',
+    'Houston': 'United States', 'Phoenix': 'United States', 'San Francisco': 'United States',
+    'Seattle': 'United States', 'Denver': 'United States', 'Boston': 'United States',
+    'Atlanta': 'United States', 'Miami': 'United States', 'Dallas': 'United States',
+    'Austin': 'United States', 'San Jose': 'United States', 'Las Vegas': 'United States',
+    'London': 'United Kingdom', 'Manchester': 'United Kingdom', 'Birmingham': 'United Kingdom',
+    'Toronto': 'Canada', 'Vancouver': 'Canada', 'Montreal': 'Canada',
+    'Sydney': 'Australia', 'Melbourne': 'Australia', 'Brisbane': 'Australia',
+    'Singapore': 'Singapore', 'Dubai': 'United Arab Emirates',
+    'Berlin': 'Germany', 'Munich': 'Germany', 'Frankfurt': 'Germany',
+    'Paris': 'France', 'Madrid': 'Spain', 'Barcelona': 'Spain',
+    'Rome': 'Italy', 'Milan': 'Italy', 'Amsterdam': 'Netherlands',
+    'Tokyo': 'Japan', 'Seoul': 'South Korea', 'Beijing': 'China', 'Shanghai': 'China',
+    'Kuala Lumpur': 'Malaysia', 'Jakarta': 'Indonesia',
+  };
+
+  const getCountryFromCity = (city: string): string => {
+    if (!city || /^(remote|hybrid|on-site)$/i.test(city.trim())) return '';
+    const exact = cityCountryMap[city];
+    if (exact) return exact;
+    const lower = city.toLowerCase();
+    for (const [c, country] of Object.entries(cityCountryMap)) {
+      if (c.toLowerCase() === lower || lower.includes(c.toLowerCase())) return country;
+    }
+    return '';
+  };
 
   const updateJobData = (field: keyof JobData, value: any) => {
     setJobData(prev => ({ ...prev, [field]: value }));
@@ -293,6 +368,15 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         parseInt(parsedData.minSalary) > 0 && parseInt(parsedData.maxSalary) > 0) {
       setSalaryModified(true);
     }
+  }, [parsedData]);
+
+  // Auto-fill country from parsed location on mount
+  useEffect(() => {
+    if (mode === 'parse' && parsedData?.jobLocation && !parsedData?.country) {
+      const country = getCountryFromCity(parsedData.jobLocation);
+      if (country) updateJobData('country', country);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedData]);
 
   // Auto-extract experience range from job description
@@ -399,10 +483,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   };
 
   const handleLocationBlur = async (value: string) => {
-    // Small delay so onMouseDown on dropdown fires first
     setTimeout(async () => {
       setShowLocationSuggestions(false);
-      if (value && value !== 'Remote') {
+      if (value && !/^(remote|hybrid|on-site)$/i.test(value.trim())) {
+        const local = getCountryFromCity(value);
+        if (local) { updateJobData('country', local); return; }
         try {
           const res = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(value)}`);
           const data = await res.json();
@@ -1023,12 +1108,37 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     };
   };
 
+  const fetchAISkillsForTitle = async (title: string) => {
+    if (!title || title.length < 3) return;
+    const key = cacheKey('job-skills', title.toLowerCase());
+    const cached = getCached<string[]>(key);
+    if (cached) { setAiSuggestedSkills(cached); return; }
+    try {
+      const reply = await sendAIMessage(
+        [{ role: 'user', content: `List exactly 10 key skills required for a "${title}" job role. Return ONLY a JSON array of skill names, no explanation: ["skill1","skill2",...]` }],
+        'You are a job skills expert. Return only a valid JSON array of skill strings.',
+        undefined,
+        200
+      );
+      const match = reply.match(/\[[\s\S]*\]/);
+      if (match) {
+        const skills: string[] = JSON.parse(match[0]).slice(0, 10);
+        setCached(key, skills, 60 * 60 * 1000); // cache 1 hour
+        setAiSuggestedSkills(skills);
+      }
+    } catch {
+      // fallback to getJobTitleDefaults
+      const { skills } = getJobTitleDefaults(title);
+      setAiSuggestedSkills(skills);
+    }
+  };
+
   // Select suggestions
   const selectJobTitle = (title: string) => {
     updateJobData('jobTitle', title);
     setShowJobTitleSuggestions(false);
     setJobTitleSuggestions([]);
-    // Generate description after title is selected
+    fetchAISkillsForTitle(title);
     setTimeout(() => generateJobDescription(title), 500);
   };
 
@@ -1057,8 +1167,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     updateJobData('jobLocation', location);
     setShowLocationSuggestions(false);
     setLocationSuggestions([]);
-    // Always auto-fill country from selected city
-    if (location && location !== 'Remote') {
+    if (location && !/^(remote|hybrid|on-site)$/i.test(location.trim())) {
+      const local = getCountryFromCity(location);
+      if (local) { updateJobData('country', local); return; }
       try {
         const res = await fetch(`${API_ENDPOINTS.BASE_URL}/locations/city-country/${encodeURIComponent(location)}`);
         const data = await res.json();
@@ -1350,6 +1461,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               type="text"
               value={jobData.jobTitle}
               onChange={handleJobTitleChange}
+              onBlur={() => { if (jobData.jobTitle.length >= 3) fetchAISkillsForTitle(jobData.jobTitle); }}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. Software Engineer"
             />
@@ -1597,10 +1709,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             <div className="flex-1">
               <label className="block text-gray-500 text-sm mb-1">Min Experience</label>
               <select
-                value={jobData.experienceRange.split('-')[0]?.trim() || ''}
+                value={jobData.experienceRange.split(' - ')[0]?.trim() || ''}
                 onChange={(e) => {
-                  const max = jobData.experienceRange.split('-')[1]?.trim() || '';
-                  updateJobData('experienceRange', max ? e.target.value + ' - ' + max : e.target.value);
+                  const max = jobData.experienceRange.split(' - ')[1]?.trim() || '';
+                  updateJobData('experienceRange', e.target.value ? (max ? `${e.target.value} - ${max}` : e.target.value) : max);
                 }}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
@@ -1613,10 +1725,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             <div className="flex-1">
               <label className="block text-gray-500 text-sm mb-1">Max Experience</label>
               <select
-                value={jobData.experienceRange.split('-')[1]?.trim() || ''}
+                value={jobData.experienceRange.split(' - ')[1]?.trim() || ''}
                 onChange={(e) => {
-                  const min = jobData.experienceRange.split('-')[0]?.trim() || '';
-                  updateJobData('experienceRange', min ? min + ' - ' + e.target.value : e.target.value);
+                  const min = jobData.experienceRange.split(' - ')[0]?.trim() || '';
+                  updateJobData('experienceRange', e.target.value ? (min ? `${min} - ${e.target.value}` : e.target.value) : min);
                 }}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               >
@@ -2073,31 +2185,36 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             )}
           </div>
           
-          {/* Predefined Skills */}
-          <div className="flex flex-wrap gap-3 mt-4">
-            {[
-              'AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux',
-              'Python', 'SQL', 'Version control', 'React', 'Node.js'
-            ].map((skill) => (
-              <button
-                key={skill}
-                type="button"
-                onClick={() => {
-                  const newSkills = jobData.skills.includes(skill)
-                    ? jobData.skills.filter(s => s !== skill)
-                    : [...jobData.skills, skill];
-                  updateJobData('skills', newSkills);
-                }}
-                className={`px-3 py-2 border rounded-lg text-sm transition-colors ${
-                  jobData.skills.includes(skill)
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                {jobData.skills.includes(skill) ? '✓' : '+'} {skill}
-              </button>
-            ))}
-          </div>
+          {/* AI Suggested Skills based on Job Title */}
+          {(aiSuggestedSkills.length > 0 || jobData.jobTitle) && (
+            <div className="mt-4">
+              <p className="text-xs text-gray-500 mb-2 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                AI suggested for "{jobData.jobTitle || 'your role'}"
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(aiSuggestedSkills.length > 0 ? aiSuggestedSkills : getJobTitleDefaults(jobData.jobTitle).skills).map((skill) => (
+                  <button
+                    key={skill}
+                    type="button"
+                    onClick={() => {
+                      const newSkills = jobData.skills.includes(skill)
+                        ? jobData.skills.filter(s => s !== skill)
+                        : [...jobData.skills, skill];
+                      updateJobData('skills', newSkills);
+                    }}
+                    className={`px-3 py-1.5 border rounded-lg text-sm transition-colors ${
+                      jobData.skills.includes(skill)
+                        ? 'border-blue-600 text-blue-600 bg-blue-50'
+                        : 'border-gray-300 text-gray-700 hover:border-blue-400 hover:bg-blue-50'
+                    }`}
+                  >
+                    {jobData.skills.includes(skill) ? '✓' : '+'} {skill}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         
         <div>

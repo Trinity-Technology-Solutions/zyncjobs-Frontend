@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
+import { getCached, setCached, cacheKey } from './aiCache';
 
 export interface MatchScore {
   jobId: string;
@@ -53,13 +54,18 @@ class MatchAPI {
 
   // Get job recommendations (smart feed)
   async getRecommendations(userId: string, limit = 10): Promise<{ jobs: any[]; total: number }> {
+    const key = cacheKey('recommendations', userId, String(limit));
+    const cached = getCached<{ jobs: any[]; total: number }>(key);
+    if (cached) return cached;
     const res = await fetch(`${API_BASE}/match/recommendations/${userId}?limit=${limit}`);
     if (!res.ok) {
       const msg = await res.text().catch(() => 'Failed to get recommendations');
       throw new Error(msg || 'Failed to get recommendations');
     }
     const data = await res.json();
-    return { jobs: Array.isArray(data?.jobs) ? data.jobs : [], total: data?.total ?? 0 };
+    const result = { jobs: Array.isArray(data?.jobs) ? data.jobs : [], total: data?.total ?? 0 };
+    setCached(key, result, 2 * 60 * 1000); // 2 min cache for recommendations
+    return result;
   }
 
   // Get match explanation

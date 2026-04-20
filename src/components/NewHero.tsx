@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, Bot, Sparkles, Brain, Zap, Palette, MessageCircle, Compass, CheckCircle, Rocket } from "lucide-react";
 import { API_ENDPOINTS } from '../config/env';
 import { useHeroSection } from '../store/useHeroSection';
 import { strapiAPI } from '../api/strapi';
@@ -90,9 +90,32 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [animationKey, setAnimationKey] = useState(0);
   const jobInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
   const { data: heroData, fetchHeroSection } = useHeroSection();
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setAnimationKey(prev => prev + 1);
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    if (heroRef.current) {
+      observer.observe(heroRef.current);
+    }
+
+    return () => {
+      if (heroRef.current) {
+        observer.unobserve(heroRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     fetchHeroSection();
@@ -208,7 +231,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   return (
     <>
       {/* Main Banner Section */}
-      <div className="relative" style={{
+      <div ref={heroRef} className="relative" style={{
         background: 'linear-gradient(135deg, #0f0c29 0%, #1a1040 30%, #2d1b69 60%, #1e0a3c 100%)',
       }}>
         {/* Subtle radial glow blobs */}
@@ -245,7 +268,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     const isBlue = i >= dreamStart && i < dreamEnd;
                     return (
                       <span
-                        key={i}
+                        key={`${animationKey}-${i}`}
                         className={`anim-letter`}
                         style={isBlue ? {color: '#f97316', animationDelay: `${i * 0.06}s`} : {animationDelay: `${i * 0.06}s`}}
                       >
@@ -268,7 +291,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   `}</style>
                   {description.split('').map((char, i) => (
                     <span
-                      key={i}
+                      key={`${animationKey}-desc-${i}`}
                       className="anim-desc-letter"
                       style={{ animationDelay: `${title.length * 0.06 + i * 0.04}s` }}
                     >
@@ -438,11 +461,11 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   {/* Inner orbit circle */}
                   <div className="hero-orbit-inner w-[22rem] h-[22rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.6)'}}>
                     {[
-                      { emoji: '🤖', angle: 0 },
-                      { emoji: '✨', angle: 90 },
-                      { emoji: '🧠', angle: 180 },
-                      { emoji: '⚡', angle: 270 },
-                    ].map(({ emoji, angle }) => (
+                      { Icon: Bot, angle: 0, color: '#3b82f6' },
+                      { Icon: Sparkles, angle: 90, color: '#8b5cf6' },
+                      { Icon: Brain, angle: 180, color: '#ec4899' },
+                      { Icon: Zap, angle: 270, color: '#f59e0b' },
+                    ].map(({ Icon, angle, color }) => (
                       <div
                         key={angle}
                         className="absolute"
@@ -453,8 +476,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                           transform: `rotate(${angle}deg) translate(11rem)`,
                         }}
                       >
-                        <div className="hero-icon-counter-inner w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-blue-100" style={{fontSize: '1.4rem'}}>
-                          {emoji}
+                        <div className="hero-icon-counter-inner w-10 h-10 bg-white rounded-full shadow-md flex items-center justify-center border border-blue-100">
+                          <Icon className="w-5 h-5" style={{ color }} />
                         </div>
                       </div>
                     ))}
@@ -463,12 +486,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   {/* Outer orbit circle */}
                   <div className="hero-orbit-outer w-[33rem] h-[33rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.7)'}}>
                     {[
-                      { emoji: '🎨', label: 'Resume Studio', angle: 0 },
-                      { emoji: '💬', label: 'Interview Preparation', angle: 72 },
-                      { emoji: '🧭', label: 'Career Guidance', angle: 144 },
-                      { emoji: '✅', label: 'Skill Check', angle: 216 },
-                      { emoji: '🚀', label: 'Job Search', angle: 288 },
-                    ].map(({ emoji, label, angle }) => (
+                      { Icon: Palette, label: 'Resume Studio', angle: 0, color: '#06b6d4' },
+                      { Icon: MessageCircle, label: 'Interview Preparation', angle: 72, color: '#10b981' },
+                      { Icon: Compass, label: 'Career Guidance', angle: 144, color: '#f59e0b' },
+                      { Icon: CheckCircle, label: 'Skill Check', angle: 216, color: '#8b5cf6' },
+                      { Icon: Rocket, label: 'Job Search', angle: 288, color: '#ef4444' },
+                    ].map(({ Icon, label, angle, color }) => (
                       <div
                         key={label}
                         className="absolute"
@@ -479,8 +502,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                           transform: `rotate(${angle}deg) translate(16.5rem)`,
                         }}
                       >
-                        <div className="hero-icon-counter-outer w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200" style={{fontSize: '1.4rem'}}>
-                          {emoji}
+                        <div className="hero-icon-counter-outer w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center border border-gray-200">
+                          <Icon className="w-5 h-5" style={{ color }} />
                         </div>
                       </div>
                     ))}

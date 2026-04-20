@@ -1,9 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RoleGuard from '../components/RoleGuard';
 import { Send, Mic, Search, MoreHorizontal, Zap, RefreshCw, Bot, User, TrendingUp, MessageCircle, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config/env';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
+import { sendAIMessageStream, callAIWithFallback } from '../services/aiChatService';
+import { useTypewriter } from '../hooks/useTypewriter';
 
 interface CareerCoachPageProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -49,6 +52,8 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
   const [loading, setLoading] = useState(false);
   const [chatStarted, setChatStarted] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const { streamingText, isTyping, typeText } = useTypewriter();
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -56,29 +61,74 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
 
   const resetChat = () => { setMessages([]); setChatStarted(false); setInput(''); };
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
+    // Cancel any in-flight request
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     if (!chatStarted) setChatStarted(true);
     const userMsg: Message = { role: 'user', content: trimmed };
     const updated = [...messages, userMsg];
     setMessages(updated);
     setInput('');
     setLoading(true);
+    // Check cache first
+    const key = cacheKey('career-coach', trimmed);
+    const cached = getCached<string>(key);
+    if (cached) {
+      setMessages(prev => [...prev, { role: 'assistant', content: cached }]);
+      setLoading(false);
+      return;
+    }
     try {
-      const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated.map(m => ({ role: m.role, content: m.content })), systemPrompt: SYSTEM_PROMPT }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, { role: 'assistant', content: data.reply || data.message || data.content || getFallback(trimmed) }]);
-      } else throw new Error();
-    } catch {
+      // Try backend first, fall back to direct OpenRouter streaming
+      let usedBackend = false;
+      let backendReply = '';
+      try {
+        const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: updated.map(m => ({ role: m.role, content: m.content })), systemPrompt: SYSTEM_PROMPT }),
+          signal: abortRef.current.signal,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          backendReply = data.reply || data.message || data.content || '';
+          if (backendReply) usedBackend = true;
+        }
+      } catch (e: any) {
+        if (e?.name === 'AbortError') return;
+      }
+
+      if (usedBackend) {
+        setCached(key, backendReply);
+        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+        setLoading(false);
+        typeText(backendReply, () => {
+          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: backendReply }; return u; });
+        });
+      } else {
+        // Stream directly from OpenRouter
+        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+        setLoading(false);
+        let full = '';
+        await sendAIMessageStream(
+          updated,
+          SYSTEM_PROMPT,
+          (chunk) => {
+            full += chunk;
+            setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full }; return u; });
+          },
+          abortRef.current.signal
+        );
+        if (full) setCached(key, full);
+      }
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed) }]);
     } finally { setLoading(false); }
-  };
+  }, [messages, loading, chatStarted]);
 
   const getFallback = (q: string): string => {
     const t = q.toLowerCase();
@@ -187,11 +237,14 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
                       {msg.role === 'assistant' ? <Bot className="w-4 h-4 text-white" /> : <User className="w-4 h-4 text-white" />}
                     </div>
                     <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed space-y-1 ${msg.role === 'assistant' ? 'bg-white border border-gray-100 shadow-sm text-gray-800 rounded-tl-sm' : 'bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-tr-sm shadow-md'}`}>
-                      {renderContent(msg.content)}
+                      {renderContent(i === messages.length - 1 && msg.role === 'assistant' && isTyping ? streamingText : msg.content)}
+                      {i === messages.length - 1 && msg.role === 'assistant' && isTyping && (
+                        <span className="inline-block w-1 h-4 bg-violet-400 animate-pulse ml-0.5 align-middle" />
+                      )}
                     </div>
                   </div>
                 ))}
-                {loading && (
+                {loading && !isTyping && (
                   <div className="flex gap-3">
                     <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
                       <Bot className="w-4 h-4 text-white" />

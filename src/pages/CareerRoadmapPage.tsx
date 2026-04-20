@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Target, TrendingUp, Loader, ChevronRight, BookOpen, Zap, RotateCcw } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { callAIWithFallback, generateCareerRoadmap } from '../services/aiChatService';
+import { getCached, setCached, cacheKey } from '../services/aiCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -78,57 +80,33 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
     setRoadmap(null);
     setExpandedStep(0);
 
-    const prompt = `Generate a detailed career roadmap for someone transitioning from "${resolvedCurrent}" to "${resolvedTarget}" with ${experience} of experience.
-
-Return ONLY valid JSON, no markdown, no explanation:
-{
-  "currentRole": "${resolvedCurrent}",
-  "targetRole": "${resolvedTarget}",
-  "totalTimeframe": "e.g. 2-3 years",
-  "summary": "2 sentence overview of this career path",
-  "steps": [
-    {
-      "step": 1,
-      "title": "role or milestone title",
-      "timeframe": "e.g. 0-6 months",
-      "skills": ["skill1", "skill2", "skill3", "skill4"],
-      "description": "what to focus on in this phase",
-      "milestone": "key achievement to unlock before moving to next step"
-    }
-  ],
-  "finalTip": "one powerful actionable career advice sentence"
-}
-
-Rules:
-- Generate exactly 4 steps (phases) in the roadmap
-- Each step should have 4-6 specific skills to learn
-- Steps should be progressive and realistic
-- Skills must be specific (not generic like "communication")
-- Timeframes must be realistic based on ${experience} experience`;
+    const key = cacheKey('roadmap', resolvedCurrent, resolvedTarget, experience);
+    const cached = getCached<Roadmap>(key);
+    if (cached) { setRoadmap(cached); setLoading(false); return; }
 
     try {
-      const res = await fetch(`${API_BASE}/ai-suggestions/career-coach`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemPrompt: 'You are an expert career coach. Generate structured career roadmaps in JSON format only. No markdown, no explanation, just valid JSON.',
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
-
-      const data = await res.json();
-      const reply: string = data.reply || '';
-
-      // Parse JSON from response
-      const jsonMatch = reply.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error('Invalid response');
-
-      const parsed: Roadmap = JSON.parse(jsonMatch[0]);
-      if (!parsed.steps || !Array.isArray(parsed.steps)) throw new Error('Invalid roadmap structure');
-
+      let parsed: Roadmap;
+      try {
+        parsed = await generateCareerRoadmap(resolvedCurrent, resolvedTarget, experience);
+      } catch {
+        // backend attempt
+        const res = await fetch(`${API_BASE}/ai-suggestions/career-coach`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            systemPrompt: 'You are a career coach. Return only valid JSON, no markdown.',
+            messages: [{ role: 'user', content: `Career roadmap from "${resolvedCurrent}" to "${resolvedTarget}", experience: ${experience}. Return JSON with currentRole,targetRole,totalTimeframe,summary,steps(4),finalTip.` }],
+          }),
+        });
+        const data = await res.json();
+        const match = (data.reply || '').match(/\{[\s\S]*\}/);
+        if (!match) throw new Error();
+        parsed = JSON.parse(match[0]);
+      }
+      if (!parsed.steps || !Array.isArray(parsed.steps)) throw new Error();
+      setCached(key, parsed, 30 * 60 * 1000);
       setRoadmap(parsed);
     } catch {
-      // Fallback roadmap
       setRoadmap(buildFallback(resolvedCurrent, resolvedTarget, experience));
     } finally {
       setLoading(false);
@@ -300,7 +278,7 @@ Rules:
                 </div>
 
                 {/* Steps */}
-                {roadmap.steps.map((step, idx) => {
+                {roadmap.steps && roadmap.steps.map((step, idx) => {
                   const color = STEP_COLORS[idx % STEP_COLORS.length];
                   const isExpanded = expandedStep === idx;
                   return (
@@ -337,16 +315,18 @@ Rules:
                             <p className="text-sm text-gray-700 mt-3 mb-3">{step.description}</p>
 
                             {/* Skills */}
-                            <div className="mb-3">
-                              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Skills to Learn</p>
-                              <div className="flex flex-wrap gap-2">
-                                {step.skills.map((skill, i) => (
-                                  <span key={i} className={`text-sm px-3 py-1 rounded-full font-medium border ${color.border} ${color.text} bg-white`}>
-                                    {skill}
-                                  </span>
-                                ))}
+                            {step.skills && step.skills.length > 0 && (
+                              <div className="mb-3">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Skills to Learn</p>
+                                <div className="flex flex-wrap gap-2">
+                                  {step.skills.map((skill, i) => (
+                                    <span key={i} className={`text-sm px-3 py-1 rounded-full font-medium border ${color.border} ${color.text} bg-white`}>
+                                      {skill}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
+                            )}
 
                             {/* Milestone */}
                             <div className={`flex items-start gap-2 bg-white border ${color.border} rounded-lg p-3`}>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, ArrowLeft, RotateCcw } from 'lucide-react';
 import Header from '../components/Header';
+import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
 
 interface AssessmentReviewPageProps {
@@ -40,11 +41,60 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => { fetchReview(); }, [assessmentId]);
+  useEffect(() => { 
+    console.log('🔄 AssessmentReviewPage mounted with assessmentId:', assessmentId);
+    fetchReview(); 
+  }, [assessmentId]);
 
   const fetchReview = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching review for assessmentId:', assessmentId);
+      
+      // Check if it's a practice assessment (stored in localStorage)
+      if (assessmentId.startsWith('local-')) {
+        const storageKey = `assessment_${assessmentId}`;
+        const stored = localStorage.getItem(storageKey);
+        console.log('Looking for:', storageKey);
+        console.log('Found:', stored ? 'Yes' : 'No');
+        
+        if (stored) {
+          const practiceData = JSON.parse(stored);
+          console.log('✅ Loaded practice assessment:', practiceData);
+          setReview({
+            ...practiceData,
+            review: {
+              summary: `You scored ${practiceData.score}% on this practice assessment. This was a practice mode assessment and won't be saved to your profile.`,
+              strengths: practiceData.correctAnswers > 0 ? [
+                `Answered ${practiceData.correctAnswers} question${practiceData.correctAnswers > 1 ? 's' : ''} correctly`,
+                'Completed the full assessment',
+                'Demonstrated commitment to learning'
+              ] : ['Completed the assessment', 'Identified areas for improvement'],
+              improvements: practiceData.score < 100 ? [
+                `Review the ${practiceData.totalQuestions - practiceData.correctAnswers} question${practiceData.totalQuestions - practiceData.correctAnswers > 1 ? 's' : ''} you missed`,
+                'Practice more to improve your score',
+                'Focus on understanding core concepts'
+              ] : ['Challenge yourself with advanced topics'],
+              recommendations: [
+                `Study ${practiceData.skill} documentation and tutorials`,
+                'Build hands-on projects to reinforce learning',
+                'Take the assessment again to track improvement'
+              ],
+              level: practiceData.score >= 80 ? 'Advanced' : practiceData.score >= 60 ? 'Intermediate' : 'Beginner'
+            }
+          });
+          setLoading(false);
+          return;
+        } else {
+          console.error('❌ Practice assessment not found in localStorage');
+          console.log('Available keys:', Object.keys(localStorage).filter(k => k.startsWith('assessment_')));
+          setError('Practice assessment not found. It may have been cleared.');
+          setLoading(false);
+          return;
+        }
+      }
+      
+      // Regular backend assessment
       const token = await getAuthToken();
       if (!token) { setError('Please log in to view your assessment review.'); setLoading(false); return; }
       const response = await fetch(`${API_BASE_URL}/skill-assessments/review/${assessmentId}`, {
@@ -94,7 +144,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
   return (
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      <div className="min-h-screen py-10" style={{background: 'linear-gradient(135deg, #d1fae5 0%, #e0f2fe 50%, #ede9fe 100%)'}}>
+      <div className="min-h-screen py-10 bg-white">
         <div className="max-w-3xl mx-auto px-4">
 
           {/* Back button */}
@@ -265,7 +315,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
               className="flex items-center gap-2 bg-gray-900 text-white px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-700 transition-colors shadow-md">
               <RotateCcw className="w-4 h-4" /> Take Another
             </button>
-            <button onClick={() => onNavigate('dashboard')}
+            <button onClick={() => { window.scrollTo(0, 0); onNavigate('dashboard'); }}
               className="flex items-center gap-2 bg-white text-gray-700 px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-50 transition-colors shadow-md border border-gray-200">
               Dashboard
             </button>
