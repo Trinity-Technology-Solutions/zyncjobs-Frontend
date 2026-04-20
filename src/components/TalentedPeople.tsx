@@ -6,8 +6,6 @@ interface TalentedPeopleProps {
 }
 
 const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
-  // Animated counter for stats
-  const [counts, setCounts] = useState({ candidates: 0, accuracy: 0 });
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
 
@@ -37,39 +35,6 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isVisible) return;
-
-    const duration = 2000; // 2 seconds
-    const steps = 60;
-    const interval = duration / steps;
-    
-    const targets = { candidates: 10000, accuracy: 95 };
-    let step = 0;
-
-    const timer = setInterval(() => {
-      step++;
-      const progress = step / steps;
-      
-      setCounts({
-        candidates: Math.floor(targets.candidates * progress),
-        accuracy: Math.floor(targets.accuracy * progress)
-      });
-
-      if (step >= steps) {
-        clearInterval(timer);
-        setCounts(targets);
-      }
-    }, interval);
-
-    return () => clearInterval(timer);
-  }, [isVisible]);
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K+`;
-    return `${num}+`;
-  };
-
   return (
     <section ref={sectionRef} className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
@@ -82,23 +47,28 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
         >
           
           <h2 className="text-4xl md:text-5xl font-semibold leading-tight text-gray-900">
-            Join 10,000+ Professionals Finding Jobs Smarter
+            Discover Your Next Career Opportunity
           </h2>
 
           <p className="text-gray-500 text-lg max-w-md">
-            AI-powered job matching to help you find the right opportunities faster.
+            Smart job matching powered by AI to connect you with the perfect role faster.
           </p>
 
-          {/* Stats - Minimal */}
-          <div className="flex gap-12">
-            <div>
-              <h3 className="text-3xl font-semibold text-gray-900">{formatNumber(counts.candidates)}</h3>
-              <p className="text-sm text-gray-500 mt-1">Candidates</p>
+          {/* Stats - Quality focused */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-lg">
+            <div className="text-center sm:text-left">
+              <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900">Expert</h3>
+              <p className="text-sm text-gray-500 mt-1">AI Matching</p>
             </div>
 
-            <div>
-              <h3 className="text-3xl font-semibold text-gray-900">{counts.accuracy}%</h3>
-              <p className="text-sm text-gray-500 mt-1">Match Accuracy</p>
+            <div className="text-center sm:text-left">
+              <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900">Verified</h3>
+              <p className="text-sm text-gray-500 mt-1">Opportunities</p>
+            </div>
+
+            <div className="text-center sm:text-left">
+              <h3 className="text-2xl sm:text-3xl font-semibold text-gray-900">Instant</h3>
+              <p className="text-sm text-gray-500 mt-1">Results</p>
             </div>
           </div>
 

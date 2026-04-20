@@ -124,7 +124,6 @@ const WithLayout: React.FC<{
   </div>
 );
 
-// Reads assessmentId from URL param and passes it to AssessmentReviewPage
 const AssessmentReviewPageWrapper: React.FC<{
   onNavigate: (page: string, data?: any) => void;
   user: any;
@@ -209,6 +208,10 @@ function App() {
       if (params?.jobData) localStorage.setItem('selectedJob', JSON.stringify(params.jobData));
       if (slug) { navigate(`/jobs/${slug}`); return; }
       navigate(id ? `/job-detail?id=${id}` : '/job-detail');
+      return;
+    }
+    if (page === 'job-posting' && params?.parsedData) {
+      navigate('/job-posting', { state: { mode: params.mode || 'parse', parsedData: params.parsedData } });
       return;
     }
     if (page === 'assessment-review' && params?.assessmentId) { navigate(`/assessment-review/${params.assessmentId}`); return; }
@@ -699,11 +702,7 @@ function App() {
 
           {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={
-            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
-              <WithLayout {...nav}>
-                <JobPostingPage {...nav} mode={undefined} parsedData={undefined} />
-              </WithLayout>
-            </AuthGuard>
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}><WithLayout {...nav}><JobPostingPage {...nav} mode={location.state?.mode || (()=>{try{const s=JSON.parse(sessionStorage.getItem('parsedJobData')||'{}');if(s?.parsedData){sessionStorage.removeItem('parsedJobData');return s.mode;}return undefined;}catch{return undefined;}})()} parsedData={location.state?.parsedData || (()=>{try{const s=JSON.parse(sessionStorage.getItem('parsedJobData')||'{}');return s?.parsedData||undefined;}catch{return undefined;}})()} /></WithLayout></AuthGuard>
           } />
 
           <Route path="/job-posting-selection" element={
@@ -875,3 +874,5 @@ function App() {
 }
 
 export default App;
+
+

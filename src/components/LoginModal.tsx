@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '../api/auth';
+import { GOOGLE_AUTH_BASE } from '../config/env';
 import { LoadingButton, FormLoading } from './LoadingStates';
 
 // Toast notification function
@@ -199,8 +200,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
                   showToast('You are already logged in!', 'warning');
                   return;
                 }
-                const baseUrl = import.meta.env.VITE_API_URL || '/api';
-                window.location.href = `${baseUrl}/auth/google/candidate?portal=candidate`;
+                window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/candidate?portal=candidate`;
               }}
               className="mt-4 w-full flex items-center justify-center px-4 py-3 border border-gray-300 rounded-lg shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
             >

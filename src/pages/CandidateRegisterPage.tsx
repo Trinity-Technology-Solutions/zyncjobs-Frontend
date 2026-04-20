@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, ArrowLeft, Briefcase, TrendingUp, Award, Users } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
+import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
 
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -428,7 +429,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
 
               <button
                 type="button"
-                onClick={() => { window.location.href = `${import.meta.env.VITE_API_URL || '/api'}/auth/google/candidate`; }}
+                onClick={() => { window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/candidate`; }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">

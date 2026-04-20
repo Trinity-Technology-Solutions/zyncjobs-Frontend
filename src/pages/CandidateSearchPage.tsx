@@ -211,7 +211,24 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       }
       const filtered = candidatesArray
         .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
-        .map((c: any) => ({ ...c, _id: c._id || c.id }));
+        .map((c: any) => {
+          const rawPhoto = c.profilePhoto || c.photo || c.avatar || c.image || '';
+          let profilePhoto = '';
+          
+          if (rawPhoto) {
+            if (rawPhoto.startsWith('http') || rawPhoto.startsWith('data:')) {
+              // Already a complete URL or data URL
+              profilePhoto = rawPhoto;
+            } else {
+              // Construct full URL
+              const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace('/api', '');
+              const cleanPath = rawPhoto.startsWith('/') ? rawPhoto : `/${rawPhoto}`;
+              profilePhoto = `${BASE}${cleanPath}`;
+            }
+          }
+          
+          return { ...c, _id: c._id || c.id, profilePhoto };
+        });
       setCandidates(filtered);
       setTotalCandidates(filtered.length);
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
@@ -333,23 +350,23 @@ return (
             
             {/* Search Bar */}
             <div className="max-w-4xl mx-auto">
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 border border-white/30 shadow-lg">
-                <div className="grid lg:grid-cols-4 md:grid-cols-2 gap-4">
-                  <div className="relative">
-                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-white/30 shadow-lg">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Search candidates..."
+                      placeholder="Search candidates"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-500 font-medium"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm"
                     />
                   </div>
-                  <div className="relative">
-                    <Code className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <div className="relative flex-1">
+                    <Code className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Skills (e.g., Python, React)..."
+                      placeholder="Skills (e.g., Python)"
                       value={selectedSkill}
                       onChange={(e) => {
                         setSelectedSkill(e.target.value);
@@ -367,7 +384,7 @@ return (
                         setShowSkillSuggestions(true);
                       }}
                       onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
                     />
                     {showSkillSuggestions && skillSuggestions.length > 0 && (
                       <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
@@ -392,11 +409,11 @@ return (
                       </div>
                     )}
                   </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <div className="relative flex-1">
+                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Location (e.g., Mumbai, Remote)..."
+                      placeholder="Location (e.g., Mumbai)"
                       value={selectedLocation}
                       onChange={(e) => {
                         setSelectedLocation(e.target.value);
@@ -414,7 +431,7 @@ return (
                         setShowLocationSuggestions(true);
                       }}
                       onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
-                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 font-medium"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
                     />
                     {showLocationSuggestions && locationSuggestions.length > 0 && (
                       <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
@@ -439,8 +456,8 @@ return (
                       </div>
                     )}
                   </div>
-                  <button onClick={() => fetchCandidates()} className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl">
-                    <Filter className="w-5 h-5" />
+                  <button onClick={() => fetchCandidates()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-md">
+                    <Filter className="w-4 h-4" />
                     <span>Search Candidates</span>
                   </button>
                 </div>
@@ -595,9 +612,24 @@ return (
                   <div className="p-5 flex items-start gap-4">
                     {/* Avatar */}
                     <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 overflow-hidden shadow">
-                      {candidate.profilePhoto
-                        ? <img src={candidate.profilePhoto} alt={getCandidateName(candidate)} className="w-full h-full object-cover" />
-                        : getAvatar(getCandidateName(candidate))}
+                      {candidate.profilePhoto ? (
+                        <img 
+                          src={candidate.profilePhoto} 
+                          alt={getCandidateName(candidate)} 
+                          className="w-full h-full object-cover" 
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            target.nextElementSibling!.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className={`w-full h-full flex items-center justify-center text-white font-bold text-lg ${candidate.profilePhoto ? 'hidden' : 'flex'}`}
+                        style={{ display: candidate.profilePhoto ? 'none' : 'flex' }}
+                      >
+                        {getAvatar(getCandidateName(candidate))}
+                      </div>
                     </div>
 
                     {/* Info */}

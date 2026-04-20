@@ -59,50 +59,54 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
   };
 
   const parseJobDescription = async (description: string) => {
+    // Try backend first, silently fall back on any error (404, 500, network)
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const response = await fetch(`${API_BASE}/api/parse-job-post`, {
+      const base = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(`${base}/parse-job-post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: description })
+        body: JSON.stringify({ text: description }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
-      if (!response.ok) throw new Error('Backend parse failed');
-
-      const result = await response.json();
-      const d = result.data;
-
-      const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
-      const jobLocation = d.location || extractLocation(description);
-      const country = d.country || await inferCountryFromCity(API_BASE, jobLocation);
-
-      return {
-        jobTitle:        d.jobTitle        || extractJobTitle(description),
-        companyName:     '',
-        jobLocation,
-        country,
-        jobType:         d.jobType         ? [d.jobType] : extractJobType(description),
-        experienceRange: normalizeExperienceRange(d.experienceRange) || extractExperience(description),
-        skills:          d.skills?.length  ? d.skills   : extractSkills(description),
-        minSalary:       backendSalary.min,
-        maxSalary:       backendSalary.max,
-        currency:        backendSalary.currency,
-        payRate:         backendSalary.payRate,
-        benefits:        extractBenefits(description),
-        educationLevel:  d.educationLevel  || extractEducation(description),
-        jobDescription:  d.description     || description,
-        responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
-        requirements:    d.requirements?.length    ? d.requirements    : extractRequirements(description),
-        jobCategory:     d.jobCategory     || extractJobCategory(description),
-        priority:        d.priority        || extractPriority(description),
-        clientName:      extractClientName(description),
-        reportingManager: extractReportingManager(description),
-        workAuth:        extractWorkAuth(description)
-      };
-    } catch (error) {
-      console.warn('Backend parse failed, trying AI...', error);
-      return await parseWithAIOrRegex(description);
+      if (response.ok) {
+        const result = await response.json();
+        const d = result.data || result;
+        const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
+        const jobLocation = d.location || extractLocation(description);
+        const country = d.country || await inferCountryFromCity(base, jobLocation);
+        return {
+          jobTitle:         d.jobTitle         || extractJobTitle(description),
+          companyName:      d.companyName      || extractCompanyName(description),
+          jobLocation,
+          country,
+          jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
+          experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
+          skills:           d.skills?.length   ? d.skills   : extractSkills(description),
+          minSalary:        backendSalary.min,
+          maxSalary:        backendSalary.max,
+          currency:         backendSalary.currency,
+          payRate:          backendSalary.payRate,
+          benefits:         extractBenefits(description),
+          educationLevel:   d.educationLevel   || extractEducation(description),
+          jobDescription:   d.description      || description,
+          responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
+          requirements:     d.requirements?.length     ? d.requirements    : extractRequirements(description),
+          jobCategory:      d.jobCategory      || extractJobCategory(description),
+          priority:         d.priority         || extractPriority(description),
+          clientName:       extractClientName(description),
+          reportingManager: extractReportingManager(description),
+          workAuth:         extractWorkAuth(description),
+        };
+      }
+    } catch {
+      // backend unavailable or timed out — fall through to AI/regex
     }
+    return parseWithAIOrRegex(description);
   };
 
   const parseWithAIOrRegex = async (description: string) => {
@@ -140,10 +144,10 @@ ${description.slice(0, 2000)}`;
       const salary = extractSalaryIfNumeric(description);
       return {
         jobTitle:         d.jobTitle         || extractJobTitle(description),
-        companyName:      '',
+        companyName:      d.companyName      || extractCompanyName(description),
         jobLocation:      d.jobLocation      || extractLocation(description),
         country:          '',
-        jobType:          d.jobType          ? [d.jobType] : extractJobType(description),
+        jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
         experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
         skills:           Array.isArray(d.skills) && d.skills.length ? d.skills : extractSkills(description),
         minSalary:        d.minSalary        || salary.min,
@@ -170,11 +174,11 @@ ${description.slice(0, 2000)}`;
   const buildFromRegex = async (description: string) => {
     const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
     const jobLocation = extractLocation(description);
-    const country = await inferCountryFromCity(API_BASE, jobLocation);
+    const country = await inferCountryFromCity(API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`, jobLocation);
     const salary = extractSalaryIfNumeric(description);
     return {
       jobTitle:         extractJobTitle(description),
-      companyName:      '',
+      companyName:      extractCompanyName(description),
       jobLocation,
       country,
       jobType:          extractJobType(description),
@@ -198,9 +202,59 @@ ${description.slice(0, 2000)}`;
   };
 
   const inferCountryFromCity = async (apiBase: string, city: string): Promise<string> => {
-    if (!city || city === 'Remote') return '';
+    if (!city || city === 'Remote' || city === 'Hybrid' || city === 'On-site') return '';
+    // Client-side city→country map (no API needed)
+    const cityCountryMap: Record<string, string> = {
+      // India
+      'Mumbai': 'India', 'Delhi': 'India', 'New Delhi': 'India', 'Bangalore': 'India',
+      'Bengaluru': 'India', 'Chennai': 'India', 'Hyderabad': 'India', 'Kolkata': 'India',
+      'Pune': 'India', 'Ahmedabad': 'India', 'Surat': 'India', 'Jaipur': 'India',
+      'Lucknow': 'India', 'Kanpur': 'India', 'Nagpur': 'India', 'Indore': 'India',
+      'Thane': 'India', 'Bhopal': 'India', 'Visakhapatnam': 'India', 'Patna': 'India',
+      'Vadodara': 'India', 'Ghaziabad': 'India', 'Ludhiana': 'India', 'Agra': 'India',
+      'Nashik': 'India', 'Faridabad': 'India', 'Meerut': 'India', 'Rajkot': 'India',
+      'Varanasi': 'India', 'Srinagar': 'India', 'Aurangabad': 'India', 'Dhanbad': 'India',
+      'Amritsar': 'India', 'Navi Mumbai': 'India', 'Allahabad': 'India', 'Ranchi': 'India',
+      'Howrah': 'India', 'Coimbatore': 'India', 'Jabalpur': 'India', 'Gwalior': 'India',
+      'Vijayawada': 'India', 'Jodhpur': 'India', 'Madurai': 'India', 'Raipur': 'India',
+      'Kota': 'India', 'Guwahati': 'India', 'Chandigarh': 'India', 'Mysore': 'India',
+      'Gurgaon': 'India', 'Noida': 'India', 'Kochi': 'India', 'Dehradun': 'India',
+      'Bhubaneswar': 'India', 'Mangalore': 'India', 'Erode': 'India', 'Trichy': 'India',
+      'Tiruchirappalli': 'India', 'Salem': 'India', 'Tirunelveli': 'India', 'Vellore': 'India',
+      'Pondicherry': 'India', 'Puducherry': 'India', 'Kolhapur': 'India', 'Nanded': 'India',
+      'Solapur': 'India', 'Hubli': 'India', 'Dharwad': 'India',
+      // US
+      'New York': 'United States', 'Los Angeles': 'United States', 'Chicago': 'United States',
+      'Houston': 'United States', 'Phoenix': 'United States', 'Philadelphia': 'United States',
+      'San Antonio': 'United States', 'San Diego': 'United States', 'Dallas': 'United States',
+      'San Jose': 'United States', 'Austin': 'United States', 'San Francisco': 'United States',
+      'Seattle': 'United States', 'Denver': 'United States', 'Boston': 'United States',
+      'Nashville': 'United States', 'Atlanta': 'United States', 'Miami': 'United States',
+      'Portland': 'United States', 'Las Vegas': 'United States',
+      // UK
+      'London': 'United Kingdom', 'Manchester': 'United Kingdom', 'Birmingham': 'United Kingdom',
+      'Leeds': 'United Kingdom', 'Glasgow': 'United Kingdom', 'Edinburgh': 'United Kingdom',
+      // Others
+      'Toronto': 'Canada', 'Vancouver': 'Canada', 'Montreal': 'Canada',
+      'Sydney': 'Australia', 'Melbourne': 'Australia', 'Brisbane': 'Australia',
+      'Singapore': 'Singapore', 'Dubai': 'United Arab Emirates', 'Abu Dhabi': 'United Arab Emirates',
+      'Berlin': 'Germany', 'Munich': 'Germany', 'Hamburg': 'Germany', 'Frankfurt': 'Germany',
+      'Paris': 'France', 'Lyon': 'France', 'Madrid': 'Spain', 'Barcelona': 'Spain',
+      'Rome': 'Italy', 'Milan': 'Italy', 'Amsterdam': 'Netherlands', 'Zurich': 'Switzerland',
+      'Tokyo': 'Japan', 'Osaka': 'Japan', 'Seoul': 'South Korea', 'Beijing': 'China',
+      'Shanghai': 'China', 'Kuala Lumpur': 'Malaysia', 'Jakarta': 'Indonesia',
+    };
+    // Try exact match first
+    const exact = cityCountryMap[city];
+    if (exact) return exact;
+    // Try case-insensitive partial match
+    const lower = city.toLowerCase();
+    for (const [c, country] of Object.entries(cityCountryMap)) {
+      if (c.toLowerCase() === lower || lower.includes(c.toLowerCase())) return country;
+    }
+    // Fallback to API
     try {
-      const res = await fetch(`${apiBase}/api/locations/city-country/${encodeURIComponent(city)}`);
+      const res = await fetch(`${apiBase}/locations/city-country/${encodeURIComponent(city)}`);
       const data = await res.json();
       return data.country || '';
     } catch {
@@ -253,28 +307,37 @@ ${description.slice(0, 2000)}`;
     if (!raw) return '';
     const text = raw.toLowerCase().replace(/\s+/g, ' ').trim();
 
-    // Extract the first number mentioned
-    const nums = text.match(/(\d+)/g)?.map(Number) || [];
-    if (nums.length === 0) {
-      if (/fresher|entry|no experience|0/i.test(text)) return '0-1 years';
-      if (/junior/i.test(text)) return '1-2 years';
-      if (/mid|intermediate/i.test(text)) return '3-5 years';
-      if (/senior/i.test(text)) return '5-7 years';
-      if (/lead|principal|expert/i.test(text)) return '10+ years';
-      return '';
+    const snapMin = (n: number) => {
+      const opts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20];
+      const c = opts.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+      return `${c} year${c !== 1 ? 's' : ''}`;
+    };
+    const snapMax = (n: number) => {
+      const opts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25];
+      const c = opts.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+      return `${c} year${c !== 1 ? 's' : ''}`;
+    };
+
+    // Try to extract two numbers (range)
+    const rangeMatch = text.match(/(\d+)\s*[-–to]+\s*(\d+)/);
+    if (rangeMatch) {
+      return `${snapMin(parseInt(rangeMatch[1]))} - ${snapMax(parseInt(rangeMatch[2]))}`;
     }
 
-    const min = Math.min(...nums);
-    const max = nums.length > 1 ? Math.max(...nums) : min;
+    // Single number
+    const singleMatch = text.match(/(\d+)/);
+    if (singleMatch) {
+      const n = parseInt(singleMatch[1]);
+      return `${snapMin(n)} - ${snapMax(Math.min(n + 2, 25))}`;
+    }
 
-    // Map to the exact dropdown values
-    if (max <= 1)  return '0-1 years';
-    if (max <= 2)  return '1-2 years';
-    if (max <= 3)  return '2-3 years';
-    if (max <= 5)  return '3-5 years';
-    if (max <= 7)  return '5-7 years';
-    if (max <= 10) return '7-10 years';
-    return '10+ years';
+    // Keyword fallbacks
+    if (/fresher|entry|no experience|0/i.test(text)) return '0 years - 1 year';
+    if (/junior/i.test(text)) return '1 year - 2 years';
+    if (/mid|intermediate/i.test(text)) return '3 years - 5 years';
+    if (/senior/i.test(text)) return '5 years - 7 years';
+    if (/lead|principal|expert/i.test(text)) return '10 years - 12 years';
+    return '';
   };
 
   // Helper functions to extract information
@@ -434,13 +497,53 @@ ${description.slice(0, 2000)}`;
   };
 
   const extractLocation = (text: string): string => {
+    // --- Priority 1: explicit label on its own line or after colon ---
+    const labelPatterns = [
+      /^\s*(?:location|job\s+location|work\s+location|office\s+location)\s*[:\-]\s*([^\n\r,\(]{2,50})/im,
+      /(?:location|based\s+in|located\s+in|office\s+location)\s*[:\-]\s*([^\n\r,\(]{2,50})/i,
+      /work\s+(?:location|place)\s*[:\-]\s*([^\n\r,\(]{2,50})/i,
+    ];
+    for (const p of labelPatterns) {
+      const m = text.match(p);
+      if (m?.[1]) {
+        const loc = m[1].trim().replace(/\s+/g, ' ');
+        // reject if it looks like a sentence (too many words or contains verbs)
+        if (loc.length > 1 && loc.length < 50 && loc.split(/\s+/).length <= 5
+            && !/\b(?:is|are|will|can|the|and|for|with|from|that|this|have|has)\b/i.test(loc)) {
+          return loc.charAt(0).toUpperCase() + loc.slice(1);
+        }
+      }
+    }
+
+    // --- Priority 2: work arrangement keywords ---
+    if (/\bremote\b/i.test(text) && /\bhybrid\b/i.test(text)) return 'Hybrid';
+    if (/\bfully\s+remote\b|\b100%\s+remote\b|\bwork\s+from\s+home\b|\bwfh\b/i.test(text)) return 'Remote';
+    if (/\bhybrid\b/i.test(text)) return 'Hybrid';
+
+    // --- Priority 3: known Indian cities (most JDs are Indian) ---
+    const indianCities = [
+      'Mumbai','Delhi','New Delhi','Bangalore','Bengaluru','Chennai','Hyderabad',
+      'Kolkata','Pune','Ahmedabad','Surat','Jaipur','Lucknow','Kanpur','Nagpur',
+      'Indore','Thane','Bhopal','Visakhapatnam','Patna','Vadodara','Ghaziabad',
+      'Ludhiana','Agra','Nashik','Faridabad','Meerut','Rajkot','Varanasi',
+      'Srinagar','Aurangabad','Dhanbad','Amritsar','Navi Mumbai','Allahabad',
+      'Ranchi','Howrah','Coimbatore','Jabalpur','Gwalior','Vijayawada','Jodhpur',
+      'Madurai','Raipur','Kota','Guwahati','Chandigarh','Mysore','Gurgaon',
+      'Noida','Kochi','Dehradun','Bhubaneswar','Mangalore','Erode','Trichy',
+      'Tiruchirappalli','Salem','Tirunelveli','Vellore','Coimbatore','Pondicherry',
+      'Puducherry','Kolhapur','Nashik','Nanded','Solapur','Hubli','Dharwad',
+    ];
+    for (const city of indianCities) {
+      if (new RegExp(`\\b${city}\\b`, 'i').test(text)) return city;
+    }
+
     const locationPatterns = [
-      // Explicit location labels
-      /(?:location|based\s+in|office|workplace|address|city|state|country)\s*[:\-]\s*([^\n\r\(,]+)/i,
-      // Work from patterns
-      /work\s+from\s+([^\n\r\(,]+)/i,
-      // Located in patterns
-      /located\s+in\s+([^\n\r\(,]+)/i,
+      // Major US cities with states
+      /((?:New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|El Paso|Nashville|Detroit|Oklahoma City|Portland|Las Vegas|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|Stockton|Toledo|St. Paul|Newark|Greensboro|Plano|Henderson|Lincoln|Buffalo|Jersey City|Chula Vista|Fort Wayne|Orlando|St. Petersburg|Chandler|Laredo|Norfolk|Durham|Madison|Lubbock|Irvine|Winston-Salem|Glendale|Garland|Hialeah|Reno|Chesapeake|Gilbert|Baton Rouge|Irving|Scottsdale|North Las Vegas|Fremont|Boise|Richmond|San Bernardino|Birmingham|Spokane|Rochester|Des Moines|Modesto|Fayetteville|Tacoma|Oxnard|Fontana|Columbus|Montgomery|Moreno Valley|Shreveport|Aurora|Yonkers|Akron|Huntington Beach|Little Rock|Augusta|Amarillo|Glendale|Mobile|Grand Rapids|Salt Lake City|Tallahassee|Huntsville|Grand Prairie|Knoxville|Worcester|Newport News|Brownsville|Overland Park|Santa Clarita|Providence|Garden Grove|Chattanooga|Oceanside|Jackson|Fort Lauderdale|Santa Rosa|Rancho Cucamonga|Port St. Lucie|Tempe|Ontario|Vancouver|Cape Coral|Sioux Falls|Springfield|Peoria|Pembroke Pines|Elk Grove|Salem|Lancaster|Corona|Eugene|Palmdale|Salinas|Springfield|Pasadena|Fort Collins|Hayward|Pomona|Cary|Rockford|Alexandria|Escondido|McKinney|Kansas City|Joliet|Sunnyvale|Torrance|Bridgeport|Lakewood|Hollywood|Paterson|Naperville|Syracuse|Mesquite|Dayton|Savannah|Clarksville|Orange|Pasadena|Fullerton|Killeen|Frisco|Hampton|McAllen|Warren|Bellevue|West Valley City|Columbia|Olathe|Sterling Heights|New Haven|Miramar|Waco|Thousand Oaks|Cedar Rapids|Charleston|Round Rock|Rialto|Davenport|Miami Gardens|Burbank|Richardson|Pompano Beach|North Charleston|Broken Arrow|Boulder|West Palm Beach|Surprise|Thornton|League City|Dearborn|Roseville|Beaumont|Brownsville|Independence|Murfreesboro|Ann Arbor|Fargo|Wilmington|Abilene|Odessa|Columbia|Pearland|Temecula|Carrollton|Lewisville|Victorville|Santa Maria|Berkeley|Topeka|Norman|Elgin|Clearwater|Westminster|Billings|Lowell|Stamford|Fontana|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Evansville|Fort Wayne|Provo|Charleston|Springfield|Lakewood|Peoria|High Point|Waterbury|West Jordan|Antioch|Everett|West Palm Beach|Centennial|Inglewood|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman)(?:,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY))?)/i,
+      // International cities
+      /(London|Paris|Berlin|Madrid|Rome|Amsterdam|Vienna|Brussels|Prague|Warsaw|Budapest|Stockholm|Copenhagen|Oslo|Helsinki|Dublin|Zurich|Geneva|Barcelona|Milan|Munich|Hamburg|Frankfurt|Singapore|Dubai|Toronto|Sydney|Melbourne)/i,
+      // City, State/Country patterns
+      /([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*,\s*(?:[A-Z]{2}|[A-Z][a-z]+))/,
       // Major US cities with states
       /((?:New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|El Paso|Nashville|Detroit|Oklahoma City|Portland|Las Vegas|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|Stockton|Toledo|St. Paul|Newark|Greensboro|Plano|Henderson|Lincoln|Buffalo|Jersey City|Chula Vista|Fort Wayne|Orlando|St. Petersburg|Chandler|Laredo|Norfolk|Durham|Madison|Lubbock|Irvine|Winston-Salem|Glendale|Garland|Hialeah|Reno|Chesapeake|Gilbert|Baton Rouge|Irving|Scottsdale|North Las Vegas|Fremont|Boise|Richmond|San Bernardino|Birmingham|Spokane|Rochester|Des Moines|Modesto|Fayetteville|Tacoma|Oxnard|Fontana|Columbus|Montgomery|Moreno Valley|Shreveport|Aurora|Yonkers|Akron|Huntington Beach|Little Rock|Augusta|Amarillo|Glendale|Mobile|Grand Rapids|Salt Lake City|Tallahassee|Huntsville|Grand Prairie|Knoxville|Worcester|Newport News|Brownsville|Overland Park|Santa Clarita|Providence|Garden Grove|Chattanooga|Oceanside|Jackson|Fort Lauderdale|Santa Rosa|Rancho Cucamonga|Port St. Lucie|Tempe|Ontario|Vancouver|Cape Coral|Sioux Falls|Springfield|Peoria|Pembroke Pines|Elk Grove|Salem|Lancaster|Corona|Eugene|Palmdale|Salinas|Springfield|Pasadena|Fort Collins|Hayward|Pomona|Cary|Rockford|Alexandria|Escondido|McKinney|Kansas City|Joliet|Sunnyvale|Torrance|Bridgeport|Lakewood|Hollywood|Paterson|Naperville|Syracuse|Mesquite|Dayton|Savannah|Clarksville|Orange|Pasadena|Fullerton|Killeen|Frisco|Hampton|McAllen|Warren|Bellevue|West Valley City|Columbia|Olathe|Sterling Heights|New Haven|Miramar|Waco|Thousand Oaks|Cedar Rapids|Charleston|Sioux City|Round Rock|Rialto|Davenport|Miami Gardens|Burbank|Richardson|Pompano Beach|North Charleston|Broken Arrow|Boulder|West Palm Beach|Surprise|Thornton|League City|Dearborn|Roseville|Palmdale|Salinas|Beaumont|Brownsville|Independence|Murfreesboro|Ann Arbor|Fargo|Wilmington|Abilene|Odessa|Columbia|Pearland|Huntington Beach|Temecula|Richardson|Carrollton|Lewisville|Victorville|Santa Maria|Berkeley|Topeka|Norman|Elgin|Columbia|Clearwater|Westminster|Billings|Lowell|Stamford|Fontana|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Evansville|Fort Wayne|Provo|Charleston|Springfield|Lakewood|Peoria|High Point|Waterbury|Pompano Beach|West Jordan|Antioch|Everett|West Palm Beach|Centennial|Lowell|Richardson|Broken Arrow|Inglewood|Sandy Springs|Jurupa Valley|Hillsboro|Waterbury|Santa Clara|Costa Mesa|Miami Gardens|Concord|Peoria|Downey|Roseville|Thornton|Manchester|Allentown|Elgin|Sterling Heights|West Valley City|Columbia|Surprise|Sunnyvale|Clarksville|Roseville|Peoria|Inglewood|Evansville|Salem|Santa Clara|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina)(?:,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming))?)/i,
       // International cities
@@ -511,18 +614,17 @@ ${description.slice(0, 2000)}`;
       return 'On-site';
     }
 
-    return 'Remote';
+    return '';
   };
 
   const extractJobType = (text: string): string[] => {
-    const types = [];
+    const types: string[] = [];
     const jobTypePatterns = [
-      { pattern: /full.?time|permanent|regular/i, type: 'Full-time' },
-      { pattern: /part.?time/i, type: 'Part-time' },
-      { pattern: /contract|contractor|freelance|consulting/i, type: 'Contract' },
-      { pattern: /intern|internship|trainee/i, type: 'Internship' },
-      { pattern: /temporary|temp|seasonal/i, type: 'Temporary' },
-      { pattern: /volunteer/i, type: 'Volunteer' }
+      { pattern: /\bfull[\s\-]?time\b|\bpermanent\b|\bregular\s+employment\b/i, type: 'Full-time' },
+      { pattern: /\bpart[\s\-]?time\b/i, type: 'Part-time' },
+      { pattern: /\bcontract\b|\bcontractor\b|\bfreelance\b|\bconsulting\b|\bc2c\b|\bcorp[\s\-]to[\s\-]corp\b/i, type: 'Contract' },
+      { pattern: /\bintern\b|\binternship\b|\btrainee\b|\bapprentice\b/i, type: 'Internship' },
+      { pattern: /\btemporary\b|\btemp\b|\bseasonal\b/i, type: 'Temporary' },
     ];
 
     for (const { pattern, type } of jobTypePatterns) {
@@ -531,7 +633,12 @@ ${description.slice(0, 2000)}`;
       }
     }
 
-    return types.length > 0 ? types : ['Full-time'];
+    // Only default to Full-time if the JD has strong employment signals but no explicit type
+    if (types.length === 0 && /\b(?:salary|benefits|annual\s+leave|pf|provident\s+fund|esi|health\s+insurance|joining\s+date|notice\s+period)\b/i.test(text)) {
+      types.push('Full-time');
+    }
+
+    return types;
   };
 
   const extractExperience = (text: string): string => {
