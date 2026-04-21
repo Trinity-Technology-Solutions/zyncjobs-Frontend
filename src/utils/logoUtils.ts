@@ -1,6 +1,6 @@
 export const getCompanyLogo = (companyName: string): string => {
   if (!companyName) {
-    return `https://ui-avatars.com/api/?name=C&size=64&background=3b82f6&color=ffffff&bold=true`;
+    return '';
   }
 
   // Trinity special case — use local logo
@@ -19,8 +19,8 @@ export const getCompanyLogo = (companyName: string): string => {
     return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
   }
 
-  // Letter avatar fallback via ui-avatars
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true`;
+  // Return empty string instead of avatar fallback
+  return '';
 };
 
 const getCompanyDomain = (companyName: string): string => {
@@ -69,6 +69,9 @@ const getCompanyDomain = (companyName: string): string => {
     'azure': 'azure.microsoft.com',
     'gcp': 'cloud.google.com',
     'trinity technology solution': 'trinitetech.com',
+    'growthpulss private solutions': 'growthpulss.com',
+    'growthpulse solutions': 'growthpulss.com',
+    'growthpulse': 'growthpulss.com',
     'tcs': 'tcs.com',
     'infosys': 'infosys.com',
     'wipro': 'wipro.com',
@@ -93,7 +96,7 @@ const getCompanyDomain = (companyName: string): string => {
 };
 
 export const getSafeCompanyLogo = (job: any): string => {
-  const companyName = job.company || job.companyName || '';
+  const companyName = job.company || job.companyName || job.name || '';
 
   if (companyName.toLowerCase().includes('trinity')) {
     return '/images/company-logos/trinity-logo.png';
@@ -101,8 +104,12 @@ export const getSafeCompanyLogo = (job: any): string => {
   if (companyName.toLowerCase().includes('zync')) {
     return '/images/zyncjobs-logo.png';
   }
+  if (companyName.toLowerCase().includes('growthpul') || companyName.toLowerCase().includes('growth pul')) {
+    return 'https://logo.clearbit.com/growthpulss.com';
+  }
 
-  return getCompanyLogo(companyName);
+  // Return empty string for unknown companies instead of generating avatar
+  return '';
 };
 
 export const getLetterAvatar = (name: string): string => {

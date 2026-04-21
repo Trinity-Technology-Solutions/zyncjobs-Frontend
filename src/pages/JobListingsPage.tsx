@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock } from 'lucide-react';
+import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Trophy, Flame, Sparkles } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -701,31 +701,46 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
-              {selectedCategory ? `${selectedCategory} Jobs` : 'Discover Your Next Career Move'}
+            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-3">
+              Discover Your Dream Job
+              <Sparkles className="w-8 h-8" />
             </h1>
-            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
+            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2">
               {selectedCategory 
                 ? `Explore ${selectedCategory.toLowerCase()} opportunities from leading companies` 
-                : 'AI-powered job matching connects you with the right opportunities faster'
+                : (
+                  <>
+                    AI-powered job matching connects you with the right opportunities faster
+                    <Rocket className="w-5 h-5 ml-2" />
+                  </>
+                )
               }
             </p>
             
             {/* Quick Stats */}
             <div className="flex justify-center items-center gap-8 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{loading ? '...' : filteredJobs.length}+</div>
-                <div className="text-white/80 text-sm">Live Opportunities</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Rocket className="w-6 h-6" />
+                  Live
+                </div>
+                <div className="text-white/80 text-sm">Opportunities</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{statsCompanies > 0 ? `${statsCompanies}+` : `...`}</div>
-                <div className="text-white/80 text-sm">Hiring Partners</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Trophy className="w-6 h-6" />
+                  Top
+                </div>
+                <div className="text-white/80 text-sm">Companies</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{statsJobSeekers > 0 ? `${statsJobSeekers}+` : `...`}</div>
-                <div className="text-white/80 text-sm">Career Seekers</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Flame className="w-6 h-6" />
+                  Active
+                </div>
+                <div className="text-white/80 text-sm">Hiring</div>
               </div>
             </div>
           </div>
@@ -938,7 +953,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 onClick={() => onNavigate && onNavigate('login')}
                 className="flex items-center gap-1.5 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
               >
-                Sign me up! ›
+                <span className="flex items-center gap-1">
+                  Let's go!
+                  <Rocket className="w-4 h-4" />
+                </span>
               </button>
               <button onClick={() => setAlertDismissed(true)} className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm">
                 Dismiss <X className="w-3.5 h-3.5" />
@@ -1287,9 +1305,28 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              const name = job.company || '';
-                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
-                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                              const container = img.parentElement;
+                              if (container) {
+                                // Hide the image
+                                img.style.display = 'none';
+                                // Add LinkedIn-style building icon
+                                container.innerHTML = `
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
+                                    <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
+                                  </svg>
+                                `;
+                                container.classList.add('bg-gray-50');
+                              }
                             }}
                           />
                         </div>

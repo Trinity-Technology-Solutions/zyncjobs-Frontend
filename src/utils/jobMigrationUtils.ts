@@ -45,18 +45,20 @@ export const getDisplayEmployerId = (job: any, jobPoster: any): string | null =>
   return null;
 };
 
-export const generatePositionId = (): string => {
+export const getCompanyAbbreviation = (companyName: string): string => {
+  if (!companyName) return 'ZYN';
+  const words = companyName.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 1) return words[0].substring(0, 3).toUpperCase();
+  return words.slice(0, 4).map(w => w[0]).join('').toUpperCase();
+};
+
+export const generatePositionId = (companyName?: string): string => {
   const POSITION_ID_KEY = 'zyncjobs_position_counter';
-  
-  // Get current counter from localStorage
   let counter = parseInt(localStorage.getItem(POSITION_ID_KEY) || '0', 10);
-  
-  // Increment counter
   counter += 1;
-  
-  // Store updated counter
   localStorage.setItem(POSITION_ID_KEY, counter.toString());
-  
-  // Return formatted position ID with PID prefix and zero padding
-  return `PID${String(counter).padStart(4, '0')}`;
+  const abbr = getCompanyAbbreviation(companyName || '');
+  const year = new Date().getFullYear().toString().slice(-2);
+  const seq = String(counter).padStart(4, '0');
+  return `${abbr}/${year}/${seq}`;
 };

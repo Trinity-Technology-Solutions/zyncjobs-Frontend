@@ -3,6 +3,7 @@ import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, ArrowLeft } fro
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
+import analytics from '../services/analytics';
 
 interface LoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -35,6 +36,10 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         setLoading(false);
         return;
       }
+      
+      // Track successful login
+      analytics.userAnalytics.login('candidate');
+      
       localStorage.setItem('user', JSON.stringify(response.user));
       const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
       const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
@@ -119,9 +124,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {[['100%', 'Free to Use', 'text-blue-600'], ['All Fields', 'Every Industry', 'text-orange-500'], ['AI-First', 'Smart Matching', 'text-blue-600']].map(([num, label, clr]) => (
+              {[['Zero cost.', 'Full power.', 'text-blue-600'], ['Any role.', 'Any field. We got you.', 'text-orange-500'], ['No limits.', 'Just opportunities.', 'text-blue-600']].map(([num, label, clr]) => (
                 <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <div className={`text-2xl font-bold ${clr}`}>{num}</div>
+                  <div className={`text-lg font-bold ${clr}`}>{num}</div>
                   <div className="text-gray-500 text-xs mt-1">{label}</div>
                 </div>
               ))}
@@ -212,6 +217,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
+                  // Track Google OAuth attempt
+                  analytics.trackEvent('oauth_attempt', 'login', 'google_candidate');
                   const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/api$/, '');
                   window.location.href = `${base}/api/auth/google/candidate?portal=candidate`;
                 }}
@@ -229,6 +236,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <button
                 type="button"
                 onClick={() => {
+                  // Track LinkedIn OAuth attempt
+                  analytics.trackEvent('oauth_attempt', 'login', 'linkedin_candidate');
                   const base = (import.meta.env.VITE_API_URL || '/api').replace(/\/api$/, '');
                   window.location.href = `${base}/api/auth/linkedin/candidate`;
                 }}

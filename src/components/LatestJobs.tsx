@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
-import { getCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
+import { getId } from '../utils/getId';
 
 interface LatestJobsProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -33,6 +34,29 @@ interface Job {
 const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
+  const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+
+  const fetchCompanyLogos = async (jobList: Job[]) => {
+    try {
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+      const map: Record<string, string> = {};
+      companies.forEach((c: any) => {
+        const name = (c.name || c.companyName || '').toLowerCase();
+        const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
+        if (name && logo) map[name] = logo;
+      });
+      // Also check job.companyLogo field directly
+      jobList.forEach((j: any) => {
+        const name = (j.company || '').toLowerCase();
+        const logo = j.companyLogo || j.logoUrl || '';
+        if (name && logo && !map[name]) map[name] = logo;
+      });
+      setCompanyLogos(map);
+    } catch {}
+  };
 
   const deleteJob = async (jobId: string) => {
     if (!confirm('Are you sure you want to delete this job posting?')) {
@@ -45,7 +69,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
       });
       
       if (response.ok) {
-        setJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
+        setJobs(prev => prev.filter(job => getId(job) !== jobId));
         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Job deleted successfully!" } }));
       } else {
         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Failed to delete job. Please try again." } }));
@@ -80,6 +104,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
         // Ensure jobs are sorted by creation date (newest first)
         const sortedJobs = data.sort((a: { createdAt: string | number | Date; }, b: { createdAt: string | number | Date; }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setJobs(sortedJobs);
+        fetchCompanyLogos(sortedJobs);
       } else {
         console.error('Failed to fetch jobs');
         setJobs([]);
@@ -171,43 +196,44 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
               {jobs.map((job) => (
-                <div key={job._id || job.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
+                <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center mb-4">
-                      <div className="bg-blue-100 w-16 h-16 rounded-lg flex items-center justify-center p-2 mr-4">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
                         <img 
-                          src={job.company.toLowerCase().includes('trinity') ? '/images/company-logos/trinity-logo.png' : getCompanyLogo(job.company)} 
+                          src={companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job)} 
                           alt={`${job.company} logo`}
-                          className="w-full h-full object-contain"
+                          className="w-10 h-10 object-contain"
                           onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            console.log('Logo failed to load:', target.src, 'for company:', job.company);
-                            
-                            // Special handling for Trinity - use custom SVG logo
-                            if (job.company.toLowerCase().includes('trinity')) {
-                              target.src = `data:image/svg+xml,${encodeURIComponent(`
-                                <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-                                  <rect width="64" height="64" fill="#4F46E5" rx="8"/>
-                                  <text x="32" y="25" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">Trinity</text>
-                                  <text x="32" y="45" text-anchor="middle" fill="white" font-family="Arial" font-size="8">Technology</text>
+                            const img = e.target as HTMLImageElement;
+                            const container = img.parentElement;
+                            if (container) {
+                              // Hide the image
+                              img.style.display = 'none';
+                              // Add LinkedIn-style building icon
+                              container.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                  <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
+                                  <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                  <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
                                 </svg>
-                              `)}`;
-                              return;
+                              `;
+                              container.classList.add('bg-gray-50');
                             }
-                            
-                            // Create letter avatar as fallback for other companies
-                            const initials = job.company.split(' ').map(n => n[0]).join('').toUpperCase();
-                            target.src = `data:image/svg+xml,${encodeURIComponent(`
-                              <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-                                <rect width="64" height="64" fill="#3B82F6" rx="8"/>
-                                <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial" font-size="20" font-weight="bold">${initials}</text>
-                              </svg>
-                            `)}`;
                           }}
                         />
                       </div>
                       <div>
-                        <h5 className="font-semibold text-gray-900">{job.company}, {job.location}</h5>
+                        <h5 className="font-semibold text-gray-900">{job.company}</h5>
                         <span className="text-gray-600 text-sm">{job.jobTitle}</span>
+                        <div className="text-gray-500 text-xs mt-1">{job.location}</div>
                       </div>
                     </div>
                     
@@ -218,7 +244,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         <button
                           onClick={() => onNavigate && onNavigate('job-detail', { 
                             jobTitle: job.jobTitle, 
-                            jobId: job._id || job.id,
+                            jobId: getId(job),
                             companyName: job.company,
                             jobData: job
                           })}
@@ -228,7 +254,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         </button>
                         {user?.email === job.postedBy && (
                           <button
-                            onClick={() => deleteJob(job._id || job.id || '')}
+                            onClick={() => deleteJob(getId(job) || '')}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition-colors"
                           >
                             Delete

@@ -22,6 +22,7 @@ import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
+import { useAnalytics } from './hooks/useAnalytics';
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
@@ -160,6 +161,7 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const analytics = useAnalytics(); // Initialize analytics
   const [maintenance, setMaintenance] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
   const [userLoading, setUserLoading] = useState(true);

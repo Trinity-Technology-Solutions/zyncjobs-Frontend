@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy } from 'lucide-react';
+import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot } from 'lucide-react';
 import { tokenStorage } from '../utils/tokenStorage';
 import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
@@ -319,32 +319,39 @@ return (
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg">
-              Find Top Talent Across All Fields 🎯
+            <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg flex items-center justify-center gap-3">
+              Find Top Talent That Hits Different
+              <Target className="w-8 h-8" />
             </h1>
-            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow">
+            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2">
               Browse our pool of verified professionals and find the perfect candidates for your team
+              <Users className="w-5 h-5" />
             </p>
             
             {/* Stats */}
             <div className="flex justify-center items-center gap-8 mb-8">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{totalCandidates || candidates.length || 0}+</div>
-                <div className="text-white/80 text-sm">Active Candidates</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Target className="w-6 h-6" />
+                  Quality
+                </div>
+                <div className="text-white/80 text-sm">Talent Pool</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">
-                  {candidates.filter(c => c.profilePhoto && c.skills && c.skills.length > 0).length}+
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <CheckCircle className="w-6 h-6" />
+                  Verified
                 </div>
-                <div className="text-white/80 text-sm">Verified Profiles</div>
+                <div className="text-white/80 text-sm">Profiles</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">
-                  {lastRefreshed || '--:--'}
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Bot className="w-6 h-6" />
+                  AI-Powered
                 </div>
-                <div className="text-white/80 text-sm">Last Refreshed</div>
+                <div className="text-white/80 text-sm">Matching</div>
               </div>
             </div>
             
@@ -523,11 +530,17 @@ return (
                   <button
                     key={s}
                     onClick={() => setSortBy(s)}
-                    className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${
+                    className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 ${
                       sortBy === s ? 'bg-white text-indigo-700' : 'bg-white/20 text-white hover:bg-white/30'
                     }`}
                   >
-                    {s === 'ai_score' ? '🤖 AI Score' : s === 'skills' ? '🎯 Skills' : '🔤 Name'}
+                    {s === 'ai_score' ? (
+                      <><Bot className="w-3.5 h-3.5" /> AI Score</>
+                    ) : s === 'skills' ? (
+                      <><Target className="w-3.5 h-3.5" /> Skills</>
+                    ) : (
+                      <><Users className="w-3.5 h-3.5" /> Name</>
+                    )}
                   </button>
                 ))}
               </div>

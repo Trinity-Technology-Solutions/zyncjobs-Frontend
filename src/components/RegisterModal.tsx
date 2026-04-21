@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
+import analytics from '../services/analytics';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -90,6 +91,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
         name: formData.name,
         userType: 'candidate' // Default to candidate, can be changed later
       });
+      
+      // Track successful registration
+      analytics.userAnalytics.register('candidate');
       
       const successMsg = 'Account created successfully! You can now sign in.';
       setSuccess(successMsg);

@@ -1,4 +1,4 @@
-const STRAPI_URL = import.meta.env.VITE_STRAPI_URL || 'http://localhost:1337';
+const STRAPI_URL = import.meta.env.VITE_STRAPI_URL || '';
 
 export interface SiteSettings {
   siteLogo?: {
@@ -26,6 +26,7 @@ export interface HeroSection {
 export const strapiAPI = {
   async getSiteSettings(): Promise<SiteSettings> {
     try {
+      if (!STRAPI_URL) return {};
       const url = `${STRAPI_URL}/api/site-settings?populate=*`;
       console.log('Fetching from:', url);
       
@@ -77,6 +78,7 @@ export const strapiAPI = {
 
   async getHeroSection(): Promise<HeroSection> {
     try {
+      if (!STRAPI_URL) return { title: '', subtitle: '', description: '', buttonText: '' };
       const url = `${STRAPI_URL}/api/hero-sections?populate=*`;
       const response = await fetch(url, {
         method: 'GET',
@@ -100,6 +102,7 @@ export const strapiAPI = {
 
   async getNavigation(): Promise<NavItem[]> {
     try {
+      if (!STRAPI_URL) return [];
       const url = `${STRAPI_URL}/api/nav-items?sort=order:asc`;
       console.log('Fetching navigation from:', url);
       
