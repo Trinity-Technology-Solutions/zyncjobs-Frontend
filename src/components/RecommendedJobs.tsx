@@ -365,8 +365,28 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
-                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                              const container = img.parentElement;
+                              if (container) {
+                                // Hide the image
+                                img.style.display = 'none';
+                                // Add LinkedIn-style building icon
+                                container.innerHTML = `
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
+                                    <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
+                                    <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
+                                  </svg>
+                                `;
+                                container.classList.add('bg-gray-50');
+                              }
                             }}
                           />
                         </div>

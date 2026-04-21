@@ -10,6 +10,10 @@ export const config = {
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'ZyncJobs',
   APP_VERSION: import.meta.env.VITE_APP_VERSION || '1.0.0',
+  APP_URL: import.meta.env.VITE_APP_URL || 'http://localhost:5173',
+  
+  // Analytics Configuration
+  GA_TRACKING_ID: import.meta.env.VITE_GA_TRACKING_ID || 'G-0NM343KT24',
   
   // Feature Flags
   ENABLE_ANALYTICS: import.meta.env.VITE_ENABLE_ANALYTICS === 'true',

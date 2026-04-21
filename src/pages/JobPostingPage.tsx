@@ -311,35 +311,62 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     setJobData(prev => ({ ...prev, [field]: value }));
   };
   useEffect(() => {
-    if (parsedData?.companyName && !jobData.companyLogo) {
-      const companies = [
-        { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-        { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '11', name: 'IBM', logo: 'https://img.logo.dev/ibm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '12', name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '13', name: 'Oracle', logo: 'https://img.logo.dev/oracle.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '14', name: 'Salesforce', logo: 'https://img.logo.dev/salesforce.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '15', name: 'Adobe', logo: 'https://img.logo.dev/adobe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
-      ];
-      
-      const matchedCompany = companies.find(company => 
-        company.name.toLowerCase().includes(parsedData.companyName.toLowerCase()) ||
-        parsedData.companyName.toLowerCase().includes(company.name.toLowerCase())
-      );
-      
-      if (matchedCompany) {
-        updateJobData('companyLogo', matchedCompany.logo);
-        updateJobData('companyId', matchedCompany.id);
+    const fetchCompanyLogo = async () => {
+      if (parsedData?.companyName && !jobData.companyLogo) {
+        try {
+          // Try to fetch company from backend first
+          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(parsedData.companyName)}`);
+          if (response.ok) {
+            const data = await response.json();
+            const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
+            
+            const matchedCompany = companies.find((company: any) => 
+              (company.name || company.companyName || '').toLowerCase().includes(parsedData.companyName.toLowerCase()) ||
+              parsedData.companyName.toLowerCase().includes((company.name || company.companyName || '').toLowerCase())
+            );
+            
+            if (matchedCompany) {
+              updateJobData('companyLogo', matchedCompany.logo || matchedCompany.logoUrl || matchedCompany.imageUrl || matchedCompany.image);
+              updateJobData('companyId', matchedCompany._id || matchedCompany.id || matchedCompany.name);
+              return;
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching company logo:', error);
+        }
+        
+        // Fallback to hardcoded companies if API fails or no match found
+        const fallbackCompanies = [
+          { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
+          { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '11', name: 'IBM', logo: 'https://img.logo.dev/ibm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '12', name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '13', name: 'Oracle', logo: 'https://img.logo.dev/oracle.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '14', name: 'Salesforce', logo: 'https://img.logo.dev/salesforce.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '15', name: 'Adobe', logo: 'https://img.logo.dev/adobe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
+        ];
+        
+        const matchedCompany = fallbackCompanies.find(company => 
+          company.name.toLowerCase().includes(parsedData.companyName.toLowerCase()) ||
+          parsedData.companyName.toLowerCase().includes(company.name.toLowerCase())
+        );
+        
+        if (matchedCompany) {
+          updateJobData('companyLogo', matchedCompany.logo);
+          updateJobData('companyId', matchedCompany.id);
+        }
       }
-    }
+    };
+    
+    fetchCompanyLogo();
   }, [parsedData]);
 
   // Auto-parse skills from job description when parsedData is available
@@ -1335,32 +1362,75 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     setShowSkillSuggestions(false);
   };
 
-  const searchCompanies = (query: string) => {
+  const searchCompanies = async (query: string) => {
     if (query.length < 2) {
       setCompanySearchResults([]);
       setShowCompanyDropdown(false);
       return;
     }
 
-    const companies = [
-      { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-      { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-      { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
-    ];
-
-    const filtered = companies.filter(company => 
-      company.name.toLowerCase().includes(query.toLowerCase())
-    );
-    
-    setCompanySearchResults(filtered);
-    setShowCompanyDropdown(filtered.length > 0);
+    try {
+      // Fetch companies from backend API
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(query)}`);
+      if (response.ok) {
+        const data = await response.json();
+        const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
+        
+        // Map backend company data to expected format
+        const mappedCompanies = companies.map((company: any) => ({
+          id: company._id || company.id || company.name,
+          name: company.name || company.companyName,
+          logo: company.logo || company.logoUrl || company.imageUrl || company.image || 
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name || company.companyName || 'Company')}&size=80&background=3b82f6&color=ffffff&bold=true`
+        }));
+        
+        setCompanySearchResults(mappedCompanies);
+        setShowCompanyDropdown(mappedCompanies.length > 0);
+      } else {
+        // Fallback to hardcoded companies if API fails
+        const fallbackCompanies = [
+          { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
+          { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
+        ];
+        
+        const filtered = fallbackCompanies.filter(company => 
+          company.name.toLowerCase().includes(query.toLowerCase())
+        );
+        
+        setCompanySearchResults(filtered);
+        setShowCompanyDropdown(filtered.length > 0);
+      }
+    } catch (error) {
+      console.error('Error fetching companies:', error);
+      // Fallback to hardcoded companies on error
+      const fallbackCompanies = [
+        { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
+        { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
+      ];
+      
+      const filtered = fallbackCompanies.filter(company => 
+        company.name.toLowerCase().includes(query.toLowerCase())
+      );
+      
+      setCompanySearchResults(filtered);
+      setShowCompanyDropdown(filtered.length > 0);
+    }
   };
 
   const selectCompany = (company: any) => {
@@ -2632,7 +2702,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       // Include employer ID from user data
       employerId: user.employerId || 'EID0001', // Fallback to 'EID0001' if not set
       // Generate a sequential position ID
-      positionId: generatePositionId(),
+      positionId: generatePositionId(jobData.companyName || user?.companyName),
       jobCategory: jobData.jobCategory || '',
       locationType: jobData.locationType || '',
       language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],

@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Building } from 'lucide-react';
+import { Star, Building, Shield, Flame, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
+import { getSafeCompanyLogo } from '../utils/logoUtils';
 
 interface Company {
   _id: string;
   name: string;
+  companyName?: string;
+  company?: string;
   industry: string;
   rating: number;
   description: string;
@@ -16,9 +19,15 @@ interface Company {
   website: string;
   openJobs: number;
   logo?: string;
+  companyLogo?: string;
   reviews?: number;
   salaries?: number;
   officeLocations?: number;
+  userType?: string;
+  email?: string;
+  phone?: string;
+  foundedYear?: string;
+  companySize?: string;
 }
 
 const CompaniesPage = ({ onNavigate, user, onLogout }: { 
@@ -40,92 +49,189 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   const [showIndustryDropdown, setShowIndustryDropdown] = useState(false);
   const [locationFilter2, setLocationFilter2] = useState('');
   const [allCompanies, setAllCompanies] = useState<Company[]>([]);
+  const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
 
-  // Default companies
-  const defaultCompanies: Company[] = [
-    {
-      _id: '1',
-      name: 'Trinity Technology Solutions',
-      industry: 'Technology',
-      rating: 0,
-      description: 'Leading tech solutions provider',
-      location: 'Bangalore',
-      employees: '100-500',
-      website: 'trinitetech.com',
-      openJobs: 8,
-      logo: 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=128',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
-    },
-    {
-      _id: '2',
-      name: 'GrowthPulss Private Solutions',
-      industry: 'Business Services',
-      rating: 0,
-      description: 'Growth and business consulting',
-      location: 'India',
-      employees: '200-500',
-      website: 'growthpulss.com',
-      openJobs: 0,
-      logo: 'https://growthpulss.com/assets/favicon_io/android-chrome-512x512.png',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
-    },
-    {
-      _id: '3',
-      name: 'Nambikkai India',
-      industry: 'Non-Profit',
-      rating: 0,
-      description: 'Social impact organization',
-      location: 'India',
-      employees: '100-200',
-      website: 'nambikai.com',
-      openJobs: 0,
-      logo: 'https://www.nambikkai.com/favicon_io/android-chrome-512x512.png',
-      reviews: 0,
-      salaries: 0,
-      officeLocations: 0
-    }
-  ];
 
-  const fetchCompaniesFromJobs = async () => {
+
+  // Fetch companies from multiple endpoints - ONLY REAL REGISTERED COMPANIES
+  const fetchCompaniesFromAPI = async () => {
     try {
-      const [jobsRes, ...reviewsRes] = await Promise.all([
-        fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`),
-        ...defaultCompanies.map(c =>
-          fetch(`${API_ENDPOINTS.BASE_URL}/reviews?companyName=${encodeURIComponent(c.name)}`)
-        )
-      ]);
-
-      const jobsArray = jobsRes.ok ? (await jobsRes.json()) : [];
-
-      const reviewsData = await Promise.all(
-        reviewsRes.map(r => r.ok ? r.json() : { reviews: [] })
+      setLoading(true);
+      let companiesData: Company[] = [];
+      
+      // First try to get registered employers
+      const endpoints = [
+        `${API_ENDPOINTS.BASE_URL}/companies`,
+        `${API_ENDPOINTS.BASE_URL}/users?userType=employer`,
+        `${API_ENDPOINTS.BASE_URL}/users?role=employer`,
+        `${API_ENDPOINTS.BASE_URL}/employers`,
+        `${API_ENDPOINTS.BASE_URL}/profiles?type=employer`
+      ];
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`Trying endpoint: ${endpoint}`);
+          const response = await fetch(endpoint);
+          if (response.ok) {
+            const data = await response.json();
+            const dataArray = Array.isArray(data) ? data : data.companies || data.users || data.employers || data.profiles || [];
+            
+            if (dataArray.length > 0) {
+              console.log(`Found ${dataArray.length} registered employers from ${endpoint}`);
+              companiesData = dataArray.filter((company: any) => {
+                // Filter only real employers
+                const isRealEmployer = 
+                  company.userType === 'employer' || 
+                  company.role === 'employer' ||
+                  company.type === 'employer' ||
+                  (company.email && company.email.includes('@'));
+                
+                // Exclude sample companies
+                const sampleCompanies = [
+                  'zoho', 'tcs', 'infosys', 'wipro', 'hcl', 'tech mahindra', 
+                  'accenture', 'ibm', 'microsoft', 'google', 'amazon', 'apple', 
+                  'meta', 'netflix', 'adobe', 'salesforce', 'oracle', 'sap',
+                  'intel', 'nvidia', 'dell', 'hp', 'cisco', 'vmware', 'atlassian', 'capgemini'
+                ];
+                
+                const companyName = (company.companyName || company.company || company.name || '').toLowerCase();
+                const isSampleData = sampleCompanies.some(sample => companyName.includes(sample));
+                
+                return isRealEmployer && !isSampleData;
+              });
+              break;
+            }
+          }
+        } catch (error) {
+          console.log(`Failed to fetch from ${endpoint}:`, error);
+          continue;
+        }
+      }
+      
+      // If no registered employers found, extract companies from job postings
+      if (companiesData.length === 0) {
+        console.log('No registered employers found, extracting companies from jobs...');
+        try {
+          const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
+          if (jobsResponse.ok) {
+            const jobs = await jobsResponse.json();
+            const jobsArray = Array.isArray(jobs) ? jobs : jobs.jobs || [];
+            
+            // Extract unique companies from jobs
+            const companiesFromJobs = new Map();
+            
+            jobsArray.forEach((job: any) => {
+              const companyName = job.company || job.companyName || job.employerName || 'Unknown Company';
+              const companyKey = companyName.toLowerCase();
+              
+              if (!companiesFromJobs.has(companyKey) && companyName !== 'Unknown Company') {
+                companiesFromJobs.set(companyKey, {
+                  _id: `job-company-${Date.now()}-${Math.random()}`,
+                  name: companyName,
+                  companyName: companyName,
+                  industry: job.industry || job.jobCategory || 'Technology',
+                  location: job.location || job.jobLocation || 'India',
+                  employees: job.companySize || '1-50',
+                  website: job.companyWebsite || '',
+                  description: job.companyDescription || `${companyName} - Professional services`,
+                  email: job.postedBy || job.employerEmail,
+                  logo: job.companyLogo,
+                  userType: 'employer',
+                  extractedFromJobs: true // Mark as extracted from jobs
+                });
+              }
+            });
+            
+            companiesData = Array.from(companiesFromJobs.values());
+            console.log(`Extracted ${companiesData.length} companies from job postings`);
+          }
+        } catch (error) {
+          console.log('Error extracting companies from jobs:', error);
+        }
+      }
+      
+      // If still no companies found, return empty array
+      if (companiesData.length === 0) {
+        console.log('No companies found from any source');
+        return [];
+      }
+      
+      // Transform and enrich company data
+      const transformedCompanies = await Promise.all(
+        companiesData.map(async (company: any) => {
+          // Get company name from various possible fields
+          const companyName = company.companyName || company.company || company.name || 'Unknown Company';
+          
+          // Get job count for this company
+          let jobCount = 0;
+          try {
+            const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
+            if (jobsResponse.ok) {
+              const jobs = await jobsResponse.json();
+              const jobsArray = Array.isArray(jobs) ? jobs : jobs.jobs || [];
+              jobCount = jobsArray.filter((job: any) => 
+                (job.company || job.companyName || '').toLowerCase() === companyName.toLowerCase()
+              ).length;
+            }
+          } catch (error) {
+            console.log('Error fetching job count:', error);
+          }
+          
+          // Get reviews count and rating
+          let reviewCount = 0;
+          let avgRating = 0;
+          try {
+            const reviewsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews?companyName=${encodeURIComponent(companyName)}`);
+            if (reviewsResponse.ok) {
+              const reviewsData = await reviewsResponse.json();
+              const reviewsArray = Array.isArray(reviewsData) ? reviewsData : reviewsData.reviews || [];
+              reviewCount = reviewsArray.length;
+              if (reviewCount > 0) {
+                const totalRating = reviewsArray.reduce((sum: number, review: any) => sum + (review.rating || 0), 0);
+                avgRating = parseFloat((totalRating / reviewCount).toFixed(1));
+              }
+            }
+          } catch (error) {
+            console.log('Error fetching reviews:', error);
+          }
+          
+          return {
+            _id: company._id || company.id || `company-${Date.now()}-${Math.random()}`,
+            name: companyName,
+            industry: company.industry || company.companyIndustry || 'Technology',
+            rating: avgRating || company.rating || 0,
+            description: company.description || company.companyDescription || `${companyName} - Professional services`,
+            location: company.location || company.companyLocation || 'India',
+            employees: company.employees || company.companySize || '1-50',
+            website: company.website || company.companyWebsite || '',
+            openJobs: jobCount,
+            logo: company.companyLogo || company.logo,
+            reviews: reviewCount,
+            salaries: company.salaries || 0,
+            officeLocations: company.officeLocations || 1,
+            email: company.email,
+            phone: company.phone,
+            foundedYear: company.foundedYear,
+            companySize: company.companySize
+          };
+        })
       );
-
-      return defaultCompanies.map((company, idx) => {
-        const jobCount = (Array.isArray(jobsArray) ? jobsArray : []).filter(
-          (job: any) => (job.company || job.companyName)?.toLowerCase() === company.name.toLowerCase()
-        ).length;
-
-        const raw = reviewsData[idx];
-        const reviewsArray: any[] = Array.isArray(raw.reviews) ? raw.reviews : Array.isArray(raw) ? raw : [];
-        const reviewCount = reviewsArray.length;
-        const avgRating = reviewCount
-          ? parseFloat((reviewsArray.reduce((s: number, r: any) => s + (r.rating || 0), 0) / reviewCount).toFixed(1))
-          : 0;
-
-        return { ...company, openJobs: jobCount || company.openJobs, reviews: reviewCount, rating: avgRating };
-      });
+      
+      // Filter out duplicates by company name
+      const uniqueCompanies = transformedCompanies.filter((company, index, self) => 
+        index === self.findIndex(c => c.name.toLowerCase() === company.name.toLowerCase())
+      );
+      
+      console.log(`Final companies count: ${uniqueCompanies.length}`);
+      return uniqueCompanies;
+      
     } catch (error) {
-      console.error('Error fetching companies from jobs:', error);
+      console.error('Error fetching companies:', error);
+      return []; // Return empty array instead of fallback
     }
-    return defaultCompanies;
   };
 
-  // Fetch companies from API
+  // Apply filters to companies
   const applyFilters = (base: Company[]) => {
     let filtered = base;
     if (searchTerm) filtered = filtered.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -144,9 +250,11 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
 
   useEffect(() => {
     const loadCompanies = async () => {
-      const companiesFromJobs = await fetchCompaniesFromJobs();
-      setAllCompanies(companiesFromJobs);
-      setCompanies(companiesFromJobs);
+      const companiesFromAPI = await fetchCompaniesFromAPI();
+      setAllCompanies(companiesFromAPI);
+      setCompanies(companiesFromAPI);
+      // Fetch company logos after loading companies
+      await fetchCompanyLogos(companiesFromAPI);
       setLoading(false);
     };
     loadCompanies();
@@ -168,43 +276,86 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     return uniqueIndustries.filter(i => i.toLowerCase().includes(industryInput.toLowerCase())).slice(0, 10);
   };
 
-
-
   const handleIndustrySelect = (industry: string) => {
     setIndustryInput(industry);
     setShowIndustryDropdown(false);
   };
 
-
-
+  const fetchCompanyLogos = async (jobList: any[]) => {
+    try {
+      const res = await fetch(API_ENDPOINTS.COMPANIES);
+      if (!res.ok) return;
+      const data = await res.json();
+      const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+      const map: Record<string, string> = {};
+      companies.forEach((c: any) => {
+        const name = (c.name || c.companyName || '').toLowerCase();
+        const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
+        if (name && logo) map[name] = logo;
+      });
+      // Also check job.companyLogo field directly
+      jobList.forEach((j: any) => {
+        const name = (j.company || '').toLowerCase();
+        const logo = j.companyLogo || j.logoUrl || '';
+        if (name && logo && !map[name]) map[name] = logo;
+      });
+      setCompanyLogos(map);
+    } catch {}
+  };
 
   const getCompanyLogo = (company: Company) => {
-    // Custom logo URLs for companies
-    const customLogos: { [key: string]: string } = {
-      'Nambikkai India': 'https://www.nambikkai.com/favicon_io/android-chrome-512x512.png',
-      'Trinity Technology Solutions': 'https://www.google.com/s2/favicons?domain=trinitetech.com&sz=128',
-      'GrowthPulss Private Solutions': 'https://growthpulss.com/assets/favicon_io/android-chrome-512x512.png'
-    };
-
-    // Check if company has custom logo
-    if (customLogos[company.name]) {
-      return customLogos[company.name];
-    }
-
-    // Fallback to website favicon
-    if (company.website) {
-      const domain = company.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-      return `https://www.google.com/s2/favicons?domain=${domain}&sz=64`;
+    // First check if we have a logo from the API
+    const apiLogo = companyLogos[(company.name || '').toLowerCase()];
+    if (apiLogo) return apiLogo;
+    
+    // Special cases for known companies
+    const companyName = (company.name || '').toLowerCase();
+    
+    // Trinity Technology Solutions
+    if (companyName.includes('trinity')) {
+      return '/images/company-logos/trinity-logo.png';
     }
     
-    // Final fallback to avatar
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=64&background=3b82f6&color=ffffff&bold=true`;
+    // GrowthPulse/Growthpulse Solutions
+    if (companyName.includes('growthpul') || companyName.includes('growth pul')) {
+      return 'https://logo.clearbit.com/growthpulss.com';
+    }
+    
+    // ZyncJobs
+    if (companyName.includes('zync')) {
+      return '/images/zyncjobs-logo.png';
+    }
+    
+    // Then use the safe company logo utility
+    return getSafeCompanyLogo(company);
   };
 
   const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const target = e.target as HTMLImageElement;
-    const companyName = target.getAttribute('data-company-name') || '';
-    target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true`;
+    const container = target.parentElement;
+    if (container) {
+      // Hide the image
+      target.style.display = 'none';
+      // Add LinkedIn-style building icon
+      container.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
+          <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
+          <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
+        </svg>
+      `;
+      container.classList.add('bg-gray-50');
+    }
+    // Prevent further error events
+    target.onerror = null;
   };
 
   return (
@@ -249,28 +400,39 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg">
+            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-3">
               Explore Top Companies
+              <Building className="w-8 h-8" />
             </h1>
-            <p className="text-lg text-white/90 mb-4 max-w-2xl mx-auto drop-shadow">
+            <p className="text-lg text-white/90 mb-4 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2">
               Discover amazing companies, read reviews, and find your dream workplace
+              <Star className="w-5 h-5" />
             </p>
             
             {/* Stats */}
             <div className="flex justify-center items-center gap-8 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{loading ? '...' : companies.length}+</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Shield className="w-6 h-6" />
+                  Verified
+                </div>
                 <div className="text-white/80 text-sm">Companies</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{loading ? '...' : companies.reduce((sum, c) => sum + (c.reviews || 0), 0).toLocaleString()}</div>
-                <div className="text-white/80 text-sm">Reviews</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Flame className="w-6 h-6" />
+                  Trusted
+                </div>
+                <div className="text-white/80 text-sm">Partners</div>
               </div>
               <div className="w-px h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white">{loading ? '...' : companies.reduce((sum, c) => sum + (c.openJobs || 0), 0)}+</div>
-                <div className="text-white/80 text-sm">Open Jobs</div>
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <TrendingUp className="w-6 h-6" />
+                  Growing
+                </div>
+                <div className="text-white/80 text-sm">Opportunities</div>
               </div>
             </div>
             
@@ -372,7 +534,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                     <div className="flex items-start gap-6">
                       <div className="flex-shrink-0">
                         <img 
-                          src={getCompanyLogo(company)} 
+                          src={companyLogos[(company.name || '').toLowerCase()] || getSafeCompanyLogo(company)} 
                           alt={company.name}
                           data-company-name={company.name}
                           onError={handleLogoError}

@@ -4,6 +4,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
+import analytics from '../services/analytics';
 
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
   const existingToast = document.getElementById('toast');
@@ -173,6 +174,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
         name: formData.name,
         userType: 'candidate'
       });
+      
+      // Track successful registration
+      analytics.userAnalytics.register('candidate');
+      
       showToast('✅ Account created successfully! Redirecting to login...', 'success');
       setTimeout(() => onNavigate('login'), 2000);
     } catch (err) {
@@ -429,7 +434,11 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
 
               <button
                 type="button"
-                onClick={() => { window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/candidate`; }}
+                onClick={() => {
+                  // Track Google OAuth attempt
+                  analytics.trackEvent('oauth_attempt', 'registration', 'google_candidate');
+                  window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/candidate`;
+                }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 <svg className="w-4 h-4" viewBox="0 0 24 24">

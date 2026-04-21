@@ -111,9 +111,9 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-              {[['Free', 'No Hidden Fees', 'text-orange-500'], ['All Fields', 'Every Industry', 'text-blue-600'], ['AI-First', 'Smart Shortlisting', 'text-orange-500']].map(([num, label, clr]) => (
+              {[['Free.', 'No hidden stuff.', 'text-orange-500'], ['Any field.', 'Every industry.', 'text-blue-600'], ['AI-first.', 'Smart shortlists.', 'text-orange-500']].map(([num, label, clr]) => (
                 <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <div className={`text-2xl font-bold ${clr}`}>{num}</div>
+                  <div className={`text-lg font-bold ${clr}`}>{num}</div>
                   <div className="text-gray-500 text-xs mt-1">{label}</div>
                 </div>
               ))}

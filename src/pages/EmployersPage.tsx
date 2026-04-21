@@ -1,4 +1,3 @@
-import React from 'react';
 import { Search, Users, TrendingUp, UserCheck } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';

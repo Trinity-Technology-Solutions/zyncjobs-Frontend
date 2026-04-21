@@ -38,7 +38,7 @@ const formatExperience = (exp: string | undefined): string => {
   };
   return map[exp] || exp;
 };
-import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
+import { getDisplayEmployerId, getCompanyAbbreviation } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
 import JobShareModal from '../components/JobShareModal';
@@ -641,12 +641,28 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       </div>
                     ) : null;
                   })()} 
-                  {job.positionId && (
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium text-gray-700">Position ID:</span>
-                      <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full border border-green-200">{job.positionId}</span>
-                    </div>
-                  )}
+                  {(() => {
+                    const rawPos = job.positionId;
+                    if (!rawPos) return null;
+                    // Already in new format ABBR/YY/NNNN
+                    const isNewFormat = /^[A-Z]{2,4}\/\d{2}\/\d{4}$/.test(rawPos);
+                    let displayPos = rawPos;
+                    if (!isNewFormat) {
+                      // Reformat old positionId using company name
+                      const abbr = getCompanyAbbreviation(job.company || job.employerCompany || '');
+                      const year = new Date().getFullYear().toString().slice(-2);
+                      // Extract numeric part from old format (e.g. "2026-0006" -> "0006", "PID0003" -> "0003")
+                      const numMatch = rawPos.match(/(\d{4})$/);
+                      const seq = numMatch ? numMatch[1] : String(parseInt(rawPos.replace(/\D/g, '')) || 1).padStart(4, '0');
+                      displayPos = `${abbr}/${year}/${seq}`;
+                    }
+                    return (
+                      <div className="flex items-center space-x-1">
+                        <span className="font-medium text-gray-700">Position Code:</span>
+                        <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full border border-green-200">{displayPos}</span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
               </div>
