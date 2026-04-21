@@ -72,6 +72,7 @@ const getCompanyDomain = (companyName: string): string => {
     'growthpulss private solutions': 'growthpulss.com',
     'growthpulse solutions': 'growthpulss.com',
     'growthpulse': 'growthpulss.com',
+    'growth pulse': 'growthpulss.com',
     'tcs': 'tcs.com',
     'infosys': 'infosys.com',
     'wipro': 'wipro.com',
@@ -105,7 +106,7 @@ export const getSafeCompanyLogo = (job: any): string => {
     return '/images/zyncjobs-logo.png';
   }
   if (companyName.toLowerCase().includes('growthpul') || companyName.toLowerCase().includes('growth pul')) {
-    return 'https://logo.clearbit.com/growthpulss.com';
+    return `https://img.logo.dev/growthpulss.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
   }
 
   // Return empty string for unknown companies instead of generating avatar
