@@ -676,10 +676,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           skills: jobData.skills,
           salary: shouldIncludeSalary ? `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
           benefits: jobData.benefits,
-          educationLevel: jobData.educationLevel
+          educationLevel: jobData.educationLevel,
+          // Pass existing content so AI reformats rather than replaces
+          existingDescription: jobData.jobDescription,
+          responsibilities: jobData.responsibilities.filter(Boolean),
+          requirements: jobData.requirements.filter(Boolean),
         }
       );
-      updateJobData('jobDescription', description);
+      updateJobData('jobDescription', description.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1'));
       
       // Auto-populate skills from the generated description and job title
       const parsedSkills = parseSkillsFromJobDescription(description, jobTitle);
@@ -716,7 +720,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       
       setNotification({
         type: 'success',
-        message: 'Job details generated successfully with AI! 🤖',
+        message: 'Job description formatted with AI! 🤖',
         isVisible: true
       });
     } catch (error) {
@@ -2376,12 +2380,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         
         {/* Key Responsibilities Section */}
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Key Responsibilities</label>
+          <label className="block text-gray-700 font-bold mb-2">Key Responsibilities</label>
           <p className="text-gray-500 text-sm mb-4">List the main responsibilities for this role (one per line)</p>
           
           <div className="space-y-2">
             {jobData.responsibilities.map((responsibility, index) => (
               <div key={index} className="flex items-center space-x-2">
+                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">•</span>
                 <input
                   type="text"
                   value={responsibility}
@@ -2418,12 +2423,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         
         {/* Requirements Section */}
         <div>
-          <label className="block text-gray-700 font-medium mb-2">Requirements</label>
+          <label className="block text-gray-700 font-bold mb-2">Requirements</label>
           <p className="text-gray-500 text-sm mb-4">List the key requirements for this role (one per line)</p>
           
           <div className="space-y-2">
             {jobData.requirements.map((requirement, index) => (
               <div key={index} className="flex items-center space-x-2">
+                <span className="text-gray-800 font-bold text-lg select-none flex-shrink-0">•</span>
                 <input
                   type="text"
                   value={requirement}
@@ -2589,7 +2595,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
                 <div>
                   <div className="font-medium text-gray-800 mb-2">Overview</div>
                   <p className="text-gray-600 text-sm">
-                    {jobData.jobDescription ? jobData.jobDescription.substring(0, 150) + '...' : (
+                    {jobData.jobDescription ? jobData.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1').substring(0, 150) + '...' : (
                       <span className="text-blue-600 cursor-pointer" onClick={() => generateJobDescription(jobData.jobTitle)}>
                         Click to generate description with AI 🤖
                       </span>
@@ -2679,7 +2685,24 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       location: jobData.jobLocation,
       jobType: formatArrayField(jobData.jobType),
       type: formatArrayField(jobData.jobType)[0] || 'Full-time',
-      description: jobData.jobDescription,
+      description: (() => {
+        const base = jobData.jobDescription || '';
+        const respItems = (Array.isArray(jobData.responsibilities) ? jobData.responsibilities : []).filter(Boolean);
+        const reqItems = (Array.isArray(jobData.requirements) ? jobData.requirements : []).filter(Boolean);
+        // If description already contains bullet points or section headings, use as-is
+        if (base.includes('\u2022') || base.includes('Key Responsibilities') || base.includes('Requirements')) {
+          return base;
+        }
+        // Build a structured description from the parts
+        let full = base ? base + '\n\n' : '';
+        if (respItems.length > 0) {
+          full += 'Key Responsibilities\n' + respItems.map(r => '\u2022 ' + r).join('\n') + '\n\n';
+        }
+        if (reqItems.length > 0) {
+          full += 'Requirements\n' + reqItems.map(r => '\u2022 ' + r).join('\n');
+        }
+        return full.trim();
+      })(),
       responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join('\n') : jobData.responsibilities,
       requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,
       skills: formatArrayField(jobData.skills), // JSON array

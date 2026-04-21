@@ -1397,8 +1397,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
                       {job.description && (
                         <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
-                          <p className="text-sm text-gray-700 leading-relaxed font-medium">
-                            {decodeHtmlEntities(job.description.replace(/<[^>]+>/g, '')).substring(0, 250)}{job.description.length > 250 ? '...' : ''}
+                          <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">
+                            {(() => {
+                              const clean = decodeHtmlEntities(
+                                job.description
+                                  .replace(/<[^>]+>/g, '')
+                                  .replace(/\*\*([^*]+)\*\*/g, '$1')
+                                  .replace(/\*\*([^*]+)\*/g, '$1')
+                                  .replace(/\u2022\s*/g, '')
+                                  .replace(/Key Responsibilities|Requirements|Job Summary/g, '')
+                                  .replace(/\n+/g, ' ')
+                                  .trim()
+                              );
+                              return clean.length > 180 ? clean.substring(0, 180) + '...' : clean;
+                            })()}
                           </p>
                         </div>
                       )}
