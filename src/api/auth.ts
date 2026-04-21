@@ -78,6 +78,9 @@ export const authAPI = {
     });
 
     if (!response.ok) {
+      if (response.status === 429) {
+        throw new Error('Too many login attempts. Please wait a few minutes and try again.');
+      }
       const errorText = await response.text();
       let error;
       try { error = JSON.parse(errorText); } catch { error = { error: 'Login failed' }; }

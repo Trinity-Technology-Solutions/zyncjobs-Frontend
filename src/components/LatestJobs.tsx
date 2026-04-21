@@ -39,21 +39,26 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   const fetchCompanyLogos = async (jobList: Job[]) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
-      if (!res.ok) return;
-      const data = await res.json();
-      const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
       const map: Record<string, string> = {};
-      companies.forEach((c: any) => {
-        const name = (c.name || c.companyName || '').toLowerCase();
-        const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-        if (name && logo) map[name] = logo;
-      });
-      // Also check job.companyLogo field directly
+
+      // First, pull logos directly from job data
       jobList.forEach((j: any) => {
         const name = (j.company || '').toLowerCase();
         const logo = j.companyLogo || j.logoUrl || '';
-        if (name && logo && !map[name]) map[name] = logo;
+        if (name && logo) map[name] = logo;
       });
+
+      // Then overlay with company API logos (only non-empty)
+      if (res.ok) {
+        const data = await res.json();
+        const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
+        companies.forEach((c: any) => {
+          const name = (c.name || c.companyName || '').toLowerCase();
+          const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
+          if (name && logo) map[name] = logo;
+        });
+      }
+
       setCompanyLogos(map);
     } catch {}
   };
@@ -200,7 +205,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
                         <img 
-                          src={companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job)} 
+                          src={companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job) || undefined} 
                           alt={`${job.company} logo`}
                           className="w-10 h-10 object-contain"
                           onError={(e) => {
