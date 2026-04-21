@@ -561,6 +561,24 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     job.jobDescription || job.description || 'Job description not available.',
                     'INR'
                   );
+                  
+                  // Check if description contains HTML tags (from backend formatting)
+                  const hasHTML = /<[a-z][\s\S]*>/i.test(rawDesc);
+                  
+                  if (hasHTML) {
+                    // Render HTML directly with proper styling
+                    return (
+                      <div 
+                        className="job-description-html"
+                        dangerouslySetInnerHTML={{ __html: rawDesc }}
+                        style={{
+                          // Add CSS for HTML elements
+                        }}
+                      />
+                    );
+                  }
+                  
+                  // Fallback: Old plain text formatting logic
                   const descLines = rawDesc.split('\n');
                   const bulletHeadings = new Set(['key responsibilities', 'responsibilities', 'requirements', 'preferred qualifications', 'qualifications', 'what we offer', 'nice to have', 'skills required', 'required skills', 'benefits', 'about the role', 'who you are']);
                   const summaryHeadings = new Set(['job summary', 'position overview', 'about us', 'about the company']);
