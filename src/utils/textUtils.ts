@@ -143,6 +143,11 @@ export const formatJobDescription = (description: string, _jobCurrency?: string)
   // Always replace $ with ₹
   text = text.replace(/\$([0-9,]+)/g, '₹$1');
 
+  // Strip markdown bold markers ** from headings (e.g. **Job Summary** → Job Summary)
+  text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  // Also strip lone trailing * (e.g. **Requirements* → Requirements)
+  text = text.replace(/\*\*([^*]+)\*/g, '$1');
+
   const metadataKeys = [
     'location', 'work type', 'visa', 'certification', 'experience',
     'salary', 'job type', 'employment type', 'notice period',

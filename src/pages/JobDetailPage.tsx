@@ -184,7 +184,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     
     const companyName = job.company || '';
     const jobTitle = job.jobTitle || job.title || '';
-    const description = job.jobDescription || job.description || 'Job opportunity';
+    const description = (job.jobDescription || job.description || 'Job opportunity').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1');
     
     // Use backend OG tags route for social sharing
     const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
@@ -556,51 +556,55 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               <div className="p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
               <div className="text-gray-700 leading-relaxed mb-4">
-                {formatJobDescription(
-                  job.jobDescription || job.description || 'Job description not available.',
-                  'INR'
-                ).split('\n').map((line, i) => {
-                  const trimmed = line.trim();
-
-                  // blank line spacer
-                  if (!trimmed) return <div key={i} className="h-2" />;
-
-                  // bullet point
-                  if (trimmed.startsWith('\u2022 ') || trimmed.startsWith('- ')) {
-                    const content = trimmed.replace(/^[\u2022\-]\s*/, '');
-                    return (
-                      <div key={i} className="flex items-start gap-2 ml-1 mb-1">
-                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
-                        <span className="text-gray-700">{content}</span>
-                      </div>
-                    );
-                  }
-
-                  // numbered job entry heading e.g. "2.Pega CSSA" - strip the number
-                  if (/^\d+\.\s*\S/.test(trimmed)) {
-                    const title = trimmed.replace(/^\d+\.\s*/, '');
-                    return <p key={i} className="font-bold text-gray-900 text-sm mt-5 mb-1">{title}</p>;
-                  }
-
-                  // section heading � ends with colon, no sentence after it
-                  if (/^[A-Z][A-Za-z ,&/]{2,60}:$/.test(trimmed)) {
-                    return <p key={i} className="font-bold text-gray-900 mt-4 mb-1">{trimmed.replace(/:$/, '')}</p>;
-                  }
-
-                  // inline label: value line � bold the label
-                  const colonMatch = trimmed.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
-                  if (colonMatch) {
-                    return (
-                      <p key={i} className="mb-1">
-                        <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
-                        <span className="text-gray-700">{colonMatch[2]}</span>
-                      </p>
-                    );
-                  }
-
-                  // regular paragraph
-                  return <p key={i} className="text-gray-700 mb-1">{trimmed}</p>;
-                })}
+                {(() => {
+                  const rawDesc = formatJobDescription(
+                    job.jobDescription || job.description || 'Job description not available.',
+                    'INR'
+                  );
+                  const descLines = rawDesc.split('\n');
+                  const bulletHeadings = new Set(['key responsibilities', 'responsibilities', 'requirements', 'preferred qualifications', 'qualifications', 'what we offer', 'nice to have', 'skills required', 'required skills', 'benefits', 'about the role', 'who you are']);
+                  const summaryHeadings = new Set(['job summary', 'position overview', 'about us', 'about the company']);
+                  const allKnownHeadings = new Set([...bulletHeadings, ...summaryHeadings]);
+                  let inBulletSection = false;
+                  return descLines.map((line, i) => {
+                    const trimmed = line.trim();
+                    if (!trimmed) return <div key={i} className="h-2" />;
+                    const lower = trimmed.toLowerCase();
+                    if (allKnownHeadings.has(lower) || /^[A-Z][A-Za-z ,&/]{2,60}:$/.test(trimmed) || /^\d+\.\s*\S/.test(trimmed)) {
+                      inBulletSection = bulletHeadings.has(lower);
+                      const label = trimmed.replace(/:$/, '').replace(/^\d+\.\s*/, '');
+                      return <p key={i} className="font-bold text-gray-900 mt-4 mb-1">{label}</p>;
+                    }
+                    if (trimmed.startsWith('• ') || trimmed.startsWith('- ')) {
+                      inBulletSection = true;
+                      const content = trimmed.replace(/^[•\-]\s*/, '');
+                      return (
+                        <div key={i} className="flex items-start gap-2 ml-1 mb-1">
+                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
+                          <span className="text-gray-700">{content}</span>
+                        </div>
+                      );
+                    }
+                    if (inBulletSection && trimmed.length > 0) {
+                      return (
+                        <div key={i} className="flex items-start gap-2 ml-1 mb-1">
+                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
+                          <span className="text-gray-700">{trimmed}</span>
+                        </div>
+                      );
+                    }
+                    const colonMatch = trimmed.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
+                    if (colonMatch) {
+                      return (
+                        <p key={i} className="mb-1">
+                          <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
+                          <span className="text-gray-700">{colonMatch[2]}</span>
+                        </p>
+                      );
+                    }
+                    return <p key={i} className="text-gray-700 mb-1">{trimmed}</p>;
+                  });
+                })()}
               </div>
               
               {/* Created By & On Details */}

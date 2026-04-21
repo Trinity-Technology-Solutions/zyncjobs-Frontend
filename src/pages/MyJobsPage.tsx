@@ -681,7 +681,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                   <div className="mt-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                                     <p className="text-sm text-gray-700 leading-relaxed">
                                       <span className="font-semibold text-blue-900">Job Description: </span>
-                                      {application.jobDescription.length > 200 ? `${application.jobDescription.substring(0, 200)}...` : application.jobDescription}
+                                      {(application.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')).length > 200 ? `${application.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1').substring(0, 200)}...` : application.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')}
                                     </p>
                                   </div>
                                 )}
@@ -803,7 +803,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                                 <p className="text-sm text-gray-700 leading-relaxed">
                                   <span className="font-semibold text-blue-900">Job Description: </span>
-                                  {application.jobId.jobDescription.length > 200 ? `${application.jobId.jobDescription.substring(0, 200)}...` : application.jobId.jobDescription}
+                                  {(application.jobId.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')).length > 200 ? `${application.jobId.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1').substring(0, 200)}...` : application.jobId.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')}
                                 </p>
                               </div>
                             )}
