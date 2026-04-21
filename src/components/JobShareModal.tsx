@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Copy } from 'lucide-react';
-import { generateJobShareContent, shareToTwitter, shareToWhatsApp, copyToClipboard } from '../utils/socialShare';
+import { generateJobShareContent, copyToClipboard } from '../utils/socialShare';
 
 interface JobShareModalProps {
   isOpen: boolean;
@@ -9,39 +9,38 @@ interface JobShareModalProps {
   user?: any;
 }
 
+const openTab = (url: string) => {
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
 const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) => {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !job) return null;
 
-  // Always use current page URL — guaranteed to have ?id=
-  const currentUrl = window.location.href;
-  console.log('[ShareModal] window.location.href:', currentUrl);
-  console.log('[ShareModal] job.id:', job?.id, '| job.positionId:', job?.positionId);
   const shareContent = generateJobShareContent(job);
-  const jobTitle = shareContent.title;
-  const description = shareContent.description;
-  const companyTag = shareContent.hashtags[2] || 'Jobs';
 
   const handleLinkedInShare = () => {
-    const jobUrl = encodeURIComponent(currentUrl);
-    const text = `💼 ${jobTitle}\n\n${description}\n\n🔗 Apply here: ${jobUrl}\n\n#JobAlert #Hiring #${companyTag} #Opportunity`;
-    window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=600');
+    openTab('https://www.linkedin.com/sharing/share-offsite/?url=' + encodeURIComponent(shareContent.url));
   };
 
   const handleTwitterShare = () => {
-    shareContent.url = currentUrl;
-    shareToTwitter(shareContent);
+    const tweetText = shareContent.title + '\n' + shareContent.description;
+    openTab('https://twitter.com/intent/tweet?url=' + encodeURIComponent(shareContent.url) + '&text=' + encodeURIComponent(tweetText) + '&hashtags=' + shareContent.hashtags.join(','));
   };
 
   const handleWhatsAppShare = () => {
-    shareContent.url = currentUrl;
-    shareContent.text = shareContent.text.replace(/🔗 Apply now: \S+/, `🔗 Apply now: ${currentUrl}`);
-    shareToWhatsApp(shareContent);
+    openTab('https://wa.me/?text=' + encodeURIComponent(shareContent.whatsappText));
   };
 
   const handleCopyLink = async () => {
-    const success = await copyToClipboard(currentUrl);
+    const success = await copyToClipboard(shareContent.url);
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
