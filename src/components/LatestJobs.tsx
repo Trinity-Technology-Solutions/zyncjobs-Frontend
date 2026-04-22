@@ -242,7 +242,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                     </div>
                     
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{job.description}</p>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{(job.description || '').replace(/<[^>]*>/g, '').trim()}</p>
                     
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex space-x-2">

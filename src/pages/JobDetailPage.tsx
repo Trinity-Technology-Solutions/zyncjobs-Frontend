@@ -557,70 +557,100 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
               <div className="text-gray-700 leading-relaxed mb-4">
                 {(() => {
-                  const rawDesc = formatJobDescription(
-                    job.jobDescription || job.description || 'Job description not available.',
-                    'INR'
-                  );
+                  const sourceDesc = job.jobDescription || job.description || 'Job description not available.';
                   
-                  // Check if description contains HTML tags (from backend formatting)
-                  const hasHTML = /<[a-z][\s\S]*>/i.test(rawDesc);
+                  // Check if description contains HTML tags (from rich text editor)
+                  const hasHTML = /<(p|ul|ol|li|br|div|h[1-6]|strong|em|b|i)[\s>]/i.test(sourceDesc);
                   
                   if (hasHTML) {
-                    // Render HTML directly with proper styling
+                    // Strip $→₹ for HTML path
+                    const htmlDesc = sourceDesc.replace(/\$([0-9,]+)/g, '₹$1');
                     return (
-                      <div 
+                      <div
                         className="job-description-html"
-                        dangerouslySetInnerHTML={{ __html: rawDesc }}
-                        style={{
-                          // Add CSS for HTML elements
-                        }}
+                        dangerouslySetInnerHTML={{ __html: htmlDesc }}
+                        style={{ lineHeight: '1.7' }}
                       />
                     );
                   }
-                  
-                  // Fallback: Old plain text formatting logic
-                  const descLines = rawDesc.split('\n');
-                  const bulletHeadings = new Set(['key responsibilities', 'responsibilities', 'requirements', 'preferred qualifications', 'qualifications', 'what we offer', 'nice to have', 'skills required', 'required skills', 'benefits', 'about the role', 'who you are']);
-                  const summaryHeadings = new Set(['job summary', 'position overview', 'about us', 'about the company']);
-                  const allKnownHeadings = new Set([...bulletHeadings, ...summaryHeadings]);
-                  let inBulletSection = false;
-                  return descLines.map((line, i) => {
-                    const trimmed = line.trim();
-                    if (!trimmed) return <div key={i} className="h-2" />;
-                    const lower = trimmed.toLowerCase();
-                    if (allKnownHeadings.has(lower) || /^[A-Z][A-Za-z ,&/]{2,60}:$/.test(trimmed) || /^\d+\.\s*\S/.test(trimmed)) {
-                      inBulletSection = bulletHeadings.has(lower);
-                      const label = trimmed.replace(/:$/, '').replace(/^\d+\.\s*/, '');
-                      return <p key={i} className="font-bold text-gray-900 mt-4 mb-1">{label}</p>;
+
+                  // Plain text path
+                  const HEADINGS = [
+                    'Job Summary', 'Key Responsibilities', 'Responsibilities',
+                    'Requirements', 'Preferred Qualifications', 'Qualifications',
+                    'What We Offer', 'Nice to Have', 'Skills Required',
+                    'Required Skills', 'Benefits', 'About the Role',
+                    'Who You Are', 'Your Responsibilities', 'Job Responsibilities',
+                    'Duties', 'Key Duties', 'Position Overview', 'About Us',
+                    'About the Company', 'Overview'
+                  ];
+                  const BULLET_HEADINGS = new Set([
+                    'key responsibilities', 'responsibilities', 'requirements',
+                    'preferred qualifications', 'qualifications', 'what we offer',
+                    'nice to have', 'skills required', 'required skills', 'benefits',
+                    'about the role', 'who you are', 'your responsibilities',
+                    'job responsibilities', 'duties', 'key duties'
+                  ]);
+
+                  // Step 1: normalize line endings and inject newlines before known headings
+                  let processed = sourceDesc
+                    .replace(/\$([0-9,]+)/g, '₹$1')
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/\r\n|\r/g, '\n');
+
+                  // Force each known heading onto its own line
+                  HEADINGS.forEach(h => {
+                    processed = processed.replace(new RegExp(`([^\n])(${h})`, 'g'), '$1\n$2');
+                  });
+
+                  // Also split on sentence-end + Capital word (heuristic for embedded headings)
+                  processed = processed
+                    .replace(/\.\s+([A-Z][a-z]+ [A-Z][a-z]+\n)/g, '.\n$1')
+                    .replace(/\n{3,}/g, '\n\n')
+                    .trim();
+
+                  const lines = processed.split('\n');
+
+                  // Step 2: classify each line
+                  type LineType = { type: 'heading' | 'bullet' | 'para' | 'empty'; text: string; isBulletHeading: boolean };
+                  let inBullet = false;
+                  const classified: LineType[] = lines.map((line: string) => {
+                    const t = line.trim();
+                    if (!t) return { type: 'empty', text: '', isBulletHeading: false };
+                    const lower = t.toLowerCase();
+                    const isKnownHeading = HEADINGS.some(h => h.toLowerCase() === lower);
+                    const isColonHeading = /^[A-Z][A-Za-z ,&/]{2,60}:$/.test(t);
+                    const isTitleCase = /^[A-Z][A-Za-z ]{3,60}$/.test(t) && !t.includes('.') && !t.includes(',');
+                    if (isKnownHeading || isColonHeading || isTitleCase) {
+                      inBullet = BULLET_HEADINGS.has(lower) || /responsibilities|requirements|qualifications|duties|skills/i.test(t);
+                      return { type: 'heading', text: t.replace(/:$/, ''), isBulletHeading: inBullet };
                     }
-                    if (trimmed.startsWith('• ') || trimmed.startsWith('- ')) {
-                      inBulletSection = true;
-                      const content = trimmed.replace(/^[•\-]\s*/, '');
-                      return (
-                        <div key={i} className="flex items-start gap-2 ml-1 mb-1">
-                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
-                          <span className="text-gray-700">{content}</span>
-                        </div>
-                      );
+                    if (/^[•\-\*]\s/.test(t)) {
+                      inBullet = true;
+                      return { type: 'bullet', text: t.replace(/^[•\-\*]\s*/, ''), isBulletHeading: false };
                     }
-                    if (inBulletSection && trimmed.length > 0) {
-                      return (
-                        <div key={i} className="flex items-start gap-2 ml-1 mb-1">
-                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
-                          <span className="text-gray-700">{trimmed}</span>
-                        </div>
-                      );
-                    }
-                    const colonMatch = trimmed.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
-                    if (colonMatch) {
-                      return (
-                        <p key={i} className="mb-1">
-                          <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
-                          <span className="text-gray-700">{colonMatch[2]}</span>
-                        </p>
-                      );
-                    }
-                    return <p key={i} className="text-gray-700 mb-1">{trimmed}</p>;
+                    if (inBullet) return { type: 'bullet', text: t, isBulletHeading: false };
+                    return { type: 'para', text: t, isBulletHeading: false };
+                  });
+
+                  // Step 3: render
+                  return classified.map((item, i) => {
+                    if (item.type === 'empty') return <div key={i} className="h-2" />;
+                    if (item.type === 'heading') return <p key={i} className="font-bold text-gray-900 mt-4 mb-2 text-base">{item.text}</p>;
+                    if (item.type === 'bullet') return (
+                      <div key={i} className="flex items-start gap-2 ml-1 mb-1">
+                        <span className="mt-2 w-1.5 h-1.5 rounded-full bg-gray-700 flex-shrink-0" />
+                        <span className="text-gray-700">{item.text}</span>
+                      </div>
+                    );
+                    const colonMatch = item.text.match(/^([A-Z][A-Za-z &/]{1,50}):\s+(.+)$/);
+                    if (colonMatch) return (
+                      <p key={i} className="mb-1">
+                        <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
+                        <span className="text-gray-700">{colonMatch[2]}</span>
+                      </p>
+                    );
+                    return <p key={i} className="text-gray-700 mb-1">{item.text}</p>;
                   });
                 })()}
               </div>

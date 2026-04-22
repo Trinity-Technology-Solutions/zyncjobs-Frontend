@@ -10,7 +10,6 @@ import {
   Palette,
   ArrowRight
 } from 'lucide-react';
-import { API_ENDPOINTS } from '../config/env';
 
 interface JobCategoriesProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -76,8 +75,6 @@ const categories = [
 ];
 
 const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
-  const [categoryCounts, setCategoryCounts] = useState<{[key: string]: number}>({});
-  const [loading, setLoading] = useState(true);
   const [visible, setVisible] = useState<boolean[]>(new Array(categories.length).fill(false));
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
@@ -99,71 +96,6 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
     });
     return () => observers.forEach(o => o?.disconnect());
   }, []);
-
-  useEffect(() => {
-    fetchCategoryCounts();
-  }, []);
-
-  const fetchCategoryCounts = async () => {
-    try {
-      // First try to get counts from the categories endpoint
-      const response = await fetch(`${API_ENDPOINTS.JOBS}/categories`);
-      if (response.ok) {
-        const data = await response.json();
-        const counts: {[key: string]: number} = {};
-        
-        // Map API categories to frontend categories
-        data.forEach((item: {category: string, count: number}) => {
-          counts[item.category] = item.count;
-        });
-        
-        // Set counts for categories that exist in the API
-        categories.forEach(cat => {
-          if (counts[cat.name] === undefined) {
-            counts[cat.name] = 0;
-          }
-        });
-        
-        setCategoryCounts(counts);
-        setLoading(false);
-        return;
-      }
-      
-      // Fallback to search-based counting if categories endpoint fails
-      const counts: {[key: string]: number} = {};
-      for (const category of categories) {
-        try {
-          const primaryTerm = category.searchTerms[0];
-          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: primaryTerm, page: 1, limit: 1 })
-          });
-          if (response.ok) {
-            const data = await response.json();
-            counts[category.name] = data.total || data.jobs?.length || 0;
-          } else {
-            const fallbackResponse = await fetch(`${API_ENDPOINTS.JOBS}/search/query?q=${encodeURIComponent(primaryTerm)}&limit=1`);
-            if (fallbackResponse.ok) {
-              const fallbackData = await fallbackResponse.json();
-              counts[category.name] = Array.isArray(fallbackData) ? fallbackData.length : 0;
-            } else {
-              counts[category.name] = 0;
-            }
-          }
-        } catch {
-          counts[category.name] = 0;
-        }
-      }
-      setCategoryCounts(counts);
-    } catch {
-      const defaultCounts: {[key: string]: number} = {};
-      categories.forEach(cat => { defaultCounts[cat.name] = 0; });
-      setCategoryCounts(defaultCounts);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCategoryClick = (category: typeof categories[0]) => {
     if (onNavigate) {
@@ -196,8 +128,6 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {categories.map((cat, i) => {
             const Icon = cat.icon;
-            const jobCount = categoryCounts[cat.name] || 0;
-            const jobText = jobCount === 1 ? 'Job' : 'Jobs';
 
             return (
               <div
@@ -218,20 +148,12 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-700 transition-colors">
+                <h3 className="text-lg font-bold text-gray-900 mb-4 group-hover:text-blue-700 transition-colors">
                   {cat.name}
                 </h3>
 
-                {/* Jobs count + Explore */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-gray-900 font-bold text-base">
-                      {loading ? '...' : jobCount}
-                    </span>
-                    <span className="text-gray-500 text-sm">
-                      {jobText}
-                    </span>
-                  </div>
+                {/* Explore */}
+                <div className="flex items-center justify-start">
                   <span className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors font-medium">
                     Explore
                     <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
