@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Phone, MapPin, Briefcase, FileText, Shield, ShieldOff, Trash2, ExternalLink } from 'lucide-react';
+import { X, Mail, Phone, MapPin, Briefcase, FileText, Shield, ShieldOff, Trash2, ExternalLink, Layers } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 
@@ -17,6 +17,7 @@ interface Props {
 export default function UserDetailsModal({ userId, onClose, onAction }: Props) {
   const [user, setUser] = useState<any>(null);
   const [appliedJobs, setAppliedJobs] = useState<any[]>([]);
+  const [postedJobs, setPostedJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState('');
   const [error, setError] = useState('');
@@ -27,8 +28,27 @@ export default function UserDetailsModal({ userId, onClose, onAction }: Props) {
       try {
         const res = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { headers: authHeaders() });
         const data = await res.json();
-        setUser(data.user ?? data);
+        const userData = data.user ?? data;
+        setUser(userData);
         setAppliedJobs(data.applications ?? []);
+        // Fetch posted jobs if employer
+        const role = userData?.role || userData?.userType;
+        if (role === 'employer') {
+          try {
+            const jobsRes = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}/jobs`, { headers: authHeaders() });
+            if (jobsRes.ok) {
+              const jobsData = await jobsRes.json();
+              setPostedJobs(jobsData.jobs ?? jobsData ?? []);
+            } else {
+              // fallback: filter by employerId
+              const fallback = await fetch(`${API_ENDPOINTS.JOBS}?employerId=${userId}&limit=100`, { headers: authHeaders() });
+              if (fallback.ok) {
+                const fd = await fallback.json();
+                setPostedJobs(fd.jobs ?? fd ?? []);
+              }
+            }
+          } catch { /* silently ignore */ }
+        }
       } catch {
         setError('Failed to load user details.');
       } finally {
@@ -117,6 +137,28 @@ export default function UserDetailsModal({ userId, onClose, onAction }: Props) {
                   className="inline-flex items-center gap-1.5 text-purple-400 hover:text-purple-300 text-sm">
                   <ExternalLink className="w-3.5 h-3.5" />View Resume
                 </a>
+              </div>
+            )}
+
+            {/* Posted Jobs (employer) */}
+            {postedJobs.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  <Layers className="w-4 h-4" />Posted Jobs ({postedJobs.length})
+                </p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {postedJobs.map((job: any, i: number) => (
+                    <div key={i} className="flex items-center justify-between bg-gray-800 rounded-lg px-3 py-2 text-sm">
+                      <span className="text-gray-300 truncate max-w-[60%]">{job.title || job.jobTitle || 'Job'}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full capitalize shrink-0
+                        ${job.status === 'approved' ? 'bg-emerald-900/40 text-emerald-400' :
+                          job.status === 'rejected' ? 'bg-red-900/40 text-red-400' :
+                          'bg-amber-900/40 text-amber-400'}`}>
+                        {job.status || 'pending'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

@@ -12,24 +12,24 @@ interface ResumeModalProps {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
+// Resolve absolute backend base (handles both '/api' proxy and 'https://api.x.com/api')
+const getBackendBase = (): string => {
+  const base = API_BASE_URL.replace(/\/api\/?$/, '');
+  if (base === '' || base === '/') {
+    // Running via Vite proxy — use current origin for uploads served by backend
+    // But uploads are on the backend server, not the frontend origin.
+    // Read the proxy target from a meta tag injected at build, or fallback to window.location.origin.
+    // In production the nginx proxy forwards /uploads → backend, so window.location.origin works.
+    return window.location.origin;
+  }
+  return base;
+};
+
 const buildFullUrl = (fileUrl: string) => {
   if (!fileUrl || fileUrl === 'resume_from_quick_apply') return null;
-  if (fileUrl.startsWith('http')) {
-    try {
-      const url = new URL(fileUrl);
-      // Keep absolute URL if it's an external host, otherwise use backend base
-      if (url.hostname !== window.location.hostname) return fileUrl;
-      return `${API_BASE_URL.replace('/api', '')}${url.pathname}${url.search}`;
-    } catch {
-      return fileUrl;
-    }
-  }
-  const path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
-  // Route /uploads through the backend base URL to avoid frontend router catching it
-  if (path.startsWith('/uploads')) {
-    return `${API_BASE_URL.replace('/api', '')}${path}`;
-  }
-  return path;
+  if (fileUrl.startsWith('http')) return fileUrl;
+  const filePath = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
+  return `${getBackendBase()}${filePath}`;
 };
 
 const ResumeModal: React.FC<ResumeModalProps> = ({
@@ -105,20 +105,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
       console.log('Resolved fileUrl:', fileUrl);
 
       if (fileUrl) {
-        // Verify the file actually exists
-        try {
-          const check = await fetch(fileUrl, { method: 'HEAD' });
-          if (check.ok) {
-            setResumeFileUrl(fileUrl);
-          } else {
-            // Profile resume not accessible — try the application's resumeUrl as fallback
-            const fallback = fallbackUrl ? buildFullUrl(fallbackUrl) : null;
-            if (fallback) setResumeFileUrl(fallback);
-            else setNoResume(true);
-          }
-        } catch {
-          setResumeFileUrl(fileUrl); // try anyway in iframe
-        }
+        setResumeFileUrl(fileUrl);
       } else {
         // No resume in profile — try the application's resumeUrl as fallback
         const fallback = fallbackUrl ? buildFullUrl(fallbackUrl) : null;
@@ -144,9 +131,8 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     // Extract just the filename from the URL and use the dedicated download route
     const filenameMatch = resumeFileUrl.match(/\/uploads\/resumes\/([^?#]+)/);
     if (filenameMatch) {
-      const backendBase = API_BASE_URL.replace('/api', '');
       const name = (candidateName || 'candidate').replace(/\s+/g, '_');
-      const downloadUrl = `${backendBase}/uploads/download/${encodeURIComponent(filenameMatch[1])}?name=${encodeURIComponent(name)}`;
+      const downloadUrl = `${getBackendBase()}/uploads/download/${encodeURIComponent(filenameMatch[1])}?name=${encodeURIComponent(name)}`;
       const a = document.createElement('a');
       a.href = downloadUrl;
       document.body.appendChild(a);
@@ -187,19 +173,18 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               {resumeFileUrl ? (
                 <>
                   <iframe
-                    src={`${resumeFileUrl}#toolbar=0&navpanes=0&view=FitH`}
+                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(resumeFileUrl)}&embedded=true`}
                     width="100%"
                     height="600"
                     title="Resume"
                     style={{ minHeight: '600px' }}
-                    onError={() => window.open(resumeFileUrl, '_blank')}
                   />
                   <div className="p-2 bg-gray-50 border-t text-center">
                     <button
                       onClick={() => window.open(resumeFileUrl, '_blank')}
                       className="text-sm text-blue-600 hover:underline"
                     >
-                      🔗 Can't see the PDF? Open in new tab
+                      Open in new tab
                     </button>
                   </div>
                 </>
