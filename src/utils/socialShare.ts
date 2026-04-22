@@ -1,40 +1,31 @@
-/**
- * Utility functions for social sharing with dynamic OG tags
- */
-
-export const generateSocialShareUrl = (jobId: string) => {
-  const frontendUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-  if (!jobId) {
-    // Fallback: use current page URL if it has ?id=
-    const currentId = new URLSearchParams(window.location.search).get('id');
-    return currentId ? `${frontendUrl}/job-detail?id=${currentId}` : window.location.href;
-  }
-  return `${frontendUrl}/job-detail?id=${jobId}`;
+export const generateSocialShareUrl = (job: any): string => {
+  const origin = window.location.origin;
+  if (job.slug) return origin + '/jobs/' + job.slug;
+  const id = job.positionId || job.id || job._id || new URLSearchParams(window.location.search).get('id') || '';
+  return id ? origin + '/jobs/' + id : window.location.href;
 };
 
 export const generateJobShareContent = (job: any) => {
-  const urlId = new URLSearchParams(window.location.search).get('id') || '';
-  const shareJobId = job.positionId || job.id || job._id || urlId;
   const jobTitle = job.jobTitle || job.title || 'Job Opportunity';
   const company = job.company || 'Company';
   const location = job.location || 'Location not specified';
   const jobType = Array.isArray(job.jobType) ? job.jobType.join(', ') : (job.jobType || 'Full-time');
   const experience = job.experienceRange || job.experienceLevel || '';
-  const skills = Array.isArray(job.skills) && job.skills.length > 0
-    ? job.skills.slice(0, 4).join(', ')
-    : '';
+  const skills = Array.isArray(job.skills) && job.skills.length ? job.skills.slice(0, 5).join(', ') : '';
 
-  const formatSalary = (salary: any) => {
-    if (typeof salary === 'object' && salary && salary.min && salary.max) {
-      const symbol = salary.currency === 'INR' ? '₹' : salary.currency === 'USD' ? '$' : '$';
-      return `${symbol}${salary.min.toLocaleString()}-${salary.max.toLocaleString()}`;
+  let salary: string | null = null;
+  if (job.salaryMin && job.salaryMax) {
+    salary = 'Rs.' + Number(job.salaryMin).toLocaleString('en-IN') + ' - Rs.' + Number(job.salaryMax).toLocaleString('en-IN') + ' per annum';
+  } else if (job.salary && typeof job.salary === 'object' && (job.salary.min || job.salary.max)) {
+    const sym = job.salary.currency === 'USD' ? '$' : 'Rs.';
+    if (job.salary.min && job.salary.max) {
+      salary = sym + Number(job.salary.min).toLocaleString('en-IN') + ' - ' + sym + Number(job.salary.max).toLocaleString('en-IN') + ' per annum';
     }
-    return null;
-  };
+  }
 
-  const salary = formatSalary(job.salary);
-  const shareUrl = generateSocialShareUrl(shareJobId);
+  const shareUrl = generateSocialShareUrl(job);
   const companyTag = company.replace(/[^a-zA-Z0-9]/g, '');
+  const titleTag = jobTitle.replace(/\s+/g, '');
 
   const lines = [
     `${jobTitle} at ${company}`,
@@ -50,13 +41,15 @@ export const generateJobShareContent = (job: any) => {
     `#JobAlert #Hiring #${companyTag} #Opportunity #Jobs`
   ];
 
+  const whatsappText = lines.join('\n');
+
   return {
     title: `${jobTitle} at ${company}`,
     description: `${location} | ${jobType}${experience ? ` | ${experience}` : ''}${salary ? ` | ${salary}` : ''}`,
 
     text: lines.join('\n'),
     url: shareUrl,
-    hashtags: ['JobAlert', 'Hiring', companyTag, 'Opportunity']
+    hashtags: ['Hiring', companyTag, 'Jobs', 'ZyncJobs'],
   };
 };
 
@@ -81,10 +74,9 @@ export const shareToWhatsApp = (content: ReturnType<typeof generateJobShareConte
 
 export const copyToClipboard = async (url: string): Promise<boolean> => {
   try {
-    await navigator.clipboard.writeText(url);
+    await navigator.clipboard.writeText(text);
     return true;
-  } catch (err) {
-    console.error('Failed to copy link:', err);
+  } catch {
     return false;
   }
 };

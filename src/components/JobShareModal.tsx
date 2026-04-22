@@ -9,19 +9,22 @@ interface JobShareModalProps {
   user?: any;
 }
 
+const openTab = (url: string) => {
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+};
+
 const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) => {
   const [copied, setCopied] = useState(false);
 
   if (!isOpen || !job) return null;
 
-  // Always use current page URL — guaranteed to have ?id=
-  const currentUrl = window.location.href;
-  console.log('[ShareModal] window.location.href:', currentUrl);
-  console.log('[ShareModal] job.id:', job?.id, '| job.positionId:', job?.positionId);
   const shareContent = generateJobShareContent(job);
-  const jobTitle = shareContent.title;
-  const description = shareContent.description;
-  const companyTag = shareContent.hashtags[2] || 'Jobs';
 
   const handleLinkedInShare = () => {
     const text = `${jobTitle}\n\n${description}\n\nApply here: ${currentUrl}\n\n#JobAlert #Hiring #${companyTag} #Opportunity`;
@@ -29,18 +32,16 @@ const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) =
   };
 
   const handleTwitterShare = () => {
-    shareContent.url = currentUrl;
-    shareToTwitter(shareContent);
+    const tweetText = shareContent.title + '\n' + shareContent.description;
+    openTab('https://twitter.com/intent/tweet?url=' + encodeURIComponent(shareContent.url) + '&text=' + encodeURIComponent(tweetText) + '&hashtags=' + shareContent.hashtags.join(','));
   };
 
   const handleWhatsAppShare = () => {
-    shareContent.url = currentUrl;
-    shareContent.text = shareContent.text.replace(/🔗 Apply now: \S+/, `🔗 Apply now: ${currentUrl}`);
-    shareToWhatsApp(shareContent);
+    openTab('https://wa.me/?text=' + encodeURIComponent(shareContent.whatsappText));
   };
 
   const handleCopyLink = async () => {
-    const success = await copyToClipboard(currentUrl);
+    const success = await copyToClipboard(shareContent.url);
     if (success) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
