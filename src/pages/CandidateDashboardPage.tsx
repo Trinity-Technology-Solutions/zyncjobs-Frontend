@@ -1922,12 +1922,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             }
                           }}
                         />
-                        <button 
-                          onClick={() => document.getElementById('resume-update')?.click()}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Update
-                        </button>
+                        <div className="flex gap-3">
+                          <button 
+                            onClick={() => document.getElementById('resume-update')?.click()}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            Update
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('Are you sure you want to remove your resume?')) return;
+                              const updatedUser = { ...user, resume: null, resumeUrl: '' };
+                              setUser(updatedUser);
+                              localStorage.setItem('user', JSON.stringify(updatedUser));
+                              calculateProfileCompletion(updatedUser);
+                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: '' })
+                              });
+                              setNotification({ type: 'success', message: 'Resume removed successfully!', isVisible: true });
+                            }}
+                            className="text-red-500 hover:text-red-700 text-sm font-medium"
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (

@@ -720,7 +720,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       
       setNotification({
         type: 'success',
-        message: 'Job description formatted with AI! 🤖',
+        message: 'Job description formatted with AI!',
         isVisible: true
       });
     } catch (error) {
@@ -2477,7 +2477,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               </>
             ) : (
               <>
-                <span>🤖</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                 <span>Regenerate with AI</span>
               </>
             )}
@@ -2597,7 +2597,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
                   <p className="text-gray-600 text-sm">
                     {jobData.jobDescription ? jobData.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1').substring(0, 150) + '...' : (
                       <span className="text-blue-600 cursor-pointer" onClick={() => generateJobDescription(jobData.jobTitle)}>
-                        Click to generate description with AI 🤖
+                        Click to generate description with AI
                       </span>
                     )}
                   </p>

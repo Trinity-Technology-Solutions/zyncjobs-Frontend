@@ -99,7 +99,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
           : null);
 
       if (!resumeUrl) {
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please upload your resume in your profile before applying." } }));
+        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "📄 Resume not found! Please upload your resume in your profile before applying." } }));
         setIsApplying(false);
         return;
       }

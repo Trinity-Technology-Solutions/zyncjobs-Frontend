@@ -589,6 +589,8 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [jobCounts, setJobCounts] = useState<Record<string, number>>({});
+  const [jobCountsLoading, setJobCountsLoading] = useState(false);
 
   const titleMap = { admin: 'Admins', candidate: 'Candidates', employer: 'Employers' };
 
@@ -597,7 +599,18 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     setError('');
     try {
       const res = await authFetch(`${API_ENDPOINTS.ADMIN_USERS}?role=${role}`, {}, onUnauthorized);
-      setUsers(res.users ?? res.data ?? res ?? []);
+      const list: any[] = res.users ?? res.data ?? res ?? [];
+      setUsers(list);
+      // Use jobCount already included in user object for employers
+      if (role === 'employer') {
+        const counts: Record<string, number> = {};
+        list.forEach((u: any) => {
+          const uid = u._id || u.id || u.userId;
+          if (uid !== undefined) counts[uid] = u.jobCount ?? 0;
+        });
+        setJobCounts(counts);
+        setJobCountsLoading(false);
+      }
     } catch (e: any) {
       if (e.message !== 'UNAUTHORIZED') setError('Failed to load users.');
     } finally {
@@ -639,7 +652,7 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
 
   return (
     <>
-      {selectedUserId && (
+      {selectedUserId && selectedUserId !== 'undefined' && (
         <UserDetailsModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} onAction={load} />
       )}
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
@@ -663,6 +676,7 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
               <th className="text-left px-6 py-3 font-medium">Name</th>
               <th className="text-left px-6 py-3 font-medium">Email</th>
               <th className="text-left px-6 py-3 font-medium">Role</th>
+              {role === 'employer' && <th className="text-left px-6 py-3 font-medium">Jobs Posted</th>}
               <th className="text-left px-6 py-3 font-medium">Status</th>
               <th className="text-left px-6 py-3 font-medium">Actions</th>
             </tr>
@@ -677,17 +691,17 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                   </tr>
                 ))
               : users.map(u => {
-                  const role = u.role || u.userType || 'candidate';
+                  const userRole = u.role || u.userType || 'candidate';
                   const isBanned = u.banned || u.isBanned || false;
-                  const id = u._id || u.id;
+                  const id = u._id || u.id || u.userId || String(u.email);
                   return (
-                    <tr key={id} onClick={() => setSelectedUserId(id)} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors cursor-pointer">
+                    <tr key={id} onClick={() => { console.log('[Admin] clicked user id:', id, u); setSelectedUserId(id); }} className="border-b border-gray-800 hover:bg-gray-800/40 transition-colors cursor-pointer">
                       <td className="px-6 py-3 text-gray-200">{u.name || u.fullName || '—'}</td>
                       <td className="px-6 py-3 text-gray-400">{u.email}</td>
                       <td className="px-6 py-3">
-                        {role === 'admin' || role === 'super_admin' ? (
+                        {userRole === 'admin' || userRole === 'super_admin' ? (
                           <select
-                            value={role}
+                            value={userRole}
                             disabled={!!actionLoading}
                             onChange={e => changeRole(id, e.target.value)}
                             className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -698,9 +712,17 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                             <option value="employer">Employer</option>
                           </select>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-300 capitalize">{role}</span>
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-800 text-gray-300 capitalize">{userRole}</span>
                         )}
                       </td>
+                      {role === 'employer' && (
+                        <td className="px-6 py-3">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-900/40 text-blue-400">
+                            <Briefcase className="w-3 h-3" />
+                            {jobCountsLoading ? '…' : (jobCounts[id] !== undefined ? jobCounts[id] : 0)}
+                          </span>
+                        </td>
+                      )}
                       <td className="px-6 py-3">
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
                           ${!u.isActive ? 'bg-red-900/40 text-red-400' : 'bg-emerald-900/40 text-emerald-400'}`}>
@@ -708,7 +730,7 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                         </span>
                       </td>
                       <td className="px-6 py-3" onClick={e => e.stopPropagation()}>
-                        {role !== 'super_admin' && (
+                        {userRole !== 'super_admin' && (
                           <button
                             onClick={() => banUser(id, !u.isActive)}
                             disabled={actionLoading === id}

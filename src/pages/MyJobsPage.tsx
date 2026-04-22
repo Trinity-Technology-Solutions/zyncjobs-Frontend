@@ -100,23 +100,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const fetchPostedJobs = async (page = 1, append = false) => {
     try {
       if (!append) setLoading(true);
-      
-      const response = await fetch(`${API_ENDPOINTS.JOBS}?page=${page}&limit=${jobsPerPage}`);
+      const token = tokenStorage.getAccess() || '';
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      // Use dedicated employer email endpoint — returns ALL jobs, no limit
+      const email = encodeURIComponent(user?.email || '');
+      const response = await fetch(`${API_ENDPOINTS.JOBS}/employer/email/${email}`, { headers });
       if (response.ok) {
-        const allJobs = await response.json();
-        const employerJobs = allJobs.filter((job: any) => 
-          job.postedBy === user?.email || job.employerEmail === user?.email
-        ).sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        
-        console.log('Filtering jobs for user:', user?.email, 'Found:', employerJobs.length);
-        
-        if (append) {
-          setPostedJobs(prev => [...prev, ...employerJobs]);
-        } else {
-          setPostedJobs(employerJobs);
-        }
-        
-        setHasMoreJobs(employerJobs.length === jobsPerPage);
+        const jobs: any[] = await response.json();
+        const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setPostedJobs(sorted);
+        setHasMoreJobs(false); // all jobs loaded at once
       }
     } catch (error) {
       console.error('Error fetching posted jobs:', error);

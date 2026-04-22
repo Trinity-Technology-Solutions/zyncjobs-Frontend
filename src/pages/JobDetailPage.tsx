@@ -495,9 +495,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         }}
                       />
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const jid = job.id || job._id || String(jobId || '');
                           if (user && (user.name || user.fullName)) {
+                            // Check resume before navigating
+                            try {
+                              const { API_ENDPOINTS: EP } = await import('../config/env');
+                              const profileRes = await fetch(`${EP.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
+                              const profileData = profileRes.ok ? await profileRes.json() : {};
+                              const resume = profileData.resume;
+                              const hasResume = profileData.resumeUrl || resume?.url || resume?.fileUrl || resume?.path;
+                              if (!hasResume) {
+                                window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
+                                onNavigate('dashboard');
+                                return;
+                              }
+                            } catch { /* allow through on error */ }
                             sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: jid, id: jid,
                               jobTitle: job.jobTitle || job.title,
@@ -879,9 +892,22 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         />
                       )}
                       <button 
-                        onClick={() => {
+                        onClick={async () => {
                           const jid2 = job.id || job._id || String(jobId || '');
                           if (user && user.name) {
+                            // Check resume before navigating
+                            try {
+                              const { API_ENDPOINTS: EP } = await import('../config/env');
+                              const profileRes = await fetch(`${EP.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
+                              const profileData = profileRes.ok ? await profileRes.json() : {};
+                              const resume = profileData.resume;
+                              const hasResume = profileData.resumeUrl || resume?.url || resume?.fileUrl || resume?.path;
+                              if (!hasResume) {
+                                window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
+                                onNavigate('dashboard');
+                                return;
+                              }
+                            } catch { /* allow through on error */ }
                             sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: jid2, id: jid2,
                               jobTitle: job.jobTitle || job.title,
