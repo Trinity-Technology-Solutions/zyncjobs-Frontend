@@ -37,22 +37,23 @@ export const generateJobShareContent = (job: any) => {
   const companyTag = company.replace(/[^a-zA-Z0-9]/g, '');
 
   const lines = [
-    `💼 ${jobTitle} at ${company}`,
+    `${jobTitle} at ${company}`,
     ``,
-    `📍 Location: ${location}`,
-    `⏰ Type: ${jobType}`,
-    ...(experience ? [`🎯 Experience: ${experience}`] : []),
-    ...(salary ? [`💰 Salary: ${salary}`] : []),
-    ...(skills ? [`🔧 Skills: ${skills}`] : []),
+    `Location: ${location}`,
+    `Type: ${jobType}`,
+    ...(experience ? [`Experience: ${experience}`] : []),
+    ...(salary ? [`Salary: ${salary}`] : []),
+    ...(skills ? [`Skills: ${skills}`] : []),
     ``,
-    `🔗 Apply now: ${shareUrl}`,
+    `Apply here: ${shareUrl}`,
     ``,
     `#JobAlert #Hiring #${companyTag} #Opportunity #Jobs`
   ];
 
   return {
     title: `${jobTitle} at ${company}`,
-    description: `📍 ${location} • ⏰ ${jobType}${experience ? ` • 🎯 ${experience}` : ''}${salary ? ` • 💰 ${salary}` : ''}`,
+    description: `${location} | ${jobType}${experience ? ` | ${experience}` : ''}${salary ? ` | ${salary}` : ''}`,
+
     text: lines.join('\n'),
     url: shareUrl,
     hashtags: ['JobAlert', 'Hiring', companyTag, 'Opportunity']
@@ -66,14 +67,14 @@ export const shareToLinkedIn = (content: ReturnType<typeof generateJobShareConte
 };
 
 export const shareToTwitter = (content: ReturnType<typeof generateJobShareContent>) => {
-  const tweetText = `💼 ${content.title}\n${content.description}\n\n#${content.hashtags.join(' #')}`;
+  const tweetText = `${content.title}\n${content.description}\n\n#${content.hashtags.join(' #')}`;
   const encodedText = encodeURIComponent(tweetText);
   const encodedUrl = encodeURIComponent(content.url);
   window.open(`https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}`, '_blank', 'width=600,height=400');
 };
 
 export const shareToWhatsApp = (content: ReturnType<typeof generateJobShareContent>) => {
-  const message = content.text || `💼 *${content.title}*\n\n${content.description}\n\nApply: ${content.url}`;
+  const message = content.text || `*${content.title}*\n\n${content.description}\n\nApply: ${content.url}`;
   const encodedMessage = encodeURIComponent(message);
   window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 };
