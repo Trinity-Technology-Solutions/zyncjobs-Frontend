@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+  <!-- Core Public Pages -->
+  <url><loc>https://www.zyncjobs.com/</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/home</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/about</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/features</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/why-zyncjobs</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/contact</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/help</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+
+  <!-- Jobs -->
+  <url><loc>https://www.zyncjobs.com/job-listings</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-detail</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/search</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-hunting</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-role</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/recommended-jobs</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-matches</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/salary-insights</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+
+  <!-- Companies -->
+  <url><loc>https://www.zyncjobs.com/companies</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/employers</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/company-details</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/company-jobs</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/company-view</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+
+  <!-- Resume Tools -->
+  <url><loc>https://www.zyncjobs.com/resume-studio</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/resume-builder</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/resume-score</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/resume-parser</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/resume-help</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/resume-upload</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+
+  <!-- Career Tools -->
+  <url><loc>https://www.zyncjobs.com/career-coach</loc><lastmod>2026-04-21</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zyncjobs.com/career-roadmap</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/skill-assessment</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/skill-gap-analysis</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/skill-detail</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/interview-tips</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zyncjobs.com/ai-recruiter</loc><lastmod>2026-04-21</lastmod><priority>0.9</priority></url>
+
+  <!-- Auth Pages -->
+  <url><loc>https://www.zyncjobs.com/login</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/employer-login</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-register</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/employer-register</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/employer-register-complete</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zyncjobs.com/role-selection</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zyncjobs.com/forgot-password</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+
+  <!-- Candidate Pages -->
+  <url><loc>https://www.zyncjobs.com/dashboard</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/my-applications</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/interviews</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-profile</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-profile-view</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-messages</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-ranking</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-application</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/alerts</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/search-appearances</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zyncjobs.com/profile-visibility</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+
+  <!-- Employer Pages -->
+  <url><loc>https://www.zyncjobs.com/employer-dashboard</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/employer-profile</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/company-profile</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-posting</loc><lastmod>2026-04-21</lastmod><priority>0.8</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-posting-selection</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-parsing</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/job-management</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/my-jobs</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-search</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/candidate-review</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/application-management</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/recruiter-actions</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+
+  <!-- Legal & Settings -->
+  <url><loc>https://www.zyncjobs.com/terms</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/privacy</loc><lastmod>2026-04-21</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zyncjobs.com/privacy-settings</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zyncjobs.com/accessibility</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zyncjobs.com/settings</loc><lastmod>2026-04-21</lastmod><priority>0.6</priority></url>
+
+  <!-- Admin -->
+  <url><loc>https://www.zyncjobs.com/admin/login</loc><lastmod>2026-04-21</lastmod><priority>0.3</priority></url>
+  <url><loc>https://www.zyncjobs.com/admin/dashboard</loc><lastmod>2026-04-21</lastmod><priority>0.3</priority></url>
+
+</urlset>

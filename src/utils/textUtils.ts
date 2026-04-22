@@ -140,6 +140,11 @@ export const formatJobDescription = (description: string, _jobCurrency?: string)
 
   let text = description;
 
+  // Strip HTML tags if present
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    text = text.replace(/<\/?(p|li|br|div|h[1-6])[^>]*>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+  }
+
   // Always replace $ with ₹
   text = text.replace(/\$([0-9,]+)/g, '₹$1');
 

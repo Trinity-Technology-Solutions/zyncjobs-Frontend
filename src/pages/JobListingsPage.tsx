@@ -658,11 +658,14 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   const [totalPages, setTotalPages] = useState(1);
+  const jobResultsRef = React.useRef<HTMLDivElement>(null);
 
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(() => {
+      jobResultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 50);
   };
 
   return (
@@ -1191,7 +1194,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           </div>
 
           {/* Right Content - Job Results */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-3" ref={jobResultsRef}>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-gray-600 text-sm">
                 {loading ? 'Searching...' : (

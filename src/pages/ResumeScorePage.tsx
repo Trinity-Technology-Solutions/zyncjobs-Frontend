@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, BarChart2, Target, TrendingUp, Award } from 'lucide-react';
+import { Upload, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, BarChart3, Target, TrendingUp, Award } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { resumeIntelligenceEngine, ResumeAnalysis } from '../services/resumeIntelligenceEngine';
@@ -108,20 +108,39 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
     <>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="min-h-screen bg-gray-50">
-        <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white px-4 py-5">
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(135deg, #0f9d58, #16a34a, #059669)', padding: '36px 40px 36px', borderRadius: '0 0 16px 16px' }}>
           <div className="max-w-4xl mx-auto">
-            <button onClick={() => onNavigate('resume-studio')} className="inline-flex items-center text-green-200 hover:text-white text-sm mb-2">
+            <button onClick={() => onNavigate('resume-studio')} className="inline-flex items-center text-green-200 hover:text-white text-sm mb-4 transition-colors">
               <ArrowLeft className="w-4 h-4 mr-1" /> Back to Resume Studio
             </button>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold">Resume Score Analyzer</h1>
-                <p className="text-green-200 text-sm mt-0.5">AI-powered ATS score + actionable feedback</p>
+            {/* Glass card */}
+            <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '20px 24px' }}>
+              <div className="flex items-center justify-between">
+                {/* Left: accent + text */}
+                <div className="flex items-center gap-3">
+                  <div style={{ width: '4px', height: '44px', background: '#22c55e', borderRadius: '4px', flexShrink: 0 }} />
+                  <div>
+                    <h1 style={{ fontSize: '32px', fontWeight: 700, letterSpacing: '-0.5px', color: '#ffffff', margin: 0, animation: 'fadeUp 0.6s ease' }}>
+                      Resume Score Analyzer
+                    </h1>
+                    <p style={{ fontSize: '15px', fontWeight: 400, color: '#d1fae5', marginTop: '6px', marginBottom: 0 }}>
+                      AI-powered ATS score + actionable feedback
+                    </p>
+                  </div>
+                </div>
+                {/* Right: icon */}
+                <BarChart3 size={32} color="#bbf7d0" style={{ opacity: 0.9, flexShrink: 0 }} />
               </div>
-              <BarChart2 className="w-9 h-9 text-green-200 opacity-80" />
             </div>
           </div>
         </div>
+        <style>{`
+          @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to   { opacity: 1; transform: translateY(0); }
+          }
+        `}</style>
 
         <div className="max-w-4xl mx-auto px-4 py-6 space-y-4">
           {/* Input Card */}

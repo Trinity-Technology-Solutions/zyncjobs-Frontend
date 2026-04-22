@@ -27,34 +27,52 @@ export const generateJobShareContent = (job: any) => {
   const companyTag = company.replace(/[^a-zA-Z0-9]/g, '');
   const titleTag = jobTitle.replace(/\s+/g, '');
 
-  const lines: string[] = [
-    '*' + jobTitle + '* at *' + company + '*',
-    '',
-    '\uD83D\uDCCD *Location:* ' + location,
-    '\uD83D\uDCBC *Job Type:* ' + jobType,
-    ...(experience ? ['\uD83C\uDFAF *Experience:* ' + experience] : []),
-    ...(salary ? ['\uD83D\uDCB0 *Salary:* ' + salary] : []),
-    ...(skills ? ['\uD83D\uDD27 *Skills:* ' + skills] : []),
-    '',
-    '\uD83D\uDD17 *Apply Now:*',
-    shareUrl,
-    '',
-    '#' + titleTag + ' #' + companyTag + ' #Hiring #Jobs #ZyncJobs',
+  const lines = [
+    `${jobTitle} at ${company}`,
+    ``,
+    `Location: ${location}`,
+    `Type: ${jobType}`,
+    ...(experience ? [`Experience: ${experience}`] : []),
+    ...(salary ? [`Salary: ${salary}`] : []),
+    ...(skills ? [`Skills: ${skills}`] : []),
+    ``,
+    `Apply here: ${shareUrl}`,
+    ``,
+    `#JobAlert #Hiring #${companyTag} #Opportunity #Jobs`
   ];
 
   const whatsappText = lines.join('\n');
 
   return {
-    title: jobTitle + ' at ' + company,
-    description: location + ' | ' + jobType + (experience ? ' | ' + experience : ''),
-    text: whatsappText,
-    whatsappText,
+    title: `${jobTitle} at ${company}`,
+    description: `${location} | ${jobType}${experience ? ` | ${experience}` : ''}${salary ? ` | ${salary}` : ''}`,
+
+    text: lines.join('\n'),
     url: shareUrl,
     hashtags: ['Hiring', companyTag, 'Jobs', 'ZyncJobs'],
   };
 };
 
-export const copyToClipboard = async (text: string): Promise<boolean> => {
+export const shareToLinkedIn = (content: ReturnType<typeof generateJobShareContent> | string) => {
+  const text = typeof content === 'object' ? content.text : content;
+  const linkedInUrl = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`;
+  window.open(linkedInUrl, '_blank', 'width=600,height=600');
+};
+
+export const shareToTwitter = (content: ReturnType<typeof generateJobShareContent>) => {
+  const tweetText = `${content.title}\n${content.description}\n\n#${content.hashtags.join(' #')}`;
+  const encodedText = encodeURIComponent(tweetText);
+  const encodedUrl = encodeURIComponent(content.url);
+  window.open(`https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}`, '_blank', 'width=600,height=400');
+};
+
+export const shareToWhatsApp = (content: ReturnType<typeof generateJobShareContent>) => {
+  const message = content.text || `*${content.title}*\n\n${content.description}\n\nApply: ${content.url}`;
+  const encodedMessage = encodeURIComponent(message);
+  window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+};
+
+export const copyToClipboard = async (url: string): Promise<boolean> => {
   try {
     await navigator.clipboard.writeText(text);
     return true;

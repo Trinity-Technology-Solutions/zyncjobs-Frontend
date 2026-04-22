@@ -368,12 +368,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             </div>
 
             {/* Description */}
-            {job.description && (
+            {(job.jobDescription || job.description) && (
               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border-l-3 border-blue-500">
                 <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">
-                  {job.description && job.description.length > 150 
-                    ? `${formatJobDescription(job.description.substring(0, 150))}...` 
-                    : formatJobDescription(job.description || '')}
+                  {(() => {
+                    const desc = job.jobDescription || job.description || '';
+                    const plain = formatJobDescription(desc);
+                    return plain.length > 150 ? `${plain.substring(0, 150)}...` : plain;
+                  })()}
                 </p>
               </div>
             )}
