@@ -1,8 +1,10 @@
 export const generateSocialShareUrl = (job: any): string => {
   const origin = window.location.origin;
-  if (job.slug) return origin + '/jobs/' + job.slug;
+  if (job.slug) return `${origin}/jobs/${job.slug}`;
   const id = job.positionId || job.id || job._id || new URLSearchParams(window.location.search).get('id') || '';
-  return id ? origin + '/jobs/' + id : window.location.href;
+  if (id) return `${origin}/jobs/${id}`;
+  // fallback to current page URL
+  return window.location.href;
 };
 
 export const generateJobShareContent = (job: any) => {
@@ -25,28 +27,24 @@ export const generateJobShareContent = (job: any) => {
 
   const shareUrl = generateSocialShareUrl(job);
   const companyTag = company.replace(/[^a-zA-Z0-9]/g, '');
-  const titleTag = jobTitle.replace(/\s+/g, '');
 
   const lines = [
     `${jobTitle} at ${company}`,
     ``,
-    `Location: ${location}`,
-    `Type: ${jobType}`,
-    ...(experience ? [`Experience: ${experience}`] : []),
-    ...(salary ? [`Salary: ${salary}`] : []),
-    ...(skills ? [`Skills: ${skills}`] : []),
+    `📍 Location: ${location}`,
+    `💼 Type: ${jobType}`,
+    ...(experience ? [`🎯 Experience: ${experience}`] : []),
+    ...(salary ? [`💰 Salary: ${salary}`] : []),
+    ...(skills ? [`🔧 Skills: ${skills}`] : []),
     ``,
-    `Apply here: ${shareUrl}`,
+    `🔗 Apply here: ${shareUrl}`,
     ``,
     `#JobAlert #Hiring #${companyTag} #Opportunity #Jobs`
   ];
 
-  const whatsappText = lines.join('\n');
-
   return {
     title: `${jobTitle} at ${company}`,
     description: `${location} | ${jobType}${experience ? ` | ${experience}` : ''}${salary ? ` | ${salary}` : ''}`,
-
     text: lines.join('\n'),
     url: shareUrl,
     hashtags: ['Hiring', companyTag, 'Jobs', 'ZyncJobs'],
@@ -56,7 +54,7 @@ export const generateJobShareContent = (job: any) => {
 export const shareToLinkedIn = (content: ReturnType<typeof generateJobShareContent> | string) => {
   const text = typeof content === 'object' ? content.text : content;
   const linkedInUrl = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`;
-  window.open(linkedInUrl, '_blank', 'width=600,height=600');
+  window.open(linkedInUrl, '_blank', 'width=600,height=600,noopener,noreferrer');
 };
 
 export const shareToTwitter = (content: ReturnType<typeof generateJobShareContent>) => {
@@ -74,9 +72,19 @@ export const shareToWhatsApp = (content: ReturnType<typeof generateJobShareConte
 
 export const copyToClipboard = async (url: string): Promise<boolean> => {
   try {
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(url);
     return true;
   } catch {
-    return false;
+    try {
+      const el = document.createElement('textarea');
+      el.value = url;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      return true;
+    } catch {
+      return false;
+    }
   }
 };

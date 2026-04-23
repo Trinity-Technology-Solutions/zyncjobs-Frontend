@@ -25,7 +25,7 @@ interface JobData {
   expandCandidateSearch: boolean;
   experienceRange: string;
   country: string;
-  language: string;
+  language: string | string[];
   jobCategory: string;
   priority: string;
   clientName: string;
@@ -406,6 +406,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsedData]);
 
+  // Clear [object Object] on mount
+  useEffect(() => {
+    if (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') {
+      updateJobData('jobDescription', '');
+    }
+  }, []);
+
   // Auto-extract experience range from job description
   useEffect(() => {
     if (jobData.jobDescription && !jobData.experienceRange) {
@@ -649,87 +656,246 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     return ['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'Git', 'AWS', 'Docker'];
   };
 
+  // Local JD generator — no AI dependency, always works
+  const generateLocalJD = (jobTitle: string, company: string, location: string, context: any): string => {
+    const title = jobTitle.toLowerCase();
+    const co = company || 'our company';
+    const loc = location ? ` in ${location}` : '';
+    const skills = Array.isArray(context?.skills) && context.skills.length > 0 ? context.skills.join(', ') : 'relevant technologies';
+    const jobType = Array.isArray(context?.jobType) ? context.jobType.join('/') : (context?.jobType || 'Full-time');
+    const education = Array.isArray(context?.educationLevel) ? context.educationLevel[0] : (context?.educationLevel || "Bachelor's degree");
+    const salary = context?.salary ? `\n• Salary: ${context.salary}` : '';
+    const benefits = Array.isArray(context?.benefits) && context.benefits.length > 0 ? context.benefits.join(', ') : 'health insurance, flexible work';
+
+    const isTech = /developer|engineer|programmer|architect|devops|fullstack|frontend|backend|data|cloud|security|qa|tester/i.test(title);
+    const isMarketing = /marketing|seo|content|social media|brand|growth|digital/i.test(title);
+    const isSales = /sales|account executive|business development|bdm/i.test(title);
+    const isHR = /hr|human resource|recruiter|talent|people/i.test(title);
+    const isFinance = /accountant|finance|accounting|auditor|tax|payroll/i.test(title);
+    const isDesign = /designer|ui|ux|graphic|creative/i.test(title);
+    const isMedia = /news|journalist|reporter|anchor|producer|editor|broadcast|media|correspondent|cameraman|videographer|photographer|content creator|copywriter|writer|blogger/i.test(title);
+    const isManager = /manager|lead|head|director|vp|chief/i.test(title);
+
+    let responsibilities: string[];
+    let requirements: string[];
+
+    if (isTech) {
+      responsibilities = [
+        `Design, develop, and maintain high-quality ${jobTitle} solutions`,
+        'Collaborate with cross-functional teams to define and implement new features',
+        'Write clean, scalable, and well-documented code',
+        'Conduct code reviews and ensure best practices are followed',
+        `Work with technologies including: ${skills}`,
+        'Troubleshoot, debug, and optimize application performance',
+        'Participate in agile ceremonies and sprint planning',
+      ];
+      requirements = [
+        `${education} in Computer Science, Engineering, or related field`,
+        `3+ years of experience as a ${jobTitle}`,
+        `Strong proficiency in: ${skills}`,
+        'Experience with version control systems (Git)',
+        'Excellent problem-solving and analytical skills',
+        'Strong communication and teamwork abilities',
+      ];
+    } else if (isMarketing) {
+      responsibilities = [
+        'Plan and execute digital marketing campaigns across multiple channels',
+        'Analyze campaign performance and optimize for ROI',
+        'Create engaging content for social media, email, and web',
+        'Conduct market research and competitor analysis',
+        'Collaborate with design and sales teams',
+        'Track KPIs and prepare performance reports',
+      ];
+      requirements = [
+        `${education} in Marketing, Communications, or related field`,
+        `2+ years of experience in ${jobTitle} role`,
+        `Proficiency in: ${skills}`,
+        'Strong analytical and creative thinking skills',
+        'Excellent written and verbal communication',
+      ];
+    } else if (isSales) {
+      responsibilities = [
+        'Identify and pursue new business opportunities',
+        'Build and maintain strong client relationships',
+        'Meet and exceed monthly/quarterly sales targets',
+        'Present products and services to prospective clients',
+        'Negotiate contracts and close deals',
+        'Maintain accurate records in CRM system',
+      ];
+      requirements = [
+        `${education} in Business, Sales, or related field`,
+        `2+ years of experience in ${jobTitle} role`,
+        'Proven track record of meeting sales targets',
+        'Excellent communication and negotiation skills',
+        'Self-motivated with strong work ethic',
+      ];
+    } else if (isHR) {
+      responsibilities = [
+        'Manage end-to-end recruitment and onboarding processes',
+        'Develop and implement HR policies and procedures',
+        'Handle employee relations and conflict resolution',
+        'Conduct performance management and appraisal cycles',
+        'Ensure compliance with labor laws and regulations',
+        'Drive employee engagement and retention initiatives',
+      ];
+      requirements = [
+        `${education} in Human Resources, Psychology, or related field`,
+        `3+ years of experience in ${jobTitle} role`,
+        'Knowledge of employment laws and HR best practices',
+        'Strong interpersonal and communication skills',
+        'Experience with HRIS systems',
+      ];
+    } else if (isFinance) {
+      responsibilities = [
+        'Prepare and maintain accurate financial records and statements',
+        'Process accounts payable and receivable transactions',
+        'Assist with monthly, quarterly, and annual financial reporting',
+        'Reconcile bank statements and general ledger accounts',
+        'Support budget preparation and financial analysis',
+        'Ensure compliance with accounting standards and tax regulations',
+      ];
+      requirements = [
+        `${education} in Accounting, Finance, or related field`,
+        `2+ years of experience in ${jobTitle} role`,
+        `Proficiency in: ${skills}`,
+        'Knowledge of GAAP and tax regulations',
+        'Strong attention to detail and analytical skills',
+      ];
+    } else if (isDesign) {
+      responsibilities = [
+        'Create user-centered designs for web and mobile applications',
+        'Develop wireframes, prototypes, and high-fidelity mockups',
+        'Conduct user research and usability testing',
+        'Collaborate with developers and product managers',
+        'Maintain design systems and brand consistency',
+        'Present design concepts to stakeholders',
+      ];
+      requirements = [
+        `${education} in Design, HCI, or related field`,
+        `2+ years of experience as a ${jobTitle}`,
+        `Proficiency in: ${skills}`,
+        'Strong portfolio demonstrating design skills',
+        'Understanding of user-centered design principles',
+      ];
+    } else if (isMedia) {
+      responsibilities = [
+        `Research, write, and produce compelling ${jobTitle} content for broadcast/digital platforms`,
+        'Coordinate with reporters, anchors, and camera crews to deliver timely news coverage',
+        'Edit and review scripts, footage, and stories for accuracy and editorial standards',
+        'Monitor breaking news and manage live coverage logistics',
+        'Collaborate with editorial team to plan daily news rundowns and story lineups',
+        'Ensure content meets broadcast quality, legal, and ethical standards',
+      ];
+      requirements = [
+        `${education} in Journalism, Mass Communication, Media Studies, or related field`,
+        `2+ years of experience as a ${jobTitle} in a news or media organization`,
+        `Skills: ${skills}`,
+        'Strong news judgment and ability to work under tight deadlines',
+        'Excellent written and verbal communication skills',
+        'Familiarity with broadcast/digital media production tools',
+      ];
+    } else {
+      responsibilities = [
+        'Collaborate effectively with team members and stakeholders',
+        'Contribute to process improvements and operational efficiency',
+        'Prepare reports and documentation as required',
+        'Meet deadlines and deliver high-quality work',
+        'Stay updated with industry trends and best practices',
+      ];
+      requirements = [
+        `${education} or equivalent experience`,
+        `2+ years of relevant experience${isManager ? ' with team leadership' : ''}`,
+        `Skills: ${skills}`,
+        'Strong communication and interpersonal skills',
+        'Ability to work independently and manage priorities',
+      ];
+    }
+
+    const respText = responsibilities.map(r => `• ${r}`).join('\n');
+    const reqText = requirements.map(r => `• ${r}`).join('\n');
+
+    return `Job Summary
+We are looking for a talented and experienced ${jobTitle} to join ${co}${loc}. This is a ${jobType} position offering an exciting opportunity to make a significant impact in a dynamic and collaborative environment. The ideal candidate will bring a strong background in ${skills}, a passion for excellence, and the ability to thrive in a fast-paced setting. You will work closely with cross-functional teams to deliver high-quality outcomes and contribute to the long-term success of the organization.
+
+About the Role
+As a ${jobTitle} at ${co}, you will be responsible for driving key initiatives, collaborating with stakeholders, and delivering results that align with our strategic goals. We are looking for someone who is proactive, detail-oriented, and committed to continuous improvement. This role offers significant growth potential and the opportunity to work on challenging, meaningful projects.
+
+Key Responsibilities
+${respText}
+
+Requirements
+${reqText}
+
+What We Offer
+• Competitive compensation package${salary}
+• ${benefits}
+• Professional development and continuous learning opportunities
+• Collaborative, inclusive, and innovative work culture
+• Opportunity to work on impactful projects with a talented team
+• Flexible working arrangements and work-life balance
+• Regular performance reviews and career growth pathways
+
+About ${co}
+${co} is a forward-thinking organization committed to excellence, innovation, and creating value for our clients and stakeholders. We believe in empowering our employees to do their best work and fostering a culture of respect, collaboration, and continuous improvement. Join us and be part of a team that is shaping the future.
+
+How to Apply
+If you are passionate about ${jobTitle.toLowerCase()} and meet the above requirements, we would love to hear from you. Apply now through ZyncJobs and take the next step in your career journey.`;
+  };
+
   // Auto-generate job description and populate skills/education
   const generateJobDescription = async (jobTitle: string, forceUpdate = false) => {
     if (!jobTitle || jobTitle.length < 3) return;
-    
     setIsGeneratingDescription(true);
     try {
-      const currencySymbol = jobData.currency === 'INR' ? '₹' : 
-                            jobData.currency === 'USD' ? '$' : 
-                            jobData.currency === 'EUR' ? '€' : 
-                            jobData.currency === 'GBP' ? '£' : 
-                            jobData.currency === 'CAD' ? 'C$' : 
-                            jobData.currency === 'AUD' ? 'A$' : 
-                            jobData.currency === 'JPY' ? '¥' : 
-                            jobData.currency === 'SGD' ? 'S$' : '$';
-      
-      // Only include salary if user has actually modified salary values
       const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
-      
-      const description = await mistralAIService.generateJobDescription(
-        jobTitle,
-        jobData.companyName || 'ZyncJobs',
-        jobData.jobLocation || 'Remote',
-        {
-          jobType: jobData.jobType.join(', ') || 'full-time',
-          skills: jobData.skills,
-          salary: shouldIncludeSalary ? `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
-          benefits: jobData.benefits,
-          educationLevel: jobData.educationLevel,
-          // Pass existing content so AI reformats rather than replaces
-          existingDescription: jobData.jobDescription,
-          responsibilities: jobData.responsibilities.filter(Boolean),
-          requirements: jobData.requirements.filter(Boolean),
+      const context = {
+        jobType: jobData.jobType,
+        skills: jobData.skills,
+        salary: shouldIncludeSalary ? `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
+        benefits: jobData.benefits,
+        educationLevel: jobData.educationLevel,
+        existingDescription: (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') ? '' : jobData.jobDescription,
+        responsibilities: jobData.responsibilities.filter(Boolean),
+        requirements: jobData.requirements.filter(Boolean),
+      };
+
+      // Try AI first — fall back to local only if AI fails
+      let jdText = '';
+      try {
+        const raw = await mistralAIService.generateJobDescription(
+          jobTitle,
+          jobData.companyName || '',
+          jobData.jobLocation || '',
+          context
+        );
+        if (typeof raw === 'string' && raw.trim() && raw !== '[object Object]') {
+          jdText = raw.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1');
         }
-      );
-      updateJobData('jobDescription', description.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1'));
-      
-      // Auto-populate skills from the generated description and job title
-      const parsedSkills = parseSkillsFromJobDescription(description, jobTitle);
-      
-      // Auto-populate skills and education based on job title (only on first generation)
+      } catch { /* AI failed, use local */ }
+
+      if (!jdText) {
+        jdText = generateLocalJD(jobTitle, jobData.companyName || '', jobData.jobLocation || '', context);
+      }
+      updateJobData('jobDescription', jdText);
+
+      const parsedSkills = parseSkillsFromJobDescription(localJD, jobTitle);
       if (!forceUpdate) {
         const { skills: titleSkills, education } = getJobTitleDefaults(jobTitle);
         const { responsibilities: titleResponsibilities, requirements: titleRequirements } = getJobTitleResponsibilitiesAndRequirements(jobTitle);
-        
-        // Combine parsed skills with title-based skills, prioritizing parsed skills
         const combinedSkills = [...new Set([...parsedSkills, ...titleSkills])].slice(0, 12);
-        
-        if (jobData.skills.length === 0 || jobData.skills.every(skill => ['AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux', 'Python', 'SQL', 'Version control'].includes(skill))) {
+        if (jobData.skills.length === 0 || jobData.skills.every(s => ['AWS','Azure','GitHub','IT','Java','Linux','Python','SQL','Version control'].includes(s))) {
           updateJobData('skills', combinedSkills);
         }
-        if (jobData.educationLevel === "Bachelor's degree") {
-          updateJobData('educationLevel', education);
-        }
-        
-        // Auto-populate responsibilities and requirements if they're empty
-        if (jobData.responsibilities.length === 0) {
-          updateJobData('responsibilities', titleResponsibilities);
-        }
-        if (jobData.requirements.length === 0) {
-          updateJobData('requirements', titleRequirements);
-        }
+        if (jobData.educationLevel === "Bachelor's degree") updateJobData('educationLevel', education);
+        if (jobData.responsibilities.length === 0) updateJobData('responsibilities', titleResponsibilities);
+        if (jobData.requirements.length === 0) updateJobData('requirements', titleRequirements);
       } else {
-        // For force updates, also update skills from the new description
-        const currentSkills = jobData.skills;
-        const newParsedSkills = parseSkillsFromJobDescription(description, jobTitle);
-        const mergedSkills = [...new Set([...currentSkills, ...newParsedSkills])].slice(0, 15);
-        updateJobData('skills', mergedSkills);
+        updateJobData('skills', [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15));
       }
-      
-      setNotification({
-        type: 'success',
-        message: 'Job description formatted with AI!',
-        isVisible: true
-      });
+      setNotification({ type: 'success', message: 'Job description generated!', isVisible: true });
     } catch (error) {
       console.error('Job description generation failed:', error);
-      setNotification({
-        type: 'error',
-        message: 'Failed to generate job description. Please try again.',
-        isVisible: true
-      });
+      setNotification({ type: 'error', message: 'Failed to generate job description.', isVisible: true });
     } finally {
       setIsGeneratingDescription(false);
     }
@@ -1132,6 +1298,13 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         education: "Bachelor's degree in Computer Science or Engineering"
       };
     }
+
+    if (/news|journalist|reporter|anchor|producer|editor|broadcast|media|correspondent|writer|blogger/i.test(title)) {
+      return {
+        skills: ['News Writing', 'Video Editing', 'Broadcast Journalism', 'Script Writing', 'Adobe Premiere', 'Communication', 'Research', 'Storytelling'],
+        education: "Bachelor's degree in Journalism or Mass Communication"
+      };
+    }
     
     return {
       skills: ['Communication', 'Problem Solving', 'Team Collaboration', 'Time Management', 'Analytical Thinking', 'Microsoft Office', 'Project Management'],
@@ -1497,10 +1670,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     if (currentStep === 1) {
       setCurrentStep(3);
     } else if (currentStep < 7) {
-      setCurrentStep(currentStep + 1);
+      const nextStepNum = currentStep + 1;
+      setCurrentStep(nextStepNum);
+      // Auto-generate JD when entering step 6
+      if (nextStepNum === 6 && jobData.jobTitle && !jobData.jobDescription) {
+        setTimeout(() => generateJobDescription(jobData.jobTitle), 300);
+      }
     }
     
-    // Scroll to top smoothly when moving to next step
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -1535,7 +1712,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
               type="text"
               value={jobData.jobTitle}
               onChange={handleJobTitleChange}
-              onBlur={() => { if (jobData.jobTitle.length >= 3) fetchAISkillsForTitle(jobData.jobTitle); }}
+              onBlur={() => { if (jobData.jobTitle.length >= 3) { fetchAISkillsForTitle(jobData.jobTitle); } }}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="e.g. Software Engineer"
             />

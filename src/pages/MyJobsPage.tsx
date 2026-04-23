@@ -63,13 +63,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
   useEffect(() => {
     if (user?.type === 'candidate') {
-      const userKey = `savedJobDetails_${user.name || 'user'}`;
-      const savedJobDetails = localStorage.getItem(userKey);
-      if (savedJobDetails) {
-        const jobs = JSON.parse(savedJobDetails);
-        setSavedJobs(jobs);
-        fetchCompanyLogos(jobs);
-      }
+      loadSavedJobs();
       fetchAppliedJobs();
     } else if (user?.type === 'employer') {
       fetchPostedJobs();
@@ -78,6 +72,42 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
     setLoading(false);
   }, [user]);
+
+  const loadSavedJobs = async () => {
+    // Try backend first
+    try {
+      const token = tokenStorage.getAccess();
+      if (token) {
+        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          // Backend may return full job objects or just ids
+          const jobs: any[] = Array.isArray(data.jobs) ? data.jobs
+            : Array.isArray(data.jobIds) ? [] // ids only, fall through to localStorage
+            : Array.isArray(data) ? data : [];
+          if (jobs.length > 0) {
+            setSavedJobs(jobs);
+            fetchCompanyLogos(jobs);
+            // Keep localStorage in sync
+            localStorage.setItem(`savedJobDetails_${user?.name || 'user'}`, JSON.stringify(jobs));
+            return;
+          }
+        }
+      }
+    } catch { /* fall through to localStorage */ }
+    // Fallback: localStorage
+    const userKey = `savedJobDetails_${user?.name || 'user'}`;
+    const stored = localStorage.getItem(userKey);
+    if (stored) {
+      try {
+        const jobs = JSON.parse(stored);
+        setSavedJobs(jobs);
+        fetchCompanyLogos(jobs);
+      } catch { /* ignore */ }
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'Applied' && user?.type === 'candidate') {
@@ -252,18 +282,24 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
-  const handleRemoveSavedJob = (jobId: string) => {
-    const updatedJobs = savedJobs.filter(job => (job._id || job.id) !== jobId);
+  const handleRemoveSavedJob = async (jobId: string) => {
+    const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
     setSavedJobs(updatedJobs);
-    
     const userKey = `savedJobDetails_${user?.name || 'user'}`;
     const userJobIdsKey = `savedJobs_${user?.name || 'user'}`;
-    
     localStorage.setItem(userKey, JSON.stringify(updatedJobs));
-    
     const savedJobIds = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
-    const updatedJobIds = savedJobIds.filter((id: string) => id !== jobId);
-    localStorage.setItem(userJobIdsKey, JSON.stringify(updatedJobIds));
+    localStorage.setItem(userJobIdsKey, JSON.stringify(savedJobIds.filter((id: string) => id !== jobId)));
+    // Also remove from backend
+    try {
+      const token = tokenStorage.getAccess();
+      if (token) {
+        await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+    } catch { /* silent */ }
   };
 
   const handleSearch = () => {
@@ -287,7 +323,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const handleSaveJob = (job: any) => {
-    console.log('Save job:', job);
+    // Saving from MyJobsPage is handled via handleRemoveSavedJob for the saved tab
+    // This stub is kept for the renderJobCard signature compatibility
   };
 
   const handleLoadMorePostedJobs = () => {
@@ -677,7 +714,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                   <div className="mt-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                                     <p className="text-sm text-gray-700 leading-relaxed">
                                       <span className="font-semibold text-blue-900">Job Description: </span>
-                                      {(application.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')).length > 200 ? `${application.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1').substring(0, 200)}...` : application.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')}
+                                      {(() => { const plain = formatJobDescription(application.jobDescription); return plain.length > 200 ? `${plain.substring(0, 200)}...` : plain; })()}
                                     </p>
                                   </div>
                                 )}
@@ -799,7 +836,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                                 <p className="text-sm text-gray-700 leading-relaxed">
                                   <span className="font-semibold text-blue-900">Job Description: </span>
-                                  {(application.jobId.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')).length > 200 ? `${application.jobId.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1').substring(0, 200)}...` : application.jobId.jobDescription.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1')}
+                                  {(() => { const plain = formatJobDescription(application.jobId.jobDescription); return plain.length > 200 ? `${plain.substring(0, 200)}...` : plain; })()}
                                 </p>
                               </div>
                             )}

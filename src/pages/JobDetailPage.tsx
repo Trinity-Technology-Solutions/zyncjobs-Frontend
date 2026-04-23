@@ -831,7 +831,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       {/* Description snippet */}
                       {(sj.jobDescription || sj.description) && (
                         <p className="text-xs text-gray-600 mb-2 line-clamp-2">
-                          {(sj.jobDescription || sj.description).substring(0, 120)}
+                          {(sj.jobDescription || sj.description).replace(/<[^>]*>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim().substring(0, 120)}
                         </p>
                       )}
                       {/* Badges */}
