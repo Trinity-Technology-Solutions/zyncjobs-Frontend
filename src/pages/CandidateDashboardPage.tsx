@@ -33,6 +33,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [activityData, setActivityData] = useState<any>(null);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+  const [showResumePopup, setShowResumePopup] = useState(false);
+  const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
+  const [resumePopupParsing, setResumePopupParsing] = useState(false);
+  const [resumePopupError, setResumePopupError] = useState('');
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
@@ -45,6 +49,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [skills, setSkills] = useState<any[]>([]);
   const [jobTitles, setJobTitles] = useState<any[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [prefLocInput, setPrefLocInput] = useState('');
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -268,6 +273,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       if (userData) {
         try {
           const parsedUser = JSON.parse(userData);
+          let finalUser = parsedUser;
 // Fetch fresh data from database
           try {
             const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
@@ -346,14 +352,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               // Update localStorage with fresh data
               localStorage.setItem('user', JSON.stringify(updatedUser));
               calculateProfileCompletion(updatedUser);
+              
+              // Show resume popup for first-time users
+              const popupKey = `resumePopupDismissed_${parsedUser.email}`;
+              if (!localStorage.getItem(popupKey) && !updatedUser.resume && !updatedUser.resumeUrl) {
+                setTimeout(() => setShowResumePopup(true), 800);
+              }
             } else {
               setUser(parsedUser);
               calculateProfileCompletion(parsedUser);
+              
+              // Show resume popup for first-time users
+              const popupKey = `resumePopupDismissed_${parsedUser.email}`;
+              if (!localStorage.getItem(popupKey) && !parsedUser.resume && !parsedUser.resumeUrl) {
+                setTimeout(() => setShowResumePopup(true), 800);
+              }
             }
           } catch (error) {
             console.error('Error fetching profile from database:', error);
             setUser(parsedUser);
             calculateProfileCompletion(parsedUser);
+            
+            // Show resume popup for first-time users
+            const popupKey = `resumePopupDismissed_${parsedUser.email}`;
+            if (!localStorage.getItem(popupKey) && !parsedUser.resume && !parsedUser.resumeUrl) {
+              setTimeout(() => setShowResumePopup(true), 800);
+            }
           }
           
           fetchNotifications(parsedUser.email);
@@ -367,6 +391,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           fetchMyAssessments();
         } catch (error) {
           console.error('Error parsing user data:', error);
+          // Still try to show popup even if JSON parse fails
           setUser(null);
         }
       }
@@ -1404,7 +1429,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                   <div>
                     <p className="text-gray-600 text-sm mb-1">Preferred location</p>
-                    {user?.careerPreferences?.location ? (
+                    {user?.careerPreferences?.locations?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {user.careerPreferences.locations.map((loc: string, i: number) => (
+                          <span key={i} className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full">{loc}</span>
+                        ))}
+                      </div>
+                    ) : user?.careerPreferences?.location ? (
                       <p className="text-gray-900">{user.careerPreferences.location}</p>
                     ) : (
                       <button 
@@ -1782,7 +1813,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         </button>
                       </div>
                       {user?.awards && user.awards.trim() ? (
-                        <p className="text-gray-700 whitespace-pre-line">{user.awards}</p>
+                        <p className="text-gray-700 whitespace-pre-line break-all break-words" style={{overflowWrap:'anywhere'}}>{user.awards}</p>
                       ) : (
                         <p className="text-gray-500 text-sm">Talk about any special recognitions that you received that makes you proud</p>
                       )}
@@ -1804,16 +1835,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       </div>
                       {user?.clubsCommittees && typeof user.clubsCommittees === 'object' && user.clubsCommittees.clubName ? (
                         <div>
-                          <p className="text-gray-900 font-medium">{user.clubsCommittees.designation} at {user.clubsCommittees.clubName}</p>
+                          <p className="text-gray-900 font-medium break-words" style={{overflowWrap:'anywhere'}}>{user.clubsCommittees.designation} at {user.clubsCommittees.clubName}</p>
                           <p className="text-gray-500 text-sm">
                             {user.clubsCommittees.startMonth} {user.clubsCommittees.startYear} - {user.clubsCommittees.currentlyWorking ? 'Present' : `${user.clubsCommittees.endMonth} ${user.clubsCommittees.endYear}`}
                             {user.clubsCommittees.associatedEducation && `  ${user.clubsCommittees.associatedEducation}`}
                           </p>
-                          <p className="text-gray-700 text-sm mt-1">{user.clubsCommittees.description}</p>
+                          <p className="text-gray-700 text-sm mt-1 break-all break-words" style={{overflowWrap:'anywhere'}}>{user.clubsCommittees.description}</p>
                           {user.clubsCommittees.mediaFile && (
                             <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                               <p className="text-xs text-gray-600 mb-1">Attached media:</p>
-                              <p className="text-sm text-gray-900 font-medium">{user.clubsCommittees.mediaFile}</p>
+                              <p className="text-sm text-gray-900 font-medium break-words" style={{overflowWrap:'anywhere'}}>{user.clubsCommittees.mediaFile}</p>
                             </div>
                           )}
                         </div>
@@ -1826,21 +1857,62 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     <div className="border-b border-gray-100 pb-4">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="font-medium text-gray-900">Competitive exams</h3>
-                        <button 
+                        <button
                           onClick={() => {
                             setActiveModal('competitiveExams');
-                            setModalData(user?.competitiveExams || {});
+                            setModalData({ _list: (() => {
+                              const ce = user?.competitiveExams;
+                              if (Array.isArray(ce)) return ce;
+                              if (ce && typeof ce === 'object' && ce.examName) return [ce];
+                              return [];
+                            })(), examName: '', score: '', year: '' });
                           }}
                           className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                         >
-                          {user?.competitiveExams && typeof user.competitiveExams === 'object' && user.competitiveExams.examName ? 'Edit' : 'Add'}
+                          + Add
                         </button>
                       </div>
-                      {user?.competitiveExams && typeof user.competitiveExams === 'object' && user.competitiveExams.examName ? (
-                        <p className="text-gray-700">{user.competitiveExams.examName}</p>
-                      ) : (
-                        <p className="text-gray-500 text-sm">Talk about any competitive exam that you appeared for and the rank received</p>
-                      )}
+                      {(() => {
+                        const ce = user?.competitiveExams;
+                        const list: any[] = Array.isArray(ce) ? ce : (ce && typeof ce === 'object' && ce.examName ? [ce] : []);
+                        return list.length > 0 ? (
+                          <div className="space-y-2">
+                            {list.map((exam: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                                <div>
+                                  <p className="text-gray-900 font-medium text-sm">{exam.examName}</p>
+                                  <p className="text-gray-500 text-xs">
+                                    {[exam.score && `Score: ${exam.score}`, exam.year && `Year: ${exam.year}`].filter(Boolean).join(' · ')}
+                                  </p>
+                                </div>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setActiveModal('competitiveExams');
+                                      setModalData({ _list: list, _editIndex: idx, examName: exam.examName, score: exam.score || '', year: exam.year || '' });
+                                    }}
+                                    className="text-gray-400 hover:text-blue-600"
+                                  >
+                                    <Edit className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={async () => {
+                                      const updated = list.filter((_: any, i: number) => i !== idx);
+                                      const updatedUser = { ...user, competitiveExams: updated };
+                                      setUser(updatedUser);
+                                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, competitiveExams: updated }) });
+                                    }}
+                                    className="text-red-400 hover:text-red-600 text-xs font-bold"
+                                  >×</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-gray-500 text-sm">Talk about any competitive exam that you appeared for and the rank received</p>
+                        );
+                      })()}
                     </div>
 
                     {/* Academic achievements */}
@@ -2175,6 +2247,182 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         </div>
       </div>
       
+      {/* First-time Resume Upload Popup */}
+      {showResumePopup && !readOnly && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <FileText className="w-6 h-6 text-blue-600" />
+                </div>
+                <button
+                  onClick={() => {
+                    localStorage.setItem(`resumePopupDismissed_${user?.email}`, '1');
+                    setShowResumePopup(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
+              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more.</p>
+
+              {resumePopupError && (
+                <p className="text-red-500 text-sm mb-3">{resumePopupError}</p>
+              )}
+
+              {resumePopupFile ? (
+                <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg mb-4">
+                  <FileText className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <span className="text-sm text-gray-700 truncate flex-1">{resumePopupFile.name}</span>
+                  <button onClick={() => setResumePopupFile(null)} className="text-gray-400 hover:text-red-500">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="block border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors mb-4">
+                  <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm font-medium text-gray-700">Click to upload resume</p>
+                  <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX up to 5MB</p>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) { setResumePopupFile(f); setResumePopupError(''); }
+                    }}
+                  />
+                </label>
+              )}
+
+              <button
+                disabled={!resumePopupFile || resumePopupParsing}
+                onClick={async () => {
+                  if (!resumePopupFile) return;
+                  setResumePopupParsing(true);
+                  setResumePopupError('');
+                  try {
+                    // 1. Parse resume
+                    const formData = new FormData();
+                    formData.append('resume', resumePopupFile);
+                    const parseRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
+                      method: 'POST',
+                      body: formData
+                    });
+
+                    // Handle non-JSON or empty responses
+                    const rawText = await parseRes.text();
+                    if (!rawText || !rawText.trim()) {
+                      throw new Error('Server returned empty response. Please try again.');
+                    }
+                    let parseData: any;
+                    try {
+                      parseData = JSON.parse(rawText);
+                    } catch {
+                      throw new Error('Server error. Please try again.');
+                    }
+                    if (!parseRes.ok || !parseData.success) {
+                      throw new Error(parseData.error || 'Parse failed');
+                    }
+                    const p = parseData.profileData;
+
+                    // 2. Upload resume file
+                    const uploadForm = new FormData();
+                    uploadForm.append('resume', resumePopupFile);
+                    if (user?.id) uploadForm.append('userId', user.id);
+                    if (user?.email) uploadForm.append('userEmail', user.email);
+                    const token = tokenStorage.getAccess();
+                    const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+                      method: 'POST',
+                      headers: token ? { Authorization: `Bearer ${token}` } : {},
+                      body: uploadForm
+                    });
+                    const uploadData = await uploadRes.json();
+                    const fileUrl = uploadData.fileUrl || uploadData.url || uploadData.path || '';
+                    const resumeData = { name: resumePopupFile.name, size: resumePopupFile.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
+
+                    // 3. Merge parsed data into user profile
+                    const merged = {
+                      ...user,
+                      resume: resumeData,
+                      resumeUrl: fileUrl,
+                      ...(p.name && !user?.name ? { name: p.name } : {}),
+                      ...(p.phone && !user?.phone ? { phone: p.phone } : {}),
+                      ...(p.location && !user?.location ? { location: p.location } : {}),
+                      ...(p.country && !user?.country ? { country: p.country } : {}),
+                      ...(p.summary ? { profileSummary: p.summary } : {}),
+                      ...(p.skills?.length > 0 ? { skills: p.skills } : {}),
+                      ...(p.title && !user?.jobTitle ? { jobTitle: p.title } : {}),
+                      ...(p.educations?.length > 0 ? {
+                        educationCollege: {
+                          college: p.educations[0].school || '',
+                          degree: p.educations[0].degree || '',
+                          passingYear: p.educations[0].date?.split('-').pop()?.trim() || '',
+                          percentage: p.educations[0].grade || ''
+                        }
+                      } : {}),
+                      ...(p.workExperiences?.length > 0 ? {
+                        employment: p.workExperiences.map((w: any) => ({
+                          companyName: w.company || '',
+                          designation: w.jobTitle || '',
+                          description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : (w.descriptions || ''),
+                          startYear: w.date?.split('-')[0]?.trim() || '',
+                          endYear: w.date?.split('-')[1]?.trim() || '',
+                        }))
+                      } : {}),
+                      ...(p.projects?.length > 0 ? {
+                        projects: p.projects.map((pr: any) => ({
+                          projectName: pr.name || '',
+                          description: pr.description || ''
+                        }))
+                      } : {}),
+                    };
+                    setUser(merged);
+                    localStorage.setItem('user', JSON.stringify(merged));
+                    calculateProfileCompletion(merged);
+
+                    // 4. Save to backend
+                    await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ email: user?.email, ...merged })
+                    });
+
+                    localStorage.setItem(`resumePopupDismissed_${user?.email}`, '1');
+                    setShowResumePopup(false);
+                    setNotification({ type: 'success', message: 'Resume parsed & profile updated successfully! 🎉', isVisible: true });
+                  } catch (err: any) {
+                    setResumePopupError(err.message || 'Failed to parse resume. Please try again.');
+                  } finally {
+                    setResumePopupParsing(false);
+                  }
+                }}
+                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+              >
+                {resumePopupParsing ? (
+                  <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /><span>Parsing with AI...</span></>
+                ) : (
+                  <><FileText className="w-4 h-4" /><span>Parse Resume & Fill Profile</span></>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  localStorage.setItem(`resumePopupDismissed_${user?.email}`, '1');
+                  setShowResumePopup(false);
+                }}
+                className="w-full mt-3 text-gray-500 text-sm hover:text-gray-700 py-2"
+              >
+                Skip for now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ProfilePhotoEditor
         isOpen={showPhotoEditor}
         onClose={() => setShowPhotoEditor(false)}
@@ -2500,51 +2748,67 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   </div>
                 </div>
                 <div>
-                  <label className="block font-medium mb-3">Preferred location</label>
-                  {locations.length > 0 ? (
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={modalData.location || ''}
-                        onChange={(e) => {
-                          setModalData({...modalData, location: e.target.value});
-                          setShowLocationDropdown(true);
-                        }}
-                        onFocus={() => setShowLocationDropdown(true)}
-                        className="w-full p-3 border rounded-lg"
-                        placeholder="Type location..."
-                      />
-                      {showLocationDropdown && locations.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-64 overflow-y-auto z-50">
-                          {locations
-                            .filter((l: string) => 
-                              !modalData.location || l.toLowerCase().includes(modalData.location.toLowerCase())
-                            )
-                            .slice(0, 15)
-                            .map((location: string, idx: number) => (
-                              <div
-                                key={idx}
-                                onClick={() => {
-                                  setModalData({...modalData, location});
-                                  setShowLocationDropdown(false);
-                                }}
-                                className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
-                              >
-                                {location}
-                              </div>
-                            ))}
+                  <label className="block font-medium mb-3">Preferred locations</label>
+                  {(() => {
+                    const selectedLocs: string[] = modalData.locations || (modalData.location ? [modalData.location] : []);
+                    const [locInput, setLocInput] = React.useState('');
+                    return (
+                      <div>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {selectedLocs.map((loc: string, i: number) => (
+                            <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm flex items-center gap-2">
+                              {loc}
+                              <button type="button" onClick={() => setModalData({...modalData, locations: selectedLocs.filter((_: string, idx: number) => idx !== i), location: undefined})}>
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
                         </div>
-                      )}
-                    </div>
-                  ) : (
-                    <input
-                      type="text"
-                      value={modalData.location || ''}
-                      onChange={(e) => setModalData({...modalData, location: e.target.value})}
-                      className="w-full p-3 border rounded-lg"
-                      placeholder="Enter preferred location"
-                    />
-                  )}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={locInput}
+                            onChange={(e) => { setLocInput(e.target.value); setShowLocationDropdown(true); }}
+                            onFocus={() => setShowLocationDropdown(true)}
+                            className="w-full p-3 border rounded-lg"
+                            placeholder="Type and select a location to add..."
+                          />
+                          {showLocationDropdown && locInput && (
+                            <div className="absolute top-full left-0 right-0 bg-white border border-t-0 rounded-b-lg shadow-lg max-h-48 overflow-y-auto z-50">
+                              {(locations.length > 0 ? locations : [locInput])
+                                .filter((l: string) => l.toLowerCase().includes(locInput.toLowerCase()) && !selectedLocs.includes(l))
+                                .slice(0, 15)
+                                .map((loc: string, idx: number) => (
+                                  <div
+                                    key={idx}
+                                    onClick={() => {
+                                      setModalData({...modalData, locations: [...selectedLocs, loc], location: undefined});
+                                      setLocInput('');
+                                      setShowLocationDropdown(false);
+                                    }}
+                                    className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm"
+                                  >
+                                    {loc}
+                                  </div>
+                                ))}
+                              {locations.length === 0 && locInput && (
+                                <div
+                                  onClick={() => {
+                                    setModalData({...modalData, locations: [...selectedLocs, locInput], location: undefined});
+                                    setLocInput('');
+                                    setShowLocationDropdown(false);
+                                  }}
+                                  className="p-3 hover:bg-blue-50 cursor-pointer border-b text-sm text-blue-600"
+                                >
+                                  Add "{locInput}"
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-8">
@@ -3594,7 +3858,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       {/* Competitive Exams Modal */}
       {activeModal === 'competitiveExams' && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -3605,7 +3869,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="block font-medium mb-2">Competitive exam</label>
+                  <label className="block font-medium mb-2">Exam name</label>
                   <select
                     value={modalData.examName || ''}
                     onChange={(e) => setModalData({...modalData, examName: e.target.value})}
@@ -3621,14 +3885,79 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     <option>GATE</option>
                     <option>JEE</option>
                     <option>NEET</option>
+                    <option>UPSC</option>
+                    <option>SSC</option>
+                    <option>Other</option>
                   </select>
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-medium mb-2">Score / Rank (optional)</label>
+                    <input
+                      type="text"
+                      value={modalData.score || ''}
+                      onChange={(e) => setModalData({...modalData, score: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                      placeholder="e.g. 320, AIR 245"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-medium mb-2">Year (optional)</label>
+                    <input
+                      type="text"
+                      value={modalData.year || ''}
+                      onChange={(e) => setModalData({...modalData, year: e.target.value})}
+                      className="w-full p-3 border rounded-lg"
+                      placeholder="e.g. 2023"
+                    />
+                  </div>
+                </div>
+                {/* Already added exams */}
+                {(modalData._list || []).length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Added exams</p>
+                    <div className="space-y-2">
+                      {(modalData._list as any[]).map((exam: any, idx: number) => (
+                        <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{exam.examName}</p>
+                            <p className="text-xs text-gray-500">{[exam.score && `Score: ${exam.score}`, exam.year && `Year: ${exam.year}`].filter(Boolean).join(' · ')}</p>
+                          </div>
+                          <button
+                            onClick={() => setModalData({...modalData, _list: (modalData._list as any[]).filter((_: any, i: number) => i !== idx)})}
+                            className="text-red-400 hover:text-red-600 text-sm font-bold"
+                          >×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex justify-end gap-3 mt-6">
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
+                  onClick={() => {
+                    if (!modalData.examName) return;
+                    const existing: any[] = modalData._list || [];
+                    const editIdx = modalData._editIndex;
+                    const entry = { examName: modalData.examName, score: modalData.score || '', year: modalData.year || '' };
+                    const updated = editIdx !== undefined
+                      ? existing.map((e: any, i: number) => i === editIdx ? entry : e)
+                      : [...existing, entry];
+                    setModalData({ _list: updated, examName: '', score: '', year: '' });
+                  }}
+                  className="border border-blue-600 text-blue-600 px-6 py-2 rounded-full hover:bg-blue-50"
+                >
+                  + Add Exam
+                </button>
+                <button
                   onClick={async () => {
-                    const updatedUser = { ...user, competitiveExams: modalData };
+                    const existing: any[] = modalData._list || [];
+                    const finalList = modalData.examName
+                      ? [...existing, { examName: modalData.examName, score: modalData.score || '', year: modalData.year || '' }]
+                      : existing;
+                    if (finalList.length === 0) { setActiveModal(null); return; }
+                    const updatedUser = { ...user, competitiveExams: finalList };
                     setUser(updatedUser);
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
@@ -3636,16 +3965,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ email: user?.email, competitiveExams: modalData })
+                        body: JSON.stringify({ email: user?.email, competitiveExams: finalList })
                       });
                       if (res.ok) {
-                        setNotification({ type: 'success', message: 'Competitive exam saved successfully!', isVisible: true });
+                        setNotification({ type: 'success', message: 'Competitive exams saved successfully!', isVisible: true });
                       } else {
-                        setNotification({ type: 'error', message: 'Failed to save competitive exam', isVisible: true });
+                        setNotification({ type: 'error', message: 'Failed to save competitive exams', isVisible: true });
                       }
                     } catch (error) {
                       console.error('Error saving:', error);
-                      setNotification({ type: 'error', message: 'Failed to save competitive exam', isVisible: true });
+                      setNotification({ type: 'error', message: 'Failed to save competitive exams', isVisible: true });
                     }
                     setActiveModal(null);
                   }}

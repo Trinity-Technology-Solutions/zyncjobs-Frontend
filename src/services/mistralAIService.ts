@@ -95,7 +95,7 @@ class MistralAIService {
         responsibilities: additionalContext?.responsibilities || [],
         requirements: additionalContext?.requirements || [],
       });
-      if (data?.description) return data.description;
+      if (data?.description && typeof data.description === 'string' && data.description.trim()) {        return data.description;      }
     } catch (error) {
       console.warn('Backend JD generation failed, using fallback:', error);
     }

@@ -619,9 +619,24 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const handleSaveJob = async (job: any) => {
     if (!user?.name) return;
     const jobId = getId(job);
+    if (!jobId) return;
     const isAlreadySaved = savedJobs.includes(jobId);
-    // Optimistic update
+    // Optimistic UI update
     setSavedJobs(prev => isAlreadySaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
+
+    // Always sync localStorage so MyJobsPage can read saved job details
+    const idsKey = `savedJobs_${user.name}`;
+    const detailsKey = `savedJobDetails_${user.name}`;
+    const savedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem(idsKey) || '[]'); } catch { return []; } })();
+    const savedDetails: any[] = (() => { try { return JSON.parse(localStorage.getItem(detailsKey) || '[]'); } catch { return []; } })();
+    if (isAlreadySaved) {
+      localStorage.setItem(idsKey, JSON.stringify(savedIds.filter(id => id !== jobId)));
+      localStorage.setItem(detailsKey, JSON.stringify(savedDetails.filter((j: any) => getId(j) !== jobId)));
+    } else {
+      localStorage.setItem(idsKey, JSON.stringify([...savedIds, jobId]));
+      localStorage.setItem(detailsKey, JSON.stringify([...savedDetails, job]));
+    }
+
     try {
       const token = tokenStorage.getAccess();
       if (token) {
@@ -644,11 +659,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             })
           });
         }
-      } else {
-        // Fallback localStorage for guests
-        const userKey = `savedJobs_${user.name}`;
-        const updated = isAlreadySaved ? savedJobs.filter(id => id !== jobId) : [...savedJobs, jobId];
-        localStorage.setItem(userKey, JSON.stringify(updated));
       }
     } catch (error) {
       // Revert optimistic update on error

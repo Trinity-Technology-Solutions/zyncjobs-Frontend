@@ -4,7 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
-import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { getCompanyLogo, getSafeCompanyLogo } from '../utils/logoUtils';
 
 interface Company {
   _id: string;
@@ -117,12 +117,17 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
             const jobs = await jobsResponse.json();
             const jobsArray = Array.isArray(jobs) ? jobs : jobs.jobs || [];
             
-            // Extract unique companies from jobs
+            // Extract unique companies from jobs using normalized name dedup
+            const normalizeKey = (name: string) =>
+              name.toLowerCase()
+                .replace(/\b(private limited|pvt\.?\s*ltd\.?|limited|ltd\.?|inc\.?|llp|llc|corp\.?|solutions|technologies|technology|services|group|india|global)\b/g, '')
+                .replace(/[^a-z0-9]/g, '')
+                .trim();
             const companiesFromJobs = new Map();
             
             jobsArray.forEach((job: any) => {
               const companyName = job.company || job.companyName || job.employerName || 'Unknown Company';
-              const companyKey = companyName.toLowerCase();
+              const companyKey = normalizeKey(companyName);
               
               if (!companiesFromJobs.has(companyKey) && companyName !== 'Unknown Company') {
                 companiesFromJobs.set(companyKey, {
@@ -217,10 +222,27 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
         })
       );
       
-      // Filter out duplicates by company name
-      const uniqueCompanies = transformedCompanies.filter((company, index, self) => 
-        index === self.findIndex(c => c.name.toLowerCase() === company.name.toLowerCase())
-      );
+      // Deduplicate by normalized company name (strips suffixes like Pvt Ltd, Private Limited etc.)
+      const normalizeCompanyName = (name: string) =>
+        name.toLowerCase()
+          .replace(/\b(private limited|pvt\.?\s*ltd\.?|limited|ltd\.?|inc\.?|llp|llc|corp\.?|solutions|technologies|technology|services|group|india|global)\b/g, '')
+          .replace(/[^a-z0-9]/g, '')
+          .trim();
+
+      const seen = new Map<string, any>();
+      for (const company of transformedCompanies) {
+        const key = normalizeCompanyName(company.name);
+        if (!seen.has(key)) {
+          seen.set(key, company);
+        } else {
+          // Keep the one with more jobs or longer name (more complete record)
+          const existing = seen.get(key);
+          if (company.openJobs > existing.openJobs || company.name.length > existing.name.length) {
+            seen.set(key, company);
+          }
+        }
+      }
+      const uniqueCompanies = Array.from(seen.values());
       
       console.log(`Final companies count: ${uniqueCompanies.length}`);
       return uniqueCompanies;
@@ -303,31 +325,10 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
     } catch {}
   };
 
-  const getCompanyLogo = (company: Company) => {
-    // First check if we have a logo from the API
+  const getCompanyLogoForCard = (company: Company) => {
     const apiLogo = companyLogos[(company.name || '').toLowerCase()];
     if (apiLogo) return apiLogo;
-    
-    // Special cases for known companies
-    const companyName = (company.name || '').toLowerCase();
-    
-    // Trinity Technology Solutions
-    if (companyName.includes('trinity')) {
-      return '/images/company-logos/trinity-logo.png';
-    }
-    
-    // GrowthPulse/Growthpulse Solutions
-    if (companyName.includes('growthpul') || companyName.includes('growth pul')) {
-      return 'https://logo.clearbit.com/growthpulss.com';
-    }
-    
-    // ZyncJobs
-    if (companyName.includes('zync')) {
-      return '/images/zyncjobs-logo.png';
-    }
-    
-    // Then use the safe company logo utility
-    return getSafeCompanyLogo(company);
+    return getCompanyLogo(company.name || '');
   };
 
   const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -534,7 +535,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                     <div className="flex items-start gap-6">
                       <div className="flex-shrink-0">
                         <img 
-                          src={companyLogos[(company.name || '').toLowerCase()] || getSafeCompanyLogo(company)} 
+                          src={companyLogos[(company.name || '').toLowerCase()] || getCompanyLogoForCard(company)} 
                           alt={company.name}
                           data-company-name={company.name}
                           onError={handleLogoError}

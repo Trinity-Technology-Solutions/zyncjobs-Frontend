@@ -25,19 +25,24 @@ const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) =
   if (!isOpen || !job) return null;
 
   const shareContent = generateJobShareContent(job);
+  const currentUrl = shareContent.url;
+  const jobTitle = shareContent.title;
+  const description = shareContent.description;
+  const companyTag = shareContent.hashtags[1] || 'Jobs';
 
   const handleLinkedInShare = () => {
     const text = `${jobTitle}\n\n${description}\n\nApply here: ${currentUrl}\n\n#JobAlert #Hiring #${companyTag} #Opportunity`;
-    window.open(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`, '_blank', 'width=600,height=600');
+    openTab(`https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(text)}`);
   };
 
   const handleTwitterShare = () => {
-    const tweetText = shareContent.title + '\n' + shareContent.description;
-    openTab('https://twitter.com/intent/tweet?url=' + encodeURIComponent(shareContent.url) + '&text=' + encodeURIComponent(tweetText) + '&hashtags=' + shareContent.hashtags.join(','));
+    const tweetText = `${jobTitle}\n${description}`;
+    openTab(`https://twitter.com/intent/tweet?url=${encodeURIComponent(currentUrl)}&text=${encodeURIComponent(tweetText)}&hashtags=${shareContent.hashtags.join(',')}`);
   };
 
   const handleWhatsAppShare = () => {
-    openTab('https://wa.me/?text=' + encodeURIComponent(shareContent.whatsappText));
+    const text = shareContent.text || `*${jobTitle}*\n\n${description}\n\nApply here: ${currentUrl}`;
+    openTab(`https://wa.me/?text=${encodeURIComponent(text)}`);
   };
 
   const handleCopyLink = async () => {

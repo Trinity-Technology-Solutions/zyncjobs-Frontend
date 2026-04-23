@@ -8,6 +8,11 @@ export const getCompanyLogo = (companyName: string): string => {
     return '/images/company-logos/trinity-logo.png';
   }
 
+  // Nambikkai special case
+  if (companyName.toLowerCase().includes('nambikkai')) {
+    return '/images/company-logos/nambikkai-logo.png';
+  }
+
   // ZyncJobs special case
   if (companyName.toLowerCase().includes('zync')) {
     return '/images/zyncjobs-logo.png';
@@ -77,7 +82,9 @@ const getCompanyDomain = (companyName: string): string => {
     'infosys': 'infosys.com',
     'wipro': 'wipro.com',
     'zoho': 'zoho.com',
-    'accenture': 'accenture.com'
+    'accenture': 'accenture.com',
+    'nambikkai': 'nambikkai.com',
+    'nambikkai india': 'nambikkai.com'
   };
   
   // Check for exact matches first
@@ -98,19 +105,7 @@ const getCompanyDomain = (companyName: string): string => {
 
 export const getSafeCompanyLogo = (job: any): string => {
   const companyName = job.company || job.companyName || job.name || '';
-
-  if (companyName.toLowerCase().includes('trinity')) {
-    return '/images/company-logos/trinity-logo.png';
-  }
-  if (companyName.toLowerCase().includes('zync')) {
-    return '/images/zyncjobs-logo.png';
-  }
-  if (companyName.toLowerCase().includes('growthpul') || companyName.toLowerCase().includes('growth pul')) {
-    return `https://img.logo.dev/growthpulss.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
-  }
-
-  // Return empty string for unknown companies instead of generating avatar
-  return '';
+  return getCompanyLogo(companyName);
 };
 
 export const getLetterAvatar = (name: string): string => {
