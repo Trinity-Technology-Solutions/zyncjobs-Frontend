@@ -13,6 +13,19 @@ export interface AccountAPIResponse {
 export type DeleteAccountResponse = AccountAPIResponse;
 
 export const accountAPI = {
+  getUserIdFromStorage(): string | null {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        return user.id || user._id || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  },
+
   async getMe(): Promise<any | null> {
     try {
       const token = tokenStorage.getAccess();
@@ -42,9 +55,16 @@ export const accountAPI = {
     }
   },
 
-  async deleteAccount(): Promise<DeleteAccountResponse> {
+  async deleteAccount(userId: string): Promise<DeleteAccountResponse> {
     try {
-      const res = await apiFetch(`${API}/users/me`, { method: 'DELETE' });
+      const token = tokenStorage.getAccess();
+      const res = await fetch(`${API}/users/${userId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       const data = await res.json().catch(() => ({}));
       return {
         success: res.ok,
@@ -55,11 +75,15 @@ export const accountAPI = {
     }
   },
 
-  async changeEmail(newEmail: string): Promise<AccountAPIResponse> {
+  async changeEmail(userId: string, newEmail: string): Promise<AccountAPIResponse> {
     try {
-      const res = await apiFetch(`${API}/users/me`, {
+      const token = tokenStorage.getAccess();
+      const res = await fetch(`${API}/users/${userId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ email: newEmail }),
       });
       if (res.ok) return { success: true, message: 'Email updated successfully!' };
@@ -70,13 +94,16 @@ export const accountAPI = {
     }
   },
 
-  async changePassword(currentPassword: string, newPassword: string): Promise<AccountAPIResponse> {
+  async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<AccountAPIResponse> {
     try {
-      const res = await apiFetch(`${API}/users/me/change-password`, {
+      const url = `${API}/users/${userId}/password`;
+      console.log('🔐 Calling password update:', url);
+      const res = await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
+      console.log('🔐 Password update response status:', res.status);
       if (res.ok) return { success: true, message: 'Password updated successfully!' };
       const data = await res.json().catch(() => ({}));
       return { success: false, message: data.error || `Server error: ${res.status}` };
@@ -86,6 +113,7 @@ export const accountAPI = {
   },
 
   clearUserData(): void {
+    localStorage.removeItem('user');
     tokenStorage.clear();
     sessionStorage.clear();
   },
