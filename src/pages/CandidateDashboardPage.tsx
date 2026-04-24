@@ -399,17 +399,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     
     loadUserProfile();
+
+    // Re-fetch assessments when a new local assessment is saved
+    const onAssessmentDone = () => fetchMyAssessments();
+    window.addEventListener('zync:assessmentSaved', onAssessmentDone);
+    return () => window.removeEventListener('zync:assessmentSaved', onAssessmentDone);
   }, []);
 
   const fetchMyAssessments = async () => {
+    // Collect practice assessments saved to localStorage
+    const localAssessments = Object.keys(localStorage)
+      .filter(k => k.startsWith('assessment_local-'))
+      .map(k => { try { return JSON.parse(localStorage.getItem(k) || ''); } catch { return null; } })
+      .filter(Boolean)
+      .sort((a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
     try {
       let token = tokenStorage.getAccess();
-      if (!token) return;
+      if (!token) {
+        setMyAssessments(localAssessments);
+        return;
+      }
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         if (payload.exp * 1000 < Date.now()) {
           const refreshToken = tokenStorage.getRefresh();
-          if (!refreshToken) return;
+          if (!refreshToken) { setMyAssessments(localAssessments); return; }
           const res = await fetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -420,14 +435,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
             tokenStorage.setAccess(data.accessToken);
             if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
             token = data.accessToken;
-          } else return;
+          } else { setMyAssessments(localAssessments); return; }
         }
       } catch { /* use token as-is */ }
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/skill-assessments/my-assessments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.ok) setMyAssessments(await response.json());
-    } catch { /* silent */ }
+      const backendList = response.ok ? await response.json() : [];
+      // Merge backend + local, dedup by assessmentId
+      const merged = [
+        ...backendList,
+        ...localAssessments.filter((la: any) =>
+          !backendList.some((ba: any) => ba.assessmentId === la.assessmentId)
+        )
+      ];
+      setMyAssessments(merged);
+    } catch {
+      setMyAssessments(localAssessments);
+    }
   };
 
   const fetchNotifications = async (userId: string) => {

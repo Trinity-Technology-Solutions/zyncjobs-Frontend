@@ -650,10 +650,20 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     }
   };
 
+  const handleUserDeleted = (deletedId: string) => {
+    setUsers(prev => prev.filter(u => (u._id || u.id || u.userId) !== deletedId));
+    setSelectedUserId(null);
+  };
+
   return (
     <>
       {selectedUserId && selectedUserId !== 'undefined' && (
-        <UserDetailsModal userId={selectedUserId} onClose={() => setSelectedUserId(null)} onAction={load} />
+        <UserDetailsModal
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onAction={load}
+          onDeleted={handleUserDeleted}
+        />
       )}
       <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-800">
