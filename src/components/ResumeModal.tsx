@@ -173,7 +173,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               {resumeFileUrl ? (
                 <>
                   <iframe
-                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(resumeFileUrl)}&embedded=true`}
+                    src={`${resumeFileUrl}#toolbar=1&navpanes=0`}
                     width="100%"
                     height="600"
                     title="Resume"

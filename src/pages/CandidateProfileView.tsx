@@ -345,10 +345,10 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                   </button>
                 )}
                 {candidate.resumeUrl && (
-                  <button onClick={() => window.open(candidate.resumeUrl, '_blank')}
+                  <a href={candidate.resumeUrl} download={`${candidate.name.replace(/\s+/g, '_')}_Resume.pdf`}
                     className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
                     <Download className="w-4 h-4" />Resume
-                  </button>
+                  </a>
                 )}
                 {candidate.email && (
                   <a href={`mailto:${candidate.email}`}
