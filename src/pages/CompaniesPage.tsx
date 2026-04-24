@@ -53,203 +53,142 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
 
 
 
-  // Fetch companies from multiple endpoints - ONLY REAL REGISTERED COMPANIES
+  // Fetch companies — merges registered employers + job postings so no company is ever missed
   const fetchCompaniesFromAPI = async () => {
     try {
       setLoading(true);
-      let companiesData: Company[] = [];
-      
-      // First try to get registered employers
-      const endpoints = [
-        `${API_ENDPOINTS.BASE_URL}/companies`,
-        `${API_ENDPOINTS.BASE_URL}/users?userType=employer`,
-        `${API_ENDPOINTS.BASE_URL}/users?role=employer`,
-        `${API_ENDPOINTS.BASE_URL}/employers`,
-        `${API_ENDPOINTS.BASE_URL}/profiles?type=employer`
-      ];
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`Trying endpoint: ${endpoint}`);
-          const response = await fetch(endpoint);
-          if (response.ok) {
-            const data = await response.json();
-            const dataArray = Array.isArray(data) ? data : data.companies || data.users || data.employers || data.profiles || [];
-            
-            if (dataArray.length > 0) {
-              console.log(`Found ${dataArray.length} registered employers from ${endpoint}`);
-              companiesData = dataArray.filter((company: any) => {
-                // Filter only real employers
-                const isRealEmployer = 
-                  company.userType === 'employer' || 
-                  company.role === 'employer' ||
-                  company.type === 'employer' ||
-                  (company.email && company.email.includes('@'));
-                
-                // Exclude sample companies
-                const sampleCompanies = [
-                  'zoho', 'tcs', 'infosys', 'wipro', 'hcl', 'tech mahindra', 
-                  'accenture', 'ibm', 'microsoft', 'google', 'amazon', 'apple', 
-                  'meta', 'netflix', 'adobe', 'salesforce', 'oracle', 'sap',
-                  'intel', 'nvidia', 'dell', 'hp', 'cisco', 'vmware', 'atlassian', 'capgemini'
-                ];
-                
-                const companyName = (company.companyName || company.company || company.name || '').toLowerCase();
-                const isSampleData = sampleCompanies.some(sample => companyName.includes(sample));
-                
-                return isRealEmployer && !isSampleData;
-              });
-              break;
-            }
-          }
-        } catch (error) {
-          console.log(`Failed to fetch from ${endpoint}:`, error);
-          continue;
-        }
-      }
-      
-      // If no registered employers found, extract companies from job postings
-      if (companiesData.length === 0) {
-        console.log('No registered employers found, extracting companies from jobs...');
-        try {
-          const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
-          if (jobsResponse.ok) {
-            const jobs = await jobsResponse.json();
-            const jobsArray = Array.isArray(jobs) ? jobs : jobs.jobs || [];
-            
-            // Extract unique companies from jobs using normalized name dedup
-            const normalizeKey = (name: string) =>
-              name.toLowerCase()
-                .replace(/\b(private limited|pvt\.?\s*ltd\.?|limited|ltd\.?|inc\.?|llp|llc|corp\.?|solutions|technologies|technology|services|group|india|global)\b/g, '')
-                .replace(/[^a-z0-9]/g, '')
-                .trim();
-            const companiesFromJobs = new Map();
-            
-            jobsArray.forEach((job: any) => {
-              const companyName = job.company || job.companyName || job.employerName || 'Unknown Company';
-              const companyKey = normalizeKey(companyName);
-              
-              if (!companiesFromJobs.has(companyKey) && companyName !== 'Unknown Company') {
-                companiesFromJobs.set(companyKey, {
-                  _id: `job-company-${Date.now()}-${Math.random()}`,
-                  name: companyName,
-                  companyName: companyName,
-                  industry: job.industry || job.jobCategory || 'Technology',
-                  location: job.location || job.jobLocation || 'India',
-                  employees: job.companySize || '1-50',
-                  website: job.companyWebsite || '',
-                  description: job.companyDescription || `${companyName} - Professional services`,
-                  email: job.postedBy || job.employerEmail,
-                  logo: job.companyLogo,
-                  userType: 'employer',
-                  extractedFromJobs: true // Mark as extracted from jobs
-                });
-              }
-            });
-            
-            companiesData = Array.from(companiesFromJobs.values());
-            console.log(`Extracted ${companiesData.length} companies from job postings`);
-          }
-        } catch (error) {
-          console.log('Error extracting companies from jobs:', error);
-        }
-      }
-      
-      // If still no companies found, return empty array
-      if (companiesData.length === 0) {
-        console.log('No companies found from any source');
-        return [];
-      }
-      
-      // Transform and enrich company data
-      const transformedCompanies = await Promise.all(
-        companiesData.map(async (company: any) => {
-          // Get company name from various possible fields
-          const companyName = company.companyName || company.company || company.name || 'Unknown Company';
-          
-          // Get job count for this company
-          let jobCount = 0;
-          try {
-            const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
-            if (jobsResponse.ok) {
-              const jobs = await jobsResponse.json();
-              const jobsArray = Array.isArray(jobs) ? jobs : jobs.jobs || [];
-              jobCount = jobsArray.filter((job: any) => 
-                (job.company || job.companyName || '').toLowerCase() === companyName.toLowerCase()
-              ).length;
-            }
-          } catch (error) {
-            console.log('Error fetching job count:', error);
-          }
-          
-          // Get reviews count and rating
-          let reviewCount = 0;
-          let avgRating = 0;
-          try {
-            const reviewsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews?companyName=${encodeURIComponent(companyName)}`);
-            if (reviewsResponse.ok) {
-              const reviewsData = await reviewsResponse.json();
-              const reviewsArray = Array.isArray(reviewsData) ? reviewsData : reviewsData.reviews || [];
-              reviewCount = reviewsArray.length;
-              if (reviewCount > 0) {
-                const totalRating = reviewsArray.reduce((sum: number, review: any) => sum + (review.rating || 0), 0);
-                avgRating = parseFloat((totalRating / reviewCount).toFixed(1));
-              }
-            }
-          } catch (error) {
-            console.log('Error fetching reviews:', error);
-          }
-          
-          return {
-            _id: company._id || company.id || `company-${Date.now()}-${Math.random()}`,
-            name: companyName,
-            industry: company.industry || company.companyIndustry || 'Technology',
-            rating: avgRating || company.rating || 0,
-            description: company.description || company.companyDescription || `${companyName} - Professional services`,
-            location: company.location || company.companyLocation || 'India',
-            employees: company.employees || company.companySize || '1-50',
-            website: company.website || company.companyWebsite || '',
-            openJobs: jobCount,
-            logo: company.companyLogo || company.logo,
-            reviews: reviewCount,
-            salaries: company.salaries || 0,
-            officeLocations: company.officeLocations || 1,
-            email: company.email,
-            phone: company.phone,
-            foundedYear: company.foundedYear,
-            companySize: company.companySize
-          };
-        })
-      );
-      
-      // Deduplicate by normalized company name (strips suffixes like Pvt Ltd, Private Limited etc.)
-      const normalizeCompanyName = (name: string) =>
+
+      // Normalize key: strip ONLY legal suffixes (Pvt Ltd, Inc etc.) — NOT business words
+      const normalizeKey = (name: string) =>
         name.toLowerCase()
-          .replace(/\b(private limited|pvt\.?\s*ltd\.?|limited|ltd\.?|inc\.?|llp|llc|corp\.?|solutions|technologies|technology|services|group|india|global)\b/g, '')
+          .replace(/\b(private limited|pvt\.?\s*ltd\.?|limited|ltd\.?|inc\.?|llp|llc|corp\.?)\b/g, '')
           .replace(/[^a-z0-9]/g, '')
           .trim();
 
-      const seen = new Map<string, any>();
-      for (const company of transformedCompanies) {
-        const key = normalizeCompanyName(company.name);
-        if (!seen.has(key)) {
-          seen.set(key, company);
-        } else {
-          // Keep the one with more jobs or longer name (more complete record)
-          const existing = seen.get(key);
-          if (company.openJobs > existing.openJobs || company.name.length > existing.name.length) {
-            seen.set(key, company);
+      // ── 1. Fetch jobs (always) ──────────────────────────────────────────────
+      let jobsArray: any[] = [];
+      try {
+        const jobsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
+        if (jobsRes.ok) {
+          const j = await jobsRes.json();
+          jobsArray = Array.isArray(j) ? j : j.jobs || [];
+        }
+      } catch {}
+
+      // ── 2. Fetch registered employers (try multiple endpoints) ──────────────
+      let registeredEmployers: any[] = [];
+      const employerEndpoints = [
+        `${API_ENDPOINTS.BASE_URL}/users?userType=employer`,
+        `${API_ENDPOINTS.BASE_URL}/users?role=employer`,
+        `${API_ENDPOINTS.BASE_URL}/employers`,
+        `${API_ENDPOINTS.BASE_URL}/companies`,
+      ];
+      for (const ep of employerEndpoints) {
+        try {
+          const res = await fetch(ep);
+          if (!res.ok) continue;
+          const d = await res.json();
+          const arr: any[] = Array.isArray(d) ? d : d.users || d.employers || d.companies || [];
+          if (arr.length > 0) {
+            registeredEmployers = arr.filter((u: any) =>
+              u.userType === 'employer' || u.role === 'employer' || u.type === 'employer'
+            );
+            if (registeredEmployers.length > 0) break;
+          }
+        } catch {}
+      }
+
+      // ── 3. Build a merged map keyed by normalizedName ───────────────────────
+      const companyMap = new Map<string, any>();
+
+      // Seed from registered employers first (most complete data)
+      // IMPORTANT: use companyName/company only — never u.name (that's the person's name)
+      registeredEmployers.forEach((u: any) => {
+        const name = u.companyName || u.company || '';
+        if (!name) return; // skip if no company name (person-name-only records)
+        const key = normalizeKey(name);
+        if (!companyMap.has(key)) {
+          companyMap.set(key, {
+            _id: u._id || u.id || `emp-${Math.random()}`,
+            name,
+            industry: u.industry || u.companyIndustry || 'Technology',
+            description: u.description || u.companyDescription || `${name} - Professional services`,
+            location: u.location || u.companyLocation || 'India',
+            employees: u.employees || u.companySize || '1-50',
+            website: u.website || u.companyWebsite || '',
+            logo: u.companyLogo || u.logo || '',
+            email: u.email || '',
+            openJobs: 0,
+            reviews: 0,
+            rating: 0,
+            salaries: 0,
+            officeLocations: 1,
+          });
+        }
+      });
+
+      // Seed from jobs (adds companies that have jobs but may not be in employer list)
+      jobsArray.forEach((job: any) => {
+        const name = job.company || job.companyName || job.employerName || '';
+        if (!name || name === 'Unknown Company') return;
+        const key = normalizeKey(name);
+        if (!companyMap.has(key)) {
+          companyMap.set(key, {
+            _id: `job-company-${Math.random()}`,
+            name,
+            industry: job.industry || job.jobCategory || 'Technology',
+            description: job.companyDescription || `${name} - Professional services`,
+            location: job.location || job.jobLocation || 'India',
+            employees: job.companySize || '1-50',
+            website: job.companyWebsite || '',
+            logo: job.companyLogo || '',
+            email: job.postedBy || '',
+            openJobs: 0,
+            reviews: 0,
+            rating: 0,
+            salaries: 0,
+            officeLocations: 1,
+          });
+        }
+      });
+
+      if (companyMap.size === 0) return [];
+
+      // ── 4. Count jobs per company ───────────────────────────────────────────
+      jobsArray.forEach((job: any) => {
+        const name = (job.company || job.companyName || '').toLowerCase();
+        for (const [key, company] of companyMap.entries()) {
+          if (normalizeKey(company.name) === key && company.name.toLowerCase() === name) {
+            company.openJobs = (company.openJobs || 0) + 1;
+            break;
           }
         }
-      }
-      const uniqueCompanies = Array.from(seen.values());
-      
-      console.log(`Final companies count: ${uniqueCompanies.length}`);
-      return uniqueCompanies;
-      
+      });
+
+      // ── 5. Fetch reviews for each company ──────────────────────────────────
+      await Promise.all(
+        Array.from(companyMap.values()).map(async (company) => {
+          try {
+            const res = await fetch(`${API_ENDPOINTS.BASE_URL}/reviews?companyName=${encodeURIComponent(company.name)}`);
+            if (!res.ok) return;
+            const d = await res.json();
+            const arr: any[] = Array.isArray(d) ? d : d.reviews || [];
+            company.reviews = arr.length;
+            if (arr.length > 0) {
+              const total = arr.reduce((s: number, r: any) => s + (r.rating || 0), 0);
+              company.rating = parseFloat((total / arr.length).toFixed(1));
+            }
+          } catch {}
+        })
+      );
+
+      const result = Array.from(companyMap.values());
+      console.log(`Companies loaded: ${result.length}`, result.map(c => c.name));
+      return result;
+
     } catch (error) {
       console.error('Error fetching companies:', error);
-      return []; // Return empty array instead of fallback
+      return [];
     }
   };
 
@@ -326,9 +265,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   const getCompanyLogoForCard = (company: Company) => {
-    const apiLogo = companyLogos[(company.name || '').toLowerCase()];
-    if (apiLogo) return apiLogo;
-    return getCompanyLogo(company.name || '');
+    return getCompanyLogo(company.name || '') || companyLogos[(company.name || '').toLowerCase()] || company.logo || '';
   };
 
   const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -535,7 +472,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                     <div className="flex items-start gap-6">
                       <div className="flex-shrink-0">
                         <img 
-                          src={companyLogos[(company.name || '').toLowerCase()] || getCompanyLogoForCard(company)} 
+                          src={getCompanyLogoForCard(company)} 
                           alt={company.name}
                           data-company-name={company.name}
                           onError={handleLogoError}

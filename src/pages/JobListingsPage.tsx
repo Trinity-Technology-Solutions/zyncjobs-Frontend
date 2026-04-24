@@ -9,7 +9,7 @@ import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
-import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
@@ -301,32 +301,29 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  const applyFilters = useCallback((updatedFilters: typeof filters, jobList: any[], eMin = expMin, eMax = expMax, sMin = salaryMin, sMax = salaryMax) => {
-    let filtered = clientFilter(jobList, searchTerm, location);
+  // Reactive filter: runs whenever filters, jobs, sliders, or search term changes
+  useEffect(() => {
+    if (jobs.length === 0) return;
+    let filtered = clientFilter(jobs, searchTerm, location);
 
-    if (updatedFilters.department.length > 0) {
+    if (filters.department.length > 0) {
       filtered = filtered.filter(job =>
-        updatedFilters.department.includes(job.jobCategory || job.category || '')
+        filters.department.includes(job.jobCategory || job.category || '')
       );
     }
-
-    // Experience slider filter
-    if (eMin > 0 || eMax < 30) {
+    if (expMin > 0 || expMax < 30) {
       filtered = filtered.filter(job => {
         const exp = job.experienceRange || job.experience || '';
         const nums = exp.match(/\d+/g)?.map(Number) || [];
         if (!nums.length) return true;
         const jobMin = Math.min(...nums);
         const jobMax = nums.length > 1 ? Math.max(...nums) : nums[0];
-        const rMax = eMax >= 30 ? Infinity : eMax;
-        return jobMin <= rMax && jobMax >= eMin;
+        return jobMin <= (expMax >= 30 ? Infinity : expMax) && jobMax >= expMin;
       });
     }
-
-    // Salary slider filter
-    if (sMin > 0 || sMax < 50) {
-      const rMin = sMin * 100000;
-      const rMax = sMax >= 50 ? Infinity : sMax * 100000;
+    if (salaryMin > 0 || salaryMax < 50) {
+      const rMin = salaryMin * 100000;
+      const rMax = salaryMax >= 50 ? Infinity : salaryMax * 100000;
       filtered = filtered.filter(job => {
         const s = typeof job.salary === 'object' ? (job.salary?.min || 0) : parseInt((job.salary || '').toString().replace(/[^0-9]/g, '') || '0');
         const sMaxVal = typeof job.salary === 'object' ? (job.salary?.max || s) : s;
@@ -334,48 +331,50 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         return s <= rMax && sMaxVal >= rMin;
       });
     }
-
-    // experience filtered via expMin/expMax slider directly
-
-    if (updatedFilters.workMode.length > 0) {
+    if (filters.workMode.length > 0) {
       filtered = filtered.filter(job => {
-        const jobText = `${job.type || ''} ${job.location || ''} ${job.description || ''} ${job.workMode || ''}`.toLowerCase();
-        return updatedFilters.workMode.some(mode => {
-          if (mode === 'Remote') return jobText.includes('remote');
-          if (mode === 'Hybrid') return jobText.includes('hybrid');
-          if (mode === 'Work from office') return !jobText.includes('remote') && !jobText.includes('hybrid');
+        const lt = (job.locationType || '').toLowerCase();
+        const loc = (job.location || '').toLowerCase();
+        const desc = (job.description || '').toLowerCase();
+        return filters.workMode.some(mode => {
+          if (mode === 'Remote') return lt === 'remote' || loc === 'remote';
+          if (mode === 'Hybrid') return lt === 'hybrid' || loc === 'hybrid';
+          if (mode === 'Work from office') return lt === 'in person' || (lt !== 'remote' && lt !== 'hybrid' && loc !== 'remote');
           return false;
         });
       });
     }
-    if (updatedFilters.location.length > 0) {
+    if (filters.location.length > 0) {
       filtered = filtered.filter(job =>
-        updatedFilters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
+        filters.location.some(loc => (job.location || '').toLowerCase().includes(loc.toLowerCase()))
       );
     }
-    if (updatedFilters.industry.length > 0) {
+    if (filters.industry.length > 0) {
       filtered = filtered.filter(job => {
         const jobText = `${job.title || ''} ${job.description || ''} ${job.industry || ''}`.toLowerCase();
-        return updatedFilters.industry.some(ind => jobText.includes(ind.toLowerCase()));
+        return filters.industry.some(ind => jobText.includes(ind.toLowerCase()));
       });
     }
-    if (updatedFilters.jobType) {
+    if (filters.jobType) {
       filtered = filtered.filter(job => {
         const t = job.type || job.jobType;
         const arr = Array.isArray(t) ? t : t ? [t] : [];
-        return arr.some((v: string) => v.toLowerCase() === updatedFilters.jobType.toLowerCase());
+        return arr.some((v: string) => v.toLowerCase() === filters.jobType.toLowerCase());
       });
     }
-    if (updatedFilters.freshness) {
+    if (filters.freshness) {
       const now = Date.now();
-      const cutoff = updatedFilters.freshness === '24h' ? now - 86400000 : now - 604800000;
+      const cutoff = filters.freshness === '24h' ? now - 86400000 : now - 604800000;
       filtered = filtered.filter(job => new Date(job.createdAt).getTime() >= cutoff);
     }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setFilteredJobs(filtered);
     setCurrentPage(1);
     setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
-  }, [clientFilter, searchTerm, location]);
+  }, [filters, jobs, searchTerm, location, expMin, expMax, salaryMin, salaryMax]);
+
+  // Keep applyFilters as a no-op shim so existing call sites don't break
+  const applyFilters = useCallback((_f: any, _j: any, _eMin?: any, _eMax?: any, _sMin?: any, _sMax?: any) => {}, []);
 
   const fetchStats = async () => {
     try {
@@ -461,7 +460,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   
   useEffect(() => {
     if (jobs.length > 0) {
-      applyFilters(filters, jobs, expMin, expMax, salaryMin, salaryMax);
       fetchCompanyLogos(jobs);
     }
   }, [jobs]);
@@ -501,16 +499,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const handleFilterChange = (filterType: string, value: string) => {
     const arrayFilters = ['department', 'location', 'workMode', 'industry', 'companySize'];
     setFilters(prev => {
-      const updated = arrayFilters.includes(filterType)
-        ? {
-            ...prev,
-            [filterType]: (prev[filterType as keyof typeof prev] as string[]).includes(value)
-              ? (prev[filterType as keyof typeof prev] as string[]).filter(i => i !== value)
-              : [...(prev[filterType as keyof typeof prev] as string[]), value]
-          }
-        : { ...prev, [filterType]: value };
-      applyFilters(updated, jobs, expMin, expMax, salaryMin, salaryMax);
-      return updated;
+      if (arrayFilters.includes(filterType)) {
+        const arr = prev[filterType as keyof typeof prev] as string[];
+        return { ...prev, [filterType]: arr.includes(value) ? arr.filter(i => i !== value) : [...arr, value] };
+      }
+      return { ...prev, [filterType]: value };
     });
   };
 
@@ -894,13 +887,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => {
-                const newFreshness = filters.freshness === '24h' ? '' : '24h';
-                const updated = { ...filters, freshness: newFreshness };
-                setFilters(updated);
-                applyFilters(updated, jobs, expMin, expMax, salaryMin, salaryMax);
-                fetchJobs(1, false, { term: searchTerm, loc: location, freshness: newFreshness });
-              }}
+              onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '24h' ? '' : '24h' }))}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.freshness === '24h' 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -910,13 +897,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               Last 24 hours
             </button>
             <button
-              onClick={() => {
-                const newFreshness = filters.freshness === '7d' ? '' : '7d';
-                const updated = { ...filters, freshness: newFreshness };
-                setFilters(updated);
-                applyFilters(updated, jobs, expMin, expMax, salaryMin, salaryMax);
-                fetchJobs(1, false, { term: searchTerm, loc: location, freshness: newFreshness });
-              }}
+              onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '7d' ? '' : '7d' }))}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.freshness === '7d' 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -926,10 +907,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               This week
             </button>
             <button
-              onClick={() => {
-                const updated = { ...filters, workMode: filters.workMode.includes('Remote') ? filters.workMode.filter(m => m !== 'Remote') : [...filters.workMode, 'Remote'] };
-                setFilters(updated); applyFilters(updated, jobs, expMin, expMax, salaryMin, salaryMax);
-              }}
+              onClick={() => setFilters(prev => ({ ...prev, workMode: prev.workMode.includes('Remote') ? prev.workMode.filter(m => m !== 'Remote') : [...prev.workMode, 'Remote'] }))}
               className={`px-3 py-1 rounded-full text-sm border ${
                 filters.workMode.includes('Remote') 
                   ? 'bg-blue-100 border-blue-300 text-blue-700' 
@@ -1050,17 +1028,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <SalaryRangeSlider
                   min={expMin}
                   max={expMax}
-                  onChange={(mn, mx) => {
-                    setExpMin(mn);
-                    setExpMax(mx);
-                    applyFilters(filters, jobs, mn, mx, salaryMin, salaryMax);
-                  }}
+                  onChange={(mn, mx) => { setExpMin(mn); setExpMax(mx); }}
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
                   <span>0</span><span>5</span><span>10</span><span>15</span><span>20</span><span>30+</span>
                 </div>
                 {(expMin > 0 || expMax < 30) && (
-                  <button onClick={() => { setExpMin(0); setExpMax(30); applyFilters(filters, jobs, 0, 30, salaryMin, salaryMax); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
+                  <button onClick={() => { setExpMin(0); setExpMax(30); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
                 )}
               </div>
 
@@ -1074,17 +1048,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <SalaryRangeSlider
                   min={salaryMin}
                   max={salaryMax}
-                  onChange={(mn, mx) => {
-                    setSalaryMin(mn);
-                    setSalaryMax(mx);
-                    applyFilters(filters, jobs, expMin, expMax, mn, mx);
-                  }}
+                  onChange={(mn, mx) => { setSalaryMin(mn); setSalaryMax(mx); }}
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-2">
                   <span>0</span><span>10</span><span>20</span><span>30</span><span>40</span><span>50+</span>
                 </div>
                 {(salaryMin > 0 || salaryMax < 50) && (
-                  <button onClick={() => { setSalaryMin(0); setSalaryMax(50); applyFilters(filters, jobs, expMin, expMax, 0, 50); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
+                  <button onClick={() => { setSalaryMin(0); setSalaryMax(50); }} className="mt-1 text-xs text-blue-500 hover:underline">Reset</button>
                 )}
               </div>
 
@@ -1095,7 +1065,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     Location {filters.location.length > 0 && <span className="text-blue-600">({filters.location.length})</span>}
                   </h4>
                   {filters.location.length > 0 && (
-                    <button onClick={() => { const u = { ...filters, location: [] }; setFilters(u); applyFilters(u, jobs, expMin, expMax, salaryMin, salaryMax); }} className="text-xs text-blue-600 hover:underline">Clear</button>
+                    <button onClick={() => { const u = { ...filters, location: [] }; setFilters(u); }} className="text-xs text-blue-600 hover:underline">Clear</button>
                   )}
                 </div>
                 <input
@@ -1147,10 +1117,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <div className="space-y-2">
                   {['Work from office', 'Hybrid', 'Remote'].map(mode => {
                     const count = jobs.filter(job => {
-                      const text = `${job.type || ''} ${job.location || ''} ${job.description || ''} ${job.workMode || ''} ${job.locationType || ''}`.toLowerCase();
-                      if (mode === 'Remote') return text.includes('remote');
-                      if (mode === 'Hybrid') return text.includes('hybrid');
-                      return !text.includes('remote') && !text.includes('hybrid');
+                      const lt = (job.locationType || '').toLowerCase();
+                      const loc = (job.location || '').toLowerCase();
+                      if (mode === 'Remote') return lt === 'remote' || loc === 'remote';
+                      if (mode === 'Hybrid') return lt === 'hybrid' || loc === 'hybrid';
+                      return lt === 'in person' || (lt !== 'remote' && lt !== 'hybrid' && loc !== 'remote');
                     }).length;
                     return (
                       <label key={mode} className="flex items-center">
@@ -1313,33 +1284,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       <div className="flex items-center gap-3 mb-2">
                         <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                           <img
-                            src={companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job)}
+                            src={getCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job)}
                             alt={`${job.company} logo`}
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              const container = img.parentElement;
-                              if (container) {
-                                // Hide the image
-                                img.style.display = 'none';
-                                // Add LinkedIn-style building icon
-                                container.innerHTML = `
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
-                                    <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
-                                  </svg>
-                                `;
-                                container.classList.add('bg-gray-50');
-                              }
+                              img.onerror = null;
+                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=32&background=3b82f6&color=ffffff&bold=true&format=png`;
                             }}
                           />
                         </div>

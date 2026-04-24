@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import Notification from '../components/Notification';
@@ -72,8 +72,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   };
 
   const getCompanyLogo = (app: any) => {
-    if (companyLogoUrl) return companyLogoUrl;
-    return getSafeCompanyLogo(app);
+    const name = app?.company || app?.companyName || '';
+    // Always prefer local logo mapping first (handles Nambikkai, Trinity, etc.)
+    const localLogo = getLogoFromUtils(name);
+    if (localLogo) return localLogo;
+    // Fall back to API-fetched logo, then getSafeCompanyLogo
+    return companyLogoUrl || getSafeCompanyLogo(app);
   };
 
   useEffect(() => {
@@ -401,9 +405,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   className="w-full h-full object-contain rounded"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    if (!job.company?.toLowerCase().includes('trinity')) {
-                      img.src = '/images/zync-logo.svg';
-                    }
+                    img.onerror = null;
+                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
                   }}
                 />
               </div>
@@ -745,9 +748,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   style={{width:'160px', height:'80px', objectFit:'contain', display:'block'}}
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    if (!job.company?.toLowerCase().includes('trinity')) {
-                      img.src = '/images/zync-logo.svg';
-                    }
+                    img.onerror = null;
+                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
                   }}
                 />
                 <p style={{fontSize:'18px', fontWeight:'700', color:'#111827', textAlign:'center', margin:'0', lineHeight:'1.3'}}>{job.company}</p>
@@ -818,7 +820,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             src={getCompanyLogo(sj)}
                             alt={sj.company}
                             className="w-8 h-8 rounded object-contain border border-gray-200 bg-white p-0.5"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/images/zync-logo.svg'; }}
+                            onError={(e) => { const img = e.target as HTMLImageElement; img.onerror = null; img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(sj.company || 'C')}&size=32&background=3b82f6&color=ffffff&bold=true&format=png`; }}
                           />
                           <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{sj.company}</span>
                         </div>

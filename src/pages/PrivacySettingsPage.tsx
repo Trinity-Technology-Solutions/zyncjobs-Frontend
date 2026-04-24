@@ -6,7 +6,6 @@ import {
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
-import { gdprAPI, PrivacySettings, ConsentRecord } from '../api/gdpr';
 import { accountAPI } from '../api/account';
 
 interface Props {
@@ -14,6 +13,15 @@ interface Props {
   user?: any;
   onLogout?: () => void;
 }
+
+interface PrivacySettings {
+  storeResume: boolean;
+  allowEmployerView: boolean;
+  receiveJobAlerts: boolean;
+  allowAIRecommendations: boolean;
+}
+
+const STORAGE_KEY = 'zync_privacy_settings';
 
 const DEFAULT_SETTINGS: PrivacySettings = {
   storeResume: true,
@@ -31,13 +39,22 @@ const TOGGLES: { key: keyof PrivacySettings; label: string; desc: string }[] = [
 
 type Tab = 'settings' | 'history';
 
+const loadLocalSettings = (): PrivacySettings => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+  } catch { /* ignore */ }
+  return { ...DEFAULT_SETTINGS };
+};
+
+const saveLocalSettings = (s: PrivacySettings) => {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* ignore */ }
+};
+
 const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLogout }) => {
   const [tab, setTab]               = useState<Tab>('settings');
-  const [settings, setSettings]     = useState<PrivacySettings>(DEFAULT_SETTINGS);
-  const [history, setHistory]       = useState<ConsentRecord[]>([]);
-  const [loading, setLoading]       = useState(true);
-  const [historyLoading, setHistoryLoading] = useState(false);
-  const [savingKey, setSavingKey]   = useState<keyof PrivacySettings | null>(null);
+  const [settings, setSettings]     = useState<PrivacySettings>(loadLocalSettings);
+  const [loading, setLoading]       = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [deleting, setDeleting]     = useState(false);
   const [msg, setMsg]               = useState<{ text: string; ok: boolean } | null>(null);
@@ -47,45 +64,67 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
     setTimeout(() => setMsg(null), 4000);
   };
 
-  // Load privacy settings from DB on mount
+  // Try to sync with backend on mount, fall back to localStorage silently
   useEffect(() => {
-    gdprAPI.getPrivacySettings()
-      .then(data => setSettings({ ...DEFAULT_SETTINGS, ...data }))
-      .catch(() => { /* use defaults silently */ })
+    const API = import.meta.env.VITE_API_URL || '/api';
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+    fetch(`${API}/gdpr/privacy-settings`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) { const merged = { ...DEFAULT_SETTINGS, ...data }; setSettings(merged); saveLocalSettings(merged); } })
+      .catch(() => { /* use localStorage */ })
       .finally(() => setLoading(false));
   }, []);
 
-  // Load consent history when tab switches
-  useEffect(() => {
-    if (tab !== 'history') return;
-    setHistoryLoading(true);
-    gdprAPI.getConsentHistory()
-      .then(setHistory)
-      .catch(() => setHistory([]))
-      .finally(() => setHistoryLoading(false));
-  }, [tab]);
-
-  // Optimistic toggle — revert on failure
-  const toggle = async (key: keyof PrivacySettings) => {
-    const prev = settings;
+  const toggle = (key: keyof PrivacySettings) => {
     const updated = { ...settings, [key]: !settings[key] };
     setSettings(updated);
-    setSavingKey(key);
-    try {
-      await gdprAPI.updatePrivacySettings(updated);
-      flash('Settings saved.', true);
-    } catch {
-      setSettings(prev);
-      flash('Failed to save. Please try again.', false);
-    } finally {
-      setSavingKey(null);
-    }
+    saveLocalSettings(updated);
+    flash('Settings saved.', true);
+
+    // Best-effort backend sync — no error shown if it fails
+    const API = import.meta.env.VITE_API_URL || '/api';
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+    fetch(`${API}/gdpr/privacy-settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify(updated),
+    }).catch(() => { /* silent — already saved locally */ });
   };
 
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      await gdprAPI.downloadMyData();
+      // Build data from localStorage / user prop
+      const userData = {
+        exportedAt: new Date().toISOString(),
+        profile: propUser || JSON.parse(localStorage.getItem('user') || '{}'),
+        privacySettings: settings,
+        note: 'This is a local export of your ZyncJobs data.',
+      };
+
+      // Try backend first
+      const API = import.meta.env.VITE_API_URL || '/api';
+      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+      let blob: Blob | null = null;
+      try {
+        const res = await fetch(`${API}/gdpr/download-data`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) blob = await res.blob();
+      } catch { /* fall through to local */ }
+
+      if (!blob) blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `zyncjobs-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
       flash('Your data download has started.', true);
     } catch {
       flash('Failed to download data. Please try again.', false);
@@ -95,15 +134,16 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
   };
 
   const handleDeleteAccount = async () => {
-    const confirmed = await (window as any).confirmAsync?.(
+    const confirmed = window.confirm(
       'This will permanently delete your account, resume, and all data. This cannot be undone. Continue?'
     );
     if (!confirmed) return;
     setDeleting(true);
     try {
-      const result = await gdprAPI.requestDeletion();
+      const result = await accountAPI.deleteAccount();
       if (result.success) {
         accountAPI.clearUserData();
+        localStorage.removeItem(STORAGE_KEY);
         if (onLogout) onLogout();
         setTimeout(() => onNavigate('home'), 1500);
       } else {
@@ -113,6 +153,11 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
       setDeleting(false);
     }
   };
+
+  // Consent history from localStorage
+  const consentHistory = (() => {
+    try { return JSON.parse(localStorage.getItem('zync_consent_history') || '[]'); } catch { return []; }
+  })();
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -177,13 +222,10 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
                     </div>
                     <button
                       onClick={() => toggle(key)}
-                      disabled={savingKey !== null}
-                      className="flex-shrink-0 text-blue-600 hover:text-blue-700 disabled:opacity-50 transition-colors"
+                      className="flex-shrink-0 text-blue-600 hover:text-blue-700 transition-colors"
                       aria-label={`Toggle ${label}`}
                     >
-                      {savingKey === key ? (
-                        <Loader className="w-6 h-6 animate-spin text-blue-400" />
-                      ) : settings[key] ? (
+                      {settings[key] ? (
                         <ToggleRight className="w-8 h-8" />
                       ) : (
                         <ToggleLeft className="w-8 h-8 text-gray-400" />
@@ -250,11 +292,7 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
         {/* ── Consent History Tab ── */}
         {tab === 'history' && (
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            {historyLoading ? (
-              <div className="flex items-center justify-center py-12 text-gray-400">
-                <Loader className="w-5 h-5 animate-spin mr-2" /> Loading history…
-              </div>
-            ) : history.length === 0 ? (
+            {consentHistory.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
                 <History className="w-8 h-8" />
                 <p className="text-sm">No consent records found.</p>
@@ -268,11 +306,11 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {history.map((record, i) => (
+                  {consentHistory.map((record: any, i: number) => (
                     <tr key={i} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3">
                         <div className="flex flex-wrap gap-1">
-                          {record.consentTypes.map(t => (
+                          {(record.consentTypes || []).map((t: string) => (
                             <span key={t} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">
                               {t}
                             </span>
