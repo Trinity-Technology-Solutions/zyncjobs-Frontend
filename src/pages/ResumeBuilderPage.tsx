@@ -70,8 +70,8 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
   };
 
   const isLastStep = currentStep === steps.length - 1;
-  // Hide live preview on Template and Finalize steps
-  const showPreview = currentStep !== 7;
+  // Hide live preview on Template step (0) and final Preview step (8) which has its own
+  const showPreview = currentStep !== 0 && currentStep !== 8;
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

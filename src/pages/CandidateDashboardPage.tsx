@@ -291,11 +291,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               const normalizePhotoUrl = (url: string) => {
                 if (!url) return '';
                 if (url.startsWith('data:')) return url;
-                if (url.startsWith('http')) {
-                  // Extract just the path  proxy will handle the host
-                  try { return new URL(url).pathname.replace(/^\/api(\/uploads\/)/, '$1'); } catch { return url; }
-                }
-                const base = (import.meta.env.VITE_API_URL || '').replace('/api', ''); return url.startsWith('/') ? `${base}${url}` : `${base}/${url}`;
+                const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+                if (url.startsWith('http')) return url;
+                return url.startsWith('/') ? `${backendBase}${url}` : `${backendBase}/${url}`;
               };
               // Helper: pick profileData value only if it's meaningfully filled
               const pick = (fromDB: any, fromLocal: any, fallback: any = '') => {
@@ -1179,9 +1177,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
                               const data = await uploadRes.json();
                               console.log('📸 Cover upload response:', data);
+                              const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
                               const coverUrl = data.photoUrl?.startsWith('http')
-                                ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
-                                : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
+                                ? data.photoUrl
+                                : `${backendBase}${data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`}`;
                               const updatedUser = { ...user, coverPhoto: coverUrl };
                               setUser(updatedUser);
                               // Only store path in localStorage, never base64
@@ -1636,7 +1635,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     </button>
                   </div>
                   {user?.profileSummary && user.profileSummary.trim() ? (
-                    <p className="text-gray-700">{user.profileSummary}</p>
+                    <p className="text-gray-700 break-words" style={{overflowWrap:'anywhere'}}>{user.profileSummary}</p>
                   ) : (
                     <p className="text-gray-500">Your Profile Summary should mention the highlights of your career and education, what your professional interests are, and what kind of a career you are looking for. Write a meaningful summary of more than 50 characters.</p>
                   )}
@@ -1673,7 +1672,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   {emp.startMonth} {emp.startYear} - {emp.currentlyWorking ? 'Present' : `${emp.endMonth} ${emp.endYear}`}
                                   {emp.experienceYears || emp.experienceMonths ? `  ${emp.experienceYears || 0} years ${emp.experienceMonths || 0} months` : ''}
                                 </p>
-                                <p className="text-gray-700 text-sm mt-1">{emp.description}</p>
+                                <p className="text-gray-700 text-sm mt-1 break-words" style={{overflowWrap:'anywhere'}}>{emp.description}</p>
                               </div>
                               <div className="flex gap-2 ml-2">
                                 <Edit onClick={() => { setActiveModal('employment'); setModalData({ ...emp, _editIndex: idx }); }} className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" />
@@ -1714,9 +1713,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             <div className="flex justify-between items-start">
                               <div className="flex-1">
                                 <h3 className="font-semibold text-gray-900">{proj.projectName}</h3>
-                                <p className="text-gray-700 text-sm mb-1">{proj.description}</p>
-                                {proj.skills && <p className="text-gray-600 text-sm"><span className="font-medium">Skills:</span> {proj.skills}</p>}
-                                {proj.projectUrl && <a href={proj.projectUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm">{proj.projectUrl}</a>}
+                                <p className="text-gray-700 text-sm mb-1 break-words" style={{overflowWrap:'anywhere'}}>{proj.description}</p>
+                                {proj.skills && <p className="text-gray-600 text-sm break-words" style={{overflowWrap:'anywhere'}}><span className="font-medium">Skills:</span> {proj.skills}</p>}
+                                {proj.projectUrl && <a href={proj.projectUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-sm break-all">{proj.projectUrl}</a>}
                               </div>
                               <div className="flex gap-2 ml-2">
                                 <Edit onClick={() => { setActiveModal('projects'); setModalData({ ...proj, _editIndex: idx }); }} className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" />
@@ -1726,7 +1725,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   setUser(updatedUser);
                                   localStorage.setItem('user', JSON.stringify(updatedUser));
                                   await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, projects: updated }) });
-                                }} className="text-red-400 hover:text-red-600 text-xs">?</button>
+                                }} className="text-red-400 hover:text-red-600 text-xs">×</button>
                               </div>
                             </div>
                           </div>
@@ -1758,8 +1757,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <div className="flex-1">
                                 <h3 className="font-semibold text-gray-900">{intern.companyName}</h3>
                                 <p className="text-gray-500 text-sm mb-1">{intern.startMonth} {intern.startYear} - {intern.endMonth} {intern.endYear}</p>
-                                <p className="text-gray-700 text-sm mb-1">{intern.description}</p>
-                                {intern.skills && <p className="text-gray-600 text-sm"><span className="font-medium">Skills:</span> {intern.skills}</p>}
+                                <p className="text-gray-700 text-sm mb-1 break-words" style={{overflowWrap:'anywhere'}}>{intern.description}</p>
+                                {intern.skills && <p className="text-gray-600 text-sm break-words" style={{overflowWrap:'anywhere'}}><span className="font-medium">Skills:</span> {intern.skills}</p>}
                               </div>
                               <div className="flex gap-2 ml-2">
                                 <Edit onClick={() => { setActiveModal('internships'); setModalData({ ...intern, _editIndex: idx }); }} className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600" />
@@ -1769,7 +1768,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   setUser(updatedUser);
                                   localStorage.setItem('user', JSON.stringify(updatedUser));
                                   await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, internships: updated }) });
-                                }} className="text-red-400 hover:text-red-600 text-xs">?</button>
+                                }} className="text-red-400 hover:text-red-600 text-xs">×</button>
                               </div>
                             </div>
                           </div>
@@ -1955,7 +1954,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         </button>
                       </div>
                       {user?.academicAchievements && user.academicAchievements.trim() ? (
-                        <p className="text-gray-700 whitespace-pre-line">{user.academicAchievements}</p>
+                        <p className="text-gray-700 whitespace-pre-line break-words" style={{overflowWrap:'anywhere'}}>{user.academicAchievements}</p>
                       ) : (
                         <p className="text-gray-500 text-sm">Talk about any academic achievement whether in college or school that deserves a mention</p>
                       )}
@@ -2468,10 +2467,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               });
               if (uploadRes.ok) {
                 const data = await uploadRes.json();
-                // data.photoUrl is relative like /uploads/photos/xxx.jpg  strip /api from base
+                const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
                 photoUrl = data.photoUrl?.startsWith('http')
-                  ? (() => { try { return new URL(data.photoUrl).pathname; } catch { return data.photoUrl; } })()
-                  : (data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`);
+                  ? data.photoUrl
+                  : `${backendBase}${data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`}`;
               } else {
                 throw new Error('Photo upload failed. Please try again.');
               }

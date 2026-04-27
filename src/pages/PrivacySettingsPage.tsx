@@ -96,7 +96,6 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
   const handleDownload = async () => {
     setDownloading(true);
     try {
-      // Build data from localStorage / user prop
       const userData = {
         exportedAt: new Date().toISOString(),
         profile: propUser || JSON.parse(localStorage.getItem('user') || '{}'),
@@ -104,7 +103,6 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
         note: 'This is a local export of your ZyncJobs data.',
       };
 
-      // Try backend first
       const API = import.meta.env.VITE_API_URL || '/api';
       const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
       let blob: Blob | null = null;
@@ -112,19 +110,29 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
         const res = await fetch(`${API}/gdpr/download-data`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
-        if (res.ok) blob = await res.blob();
+        if (res.ok) {
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('application/json') || contentType.includes('application/octet-stream')) {
+            blob = await res.blob();
+          }
+        }
       } catch { /* fall through to local */ }
 
       if (!blob) blob = new Blob([JSON.stringify(userData, null, 2)], { type: 'application/json' });
 
+      const fileName = `zyncjobs-my-data-${new Date().toISOString().slice(0, 10)}.json`;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `zyncjobs-my-data-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = fileName;
+      a.style.display = 'none';
+      a.rel = 'noopener noreferrer';
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 200);
       flash('Your data download has started.', true);
     } catch {
       flash('Failed to download data. Please try again.', false);
