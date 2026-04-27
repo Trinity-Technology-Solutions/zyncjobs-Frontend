@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield, Eye, EyeOff } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import { accountAPI } from '../api/account';
@@ -24,6 +24,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
   // Form states
   const [emailForm, setEmailForm] = useState({ newEmail: '', confirmEmail: '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -70,7 +71,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
       setNotification({ type: 'error', message: 'Password must be at least 6 characters long', isVisible: true });
       return;
     }
-    const userId = accountAPI.getUserIdFromStorage();
+    const userId = user?.id || user?._id || accountAPI.getUserIdFromStorage();
+    console.log('🔐 Password update - userId:', userId, 'user:', user);
     if (!userId) {
       setNotification({ type: 'error', message: 'Could not identify user. Please log in again.', isVisible: true });
       return;
@@ -78,6 +80,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     const result = await accountAPI.changePassword(userId, passwordForm.currentPassword, passwordForm.newPassword);
     if (result.success) {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswords({ current: false, new: false, confirm: false });
     }
     setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
   };
@@ -286,43 +289,73 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Current Password
                           </label>
-                          <input
-                            type="password"
-                            value={passwordForm.currentPassword}
-                            onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            placeholder="Enter current password"
-                            aria-label="Current password"
-                            required
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.current ? 'text' : 'password'}
+                              value={passwordForm.currentPassword}
+                              onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Enter current password"
+                              aria-label="Current password"
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({...showPasswords, current: !showPasswords.current})}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                              aria-label={showPasswords.current ? 'Hide password' : 'Show password'}
+                            >
+                              {showPasswords.current ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             New Password
                           </label>
-                          <input
-                            type="password"
-                            value={passwordForm.newPassword}
-                            onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            placeholder="Enter new password (min 6 characters)"
-                            aria-label="New password"
-                            required
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.new ? 'text' : 'password'}
+                              value={passwordForm.newPassword}
+                              onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Enter new password (min 6 characters)"
+                              aria-label="New password"
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                              aria-label={showPasswords.new ? 'Hide password' : 'Show password'}
+                            >
+                              {showPasswords.new ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                            </button>
+                          </div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
                             Confirm New Password
                           </label>
-                          <input
-                            type="password"
-                            value={passwordForm.confirmPassword}
-                            onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            placeholder="Confirm new password"
-                            aria-label="Confirm new password"
-                            required
-                          />
+                          <div className="relative">
+                            <input
+                              type={showPasswords.confirm ? 'text' : 'password'}
+                              value={passwordForm.confirmPassword}
+                              onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                              className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Confirm new password"
+                              aria-label="Confirm new password"
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                              aria-label={showPasswords.confirm ? 'Hide password' : 'Show password'}
+                            >
+                              {showPasswords.confirm ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
+                            </button>
+                          </div>
                         </div>
                         <div className="pt-2">
                           <button
