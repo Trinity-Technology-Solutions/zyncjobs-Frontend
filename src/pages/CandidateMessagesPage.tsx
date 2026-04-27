@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Send, Search, Menu, X, Info, MoreVertical, Check, CheckCheck, Paperclip, Plus } from 'lucide-react';
+import { Send, Search, Menu, X, Info, MoreVertical, CheckCheck, Paperclip, ArrowLeft } from 'lucide-react';
 
 interface Conversation {
   _id: string;
@@ -321,7 +321,18 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-xl font-bold text-gray-900">Messages</h1>
+            <div className="flex items-center gap-2">
+              {onNavigate && (
+                <button
+                  onClick={() => onNavigate('dashboard')}
+                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-800 transition-colors"
+                  title="Back to Dashboard"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              )}
+              <h1 className="text-xl font-bold text-gray-900">Messages</h1>
+            </div>
             <button
               onClick={() => setSidebarOpen(false)}
               className="sm:hidden p-2 hover:bg-gray-100 rounded-lg"

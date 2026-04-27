@@ -112,6 +112,10 @@ export const API_ENDPOINTS = {
   ADMIN_NOTIFICATIONS_BROADCAST: `${config.API_URL}/admin/notifications/broadcast`,
   ADMIN_NOTIFICATIONS_QUEUE: `${config.API_URL}/admin/notifications/queue`,
   ADMIN_SYSTEM_HEALTH: `${config.API_URL}/admin/system/health`,
+  ADMIN_TALENT_UPLOAD: `${config.API_URL}/admin/talent/upload`,
+  ADMIN_TALENT_CANDIDATES: `${config.API_URL}/admin/talent/candidates`,
+  ADMIN_TALENT_EMAIL: `${config.API_URL}/admin/talent/email`,
+  ADMIN_TALENT_STATS: `${config.API_URL}/admin/talent/stats`,
 };
 
 // Google OAuth base — strips /api suffix to get server root

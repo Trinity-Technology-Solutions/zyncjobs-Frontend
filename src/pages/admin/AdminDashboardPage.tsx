@@ -17,6 +17,7 @@ import NotificationsSection from './sections/NotificationsSection';
 import EmailControlSection from './sections/EmailControlSection';
 import ActivityLogsSection from './sections/ActivityLogsSection';
 import AdminSettingsSection from './sections/AdminSettingsSection';
+import TalentPoolSection from './sections/TalentPoolSection';
 
 interface Props {
   user: { name: string; email?: string };
@@ -62,6 +63,7 @@ const navItems: NavItem[] = [
   { id: 'reports',       label: 'Reports',         icon: TrendingUp,      section: 'content' },
   { id: 'notifications', label: 'Notifications',   icon: Bell,            section: 'communication' },
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
+  { id: 'talent',        label: 'Talent Pool',     icon: Users,           section: 'talent' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
   { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
   { id: 'settings',      label: 'Settings',        icon: Settings,        section: 'system' },
@@ -71,6 +73,7 @@ const sectionLabels: Record<string, string> = {
   users: 'User Management',
   content: 'Content',
   communication: 'Communication',
+  talent: 'Talent Pool',
   system: 'System',
 };
 
@@ -264,6 +267,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'verifications': return <VerificationsSection onUnauthorized={handleUnauthorized} />;
       case 'notifications': return <NotificationsSection onUnauthorized={handleUnauthorized} />;
       case 'email':         return <EmailControlSection onUnauthorized={handleUnauthorized} />;
+      case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
       case 'settings':      return <AdminSettingsSection onUnauthorized={handleUnauthorized} />;
@@ -361,7 +365,9 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
             <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white">
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <h1 className="text-lg font-semibold capitalize">{activeNav}</h1>
+            <h1 className="text-lg font-semibold capitalize">
+              {activeNav === 'talent' ? 'Talent Pool' : activeNav}
+            </h1>
             {lastUpdated && <span className="text-xs text-gray-500 ml-4">Updated {formatLastUpdated()}</span>}
           </div>
           <div className="flex items-center gap-3">

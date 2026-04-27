@@ -218,25 +218,29 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
                 {questions.map((q: any, idx: number) => {
                   const isCorrect = q.userAnswer === q.correctAnswer;
                   return (
-                    <div key={idx} className={`rounded-2xl p-5 border ${isCorrect ? 'border-emerald-100 bg-emerald-50/50' : 'border-red-100 bg-red-50/50'}`}>
+                    <div key={idx} className={`rounded-2xl p-5 border ${isCorrect ? 'border-emerald-200 bg-emerald-50/60' : 'border-red-200 bg-red-50/60'}`}>
                       <div className="flex items-start gap-3 mb-4">
                         <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${isCorrect ? 'bg-emerald-400' : 'bg-red-400'}`}>{idx + 1}</span>
-                        <p className="text-sm font-medium text-gray-800 leading-relaxed">{q.question}</p>
+                        <p className="text-sm font-medium text-gray-800 leading-relaxed flex-1">{q.question}</p>
+                        {isCorrect
+                          ? <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                          : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />}
                       </div>
                       <div className="grid grid-cols-2 gap-2 ml-9">
                         {q.options.map((option: string, optIdx: number) => {
                           const isCorrectOpt = optIdx === q.correctAnswer;
                           const isUserAns = optIdx === q.userAnswer;
+                          const isWrongUserAns = isUserAns && !isCorrect;
                           return (
                             <div key={optIdx} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border ${ 
-                              isCorrectOpt ? 'border-emerald-300 bg-emerald-100 text-emerald-800 font-medium' :
-                              isUserAns && !isCorrect ? 'border-red-300 bg-red-100 text-red-700' :
+                              isCorrectOpt ? 'border-emerald-400 bg-emerald-100 text-emerald-800 font-semibold' :
+                              isWrongUserAns ? 'border-red-300 bg-red-100 text-red-700' :
                               'border-gray-100 bg-white text-gray-600'
                             }`}>
                               <span className="text-xs font-bold w-4 flex-shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
-                              <span className="flex-1 truncate">{option}</span>
+                              <span className="flex-1">{option}</span>
                               {isCorrectOpt && <CheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
-                              {isUserAns && !isCorrect && <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                              {isWrongUserAns && <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
                             </div>
                           );
                         })}

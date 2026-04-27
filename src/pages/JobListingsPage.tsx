@@ -364,8 +364,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
     if (filters.freshness) {
       const now = Date.now();
-      const cutoff = filters.freshness === '24h' ? now - 86400000 : now - 604800000;
-      filtered = filtered.filter(job => new Date(job.createdAt).getTime() >= cutoff);
+      const cutoff = filters.freshness === '24h' ? now - 172800000 : now - 604800000;
+      filtered = filtered.filter(job => {
+        const t = job.createdAt ? new Date(job.createdAt).getTime() : 0;
+        return t > 0 && t >= cutoff;
+      });
     }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     setFilteredJobs(filtered);
@@ -894,7 +897,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
-              Last 24 hours
+              Last 48 hours
             </button>
             <button
               onClick={() => setFilters(prev => ({ ...prev, freshness: prev.freshness === '7d' ? '' : '7d' }))}

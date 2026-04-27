@@ -29,15 +29,15 @@ export const generateJobShareContent = (job: any) => {
   const companyTag = company.replace(/[^a-zA-Z0-9]/g, '');
 
   const lines = [
-    `${jobTitle} at ${company}`,
+    `*${jobTitle} at ${company}*`,
     ``,
-    `📍 Location: ${location}`,
-    `💼 Type: ${jobType}`,
-    ...(experience ? [`🎯 Experience: ${experience}`] : []),
-    ...(salary ? [`💰 Salary: ${salary}`] : []),
-    ...(skills ? [`🔧 Skills: ${skills}`] : []),
+    `Location: ${location}`,
+    `Type: ${jobType}`,
+    ...(experience ? [`Experience: ${experience}`] : []),
+    ...(salary ? [`Salary: ${salary}`] : []),
+    ...(skills ? [`Skills: ${skills}`] : []),
     ``,
-    `🔗 Apply here: ${shareUrl}`,
+    `Apply here: ${shareUrl}`,
     ``,
     `#JobAlert #Hiring #${companyTag} #Opportunity #Jobs`
   ];
