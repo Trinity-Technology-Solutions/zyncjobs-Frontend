@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import SEOHead from '../components/SEOHead';
 import { ArrowLeft, MessageSquare, Users, Brain, Clock, ChevronDown, ChevronUp, Star, Zap, Target, Award, CheckCircle, Play, BookOpen, Mic, Video, ThumbsUp, Send, Bot, User, RefreshCw, RotateCcw } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -148,6 +149,8 @@ Rules:
 
   // ── Setup Screen ──────────────────────────────────────────────────────────────
   if (step === 'setup') return (
+      <SEOHead canonical="/interview-tips" title="Interview Tips and Mock Practice | ZyncJobs Career Guide" description="Get expert interview tips, sample questions, and mock interview practice to improve your confidence and performance." />
+
     <div className="max-w-2xl mx-auto">
       <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl p-6 text-white mb-6">
         <div className="flex items-center gap-3 mb-2">

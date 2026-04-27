@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { ChevronRight, FileText, Shield, Building2 } from 'lucide-react';
@@ -50,6 +51,8 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
   };
 
   return (
+      <SEOHead canonical="/terms" title="ZyncJobs Terms of Service | User and Employer Rules" description="Learn about account rules, employer responsibilities, data handling, prohibited conduct, and service conditions on ZyncJobs." />
+
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 

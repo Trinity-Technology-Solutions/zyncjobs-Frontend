@@ -1,4 +1,5 @@
 import React from 'react';
+import SEOHead from '../components/SEOHead';
 import { CheckCircle, Clock, Smartphone, Brain, Calendar, Filter } from 'lucide-react';
 
 interface FeaturesPageProps {
@@ -40,6 +41,8 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
   ];
 
   return (
+      <SEOHead canonical="/features" title="ZyncJobs Features | AI-Powered Job Search and Hiring Tools" description="Explore all the powerful features ZyncJobs offers for job seekers and employers including AI matching, resume builder, and candidate ranking." />
+
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-cyan-50">
       {/* Header */}
       <div className="bg-white/90 backdrop-blur-md shadow-sm">

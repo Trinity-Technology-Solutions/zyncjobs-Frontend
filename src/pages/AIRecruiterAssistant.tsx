@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import SEOHead from '../components/SEOHead';
 import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw, ArrowLeft } from 'lucide-react';
 import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
@@ -181,6 +182,8 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
   return (
+      <SEOHead canonical="/ai-recruiter" title="AI Hiring Assistant | ZyncJobs Employer Tools" description="Use the AI Recruiter Assistant on ZyncJobs to optimize job postings, analyze candidates, generate interview questions, write descriptions, and automate hiring tasks." />
+
     <div className="min-h-screen bg-slate-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} />
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import SEOHead from '../components/SEOHead';
 import { Building, Phone, Globe, MapPin, ChevronRight, CheckCircle2, Users, Briefcase, ArrowLeft } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
@@ -142,6 +143,8 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
   const logoInitials = companyName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   return (
+      <SEOHead canonical="/employer-register-complete" title="ZyncJobs Company Setup | Employer Profile Creation" description="Set up your company profile on ZyncJobs to access the employer dashboard, post jobs instantly, and start connecting with top talent faster." />
+
     <div className="h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900 flex items-center justify-center p-4 overflow-hidden">
 
       {/* Background decorations */}

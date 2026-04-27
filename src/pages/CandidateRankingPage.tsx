@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SEOHead from '../components/SEOHead';
 import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star, ArrowLeft } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
@@ -126,6 +127,8 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
   };
 
   return (
+      <SEOHead canonical="/candidate-ranking" title="Candidate Ranking & Matching | ZyncJobs" description="Search applicants, view match scores, and manage hiring decisions faster with ZyncJobs candidate ranking system." />
+
     <div className="min-h-screen bg-slate-50">
       <Header onNavigate={onNavigate} user={user} />
 

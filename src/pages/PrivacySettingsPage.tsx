@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SEOHead from '../components/SEOHead';
 import {
   Shield, Download, Trash2, ToggleLeft, ToggleRight,
   Loader, History, ChevronRight, AlertTriangle,
@@ -168,6 +169,8 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
   })();
 
   return (
+      <SEOHead canonical="/privacy-settings" title="ZyncJobs Privacy Settings | Data Control and Consent" description="Update privacy settings, review consent history, download your data, and manage account controls on ZyncJobs." />
+
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header onNavigate={onNavigate} user={propUser} onLogout={onLogout} />
 

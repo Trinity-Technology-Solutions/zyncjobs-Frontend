@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SEOHead from '../components/SEOHead';
 import { API_ENDPOINTS } from '../config/env';
 import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, MoreVertical, CheckSquare, Mail, UserCheck } from 'lucide-react';
 import Header from '../components/Header';
@@ -178,6 +179,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   };
 
   return (
+      <SEOHead canonical="/job-management" title="Manage Job Postings | ZyncJobs Hiring Portal" description="Manage your job postings on ZyncJobs with search, filters, sorting, and response tracking. Post your first job and start hiring faster." />
+
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

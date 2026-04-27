@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SEOHead from '../../components/SEOHead';
 import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
@@ -48,6 +49,8 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
   };
 
   return (
+      <SEOHead canonical="/admin/login" title="Admin Panel Sign In | ZyncJobs" description="Log in to the ZyncJobs control center to oversee administration, monitoring, and backend management tasks." />
+
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-orange-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">

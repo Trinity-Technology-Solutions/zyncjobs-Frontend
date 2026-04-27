@@ -1,4 +1,5 @@
 import React from 'react';
+import SEOHead from '../components/SEOHead';
 import BackButton from '../components/BackButton';
 
 interface JobPostingSelectionPageProps {
@@ -37,6 +38,8 @@ const parseFeatures = [
 
 const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNavigate }) => {
   return (
+      <SEOHead canonical="/job-posting-selection" title="New Job Posting | ZyncJobs Hiring Platform" description="Add job title, description, skills, location, and salary to reach more candidates and hire faster with ZyncJobs." />
+
     <div className="min-h-screen relative overflow-hidden bg-white">
 
       <style>{`

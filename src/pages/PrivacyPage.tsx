@@ -1,4 +1,5 @@
 import React, { useRef } from 'react';
+import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { ChevronRight, Shield } from 'lucide-react';
@@ -31,6 +32,8 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, user, onLogout })
   };
 
   return (
+      <SEOHead canonical="/privacy" title="Privacy Policy | ZyncJobs Data Protection and Privacy" description="Read ZyncJobs Privacy Policy to learn how we collect, use, protect, and share personal data, including cookies, AI processing, retention, and user rights." />
+
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SEOHead from '../components/SEOHead';
 import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, Star, Edit, FileText, Search, X } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
@@ -597,6 +598,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   return (
     <>
+      <SEOHead canonical="/dashboard" title="Employer Dashboard | Manage Hiring on ZyncJobs" description="Track jobs, applications, interviews, and hires from your ZyncJobs employer dashboard. Manage candidate activity, review performance, and post new jobs easily." />
+
       <Notification
         type={notification.type}
         message={notification.message}
@@ -2028,14 +2031,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           <button
                             onClick={async () => {
                               if (!confirm('Are you sure you want to remove your resume?')) return;
-                              const updatedUser = { ...user, resume: null, resumeUrl: '' };
+                              const updatedUser = { ...user, resume: null, resumeUrl: null };
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
                               await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: '' })
+                                body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: null })
                               });
                               setNotification({ type: 'success', message: 'Resume removed successfully!', isVisible: true });
                             }}

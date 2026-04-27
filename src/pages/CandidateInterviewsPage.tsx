@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import SEOHead from '../components/SEOHead';
 import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, Search, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
@@ -138,6 +139,8 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   ];
 
   if (loading) return (
+      <SEOHead canonical="/interviews" title="Interview Calendar | ZyncJobs Hiring Portal" description="Organize and schedule interviews easily from your ZyncJobs dashboard and keep your hiring process moving smoothly." />
+
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3" />

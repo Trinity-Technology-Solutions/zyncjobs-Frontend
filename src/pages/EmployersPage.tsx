@@ -8,6 +8,8 @@ const EmployersPage = ({ onNavigate, user, onLogout }: {
   onLogout?: () => void;
 }) => {
   return (
+      <SEOHead canonical="/employers" title="Search Candidates and Hire Talent | ZyncJobs" description="Find and hire the right professionals across every field with ZyncJobs. Post a job, search candidates, and connect with verified talent using AI-powered matching." />
+
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       {/* Hero Section */}

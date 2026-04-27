@@ -525,9 +525,11 @@ function App() {
 
           <Route path="/candidate-messages" element={
             <AuthGuard user={user} userLoading={userLoading}>
-              <div className="flex flex-col" style={{height: '100dvh'}}>
-                <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-                <div className="flex-1 min-h-0 overflow-hidden">
+              <div style={{display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden'}}>
+                <div style={{flexShrink:0}}>
+                  <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+                </div>
+                <div style={{flex:1, minHeight:0, overflow:'hidden', display:'flex'}}>
                   <CandidateMessagesPage onNavigate={handleNavigation} />
                 </div>
               </div>

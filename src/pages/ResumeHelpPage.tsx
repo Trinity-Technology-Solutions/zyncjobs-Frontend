@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { FileText, CheckCircle, AlertCircle, Lightbulb, ArrowLeft } from 'lucide-react';
@@ -100,6 +101,8 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
   ];
 
   return (
+      <SEOHead canonical="/resume-help" title="Resume Writing Guide | ZyncJobs Career Resources" description="Create a better resume with expert tips on formatting, skills, achievements, and tailoring your resume for each job." />
+
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

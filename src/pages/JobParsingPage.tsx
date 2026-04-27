@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SEOHead from '../components/SEOHead';
 import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
 import { sendAIMessage } from '../services/aiChatService';
@@ -1348,6 +1349,8 @@ ${description.slice(0, 2000)}`;
 
   return (
     <>
+      <SEOHead canonical="/job-parsing" title="AI Job Parser Tool | ZyncJobs Employer Portal" description="Use AI to convert job descriptions into structured postings, review extracted details, and publish jobs quickly on ZyncJobs." />
+
       <Notification
         type={notification.type}
         message={notification.message}

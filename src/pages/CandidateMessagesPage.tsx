@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import SEOHead from '../components/SEOHead';
 import { API_ENDPOINTS } from '../config/env';
-import { Send, Search, Menu, X, Info, MoreVertical, CheckCheck, Paperclip, ArrowLeft } from 'lucide-react';
+import { Send, Search, Menu, X, Info, MoreVertical, CheckCheck, Paperclip, ArrowLeft, Phone, Calendar, Star, Briefcase, MapPin, FileText } from 'lucide-react';
 
 interface Conversation {
   _id: string;
@@ -36,6 +37,9 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   const [sendingMessage, setSendingMessage] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [error, setError] = useState('');
+  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingTimeout, setTypingTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -303,52 +307,73 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleTyping = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    setIsTyping(true);
+    if (typingTimeout) clearTimeout(typingTimeout);
+    const t = setTimeout(() => setIsTyping(false), 1500);
+    setTypingTimeout(t);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="flex h-full items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading messages...</p>
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-700 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg animate-pulse">
+            <span className="text-2xl">💬</span>
+          </div>
+          <p className="text-gray-600 font-medium">Loading messages...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex bg-white" style={{height: '100%', overflow: 'hidden', minHeight: 0}}>
-      {/* Sidebar - Conversations List */}
-      <div className={`${sidebarOpen ? 'w-full' : 'hidden'} sm:flex flex-col bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden`} style={{width: '360px', minWidth: '360px'}}>
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-100 bg-white">
-          <div className="flex items-center justify-between mb-3">
+          <>
+      <SEOHead canonical="/candidate-messages" title="ZyncJobs Messages | Chat with Employers and Candidates" description="Manage recruiter and candidate conversations in one place with the ZyncJobs messaging inbox." />
+      <div style={{display:'flex', flex:1, width:'100%', height:'100%', overflow:'hidden', minHeight:0, background:'#f8fafc'}}>
+
+      {/* ── LEFT PANEL ── Conversations */}
+      <div
+        className={`${
+          sidebarOpen ? 'flex' : 'hidden'
+        } sm:flex flex-col flex-shrink-0 overflow-hidden bg-white`}
+        style={{width:'320px', minWidth:'320px', height:'100%', display: sidebarOpen ? 'flex' : undefined, borderRight:'1px solid #e2e8f0', boxShadow:'2px 0 12px rgba(0,0,0,0.06)'}}
+      >
+        {/* Left Header */}
+        <div className="px-5 pt-5 pb-3 border-b border-slate-100" style={{background:'linear-gradient(135deg, #1d4ed8 0%, #f97316 100%)'}}>
+          <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               {onNavigate && (
                 <button
                   onClick={() => onNavigate('dashboard')}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-800 transition-colors"
-                  title="Back to Dashboard"
+                  className="p-1.5 rounded-xl text-white/80 hover:text-white hover:bg-white/20 transition-colors"
+                  title="Back"
                 >
-                  <ArrowLeft className="w-5 h-5" />
+                  <ArrowLeft className="w-4 h-4" />
                 </button>
               )}
-              <h1 className="text-xl font-bold text-gray-900">Messages</h1>
+              <h1 className="text-lg font-bold text-white">Messages</h1>
+              {conversations.filter(c => c.unreadCount > 0).length > 0 && (
+                <span className="bg-white text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">
+                  {conversations.filter(c => c.unreadCount > 0).length}
+                </span>
+              )}
             </div>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="sm:hidden p-2 hover:bg-gray-100 rounded-lg"
-            >
-              <X className="w-5 h-5" />
+            <button onClick={() => setSidebarOpen(false)} className="sm:hidden p-1.5 hover:bg-white/20 rounded-xl text-white">
+              <X className="w-4 h-4" />
             </button>
           </div>
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-2.5 w-4 h-4 text-white/60" />
             <input
               type="text"
               placeholder="Search conversations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-gray-100 rounded-full text-sm outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-9 pr-4 py-2 rounded-xl text-sm outline-none text-white placeholder-white/60 transition-all"
+              style={{background:'rgba(255,255,255,0.2)', border:'1px solid rgba(255,255,255,0.3)'}}
             />
           </div>
         </div>
@@ -356,204 +381,372 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto">
           {filteredConversations.length === 0 ? (
-            <div className="p-4 text-center text-gray-500">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-xl">💬</span>
+            <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{background:'linear-gradient(135deg, #1d4ed8 0%, #f97316 100%)'}}>
+                <span className="text-3xl">💬</span>
               </div>
-              <p className="text-sm font-medium">No messages yet</p>
-              <p className="text-xs mt-1">Employers will appear here once they message you</p>
+              <p className="text-sm font-bold text-slate-800">No conversations yet</p>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">Employers will appear here once they message you</p>
             </div>
           ) : (
-            filteredConversations.map((conv) => (
-              <button
-                key={conv._id}
-                onClick={() => {
-                  setSelectedConversation(conv);
-                  setSidebarOpen(false);
-                }}
-                className={`w-full px-4 py-3 border-b border-gray-100 text-left hover:bg-gray-50 transition-colors ${
-                  selectedConversation?._id === conv._id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    {conv.companyLogo ? (
-                      <img src={conv.companyLogo} alt={conv.employerName} className="w-12 h-12 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                        {getInitials(conv.employerName)}
+            filteredConversations.map((conv) => {
+              const isActive = selectedConversation?._id === conv._id;
+              const hasUnread = conv.unreadCount > 0;
+              return (
+                <button
+                  key={conv._id}
+                  onClick={() => { setSelectedConversation(conv); setSidebarOpen(false); }}
+                  className={`w-full px-4 py-3.5 text-left transition-all duration-150 relative group ${
+                    isActive
+                      ? 'bg-blue-50 border-l-4 border-blue-600'
+                      : 'border-l-4 border-transparent hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="relative flex-shrink-0">
+                      {conv.companyLogo ? (
+                        <img src={conv.companyLogo} alt={conv.employerName} className="w-11 h-11 rounded-2xl object-cover shadow-sm" />
+                      ) : (
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-700 to-orange-500 flex items-center justify-center text-white font-bold text-sm shadow-sm">
+                          {getInitials(conv.employerName)}
+                        </div>
+                      )}
+                      {conv.isOnline && (
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white"></span>
+                      )}
+                    </div>
+
+                    {/* Text */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className={`text-sm truncate ${
+                          hasUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-700'
+                        }`}>{conv.employerName}</span>
+                        <span className="text-xs text-slate-400 ml-2 flex-shrink-0">{formatTime(conv.lastMessageTime)}</span>
                       </div>
-                    )}
-                    {conv.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                    )}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1">
-                      <h3 className="font-semibold text-gray-900 truncate">{conv.employerName}</h3>
-                      <span className="text-xs text-gray-500 ml-2 flex-shrink-0">{formatTime(conv.lastMessageTime)}</span>
+                      <div className="flex items-center justify-between gap-1">
+                        <p className={`text-xs truncate ${
+                          hasUnread ? 'font-medium text-slate-700' : 'text-slate-400'
+                        }`}>
+                          {conv.companyName ? `🏢 ${conv.companyName}` : conv.lastMessage || 'No messages yet'}
+                        </p>
+                        {hasUnread && (
+                          <span className="flex-shrink-0 w-5 h-5 bg-blue-600 text-white text-xs font-bold rounded-full flex items-center justify-center animate-pulse">
+                            {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-500 truncate">{conv.lastMessage || 'No messages yet'}</p>
                   </div>
-
-                  {/* Unread Badge */}
-                  {conv.unreadCount > 0 && (
-                    <div className="bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
-                      {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))
+                </button>
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* Main Chat Area */}
+      {/* ── MIDDLE PANEL ── Chat */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div className="flex flex-col min-h-0 bg-slate-50" style={{flex:1, overflow:'hidden', height:'100%'}}>
+
           {/* Chat Header */}
-          <div className="p-4 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
+          <div className="px-5 py-3.5 flex items-center justify-between flex-shrink-0" style={{background:'linear-gradient(135deg, #1d4ed8 0%, #f97316 100%)', boxShadow:'0 2px 12px rgba(29,78,216,0.25)'}}>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="sm:hidden p-2 hover:bg-gray-100 rounded-lg"
-              >
+              <button onClick={() => setSidebarOpen(true)} className="sm:hidden p-2 hover:bg-white/20 rounded-xl text-white">
                 <Menu className="w-5 h-5" />
               </button>
-
-              {/* Contact Info */}
               <div className="relative">
                 {selectedConversation.companyLogo ? (
-                  <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName} className="w-10 h-10 rounded-full object-cover" />
+                  <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName} className="w-10 h-10 rounded-2xl object-cover border-2 border-white/40" />
                 ) : (
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-sm border border-white/30">
                     {getInitials(selectedConversation.employerName)}
                   </div>
                 )}
                 {selectedConversation.isOnline && (
-                  <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white"></span>
                 )}
               </div>
-
               <div>
-                <h2 className="font-semibold text-gray-900">{selectedConversation.employerName}</h2>
-                <p className="text-xs text-gray-500">
-                  {selectedConversation.isOnline ? '🟢 Online' : '⚫ Offline'}
+                <h2 className="font-bold text-white text-sm">{selectedConversation.employerName}</h2>
+                <p className="text-xs text-white/70 font-medium">
+                  {selectedConversation.isOnline ? '● Online' : '○ Offline'}
                 </p>
               </div>
             </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2">
-              <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="Info">
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setShowRightPanel(v => !v)}
+                className={`p-2 rounded-xl transition-colors ${
+                  showRightPanel ? 'bg-white/30 text-white' : 'hover:bg-white/20 text-white/70'
+                }`}
+                title="Toggle info panel"
+              >
                 <Info className="w-5 h-5" />
               </button>
-              <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600" title="More">
+              <button className="p-2 hover:bg-white/20 rounded-xl text-white/70" title="More">
                 <MoreVertical className="w-5 h-5" />
               </button>
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto bg-white">
-            <div className="max-w-2xl mx-auto px-4 py-4 flex flex-col justify-end min-h-full">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center flex-1">
-                  <div className="text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <span className="text-3xl">💬</span>
-                    </div>
-                    <p className="text-gray-600 font-medium">No messages yet</p>
-                    <p className="text-sm text-gray-500">Start the conversation by sending a message!</p>
-                  </div>
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-5 py-4" style={{background: 'linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)'}}>
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm flex items-center justify-center mx-auto mb-3">
+                  <span className="text-3xl">💬</span>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  {messages.map((msg, idx) => {
-                    const isOwn = msg.senderId === candidateId;
-                    return (
-                      <div key={msg._id || idx} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-sm px-3 py-2 rounded-2xl ${
-                          isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'
-                        }`}>
+                <p className="font-semibold text-slate-700">No messages yet</p>
+                <p className="text-sm text-slate-400 mt-1">Send a message to start the conversation</p>
+              </div>
+            ) : (
+              <div className="space-y-2 flex flex-col">
+                {messages.map((msg, idx) => {
+                  const isOwn = msg.senderId === candidateId;
+                  const showAvatar = !isOwn && (idx === 0 || messages[idx - 1]?.senderId === candidateId);
+                  return (
+                    <div key={msg._id || idx} className={`flex items-end gap-2 ${
+                      isOwn ? 'justify-end' : 'justify-start'
+                    }`}>
+                      {/* Receiver avatar */}
+                      {!isOwn && (
+                        <div className="flex-shrink-0 w-7 h-7">
+                          {showAvatar ? (
+                            selectedConversation.companyLogo ? (
+                              <img src={selectedConversation.companyLogo} className="w-7 h-7 rounded-xl object-cover" alt="" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-blue-700 to-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                                {getInitials(selectedConversation.employerName)}
+                              </div>
+                            )
+                          ) : <div className="w-7 h-7" />}
+                        </div>
+                      )}
+
+                      {/* Bubble */}
+                      <div className={`max-w-xs lg:max-w-sm ${
+                        isOwn ? 'items-end' : 'items-start'
+                      } flex flex-col`}>
+                        <div className={`px-4 py-2.5 shadow-sm ${
+                          isOwn
+                            ? 'text-white rounded-2xl rounded-br-md'
+                            : 'bg-white text-slate-800 rounded-2xl rounded-bl-md border border-slate-100'
+                        }`} style={isOwn ? {background:'linear-gradient(135deg, #1d4ed8, #f97316)'} : {}}>
                           {renderMessageContent(msg.message, isOwn)}
-                          <div className={`flex items-center justify-end gap-1 mt-0.5 ${
-                            isOwn ? 'text-blue-100' : 'text-gray-400'
-                          } text-xs`}>
-                            <span>{formatMessageTime(msg.createdAt)}</span>
-                            {isOwn && <CheckCheck className="w-3 h-3" />}
-                          </div>
+                        </div>
+                        <div className={`flex items-center gap-1 mt-1 px-1 ${
+                          isOwn ? 'justify-end' : 'justify-start'
+                        }`}>
+                          <span className="text-xs text-slate-400">{formatMessageTime(msg.createdAt)}</span>
+                          {isOwn && (
+                            <CheckCheck className={`w-3.5 h-3.5 ${
+                              msg.read ? 'text-blue-500' : 'text-slate-400'
+                            }`} />
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                  <div ref={messagesEndRef} />
-                </div>
-              )}
-            </div>
+                    </div>
+                  );
+                })}
+
+                {/* Typing indicator */}
+                {isTyping && (
+                  <div className="flex items-end gap-2 justify-start">
+                    <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-blue-700 to-orange-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {getInitials(selectedConversation.employerName)}
+                    </div>
+                    <div className="bg-white border border-slate-100 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+                      <div className="flex gap-1 items-center">
+                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay:'0ms'}}></span>
+                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay:'150ms'}}></span>
+                        <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay:'300ms'}}></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
           </div>
 
-          {/* Message Input */}
-          <div className="border-t border-gray-200 bg-white py-3 flex-shrink-0">
-            <div className="max-w-2xl mx-auto px-4">
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded text-sm mb-2">
-                  {error}
-                </div>
-              )}
-              <div className="flex gap-2 items-center">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
-                  onChange={handleFileAttach}
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 flex-shrink-0"
-                  title="Attach file"
-                >
-                  <Paperclip className="w-5 h-5" />
-                </button>
+          {/* Input Box */}
+          <div className="px-5 py-3 bg-white border-t border-slate-200 flex-shrink-0">
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-xs mb-2 flex items-center justify-between">
+                <span>{error}</span>
+                <button onClick={() => setError('')}><X className="w-3.5 h-3.5" /></button>
+              </div>
+            )}
+            <div className="flex items-end gap-2">
+              <input ref={fileInputRef} type="file" className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
+                onChange={handleFileAttach}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
+                title="Attach file"
+              >
+                <Paperclip className="w-5 h-5" />
+              </button>
+              <div className="flex-1 relative">
                 <input
                   type="text"
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={handleTyping}
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && !sendingMessage) handleSendMessage();
                   }}
                   placeholder="Write a message..."
                   disabled={sendingMessage}
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  className="w-full px-4 py-2.5 bg-slate-100 rounded-2xl text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all disabled:opacity-60 pr-10"
                 />
-                <button
-                  onClick={handleSendMessage}
-                  disabled={!newMessage.trim() || sendingMessage}
-                  className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                >
-                  <Send className="w-5 h-5" />
+                <button className="absolute right-3 top-2.5 text-slate-400 hover:text-yellow-500 transition-colors" title="Emoji">
+                  <span className="text-lg leading-none">😀</span>
                 </button>
               </div>
+              <button
+                onClick={handleSendMessage}
+                disabled={!newMessage.trim() || sendingMessage}
+                className="p-2.5 bg-gradient-to-br from-blue-700 to-orange-500 text-white rounded-2xl hover:from-blue-800 hover:to-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg flex-shrink-0"
+                title="Send"
+              >
+                {sendingMessage
+                  ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <Send className="w-5 h-5" />}
+              </button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="hidden sm:flex flex-1 items-center justify-center bg-white">
+        <div style={{flex:1, display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg, #f0f7ff 0%, #fff7ed 100%)'}}>
           <div className="text-center">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="w-24 h-24 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl" style={{background:'linear-gradient(135deg, #1d4ed8 0%, #f97316 100%)'}}>
               <span className="text-5xl">💬</span>
             </div>
-            <p className="text-gray-600 font-medium text-lg">Select a conversation</p>
-            <p className="text-sm text-gray-500 mt-2">Choose a message from the list to start chatting</p>
+            <h2 className="text-2xl font-bold text-slate-800 mb-2">Your Messages</h2>
+            <p className="text-slate-400 text-sm">Select a conversation from the left to start chatting</p>
+            <div className="flex items-center justify-center gap-6 mt-8">
+              <div className="text-center">
+                <div className="w-10 h-10 rounded-2xl bg-blue-100 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-lg">🔒</span>
+                </div>
+                <p className="text-xs text-slate-500">Encrypted</p>
+              </div>
+              <div className="text-center">
+                <div className="w-10 h-10 rounded-2xl bg-orange-100 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-lg">⚡</span>
+                </div>
+                <p className="text-xs text-slate-500">Real-time</p>
+              </div>
+              <div className="text-center">
+                <div className="w-10 h-10 rounded-2xl bg-green-100 flex items-center justify-center mx-auto mb-2">
+                  <span className="text-lg">📎</span>
+                </div>
+                <p className="text-xs text-slate-500">File sharing</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── RIGHT PANEL ── Profile / Info */}
+      {selectedConversation && showRightPanel && (
+        <div className="hidden lg:flex flex-col flex-shrink-0 bg-white border-l border-slate-200 overflow-y-auto" style={{width:'260px', minWidth:'260px', height:'100%'}}>
+          {/* Profile Header */}
+          <div className="flex flex-col items-center px-5 pt-8 pb-5 border-b border-slate-100" style={{background:'linear-gradient(135deg, #1d4ed8 0%, #f97316 100%)'}}>
+            {selectedConversation.companyLogo ? (
+              <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName}
+                className="w-16 h-16 rounded-2xl object-cover shadow-md mb-3 border-2 border-white/40" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white font-bold text-xl shadow-md mb-3 border border-white/30">
+                {getInitials(selectedConversation.employerName)}
+              </div>
+            )}
+            <h3 className="font-bold text-white text-sm text-center">{selectedConversation.employerName}</h3>
+            {selectedConversation.companyName && (
+              <p className="text-xs text-white/70 mt-0.5 text-center">{selectedConversation.companyName}</p>
+            )}
+            <span className={`mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full ${
+              selectedConversation.isOnline
+                ? 'bg-emerald-400/30 text-white border border-emerald-300/50'
+                : 'bg-white/20 text-white/70 border border-white/20'
+            }`}>
+              {selectedConversation.isOnline ? '● Online' : '○ Offline'}
+            </span>
+          </div>
+
+          {/* Info Rows */}
+          <div className="px-4 py-4 space-y-3 border-b border-slate-100">
+            {selectedConversation.employerEmail && (
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs">📧</span>
+                </div>
+                <p className="text-xs text-slate-600 truncate">{selectedConversation.employerEmail}</p>
+              </div>
+            )}
+            {selectedConversation.companyName && (
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                  <Briefcase className="w-3.5 h-3.5 text-blue-500" />
+                </div>
+                <p className="text-xs text-slate-600">{selectedConversation.companyName}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="px-4 py-4 space-y-2">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Quick Actions</p>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 hover:bg-blue-50 hover:text-blue-700 rounded-xl text-sm text-slate-700 font-medium transition-colors">
+              <Phone className="w-4 h-4" />
+              Schedule Call
+            </button>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 hover:bg-purple-50 hover:text-purple-700 rounded-xl text-sm text-slate-700 font-medium transition-colors">
+              <Calendar className="w-4 h-4" />
+              Set Interview
+            </button>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 hover:bg-yellow-50 hover:text-yellow-700 rounded-xl text-sm text-slate-700 font-medium transition-colors">
+              <Star className="w-4 h-4" />
+              Shortlist
+            </button>
+            <button className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 hover:bg-green-50 hover:text-green-700 rounded-xl text-sm text-slate-700 font-medium transition-colors">
+              <FileText className="w-4 h-4" />
+              View Resume
+            </button>
+          </div>
+
+          {/* Shared Files placeholder */}
+          <div className="px-4 py-4 border-t border-slate-100">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Shared Files</p>
+            {messages.filter(m => {
+              try { return JSON.parse(m.message).__type === 'attachment'; } catch { return false; }
+            }).length === 0 ? (
+              <p className="text-xs text-slate-400 italic">No files shared yet</p>
+            ) : (
+              messages.filter(m => {
+                try { return JSON.parse(m.message).__type === 'attachment'; } catch { return false; }
+              }).slice(-3).map((m, i) => {
+                try {
+                  const f = JSON.parse(m.message);
+                  return (
+                    <a key={i} href={f.data} download={f.name}
+                      className="flex items-center gap-2 py-1.5 text-xs text-blue-600 hover:underline truncate">
+                      <Paperclip className="w-3 h-3 flex-shrink-0" />
+                      {f.name}
+                    </a>
+                  );
+                } catch { return null; }
+              })
+            )}
           </div>
         </div>
       )}
     </div>
+  </>
   );
 };
 
