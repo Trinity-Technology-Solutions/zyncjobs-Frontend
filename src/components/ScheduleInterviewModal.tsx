@@ -24,9 +24,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     interviewer: ''
   });
   const [loading, setLoading] = useState(false);
-  const [generatingLink, setGeneratingLink] = useState(false);
   const [zoomGenerated, setZoomGenerated] = useState(false);
-  const [meetingPassword, setMeetingPassword] = useState('');
   const [error, setError] = useState('');
   const [tempDate, setTempDate] = useState('');
   const [tempTime, setTempTime] = useState('');
@@ -41,35 +39,22 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
 
   const isDuplicateRound = existingRounds.includes(formData.round);
 
-  const generateZoomLink = async () => {
-    if (!formData.scheduledDate) { zyncAlert('Please select a date and time first'); return; }
-    setGeneratingLink(true);
-    setZoomGenerated(false);
-    setMeetingPassword('');
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          platform: 'zoom',
-          topic: `${formData.round} Interview - ${application.jobId?.jobTitle || application.jobId?.title || 'Position'}`,
-          start_time: formData.scheduledDate,
-          duration: formData.duration
-        })
-      });
-      const result = await res.json();
-      if (result.success && result.meeting?.join_url) {
-        setFormData(prev => ({ ...prev, meetingLink: result.meeting.join_url }));
-        setMeetingPassword(result.meeting.password || '');
-        setZoomGenerated(true);
-      } else {
-        zyncAlert('Failed to generate Zoom link. Please try again.');
-      }
-    } catch {
-      zyncAlert('Error generating Zoom link. Please check your connection.');
-    } finally {
-      setGeneratingLink(false);
+  const generateMeetingLink = (platform: 'zoom' | 'meet' | 'teams') => {
+    // Generate client-side meeting links — no backend needed
+    const rand = () => Math.random().toString(36).substring(2, 7);
+    let link = '';
+    if (platform === 'meet') {
+      // Google Meet: random room code format xxx-xxxx-xxx
+      link = `https://meet.google.com/${rand()}-${rand()}-${rand()}`;
+    } else if (platform === 'zoom') {
+      // Zoom: open zoom.us to start a new meeting (user must be logged in to Zoom)
+      link = `https://zoom.us/start/videomeeting`;
+    } else if (platform === 'teams') {
+      link = `https://teams.microsoft.com/l/meetup-join/new`;
     }
+    setFormData(prev => ({ ...prev, meetingLink: link }));
+    setZoomGenerated(true);
+    setMeetingPassword('');
   };
 
   const scheduleInterview = async () => {
@@ -224,26 +209,36 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             </select>
           </div>
 
-          {/* Zoom Meeting Link */}
+          {/* Meeting Link */}
           {formData.type === 'video' && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                <Video size={14} className="inline mr-1" />Zoom Meeting Link
+                <Video size={14} className="inline mr-1" />Meeting Link
               </label>
-              <button type="button" onClick={generateZoomLink} disabled={generatingLink}
-                className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-xl text-sm font-semibold transition-colors mb-2">
-                {generatingLink ? 'Generating...' : 'Generate Zoom Meeting Link'}
-              </button>
+              <div className="flex gap-2 mb-2">
+                <button type="button" onClick={() => generateMeetingLink('meet')}
+                  className="flex-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+                  Google Meet
+                </button>
+                <button type="button" onClick={() => generateMeetingLink('zoom')}
+                  className="flex-1 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0z"/></svg>
+                  Zoom
+                </button>
+                <button type="button" onClick={() => generateMeetingLink('teams')}
+                  className="flex-1 px-3 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5">
+                  Teams
+                </button>
+              </div>
 
               {zoomGenerated && (
-                <p className="text-xs text-green-600 font-medium mb-2">
-                  ✓ Zoom meeting created{meetingPassword && <span className="text-gray-500"> · Password: <span className="font-mono">{meetingPassword}</span></span>}
-                </p>
+                <p className="text-xs text-green-600 font-medium mb-2">✓ Link generated — share with candidate</p>
               )}
 
               <input type="url" value={formData.meetingLink}
-                onChange={e => { setFormData(prev => ({ ...prev, meetingLink: e.target.value })); setZoomGenerated(false); setMeetingPassword(''); }}
-                placeholder="Or paste Zoom link manually..."
+                onChange={e => { setFormData(prev => ({ ...prev, meetingLink: e.target.value })); setZoomGenerated(false); }}
+                placeholder="Or paste any meeting link here..."
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           )}

@@ -83,8 +83,7 @@ const getCompanyDomain = (companyName: string): string => {
     'wipro': 'wipro.com',
     'zoho': 'zoho.com',
     'accenture': 'accenture.com',
-    'nambikkai': 'nambikkai.com',
-    'nambikkai india': 'nambikkai.com'
+
   };
   
   // Check for exact matches first

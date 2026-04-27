@@ -6,6 +6,7 @@ import { sendAIMessage } from '../services/aiChatService';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { API_ENDPOINTS } from '../config/constants';
 import { generatePositionId } from '../utils/jobMigrationUtils';
+import { getCompanyLogo } from '../utils/logoUtils';
 import mistralAIService from '../services/mistralAIService';
 
 
@@ -326,7 +327,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             );
             
             if (matchedCompany) {
-              updateJobData('companyLogo', matchedCompany.logo || matchedCompany.logoUrl || matchedCompany.imageUrl || matchedCompany.image);
+              const name = matchedCompany.name || matchedCompany.companyName || '';
+              updateJobData('companyLogo', getCompanyLogo(name) || matchedCompany.logo || matchedCompany.logoUrl || matchedCompany.imageUrl || matchedCompany.image || '');
               updateJobData('companyId', matchedCompany._id || matchedCompany.id || matchedCompany.name);
               return;
             }
@@ -343,15 +345,11 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
           { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
           { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-          { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '11', name: 'IBM', logo: 'https://img.logo.dev/ibm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '12', name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '13', name: 'Oracle', logo: 'https://img.logo.dev/oracle.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '14', name: 'Salesforce', logo: 'https://img.logo.dev/salesforce.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '15', name: 'Adobe', logo: 'https://img.logo.dev/adobe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
+          { id: '7', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
+          { id: '8', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '9', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '10', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '11', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
         ];
         
         const matchedCompany = fallbackCompanies.find(company => 
@@ -362,6 +360,9 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         if (matchedCompany) {
           updateJobData('companyLogo', matchedCompany.logo);
           updateJobData('companyId', matchedCompany.id);
+        } else {
+          const logo = getCompanyLogo(parsedData.companyName);
+          if (logo) updateJobData('companyLogo', logo);
         }
       }
     };
@@ -878,7 +879,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       }
       updateJobData('jobDescription', jdText);
 
-      const parsedSkills = parseSkillsFromJobDescription(localJD, jobTitle);
+      const parsedSkills = parseSkillsFromJobDescription(jdText, jobTitle);
       if (!forceUpdate) {
         const { skills: titleSkills, education } = getJobTitleDefaults(jobTitle);
         const { responsibilities: titleResponsibilities, requirements: titleRequirements } = getJobTitleResponsibilitiesAndRequirements(jobTitle);
@@ -1554,12 +1555,14 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
         
         // Map backend company data to expected format
-        const mappedCompanies = companies.map((company: any) => ({
-          id: company._id || company.id || company.name,
-          name: company.name || company.companyName,
-          logo: company.logo || company.logoUrl || company.imageUrl || company.image || 
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name || company.companyName || 'Company')}&size=80&background=3b82f6&color=ffffff&bold=true`
-        }));
+        const mappedCompanies = companies.map((company: any) => {
+          const name = company.name || company.companyName || '';
+          return {
+            id: company._id || company.id || name,
+            name,
+            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || ''
+          };
+        });
         
         setCompanySearchResults(mappedCompanies);
         setShowCompanyDropdown(mappedCompanies.length > 0);
@@ -1572,10 +1575,11 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
           { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
           { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-          { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
+          { id: '7', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
+          { id: '8', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '9', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '10', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+          { id: '11', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
         ];
         
         const filtered = fallbackCompanies.filter(company => 
@@ -1587,7 +1591,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      // Fallback to hardcoded companies on error
       const fallbackCompanies = [
         { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
@@ -1595,10 +1598,11 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
         { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-        { id: '7', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '8', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '9', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '10', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
+        { id: '7', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
+        { id: '8', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '9', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '10', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+        { id: '11', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
       ];
       
       const filtered = fallbackCompanies.filter(company => 
@@ -1787,24 +1791,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                         src={company.logo}
                         alt={company.name}
                         className="w-8 h-8 rounded object-contain bg-white border"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          // Generate a letter avatar instead of using Trinity logo
-                          const firstLetter = company.name.charAt(0).toUpperCase();
-                          const canvas = document.createElement('canvas');
-                          canvas.width = 32;
-                          canvas.height = 32;
-                          const ctx = canvas.getContext('2d');
-                          if (ctx) {
-                            ctx.fillStyle = '#3B82F6';
-                            ctx.fillRect(0, 0, 32, 32);
-                            ctx.fillStyle = 'white';
-                            ctx.font = '16px Arial';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(firstLetter, 16, 22);
-                            img.src = canvas.toDataURL();
-                          }
-                        }}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                     </div>
                     <span className="text-gray-900 font-medium">{company.name}</span>
@@ -2532,6 +2519,12 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     </div>
   );
 
+  const EditIcon = () => (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+    </svg>
+  );
+
   const renderJobDescription = () => (
     <div className="px-6 py-8">
       <div className="space-y-6">
@@ -2692,7 +2685,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               <span className="text-gray-600">Job title</span>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-800">{jobData.jobTitle}</span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
               </div>
             </div>
             
@@ -2700,7 +2693,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               <span className="text-gray-600">Company for this job</span>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-800">{jobData.companyName}</span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
               </div>
             </div>
             
@@ -2710,7 +2703,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 <span className="text-gray-600">Number of openings</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">{jobData.numberOfPeople}</span>
-                  <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                  <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
               </div>
             )}
@@ -2722,7 +2715,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   <div className="text-gray-800">{jobData.country}</div>
                   <div className="text-gray-800">{Array.isArray(jobData.language) ? jobData.language.join(', ') : jobData.language}</div>
                 </div>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
               </div>
             </div>
             
@@ -2730,7 +2723,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               <span className="text-gray-600">Location</span>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-800">{jobData.jobLocation}</span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
               </div>
             </div>
             
@@ -2738,7 +2731,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               <span className="text-gray-600">Job type</span>
               <div className="flex items-center space-x-2">
                 <span className="text-gray-800">{Array.isArray(jobData.jobType) ? jobData.jobType.join(', ') : jobData.jobType}</span>
-                <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                <button onClick={() => setCurrentStep(3)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
               </div>
             </div>
             
@@ -2750,7 +2743,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   <span className="text-gray-800">
                     ₹{formatSalary(jobData.minSalary)} - ₹{formatSalary(jobData.maxSalary)} {jobData.payRate}
                   </span>
-                  <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                  <button onClick={() => setCurrentStep(4)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
               </div>
             )}
@@ -2761,7 +2754,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 <span className="text-gray-600">Benefits</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">{jobData.benefits.join(', ')}</span>
-                  <button className="text-blue-600 hover:text-blue-700">✏️</button>
+                  <button onClick={() => setCurrentStep(4)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
               </div>
             )}
@@ -2779,7 +2772,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                     )}
                   </p>
                 </div>
-                <button className="text-blue-600 mt-1 hover:text-blue-700">✏️</button>
+                <button onClick={() => setCurrentStep(6)} className="text-blue-600 mt-1 hover:text-blue-700"><EditIcon /></button>
               </div>
             </div>
           </div>
@@ -2824,10 +2817,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       return '';
     };
 
-    // Get proper company logo - prioritize Trinity local logo
-    const logoUrl = jobData.companyName?.toLowerCase().includes('trinity') 
-      ? '/images/company-logos/trinity-logo.png' 
-      : jobData.companyLogo || '/images/company-logos/trinity-logo.png';
+    // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
+    const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
     
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;

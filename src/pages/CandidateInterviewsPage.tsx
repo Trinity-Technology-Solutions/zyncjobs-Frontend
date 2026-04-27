@@ -350,9 +350,9 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           >
                             View Job
                           </button>
-                          {isUpcoming && interview.interviewType === 'video' && interview.meetingLink ? (
+                          {isUpcoming && interview.meetingLink ? (
                             <a
-                              href={interview.meetingLink}
+                              href={interview.meetingLink.startsWith('http') ? interview.meetingLink : `https://${interview.meetingLink}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md active:scale-95"

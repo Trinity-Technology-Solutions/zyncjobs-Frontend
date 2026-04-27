@@ -18,6 +18,10 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): State {
+    // Ignore browser extension message channel errors — not app errors
+    if (error.message?.includes('message channel closed')) {
+      return { hasError: false };
+    }
     return {
       hasError: true,
       error,

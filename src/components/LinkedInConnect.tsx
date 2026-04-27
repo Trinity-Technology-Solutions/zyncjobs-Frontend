@@ -132,16 +132,29 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const isLinkedin = params.get('linkedin');
-    if (!token || !isLinkedin) return;
+    const linkedinError = params.get('error');
+    const wasPending = sessionStorage.getItem('linkedin_oauth_pending');
 
-    // Clean URL immediately
+    if (!isLinkedin && !wasPending) return;
+
+    // Clean up
     window.history.replaceState({}, document.title, window.location.pathname);
+    sessionStorage.removeItem('linkedin_oauth_pending');
+
+    if (!isLinkedin) return; // returned without linkedin param — just reset silently
+
+    if (linkedinError || !token) {
+      setErrorMsg('LinkedIn connection was cancelled or failed. Please try again.');
+      setStatus('error');
+      return;
+    }
+
     fetchLinkedInProfile(token);
   }, []);
 
   const initiateOAuth = () => {
     setStatus('loading');
-    // Backend handles the LinkedIn OAuth redirect
+    sessionStorage.setItem('linkedin_oauth_pending', '1');
     window.location.href = `${API_BASE}/auth/linkedin/candidate`;
   };
 

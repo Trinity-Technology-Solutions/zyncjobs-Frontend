@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
-import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { getId } from '../utils/getId';
 
@@ -48,14 +48,14 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
         if (name && logo) map[name] = logo;
       });
 
-      // Then overlay with company API logos (only non-empty)
+      // Then overlay with company API logos (only non-empty, don't overwrite job-level logos)
       if (res.ok) {
         const data = await res.json();
         const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
         companies.forEach((c: any) => {
           const name = (c.name || c.companyName || '').toLowerCase();
           const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-          if (name && logo) map[name] = logo;
+          if (name && logo && !map[name]) map[name] = logo;
         });
       }
 
@@ -205,33 +205,13 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
                         <img 
-                          src={companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job) || undefined} 
+                          src={getCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job) || undefined} 
                           alt={`${job.company} logo`}
                           className="w-10 h-10 object-contain"
                           onError={(e) => {
                             const img = e.target as HTMLImageElement;
-                            const container = img.parentElement;
-                            if (container) {
-                              // Hide the image
-                              img.style.display = 'none';
-                              // Add LinkedIn-style building icon
-                              container.innerHTML = `
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                  <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
-                                  <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                  <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
-                                </svg>
-                              `;
-                              container.classList.add('bg-gray-50');
-                            }
+                            img.onerror = null;
+                            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
                           }}
                         />
                       </div>

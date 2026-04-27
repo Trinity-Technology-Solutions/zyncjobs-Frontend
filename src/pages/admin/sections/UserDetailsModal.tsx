@@ -12,9 +12,10 @@ interface Props {
   userId: string;
   onClose: () => void;
   onAction: () => void;
+  onDeleted?: (deletedId: string) => void;
 }
 
-export default function UserDetailsModal({ userId, onClose, onAction }: Props) {
+export default function UserDetailsModal({ userId, onClose, onAction, onDeleted }: Props) {
   const [user, setUser] = useState<any>(null);
   const [appliedJobs, setAppliedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
@@ -73,14 +74,15 @@ export default function UserDetailsModal({ userId, onClose, onAction }: Props) {
   };
 
   const deleteUser = async () => {
-    const ok = await (window as any).confirmAsync('Permanently delete this user?');
+    const ok = await (window as any).confirmAsync('Permanently delete this user? This cannot be undone.');
     if (!ok) return;
     setActionLoading('delete');
     try {
-      await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE', headers: authHeaders() });
-      onAction();
-      onClose();
-    } catch { setError('Delete failed.'); }
+      const res = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE', headers: authHeaders() });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || body.message || `Delete failed (${res.status})`);
+      onDeleted ? onDeleted(userId) : (onAction(), onClose());
+    } catch (e: any) { setError(e.message || 'Delete failed.'); }
     finally { setActionLoading(''); }
   };
 

@@ -86,17 +86,29 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
   };
 
   const fetchMyAssessments = async () => {
+    const localAssessments = Object.keys(localStorage)
+      .filter(k => k.startsWith('assessment_local-'))
+      .map(k => { try { return JSON.parse(localStorage.getItem(k) || ''); } catch { return null; } })
+      .filter(Boolean)
+      .sort((a: any, b: any) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime());
+
     try {
       const token = await getAuthToken();
-      if (!token) return;
+      if (!token) { setMyAssessments(localAssessments); return; }
       const response = await fetch(`${API_BASE_URL}/skill-assessments/my-assessments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (response.ok) {
-        const data = await response.json();
-        setMyAssessments(data);
-      }
-    } catch { /* silent */ }
+      const backendList = response.ok ? await response.json() : [];
+      const merged = [
+        ...backendList,
+        ...localAssessments.filter((la: any) =>
+          !backendList.some((ba: any) => ba.assessmentId === la.assessmentId)
+        )
+      ];
+      setMyAssessments(merged);
+    } catch {
+      setMyAssessments(localAssessments);
+    }
   };
 
   const startAssessment = async () => {
@@ -258,6 +270,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
         localStorage.setItem(storageKey, JSON.stringify(localResult));
         console.log('💾 Saved assessment to localStorage:', storageKey);
         console.log('Data:', localResult);
+        window.dispatchEvent(new CustomEvent('zync:assessmentSaved'));
         
         // Verify it was saved
         const verify = localStorage.getItem(storageKey);
@@ -319,6 +332,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
         
         localStorage.setItem(`assessment_${localAssessmentId}`, JSON.stringify(localResult));
         console.log('💾 Saved as local assessment:', localAssessmentId);
+        window.dispatchEvent(new CustomEvent('zync:assessmentSaved'));
         
         setResult({
           assessmentId: localAssessmentId,
@@ -375,6 +389,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       const storageKey = `assessment_${localAssessmentId}`;
       localStorage.setItem(storageKey, JSON.stringify(localResult));
       console.log('💾 Saved local assessment after error:', storageKey);
+      window.dispatchEvent(new CustomEvent('zync:assessmentSaved'));
       
       setResult({
         assessmentId: localAssessmentId,
