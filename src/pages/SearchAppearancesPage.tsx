@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ArrowLeft, Search, TrendingUp, Eye, RefreshCw, Zap, Clock, User } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
-import { API_ENDPOINTS, config } from '../config/env';
+import { API_ENDPOINTS } from '../config/env';
 
 interface Props { onNavigate: (page: string) => void; user?: any; onLogout?: () => void; }
 
@@ -76,7 +76,7 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
 
   useEffect(() => {
     if (!userEmail) return;
-    const socketUrl = config.SOCKET_URL;
+    const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
     const socket: Socket = io(socketUrl, { transports: ['websocket', 'polling'] });
     socket.on(`analytics_update:${userEmail}`, ({ eventType }: { eventType: string }) => {
       if (eventType === 'search_appearance' || eventType === 'profile_view') {

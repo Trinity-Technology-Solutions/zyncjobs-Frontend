@@ -18,6 +18,7 @@ import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
 import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsentBanner from './components/CookieConsentBanner';
+import SEOHead from './components/SEOHead';
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
@@ -417,6 +418,7 @@ function App() {
   return (
     <>
       <GlobalAlert />
+      <SEOHead />
       <OfflineIndicator />
       <CookieConsentBanner onNavigate={handleNavigation} />
       <Notification

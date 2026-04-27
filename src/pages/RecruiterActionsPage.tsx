@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import SEOHead from '../components/SEOHead';
 import { ArrowLeft, Users, RefreshCw, Eye, TrendingUp, MapPin, Building2, Sparkles } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
-import { API_ENDPOINTS, config } from '../config/env';
+import { API_ENDPOINTS } from '../config/env';
 
 interface Props { onNavigate: (page: string) => void; user?: any; onLogout?: () => void; }
 type FilterKey = 'all' | 'profile_viewed' | 'job_invite';
@@ -54,8 +53,6 @@ function Avatar({ name, picture }: { name: string; picture?: string | null }) {
   if (picture && picture.trim()) {
     const src = picture.startsWith('http') ? picture : `${(import.meta.env.VITE_API_URL || '/api').replace('/api', '')}${picture}`;
     return (
-      <SEOHead canonical="/recruiter-actions" title="Recruiter Activity Dashboard | ZyncJobs" description="Monitor recruiter engagement, profile views, and job invites in one place on your ZyncJobs profile dashboard." />
-
       <img
         src={src}
         alt={name}
@@ -111,7 +108,7 @@ const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =
 
   useEffect(() => {
     if (!userEmail) return;
-    const socketUrl = config.SOCKET_URL;
+    const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
     const socket: Socket = io(socketUrl, { transports: ['websocket', 'polling'] });
     socket.on(`analytics_update:${userEmail}`, ({ eventType }: { eventType: string }) => {
       if (eventType === 'recruiter_action') {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import SEOHead from '../components/SEOHead';
 import { User, Building2, ArrowRight, Sparkles, Zap, Shield, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -42,8 +41,6 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
 
 
   return (
-      <SEOHead canonical="/role-selection" title="ZyncJobs Job Portal | Find Jobs and Hire Talent" description="Find your next job or hire top talent with ZyncJobs. Create a candidate profile, post jobs, access verified listings, and use AI-powered matching to connect faster." />
-
     <div className="min-h-screen" style={{ background: 'linear-gradient(135deg, #f8faff 0%, #f0f4ff 50%, #faf5ff 100%)' }}>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 

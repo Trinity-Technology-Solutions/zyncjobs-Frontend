@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
@@ -46,8 +45,6 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
   };
 
   return (
-      <SEOHead canonical="/contact" title="Contact Us | ZyncJobs" description="Connect with the ZyncJobs team for support, account help, or hiring queries with quick responses and dedicated assistance." />
-
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

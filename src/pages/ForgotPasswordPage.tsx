@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import SEOHead from '../components/SEOHead';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
@@ -63,8 +62,6 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
 
   if (sent) {
     return (
-      <SEOHead canonical="/forgot-password" title="Reset Password | ZyncJobs Login Help" description="Forgot your password? Enter your email to get a reset link and quickly restore access to your ZyncJobs account." />
-
       <div className="min-h-screen bg-gray-50">
         <Header onNavigate={onNavigate} />
         <div className="flex items-center justify-center py-16 px-4">

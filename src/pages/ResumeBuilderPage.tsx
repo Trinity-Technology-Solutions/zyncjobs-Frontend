@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import SEOHead from '../components/SEOHead';
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import Header from '../components/Header';
 import BackButton from '../components/BackButton';
@@ -75,8 +74,6 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
   const showPreview = currentStep !== 0 && currentStep !== 8;
 
   return (
-      <SEOHead canonical="/resume-builder" title="ATS Resume Templates | ZyncJobs Career Resources" description="Select from ATS-optimized resume templates on ZyncJobs and build a clean, professional resume with layouts designed to pass applicant tracking systems." />
-
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 

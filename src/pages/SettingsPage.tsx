@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SEOHead from '../components/SEOHead';
 import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield, Eye, EyeOff } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
@@ -158,8 +157,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
 
   return (
     <>
-      <SEOHead canonical="/settings" title="ZyncJobs Settings | Account, Privacy & Security" description="Manage your account information, password, privacy settings, and logout options from the ZyncJobs settings page." />
-
       <Notification
         type={notification.type}
         message={notification.message}

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import SEOHead from '../components/SEOHead';
 import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -644,8 +643,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-      <SEOHead canonical="/dashboard" title="Employer Dashboard | Manage Hiring on ZyncJobs" description="Track jobs, applications, interviews, and hires from your ZyncJobs employer dashboard. Manage candidate activity, review performance, and post new jobs easily." />
-
     <div className="bg-gray-50 flex" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
       {/* Error Display */}
       {error && (
@@ -705,68 +702,37 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </div>
 
-            {/* Messages Panel - Premium Design */}
-            <div className="mx-3 mt-4 rounded-2xl overflow-hidden" style={{background:'rgba(255,255,255,0.08)', border:'1px solid rgba(255,255,255,0.15)'}}>
-              <div className="flex items-center justify-between px-4 py-3" style={{borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-bold text-sm">Messages</span>
-                  {recentMessages.filter(c => c.unreadCount > 0).length > 0 && (
-                    <span className="bg-blue-400 text-white text-xs font-bold px-1.5 py-0.5 rounded-full animate-pulse">
-                      {recentMessages.filter(c => c.unreadCount > 0).length}
-                    </span>
-                  )}
-                </div>
-                <button
-                  onClick={() => onNavigate('candidate-messages')}
-                  className="text-xs text-blue-200 hover:text-white font-medium transition-colors flex items-center gap-1"
-                >
-                  View all
-                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            {/* Messages + Activity panel - Enhanced Card Style */}
+            <div className="px-4 py-4 mx-3 mt-4 bg-gradient-to-br from-blue-600/80 to-blue-700/70 rounded-xl border-2 border-blue-400/80 backdrop-blur-sm shadow-lg">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-white uppercase tracking-wider">💬 Messages</span>
+                <button onClick={() => onNavigate('candidate-messages')} className="text-white hover:text-blue-100 transition-colors">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                   </svg>
                 </button>
               </div>
-
               {recentMessages.length === 0 ? (
-                <div className="px-4 py-5 text-center">
-                  <div className="w-10 h-10 rounded-2xl mx-auto mb-2 flex items-center justify-center" style={{background:'rgba(255,255,255,0.1)'}}>
-                    <span className="text-lg">💬</span>
-                  </div>
-                  <p className="text-xs text-blue-200">No messages yet</p>
-                </div>
+                <p className="text-sm text-white text-center py-2">No messages yet</p>
               ) : (
-                <div className="px-2 py-2 space-y-1">
+                <div className="space-y-2">
                   {recentMessages.map((c, i) => (
-                    <button
-                      key={i}
-                      onClick={() => onNavigate('candidate-messages')}
-                      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-xl text-left transition-all"
-                      style={{background: 'transparent'}}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.1)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      {/* Avatar */}
-                      <div className="relative flex-shrink-0">
-                        {c.otherPhoto ? (
-                          <img src={c.otherPhoto} alt={c.otherName} className="w-9 h-9 rounded-xl object-cover" />
-                        ) : (
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white text-xs font-bold">
-                            {c.otherName.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                      </div>
-                      {/* Text */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-white truncate">{c.otherName}</p>
-                        <p className="text-xs text-blue-200 truncate">{c.preview}</p>
-                      </div>
-                      {/* Unread */}
-                      {c.unreadCount > 0 && (
-                        <span className="flex-shrink-0 w-4 h-4 bg-blue-400 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                          {c.unreadCount}
-                        </span>
+                    <div key={i} onClick={() => onNavigate('candidate-messages')} className="flex items-center gap-2 cursor-pointer hover:bg-blue-500/40 rounded-lg p-2 transition-all duration-200 border border-transparent hover:border-blue-300/60">
+                      {c.otherPhoto ? (
+                        <img src={c.otherPhoto} alt={c.otherName} className="w-8 h-8 rounded-full object-cover flex-shrink-0 border-2 border-blue-300/60" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                          {c.otherName.charAt(0).toUpperCase()}
+                        </div>
                       )}
-                    </button>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white truncate">{c.otherName}</p>
+                        <p className="text-sm text-white truncate">{c.preview}...</p>
+                      </div>
+                      {c.unreadCount > 0 && (
+                        <span className="bg-blue-400 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[10px]">{c.unreadCount}</span>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

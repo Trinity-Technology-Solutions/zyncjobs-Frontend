@@ -1,5 +1,4 @@
 import React from 'react';
-import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -11,8 +10,6 @@ interface WhyZyncJobsPageProps {
 
 const WhyZyncJobsPage: React.FC<WhyZyncJobsPageProps> = ({ onNavigate, user, onLogout }) => {
   return (
-      <SEOHead canonical="/why-zyncjobs" title="Why Choose ZyncJobs? | Job Search and Hiring Platform" description="Explore the benefits of ZyncJobs, including smart matching, career guidance, hiring tools, and transparent support for professionals and employers." />
-
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

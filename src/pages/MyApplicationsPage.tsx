@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import SEOHead from '../components/SEOHead';
 import { API_ENDPOINTS } from '../config/env';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
@@ -316,8 +315,6 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
 
   if (loading) {
     return (
-      <SEOHead canonical="/my-applications" title="Job Applications Dashboard | ZyncJobs" description="Track your job applications on ZyncJobs by status, view application progress, and browse jobs when you are ready to apply for new opportunities." />
-
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>

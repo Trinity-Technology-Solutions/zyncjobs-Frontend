@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import SEOHead from '../components/SEOHead';
 import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Trophy, Flame, Sparkles } from 'lucide-react';
 import Header from '../components/Header';
@@ -192,8 +191,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     try {
       let url = API_ENDPOINTS.JOBS;
 
-      const freshnessOnly = !activeTerm && !activeLoc && filters.industry.length === 0 && filters.companySize.length === 0 && categoryTerms.length === 0 && !!activeFreshness;
-      if (!freshnessOnly && (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || categoryTerms.length > 0)) {
+      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness || categoryTerms.length > 0) {
         const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : activeTerm;
         const searchParams = {
           query: searchQuery,
@@ -231,17 +229,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         // Advanced search failed or returned empty — fall back to client-side filter on all jobs
         if (!append) {
           // If we have jobs loaded, filter them; otherwise fetch all and filter
-          const applyFreshnessToList = (list: any[]) => {
-            if (!activeFreshness) return list;
-            const now = Date.now();
-            const cutoff = activeFreshness === '24h' ? now - 172800000 : now - 604800000;
-            return list.filter(job => {
-              const t = job.createdAt ? new Date(job.createdAt).getTime() : 0;
-              return t > 0 && t >= cutoff;
-            });
-          };
           if (jobs.length > 0) {
-            const fallback = applyFreshnessToList(clientFilter(jobs, activeTerm, activeLoc));
+            const fallback = clientFilter(jobs, activeTerm, activeLoc);
             setFilteredJobs(fallback);
           } else {
             const allRes = await fetch(`${API_ENDPOINTS.JOBS}?limit=200`);
@@ -249,7 +238,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               const allData = await allRes.json();
               const allArr = Array.isArray(allData) ? allData : (allData.jobs || []);
               setJobs(allArr);
-              setFilteredJobs(applyFreshnessToList(clientFilter(allArr, activeTerm, activeLoc)));
+              setFilteredJobs(clientFilter(allArr, activeTerm, activeLoc));
             }
           }
         }
@@ -686,8 +675,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   return (
-      <SEOHead canonical="/job-listings" title="Browse Jobs by Skill, Location & Experience | ZyncJobs" description="Search thousands of job openings on ZyncJobs using filters for location, experience, department, salary, and work mode." />
-
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

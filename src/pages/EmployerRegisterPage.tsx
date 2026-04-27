@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SEOHead from '../components/SEOHead';
 import { Eye, EyeOff, ArrowLeft, Search, BarChart2, Shield, Zap } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -227,8 +226,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   };
 
   return (
-      <SEOHead canonical="/employer-register" title="ZyncJobs Company Setup | Employer Profile Creation" description="Set up your company profile on ZyncJobs to access the employer dashboard, post jobs instantly, and start connecting with top talent faster." />
-
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       <Header onNavigate={onNavigate} />
 

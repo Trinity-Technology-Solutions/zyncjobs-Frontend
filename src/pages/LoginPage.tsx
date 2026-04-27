@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SEOHead from '../components/SEOHead';
 import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
@@ -79,8 +78,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   };
 
   return (
-      <SEOHead canonical="/login" title="ZyncJobs Login | Sign In to Your Account" description="Sign in to your ZyncJobs account to access jobs, applications, messages, and your personalized career dashboard." />
-
     <div className="min-h-screen flex flex-col">
       <Header onNavigate={onNavigate} />
 

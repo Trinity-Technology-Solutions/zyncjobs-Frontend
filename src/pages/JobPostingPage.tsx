@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SEOHead from '../components/SEOHead';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -2472,8 +2471,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             ].map((level) => {
               const currentEducation = Array.isArray(jobData.educationLevel) ? jobData.educationLevel : jobData.educationLevel ? [jobData.educationLevel] : [];
               return (
-      <SEOHead canonical="/job-posting" title="Employer Job Posting | ZyncJobs" description="Set up your job posting with title, location type, company, category, and experience requirements on ZyncJobs." />
-
                 <button
                   key={level}
                   type="button"

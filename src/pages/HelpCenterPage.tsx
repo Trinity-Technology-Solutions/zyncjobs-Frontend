@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { ChevronDown, Search } from 'lucide-react';
@@ -70,8 +69,6 @@ const HelpCenterPage: React.FC<HelpCenterPageProps> = ({ onNavigate, user, onLog
   })).filter(category => category.items.length > 0);
 
   return (
-      <SEOHead canonical="/help" title="ZyncJobs Help Center | FAQs, Support & Guides" description="Find answers to common questions about ZyncJobs accounts, job search, applications, hiring tools, privacy, and more in our Help Center." />
-
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

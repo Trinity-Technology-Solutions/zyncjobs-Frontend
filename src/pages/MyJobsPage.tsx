@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SEOHead from '../components/SEOHead';
 import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
@@ -337,8 +336,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default') => {
     const jobKey = getId(job) || `job-${Math.random()}`;
     return (
-      <SEOHead canonical="/my-jobs" title="Posted Jobs Dashboard | Manage Job Listings on ZyncJobs" description="View and manage your posted jobs on ZyncJobs, track applications, review job listings, and easily edit or delete openings from your employer dashboard." />
-
     <div key={jobKey} className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 transition-all bg-white relative overflow-hidden group">
       {/* Gradient accent bar - left corner only */}
       <div className="absolute top-0 left-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 via-purple-500 to-pink-500 rounded-l-xl"></div>

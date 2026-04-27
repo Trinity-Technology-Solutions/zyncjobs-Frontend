@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import SEOHead from '../components/SEOHead';
 import { API_ENDPOINTS } from '../config/env';
 import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot } from 'lucide-react';
 import { tokenStorage } from '../utils/tokenStorage';
@@ -279,8 +278,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   };
 
 return (
-      <SEOHead canonical="/candidate-search" title="ZyncJobs Candidate Search | Find Verified Talent Fast" description="Search and hire verified professionals with ZyncJobs. Browse talent profiles, filter by skills and location, and find the right candidates." />
-
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import SEOHead from '../components/SEOHead';
 import { Star, Building, Shield, Flame, TrendingUp } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -298,8 +297,6 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
   };
 
   return (
-      <SEOHead canonical="/companies" title="Explore Top Companies in India | ZyncJobs Verified Employers" description="Search verified companies, view reviews, check salaries, and explore current job openings on ZyncJobs to find your ideal employer." />
-
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       

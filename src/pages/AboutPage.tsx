@@ -1,5 +1,4 @@
 import React from 'react';
-import SEOHead from '../components/SEOHead';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -11,8 +10,6 @@ interface AboutPageProps {
 
 const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => {
   return (
-      <SEOHead canonical="/about" title="About ZyncJobs | AI-Powered Job Search and Hiring Platform" description="Learn more about ZyncJobs, an AI-powered career platform that helps job seekers find jobs, improve skills, prepare for interviews, and helps employers hire faster." />
-
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
