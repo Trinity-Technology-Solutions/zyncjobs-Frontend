@@ -30,6 +30,15 @@ p, span, a, li, td, th, label, input, select, textarea, button, nav, nav a, nav 
   font-size: 1rem;
 }
 
+/* Allow Tailwind text-size utilities to override the base */
+.text-xs { font-size: 0.75rem !important; }
+.text-sm { font-size: 0.875rem !important; }
+.text-base { font-size: 1rem !important; }
+.text-lg { font-size: 1.125rem !important; }
+.text-xl { font-size: 1.25rem !important; }
+.text-2xl { font-size: 1.5rem !important; }
+.text-3xl { font-size: 1.875rem !important; }
+
 /* Headings */
 h1 { font-size: 2.25rem; }
 h2 { font-size: 1.875rem; }

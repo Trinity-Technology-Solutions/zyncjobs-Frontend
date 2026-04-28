@@ -902,7 +902,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div>
                           <h3 className="text-4xl font-bold text-gray-900 leading-none mb-1">{displayVal}</h3>
                           <p className="text-xs font-medium" style={{ color: isPositive ? ringColor : '#ef4444' }}>
-                            {isNumericPct ? `${isPositive ? '▲' : '▼'} ${Math.abs(numericPct)}% vs last month` : stat.percentage}
+                            {isNumericPct ? `${isPositive ? "▲" : "▼"} ${Math.abs(numericPct)}% vs last month` : stat.percentage}
                           </p>
                         </div>
                         <div className="relative flex-shrink-0">
