@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import GlobalAlert from './components/GlobalAlert';
@@ -36,10 +36,8 @@ const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
-const CompanyJobsPage = lazy(() => import('./pages/CompanyJobsPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
 const CompanyDetailsPage = lazy(() => import('./pages/CompanyDetailsPage'));
-const JobHuntingPage = lazy(() => import('./pages/JobHuntingPage'));
 
 const InterviewTipsPage = lazy(() => import('./pages/InterviewTipsPage'));
 const CareerCoachPage = lazy(() => import('./pages/CareerCoachPage'));
@@ -49,16 +47,10 @@ const CandidateSearchPage = lazy(() => import('./pages/CandidateSearchPage'));
 const JobPostingPage = lazy(() => import('./pages/JobPostingPage'));
 const JobPostingSelectionPage = lazy(() => import('./pages/JobPostingSelectionPage'));
 const JobParsingPage = lazy(() => import('./pages/JobParsingPage'));
-const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
-const SkillDetailPage = lazy(() => import('./pages/SkillDetailPage'));
 const CandidateDashboardPage = lazy(() => import('./pages/CandidateDashboardPage'));
 const CandidateMessagesPage = lazy(() => import('./pages/CandidateMessagesPage'));
 const EmployerDashboardPage = lazy(() => import('./pages/EmployerDashboardPage'));
-const SearchEngine = lazy(() => import('./components/SearchEngine'));
-const CompanyProfilePage = lazy(() => import('./pages/CompanyProfilePage'));
-const CompanyViewPage = lazy(() => import('./pages/CompanyViewPage'));
 const JobApplicationPage = lazy(() => import('./pages/JobApplicationPage'));
-const JobRolePage = lazy(() => import('./pages/JobRolePage'));
 const JobManagementPage = lazy(() => import('./pages/JobManagementPage'));
 const CandidateReviewPage = lazy(() => import('./pages/CandidateReviewPage'));
 const RecruiterActionsPage = lazy(() => import('./pages/RecruiterActionsPage'));
@@ -69,9 +61,7 @@ const MyApplicationsPage = lazy(() => import('./pages/MyApplicationsPage'));
 const ResumeParserPage = lazy(() => import('./pages/ResumeParserPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
 const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
-const ResumeUploadWithModeration = lazy(() => import('./components/ResumeUploadWithModeration'));
 const ApplicationManagementPage = lazy(() => import('./pages/ApplicationManagementPage'));
-const EmployerProfilePage = lazy(() => import('./pages/EmployerProfilePage'));
 const MeetingTest = lazy(() => import('./components/MeetingTest'));
 const SkillAssessmentPage = lazy(() => import('./pages/SkillAssessmentPage'));
 const AssessmentReviewPage = lazy(() => import('./pages/AssessmentReviewPage'));
@@ -90,7 +80,6 @@ const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
 const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
-const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 const RecommendedJobs = lazy(() => import('./components/RecommendedJobs'));
@@ -99,6 +88,7 @@ const CareerRoadmapPage = lazy(() => import('./pages/CareerRoadmapPage'));
 const SalaryInsightsPage = lazy(() => import('./pages/SalaryInsightsPage'));
 const ProfileVisibilityToggle = lazy(() => import('./components/ProfileVisibilityToggle'));
 const PrivacySettingsPage = lazy(() => import('./pages/PrivacySettingsPage'));
+const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -131,16 +121,6 @@ const AssessmentReviewPageWrapper: React.FC<{
 }> = ({ onNavigate, user }) => {
   const { assessmentId } = useParams<{ assessmentId: string }>();
   return <AssessmentReviewPage onNavigate={onNavigate} user={user} assessmentId={assessmentId || ''} />;
-};
-
-// Wrapper that reads ?id= reactively from URL for CandidateProfileView
-const CandidateProfileViewWrapper: React.FC<{
-  onNavigate: (page: string, data?: any) => void;
-  onBack: () => void;
-}> = ({ onNavigate, onBack }) => {
-  const [searchParams] = useSearchParams();
-  const candidateId = searchParams.get('id') || sessionStorage.getItem('viewCandidateId') || '';
-  return <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={onBack} />;
 };
 
 function MaintenancePage({ onRetry }: { onRetry: () => void }) {
@@ -186,14 +166,6 @@ function App() {
   const handleNavigation = useCallback((page: string, params?: any) => {
     const currentPath = window.location.pathname;
     if (page === 'home') { if (currentPath !== '/') navigate('/'); return; }
-    if (page.startsWith('job-detail/')) {
-      const jobId = page.split('/')[1];
-      const cached = (() => { try { return JSON.parse(localStorage.getItem('selectedJob') || '{}'); } catch { return {}; } })();
-      const slug = cached?.slug && (cached?._id === jobId || cached?.id === jobId) ? cached.slug : null;
-      const target = slug ? `/jobs/${slug}` : `/job-detail?id=${jobId}`;
-      if (currentPath !== target.split('?')[0]) navigate(target);
-      return;
-    }
     if (page === 'job-listings' && params?.tab) { navigate(`/job-listings?tab=${params.tab}`); return; }
     if (page === 'job-listings') {
       const qp = new URLSearchParams();
@@ -204,26 +176,11 @@ function App() {
       navigate(`/job-listings${qs ? `?${qs}` : ''}`);
       return;
     }
-    if (page === 'job-detail') {
-      const id = params?.jobId || params?.jobData?._id || params?.jobData?.id;
-      const slug = params?.jobData?.slug || params?.slug;
-      if (params?.jobData) localStorage.setItem('selectedJob', JSON.stringify(params.jobData));
-      if (slug) { navigate(`/jobs/${slug}`); return; }
-      navigate(id ? `/job-detail?id=${id}` : '/job-detail');
-      return;
-    }
     if (page === 'job-posting' && params?.parsedData) {
       navigate('/job-posting', { state: { mode: params.mode || 'parse', parsedData: params.parsedData } });
       return;
     }
     if (page === 'assessment-review' && params?.assessmentId) { navigate(`/assessment-review/${params.assessmentId}`); return; }
-    if (page === 'candidate-profile-view') {
-      const cid = params?.candidateId || '';
-      if (cid) { sessionStorage.setItem('viewCandidateId', cid); navigate(`/candidate-profile-view?id=${encodeURIComponent(cid)}`); }
-      else { const stored = sessionStorage.getItem('viewCandidateId') || ''; navigate(stored ? `/candidate-profile-view?id=${encodeURIComponent(stored)}` : '/candidate-profile-view'); }
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      return;
-    }
     if (page === 'candidate-messages') { navigate('/candidate-messages'); return; }
     if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
     if (page === 'login') { navigate('/login'); return; }
@@ -391,7 +348,7 @@ function App() {
       '/resume-score', '/resume-parser', '/skill-assessment', '/career-coach', '/career-roadmap',
       '/job-application', '/candidate-messages', '/interviews', '/alerts', '/privacy-settings',
       '/application-management', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
-      '/candidate-profile-view', '/recruiter-actions', '/search-appearances', '/resume-upload',
+      '/recruiter-actions', '/search-appearances',
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
       '/admin'];
     if (protectedPaths.some(p => location.pathname.startsWith(p))) {
@@ -465,32 +422,19 @@ function App() {
 
           {/* -- Public browsing -- */}
           <Route path="/job-listings" element={<JobListingsPage {...nav} searchParams={undefined} />} />
-          <Route path="/job-detail" element={
-            <WithLayout {...nav}>
-              <JobDetailPage {...nav} jobTitle="" jobId={new URLSearchParams(location.search).get('id') || ''} />
-            </WithLayout>
-          } />
-          {/* SEO-friendly job URL: /jobs/:slug */}
-          <Route path="/jobs/:slug" element={
-            <WithLayout {...nav}>
-              <JobDetailPage {...nav} jobTitle="" jobId={''} />
-            </WithLayout>
-          } />
+          <Route path="/job-detail" element={<Navigate to="/job-listings" replace />} />
+          <Route path="/jobs/:slug" element={<Navigate to="/job-listings" replace />} />
           <Route path="/companies" element={<CompaniesPage {...nav} />} />
           <Route path="/company-details" element={<CompanyDetailsPage {...nav} />} />
-          <Route path="/company-jobs" element={<CompanyJobsPage {...nav} companyName="" />} />
-          <Route path="/company-profile" element={
-            <WithLayout {...nav}><CompanyProfilePage onNavigate={handleNavigation} /></WithLayout>
-          } />
-          <Route path="/company-view" element={<CompanyViewPage {...nav} companyName="" />} />
+          <Route path="/company-jobs" element={<Navigate to="/companies" replace />} />
+          <Route path="/company-profile" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/company-view" element={<Navigate to="/companies" replace />} />
           <Route path="/employers" element={<EmployersPage {...nav} />} />
-          <Route path="/job-hunting" element={<JobHuntingPage onNavigate={handleNavigation} />} />
-          <Route path="/job-role" element={<JobRolePage onNavigate={handleNavigation} jobTitle="" />} />
+          <Route path="/job-hunting" element={<Navigate to="/job-listings" replace />} />
+          <Route path="/job-role" element={<Navigate to="/job-listings" replace />} />
           <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />} />
-          <Route path="/skill-detail" element={<SkillDetailPage onNavigate={handleNavigation} skillName="" />} />
-          <Route path="/search" element={
-            <WithLayout {...nav}><SearchEngine /></WithLayout>
-          } />
+          <Route path="/skill-detail" element={<Navigate to="/job-listings" replace />} />
+          <Route path="/search" element={<Navigate to="/job-listings" replace />} />
           <Route path="/features" element={<FeaturesPage {...nav} />} />
           <Route path="/about" element={<AboutPage {...nav} />} />
           <Route path="/why-zyncjobs" element={<WhyZyncJobsPage {...nav} />} />
@@ -663,20 +607,7 @@ function App() {
             </AuthGuard>
           } />
 
-          <Route path="/resume-upload" element={
-            <AuthGuard user={user}>
-              <WithLayout {...nav}>
-                <div className="max-w-4xl mx-auto p-6">
-                  <h1 className="text-3xl font-bold mb-6">Upload Resume</h1>
-                  <ResumeUploadWithModeration
-                    userId={user?.name || '1'}
-                    onUploadComplete={result => showNotification(result.message,
-                      result.resume.status === 'approved' ? 'success' : 'info')}
-                  />
-                </div>
-              </WithLayout>
-            </AuthGuard>
-          } />
+          <Route path="/resume-upload" element={<Navigate to="/resume-builder" replace />} />
 
           <Route path="/job-application" element={
             <AuthGuard user={user} userLoading={userLoading}>
@@ -685,22 +616,7 @@ function App() {
           } />
 
 
-          <Route path="/candidate-profile-view" element={
-            <AuthGuard user={user} userLoading={userLoading}>
-              <ErrorBoundary fallback={
-                <div className="min-h-[60vh] flex items-center justify-center">
-                  <div className="text-center bg-white rounded-xl p-8 shadow-sm border max-w-sm mx-4">
-                    <div className="text-4xl mb-4">👤</div>
-                    <h3 className="font-semibold text-gray-900 mb-2">Profile Not Available</h3>
-                    <p className="text-sm text-gray-500 mb-4">This candidate hasn't set up their profile yet.</p>
-                    <button onClick={() => window.history.back()} className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Go Back</button>
-                  </div>
-                </div>
-              }>
-                <CandidateProfileViewWrapper onNavigate={handleNavigation} onBack={() => window.history.back()} />
-              </ErrorBoundary>
-            </AuthGuard>
-          } />
+          <Route path="/candidate-profile-view" element={<Navigate to="/candidate-search" replace />} />
 
           {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={
@@ -759,13 +675,7 @@ function App() {
             </AuthGuard>
           } />
 
-          <Route path="/employer-profile" element={
-            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
-              <WithLayout {...nav}>
-                <EmployerProfilePage onNavigate={handleNavigation} />
-              </WithLayout>
-            </AuthGuard>
-          } />
+          <Route path="/employer-profile" element={<Navigate to="/dashboard" replace />} />
 
           {/* -- Admin -- */}
           <Route path="/admin/login" element={
@@ -812,6 +722,19 @@ function App() {
             <AuthGuard user={user} allowedRoles={['candidate']}>
               <JobRecommendationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
             </AuthGuard>
+          } />
+
+          {/* -- Team invite magic link -- */}
+          <Route path="/team/accept" element={
+            <TeamAcceptPage
+              onNavigate={handleNavigation}
+              onLogin={(userData, token) => {
+                tokenStorage.setAccess(token);
+                const userType = userData.role === 'employer' ? 'employer' : 'candidate';
+                handleLogin({ ...userData, type: userType as any });
+                handleNavigation('dashboard');
+              }}
+            />
           } />
 
           {/* -- Redirects for old paths -- */}
