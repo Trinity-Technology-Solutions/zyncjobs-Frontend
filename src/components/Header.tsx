@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { API_ENDPOINTS } from '../config/env';
+import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
@@ -244,7 +244,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           const userEmail = parsedUser.email;
           if (userEmail) {
             // Connect to backend Socket.io server
-            const backendUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
+            const backendUrl = config.SOCKET_URL;
             socket = io(backendUrl, { 
               transports: ['websocket', 'polling'],
               reconnection: true,

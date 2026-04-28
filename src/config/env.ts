@@ -6,6 +6,7 @@ export const config = {
   // For local dev: uses /api (proxied by Vite to qaapi backend)
   // For builds: set VITE_API_URL environment variable if needed
   API_URL: import.meta.env.VITE_API_URL || '/api',
+  SOCKET_URL: import.meta.env.VITE_SOCKET_URL || (import.meta.env.VITE_API_URL || '').replace('/api', '') || 'http://localhost:5000',
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'ZyncJobs',
