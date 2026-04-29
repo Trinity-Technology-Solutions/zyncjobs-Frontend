@@ -1,6 +1,6 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
@@ -57,6 +57,8 @@ interface JobDetailPageProps {
 const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }) => {
   const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlJobId = searchParams.get('id') || '';
   const [job, setJob] = useState<any>(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
   const [jobPoster, setJobPoster] = useState<any>(null);
@@ -82,15 +84,14 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [jobId]);
+  }, [jobId, urlJobId]);
 
   useEffect(() => {
     const fetchJobDetails = async () => {
       try {
         setLoading(true);
+        setJob(null);
 
-        const params = new URLSearchParams(window.location.search);
-        const urlJobId = params.get('id');
         const resolvedJobId = urlJobId || (jobId ? String(jobId) : '');
 
         console.log('JobDetailPage: resolvedJobId =', resolvedJobId, '| urlJobId =', urlJobId, '| jobId prop =', jobId, '| slug =', slug);
@@ -113,11 +114,21 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         if (!jobResult && resolvedJobId) {
           let response = await fetch(`${API_ENDPOINTS.JOBS}/${resolvedJobId}`);
           if (response.ok) {
-            jobResult = await response.json();
-          } else {
+            const data = await response.json();
+            // Make sure we got a real job object, not an error
+            if (data && (data.id || data._id || data.jobTitle || data.title)) {
+              jobResult = data;
+            }
+          }
+          if (!jobResult) {
             // Try by positionId
             const posResponse = await fetch(`${API_ENDPOINTS.JOBS}/position/${resolvedJobId}`);
-            if (posResponse.ok) jobResult = await posResponse.json();
+            if (posResponse.ok) {
+              const data = await posResponse.json();
+              if (data && (data.id || data._id || data.jobTitle || data.title)) {
+                jobResult = data;
+              }
+            }
           }
         }
 
@@ -128,11 +139,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
         const jobData = jobResult;
         setJob(jobData);
-
-        // If we loaded via ?id= but job has a slug, upgrade the URL silently
-        if (jobData.slug && !slug) {
-          navigate(`/jobs/${jobData.slug}`, { replace: true });
-        }
 
         // Fetch company logo from companies API
         try {
@@ -180,7 +186,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     };
 
     fetchJobDetails();
-  }, [jobId]);
+  }, [jobId, urlJobId, slug]);
 
   // Set Open Graph meta tags for LinkedIn share preview
   useEffect(() => {

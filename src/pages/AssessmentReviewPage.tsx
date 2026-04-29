@@ -137,7 +137,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
 
   const { skill, score, completedAt, review: reviewData, questions = [] } = review;
   const isPassed = score >= 70;
-  const correctCount = questions.filter((q: any) => q.userAnswer === q.correctAnswer).length;
+  const correctCount = questions.filter((q: any) => Number(q.userAnswer) === Number(q.correctAnswer)).length;
   const wrongCount = questions.length - correctCount;
   const circumference = 2 * Math.PI * 34;
 
@@ -216,31 +216,73 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
               </h2>
               <div className="space-y-5">
                 {questions.map((q: any, idx: number) => {
-                  const isCorrect = q.userAnswer === q.correctAnswer;
+                  const userAns = Number(q.userAnswer);
+                  const correctAns = Number(q.correctAnswer);
+                  const isCorrect = userAns === correctAns;
                   return (
-                    <div key={idx} className={`rounded-2xl p-5 border ${isCorrect ? 'border-emerald-200 bg-emerald-50/60' : 'border-red-200 bg-red-50/60'}`}>
+                    <div key={idx} style={{
+                      borderRadius: '16px',
+                      padding: '20px',
+                      border: `1.5px solid ${isCorrect ? '#6ee7b7' : '#fca5a5'}`,
+                      backgroundColor: isCorrect ? '#f0fdf4' : '#fff5f5'
+                    }}>
+                      {/* Question header */}
                       <div className="flex items-start gap-3 mb-4">
-                        <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold ${isCorrect ? 'bg-emerald-400' : 'bg-red-400'}`}>{idx + 1}</span>
+                        <span style={{
+                          flexShrink: 0, width: 24, height: 24, borderRadius: '50%',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: '#fff', fontSize: 11, fontWeight: 700,
+                          backgroundColor: isCorrect ? '#34d399' : '#f87171'
+                        }}>{idx + 1}</span>
                         <p className="text-sm font-medium text-gray-800 leading-relaxed flex-1">{q.question}</p>
                         {isCorrect
-                          ? <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                          : <XCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />}
+                          ? <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
+                          : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />}
                       </div>
+
+                      {/* Options */}
                       <div className="grid grid-cols-2 gap-2 ml-9">
                         {q.options.map((option: string, optIdx: number) => {
-                          const isCorrectOpt = optIdx === q.correctAnswer;
-                          const isUserAns = optIdx === q.userAnswer;
-                          const isWrongUserAns = isUserAns && !isCorrect;
+                          const isCorrectOpt = optIdx === correctAns;
+                          const isWrongUserAns = optIdx === userAns && !isCorrect;
+
+                          let bg = '#ffffff';
+                          let border = '#e5e7eb';
+                          let color = '#6b7280';
+                          let fontWeight: number | string = 400;
+
+                          if (isCorrectOpt) {
+                            bg = '#dcfce7'; border = '#22c55e'; color = '#15803d'; fontWeight = 600;
+                          } else if (isWrongUserAns) {
+                            bg = '#fee2e2'; border = '#ef4444'; color = '#b91c1c'; fontWeight = 600;
+                          }
+
                           return (
-                            <div key={optIdx} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm border ${ 
-                              isCorrectOpt ? 'border-emerald-400 bg-emerald-100 text-emerald-800 font-semibold' :
-                              isWrongUserAns ? 'border-red-300 bg-red-100 text-red-700' :
-                              'border-gray-100 bg-white text-gray-600'
-                            }`}>
-                              <span className="text-xs font-bold w-4 flex-shrink-0">{String.fromCharCode(65 + optIdx)}.</span>
-                              <span className="flex-1">{option}</span>
-                              {isCorrectOpt && <CheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
-                              {isWrongUserAns && <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0" />}
+                            <div key={optIdx} style={{
+                              display: 'flex', alignItems: 'center', gap: 8,
+                              padding: '8px 12px', borderRadius: 12,
+                              backgroundColor: bg,
+                              border: `2px solid ${border}`,
+                              color, fontWeight
+                            }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, width: 16, flexShrink: 0 }}>
+                                {String.fromCharCode(65 + optIdx)}.
+                              </span>
+                              <span style={{ flex: 1, fontSize: 13 }}>{option}</span>
+                              {isCorrectOpt && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                  {!isCorrect && (
+                                    <span style={{
+                                      fontSize: 10, fontWeight: 700, backgroundColor: '#bbf7d0',
+                                      color: '#15803d', padding: '1px 6px', borderRadius: 999
+                                    }}>Correct</span>
+                                  )}
+                                  <CheckCircle style={{ width: 14, height: 14, color: '#16a34a' }} />
+                                </span>
+                              )}
+                              {isWrongUserAns && (
+                                <XCircle style={{ width: 14, height: 14, color: '#dc2626', flexShrink: 0 }} />
+                              )}
                             </div>
                           );
                         })}
