@@ -782,9 +782,20 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="pt-3 border-t border-gray-200 mt-2">
                 {user ? (
                   <>
-                    <button onClick={() => { onNavigate && onNavigate('dashboard'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">👤 My Profile</button>
-                    <button onClick={() => { onNavigate && onNavigate('settings'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">⚙️ Settings</button>
-                    <button onClick={() => { onLogout && onLogout(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium">🚪 Logout</button>
+                    <button onClick={() => { onNavigate && onNavigate('dashboard'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">
+                      <User className="w-4 h-4 mr-2 text-gray-600" />
+                      My Profile
+                    </button>
+                    <button onClick={() => { onNavigate && onNavigate('settings'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">
+                      <Settings className="w-4 h-4 mr-2 text-gray-600" />
+                      Settings
+                    </button>
+                    <button onClick={() => { onLogout && onLogout(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium">
+                      <svg className="w-4 h-4 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      Logout
+                    </button>
                   </>
                 ) : (
                   <>
