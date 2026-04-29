@@ -20,7 +20,7 @@ const CompanyMarquee: React.FC = () => {
   const items = [...COMPANIES, ...COMPANIES];
 
   return (
-    <div className="bg-white py-6" ref={ref} style={{borderRadius: '40px 40px 0 0', marginTop: '0px', position: 'relative', zIndex: 10}}>
+    <div className="bg-white py-6" ref={ref} style={{borderRadius: '40px 40px 0 0', marginTop: '-40px', position: 'relative', zIndex: 10}}>
       <style>{`
         @keyframes marquee-rtl {
           0%   { transform: translateX(0); }
@@ -224,17 +224,15 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
   const subtitle = heroData?.subtitle || 'Let AI Find Your Next Move';
   const title = heroData?.title || 'Your Dream Job Is Waiting For You';
-  const description = heroData?.description || 'AI career platform for jobs, skills, interview prep, and ATS-ready resume building';
+  const description = heroData?.description || 'AI career platform for jobs, skills, interview prep, and ATS-ready resumes.';
   const buttonText = heroData?.buttonText || 'Find Job';
   const heroImage = heroData?.heroImage?.url ? strapiAPI.getImageUrl(heroData.heroImage.url) : '/images/women.png';
-  const limitedPopularSearches = popularSearches.slice(0, 4);
 
   return (
     <>
       {/* Main Banner Section */}
-      <div ref={heroRef} className="relative w-full overflow-hidden" style={{
+      <div ref={heroRef} className="relative" style={{
         background: 'linear-gradient(135deg, #0f0c29 0%, #1a1040 30%, #2d1b69 60%, #1e0a3c 100%)',
-        paddingBottom: '4rem',
       }}>
         {/* Subtle radial glow blobs */}
         <div className="absolute inset-0 pointer-events-none">
@@ -243,16 +241,16 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           <div className="absolute top-1/2 left-10 w-64 h-64 rounded-full" style={{background: 'radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%)'}}></div>
         </div>
 
-        <div className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{paddingTop: '2rem', paddingBottom: '0', width: '100%'}}>
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 xl:gap-12 items-end w-full" style={{paddingBottom: '2rem'}}>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" style={{paddingTop: '4rem', paddingBottom: '0'}}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-end">
             
             {/* Left Content */}
-            <div className="space-y-6 lg:space-y-8 pb-8 lg:pb-16 w-full overflow-hidden">
+            <div className="space-y-8 pb-16">
               <div className="space-y-6">
-                <h5 className="font-semibold text-base sm:text-lg md:text-xl" style={{color: '#a78bfa'}}>
+                <h5 className="font-semibold text-lg" style={{color: '#a78bfa'}}>
                   {subtitle}
                 </h5>
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-bold text-white leading-tight break-words overflow-hidden">
+                <h1 className="text-4xl lg:text-6xl font-bold text-white leading-tight">
                   <style>{`
                     @keyframes letter-pop {
                       0% { opacity: 0; transform: translateY(20px); }
@@ -279,7 +277,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     );
                   })}
                 </h1>
-                <h6 className="text-sm sm:text-base md:text-lg leading-relaxed" style={{color: 'rgba(255,255,255,0.7)'}}>
+                <h6 className="text-base leading-relaxed whitespace-nowrap" style={{color: 'rgba(255,255,255,0.7)'}}>
                   <style>{`
                     @keyframes desc-letter-pop {
                       0% { opacity: 0; transform: translateY(10px); }
@@ -304,11 +302,11 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               </div>
 
               {/* Search Form */}
-              <div className="bg-white rounded-xl lg:rounded-2xl p-4 lg:p-6 shadow-lg border">
+              <div className="bg-white rounded-2xl p-6 shadow-lg border">
                 <form onSubmit={handleSearch}>
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 lg:gap-4 items-end">
-                    <div className="lg:col-span-2">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                    <div className="sm:col-span-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {/* Job Title Input */}
                         <div className="relative">
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -325,7 +323,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                               setShowJobDropdown(true);
                             }}
                             onBlur={() => setTimeout(() => setShowJobDropdown(false), 200)}
-                            className="block w-full pl-10 pr-3 py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                           {showJobDropdown && jobSuggestions.length > 0 && (
                             <ul
@@ -376,7 +374,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                               setShowLocationDropdown(true);
                             }}
                             onBlur={() => setTimeout(() => setShowLocationDropdown(false), 200)}
-                            className="block w-full pl-10 pr-3 py-3 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           />
                           {showLocationDropdown && locationSuggestions.length > 0 && (
                             <ul
@@ -416,7 +414,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     <div>
                       <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold text-sm sm:text-base hover:bg-blue-700 transition-colors"
+                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                       >
                         {buttonText}
                       </button>
@@ -426,10 +424,10 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               </div>
 
               {/* Popular Searches */}
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                <h4 className="font-semibold text-sm sm:text-base" style={{color: 'rgba(255,255,255,0.9)'}}>Popular Searches:</h4>
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>Popular Searches:</h4>
                 <div className="flex flex-wrap gap-2">
-                  {limitedPopularSearches.map((term) => (
+                  {popularSearches.map((term) => (
                     <button
                       key={term}
                       onClick={() => {
@@ -439,7 +437,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                           onNavigate('job-listings', { searchTerm: term, location: location.trim() });
                         }
                       }}
-                      className="hover:underline cursor-pointer text-sm sm:text-base" style={{color: '#a78bfa'}}
+                      className="hover:underline cursor-pointer" style={{color: '#a78bfa'}}
                     >
                       {term}
                     </button>
@@ -448,7 +446,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               </div>
             </div>
 
-              <div className="hidden xl:block relative overflow-hidden w-full">
+              <div className="relative">
                 <style>{`
                   @keyframes hero-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
                   @keyframes hero-spin-rev { from { transform: rotate(0deg); } to { transform: rotate(-360deg); } }
@@ -456,15 +454,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   .hero-orbit-outer { animation: hero-spin-rev 30s linear infinite; }
                   .hero-icon-counter-inner { animation: hero-spin-rev 20s linear infinite; }
                   .hero-icon-counter-outer { animation: hero-spin 30s linear infinite; }
-                  @media (max-width: 1023px) {
-                    .hero-orbit-inner, .hero-orbit-outer { display: none !important; }
-                  }
                 `}</style>
 
                 {/* Dotted Circle Background */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   {/* Inner orbit circle */}
-                  <div className="hero-orbit-inner w-[22rem] h-[22rem] md:w-[22rem] md:h-[22rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.6)'}}>
+                  <div className="hero-orbit-inner w-[22rem] h-[22rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.6)'}}>
                     {[
                       { Icon: Bot, angle: 0, color: '#3b82f6' },
                       { Icon: Sparkles, angle: 90, color: '#8b5cf6' },
@@ -489,7 +484,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   </div>
 
                   {/* Outer orbit circle */}
-                  <div className="hero-orbit-outer w-[33rem] h-[33rem] md:w-[33rem] md:h-[33rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.7)'}}>
+                  <div className="hero-orbit-outer w-[33rem] h-[33rem] rounded-full absolute" style={{border: '1.5px dashed rgba(255,255,255,0.7)'}}>
                     {[
                       { Icon: Palette, label: 'Resume Studio', angle: 0, color: '#06b6d4' },
                       { Icon: MessageCircle, label: 'Interview Preparation', angle: 72, color: '#10b981' },
