@@ -37,6 +37,7 @@ const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
+const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
 const CompanyDetailsPage = lazy(() => import('./pages/CompanyDetailsPage'));
 
@@ -183,6 +184,8 @@ function App() {
     }
     if (page === 'assessment-review' && params?.assessmentId) { navigate(`/assessment-review/${params.assessmentId}`); return; }
     if (page === 'candidate-messages') { navigate('/candidate-messages'); return; }
+    if (page === 'job-detail' && params?.jobId) { navigate(`/job-detail?id=${params.jobId}`); return; }
+    if (page.startsWith('job-detail/')) { const id = page.replace('job-detail/', ''); navigate(`/job-detail?id=${id}`); return; }
     if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
     if (page === 'login') { navigate('/login'); return; }
     if (page === 'dashboard') { navigate('/dashboard'); return; }
@@ -424,8 +427,8 @@ function App() {
 
           {/* -- Public browsing -- */}
           <Route path="/job-listings" element={<JobListingsPage {...nav} searchParams={undefined} />} />
-          <Route path="/job-detail" element={<Navigate to="/job-listings" replace />} />
-          <Route path="/jobs/:slug" element={<Navigate to="/job-listings" replace />} />
+          <Route path="/job-detail" element={<WithLayout {...nav}><JobDetailPage onNavigate={handleNavigation} user={user as any} /></WithLayout>} />
+          <Route path="/jobs/:slug" element={<WithLayout {...nav}><JobDetailPage onNavigate={handleNavigation} user={user as any} /></WithLayout>} />
           <Route path="/companies" element={<CompaniesPage {...nav} />} />
           <Route path="/company-details" element={<CompanyDetailsPage {...nav} />} />
           <Route path="/company-jobs" element={<Navigate to="/companies" replace />} />
