@@ -112,47 +112,15 @@ const InterviewScheduling = () => {
           description: 'Interview meeting scheduled via ZyncJobs'
         })
       });
-      
       const result = await response.json();
-      if (result.success) {
-        const meetingLink = result.meeting.join_url || result.meeting.joinUrl;
-        setFormData({ ...formData, meetingLink });
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Zoom meeting created successfully!" } }));
+      if (result.success && result.meeting?.join_url) {
+        setFormData({ ...formData, meetingLink: result.meeting.join_url });
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Zoom meeting created successfully!' } }));
       } else {
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'Error: ' + (result.error || result.message) } }));
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Error: ' + (result.error || result.message) } }));
       }
     } catch (error) {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'Error creating Zoom meeting: ' + (error instanceof Error ? error.message : 'Unknown error') } }));
-    }
-  };
-
-  const generateGoogleMeetLink = async () => {
-    try {
-      const response = await fetch(`${API_ENDPOINTS.MEETINGS}/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokenStorage.getAccess()}`
-        },
-        body: JSON.stringify({
-          platform: 'googlemeet',
-          topic: 'Interview Meeting',
-          start_time: formData.scheduledDate,
-          duration: formData.duration,
-          description: 'Interview meeting scheduled via ZyncJobs'
-        })
-      });
-      
-      const result = await response.json();
-      if (result.success) {
-        const meetingLink = result.meeting.join_url || result.meeting.meetLink;
-        setFormData({ ...formData, meetingLink });
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Google Meet created successfully!" } }));
-      } else {
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'Error: ' + (result.error || result.message) } }));
-      }
-    } catch (error) {
-      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: 'Error creating Google Meet: ' + (error instanceof Error ? error.message : 'Unknown error') } }));
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Error creating Zoom meeting: ' + (error instanceof Error ? error.message : 'Unknown error') } }));
     }
   };
 
@@ -382,33 +350,22 @@ const InterviewScheduling = () => {
                 <div>
                   <label className="block text-sm font-medium mb-1">Meeting Link</label>
                   <div className="space-y-2">
-                    <div className="flex space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => generateZoomLink()}
-                        className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-                      >
-                        <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 14.432c-.054.288-.288.432-.576.432H7.008c-.288 0-.522-.144-.576-.432L6.24 9.568c-.054-.288.09-.568.378-.568h10.764c.288 0 .432.28.378.568l-.192 4.864z"/>
-                        </svg>
-                        Open Zoom
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => generateGoogleMeetLink()}
-                        className="flex items-center px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
-                      >
-                        <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.4 16.2H6.6c-.33 0-.6-.27-.6-.6V8.4c0-.33.27-.6.6-.6h10.8c.33 0 .6.27.6.6v7.2c0 .33-.27.6-.6.6z"/>
-                        </svg>
-                        Create Meet
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={generateZoomLink}
+                      className="w-full flex items-center justify-center px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-semibold transition-colors shadow-sm"
+                    >
+                      <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 14.432c-.054.288-.288.432-.576.432H7.008c-.288 0-.522-.144-.576-.432L6.24 9.568c-.054-.288.09-.568.378-.568h10.764c.288 0 .432.28.378.568l-.192 4.864z"/>
+                      </svg>
+                      Generate Zoom Link
+                    </button>
+                    <p className="text-xs text-gray-500">Or paste your own meeting link below</p>
                     <input
                       type="url"
                       value={formData.meetingLink}
                       onChange={(e) => setFormData({ ...formData, meetingLink: e.target.value })}
-                      placeholder="Or paste meeting link here..."
+                      placeholder="Paste your Zoom meeting link here..."
                       className="w-full p-2 border rounded-lg"
                     />
                   </div>

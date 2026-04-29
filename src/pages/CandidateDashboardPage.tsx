@@ -10,6 +10,7 @@ import { useApplicationNotifications } from '../hooks/useApplicationNotification
 import { tokenStorage } from '../utils/tokenStorage';
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 import ProfileVisibilityToggle from '../components/ProfileVisibilityToggle';
+import CoverPhotoCropModal from '../components/CoverPhotoCropModal';
 
 interface CandidateDashboardPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -33,6 +34,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [activityData, setActivityData] = useState<any>(null);
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [showPhotoEditor, setShowPhotoEditor] = useState(false);
+  const [coverCropModal, setCoverCropModal] = useState<{ src: string; file: File } | null>(null);
   const [showResumePopup, setShowResumePopup] = useState(false);
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
@@ -1151,49 +1153,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
-                          <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            try {
-                              // Compress image before upload
-                              const compressedBlob = await new Promise<Blob>((resolve) => {
-                                const img = new Image();
-                                const url = URL.createObjectURL(file);
-                                img.onload = () => {
-                                  const canvas = document.createElement('canvas');
-                                  const MAX = 1200;
-                                  let w = img.width, h = img.height;
-                                  if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-                                  canvas.width = w; canvas.height = h;
-                                  canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-                                  canvas.toBlob((b) => resolve(b!), 'image/jpeg', 0.8);
-                                  URL.revokeObjectURL(url);
-                                };
-                                img.src = url;
-                              });
-                              const formData = new FormData();
-                              formData.append('photo', compressedBlob, 'cover.jpg');
-                              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
-                              if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
-                              const data = await uploadRes.json();
-                              console.log('📸 Cover upload response:', data);
-                              const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
-                              const coverUrl = data.photoUrl?.startsWith('http')
-                                ? data.photoUrl
-                                : `${backendBase}${data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`}`;
-                              const updatedUser = { ...user, coverPhoto: coverUrl };
-                              setUser(updatedUser);
-                              // Only store path in localStorage, never base64
-                              const userForStorage = { ...updatedUser, coverPhoto: coverUrl };
-                              try { localStorage.setItem('user', JSON.stringify(userForStorage)); } catch { /* quota full, skip */ }
-                              const saveRes = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
-                              const saveData = await saveRes.json();
-                              console.log('💾 Cover save response:', saveData?.profile?.coverPhoto);
-                              setNotification({ type: 'success', message: 'Cover photo updated!', isVisible: true });
-                            } catch(err) {
-                              console.error('Cover upload error:', err);
-                              setNotification({ type: 'error', message: 'Cover photo upload failed. Try a smaller image.', isVisible: true });
-                            }
+                            const src = URL.createObjectURL(file);
+                            setCoverCropModal({ src, file });
+                            e.target.value = '';
                           }} />
                         </label>
                         {user?.coverPhoto && (
@@ -2445,6 +2410,34 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
             </div>
           </div>
         </div>
+      )}
+
+      {/* Cover Photo Crop Modal */}
+      {coverCropModal && (
+        <CoverPhotoCropModal
+          src={coverCropModal.src}
+          onClose={() => { URL.revokeObjectURL(coverCropModal.src); setCoverCropModal(null); }}
+          onApply={async (croppedBlob) => {
+            URL.revokeObjectURL(coverCropModal.src);
+            setCoverCropModal(null);
+            try {
+              const formData = new FormData();
+              formData.append('photo', croppedBlob, 'cover.jpg');
+              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
+              if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+              const data = await uploadRes.json();
+              const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+              const coverUrl = data.photoUrl?.startsWith('http') ? data.photoUrl : `${backendBase}${data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`}`;
+              const updatedUser = { ...user, coverPhoto: coverUrl };
+              setUser(updatedUser);
+              try { localStorage.setItem('user', JSON.stringify(updatedUser)); } catch { /* quota full */ }
+              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
+              setNotification({ type: 'success', message: 'Cover photo updated!', isVisible: true });
+            } catch (err) {
+              setNotification({ type: 'error', message: 'Cover photo upload failed. Try a smaller image.', isVisible: true });
+            }
+          }}
+        />
       )}
 
       <ProfilePhotoEditor
