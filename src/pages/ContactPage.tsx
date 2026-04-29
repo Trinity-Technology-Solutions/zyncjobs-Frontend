@@ -78,11 +78,11 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
             </div>
           </div>
           
-          <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">Contact Us</h1>
-          <p className="text-xl text-purple-100 mb-8 drop-shadow">We'd love to hear from you. Get in touch with our team.</p>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 drop-shadow-lg">Contact Us</h1>
+          <p className="text-base sm:text-xl text-purple-100 mb-8 drop-shadow">We'd love to hear from you. Get in touch with our team.</p>
           
           {/* Contact Stats */}
-          <div className="flex justify-center items-center gap-8 mb-8">
+          <div className="flex justify-center items-center gap-4 sm:gap-8 mb-8">
             <div className="text-center">
               <div className="text-2xl font-bold text-white">24/7</div>
               <div className="text-white/80 text-sm">Support</div>

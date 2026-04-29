@@ -403,8 +403,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
           />
 
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-start space-x-4 flex-1">
-              <div className="w-28 h-28 rounded-xl bg-blue-100 flex items-center justify-center p-3 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row items-start gap-4">
+              <div className="w-16 h-16 sm:w-28 sm:h-28 rounded-xl bg-blue-100 flex items-center justify-center p-2 sm:p-3 flex-shrink-0">
                 <img
                   src={getCompanyLogo(job)}
                   alt={job.company}
@@ -417,7 +417,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 />
               </div>
               <div className="flex-1">
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{job.jobTitle || job.title}</h1>
+                <h1 className="text-xl sm:text-3xl font-bold text-gray-900 mb-2">{job.jobTitle || job.title}</h1>
                 <div className="flex items-center space-x-2 text-lg text-blue-600 font-medium mb-4">
                   <Building className="w-5 h-5" />
                   <span>{job.company}</span>
@@ -459,7 +459,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               </div>
             </div>
             
-            <div className="mt-6 lg:mt-0 flex items-center space-x-3">
+            <div className="mt-4 lg:mt-0 flex flex-wrap items-center gap-2 sm:gap-3">
               {/* Always show share button for testing */}
               <button 
                 onClick={() => setShowShareModal(true)}

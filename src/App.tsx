@@ -10,8 +10,8 @@ import HowItWorks from './components/HowItWorks';
 import TalentedPeople from './components/TalentedPeople';
 import CallToAction from './components/CallToAction';
 import OfflineIndicator from './components/OfflineIndicator';
-import ChatWidget from './components/ChatWidget';
 import Notification from './components/Notification';
+import ChatWidget from './components/ChatWidget';
 import MobileNavigation from './components/MobileNavigation';
 import JobAlertsManager from './components/JobAlertsManager';
 import AuthGuard from './components/AuthGuard';
@@ -392,7 +392,7 @@ function App() {
         <Routes>
           {/* -- Public home -- */}
           <Route path="/" element={
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-white overflow-x-hidden">
               <Header {...nav} />
               <NewHero onNavigate={handleNavigation} user={user as any} />
               <LatestJobs onNavigate={handleNavigation} />

@@ -302,8 +302,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
-      <div className="w-full pl-6 pr-10 sm:pl-8 sm:pr-12">
-        <div className="flex items-center justify-between py-4">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between py-3 sm:py-4">
           <div className="flex-shrink-0">
             <button 
               onClick={() => onNavigate && onNavigate('home')}
@@ -312,13 +312,13 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <img 
                 src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
                 alt={siteSettings?.siteTitle || 'ZyncJobs'} 
-                className="h-16 w-auto"
+                className="h-10 sm:h-12 lg:h-16 w-auto"
               />
             </button>
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8 flex-1 justify-start ml-8">
+          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8">
             {navItems.length > 0 ? (
               navItems.map((item) => (
                 <button
@@ -418,7 +418,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </nav>
 
           {/* Right side items */}
-          <div className="hidden md:flex items-center space-x-4 ml-auto">
+          <div className="hidden lg:flex items-center space-x-2 xl:space-x-4 ml-auto">
 
             {/* Login/Register Dropdown */}
             {user ? (
@@ -722,24 +722,26 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </div>
 
           {/* Mobile menu button */}
-          <div className="md:hidden flex-shrink-0">
+          <div className="lg:hidden flex-shrink-0">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-900 hover:text-gray-600 transition-colors"
+              className="p-2 text-gray-900 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
             >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200 bg-white">
-            <div className="space-y-1">
-              <button onClick={() => { handleFindJobsClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">
+          <div className="lg:hidden py-4 border-t border-gray-200 bg-white">
+            <div className="px-4 space-y-1">
+              <button onClick={() => { handleFindJobsClick(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-3 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium text-base">
+                <Search className="w-5 h-5 mr-3 text-blue-600" />
                 {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
               </button>
-              <button onClick={() => { handleCompaniesClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">
+              <button onClick={() => { handleCompaniesClick(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-3 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium text-base">
+                <svg className="w-5 h-5 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
                 Companies
               </button>
               {user?.type !== 'employer' && (

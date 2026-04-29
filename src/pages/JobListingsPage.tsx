@@ -693,69 +693,69 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         <div className="absolute top-16 right-16 w-24 h-24 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
         <div className="absolute bottom-8 left-1/3 w-12 h-12 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {/* Header Content */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 sm:mb-8">
             <div className="flex justify-center items-center mb-4">
               <div className="flex -space-x-2">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Briefcase className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Search className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <MapPin className="w-5 h-5 text-white" />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                 </div>
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-3">
+          <h1 className="text-xl sm:text-2xl lg:text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-2 sm:gap-3 flex-wrap text-center">
               Discover Your Dream Job
-              <Sparkles className="w-8 h-8" />
+              <Sparkles className="w-6 h-6 sm:w-8 sm:h-8" />
             </h1>
-            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2">
+            <p className="text-sm sm:text-lg text-white/90 mb-4 sm:mb-6 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2 text-center px-4">
               {selectedCategory 
                 ? `Explore ${selectedCategory.toLowerCase()} opportunities from leading companies` 
                 : (
                   <>
                     AI-powered job matching connects you with the right opportunities faster
-                    <Rocket className="w-5 h-5 ml-2" />
+                    <Rocket className="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                   </>
                 )
               }
             </p>
             
             {/* Quick Stats */}
-            <div className="flex justify-center items-center gap-8 mb-6">
+            <div className="hidden sm:flex justify-center items-center gap-4 sm:gap-8 mb-4 sm:mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Rocket className="w-6 h-6" />
+                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Rocket className="w-4 h-4 sm:w-6 sm:h-6" />
                   Live
                 </div>
-                <div className="text-white/80 text-sm">Opportunities</div>
+                <div className="text-white/80 text-xs sm:text-sm">Opportunities</div>
               </div>
-              <div className="w-px h-8 bg-white/30"></div>
+              <div className="w-px h-6 sm:h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Trophy className="w-6 h-6" />
+                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Trophy className="w-4 h-4 sm:w-6 sm:h-6" />
                   Top
                 </div>
-                <div className="text-white/80 text-sm">Companies</div>
+                <div className="text-white/80 text-xs sm:text-sm">Companies</div>
               </div>
-              <div className="w-px h-8 bg-white/30"></div>
+              <div className="w-px h-6 sm:h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Flame className="w-6 h-6" />
+                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Flame className="w-4 h-4 sm:w-6 sm:h-6" />
                   Active
                 </div>
-                <div className="text-white/80 text-sm">Hiring</div>
+                <div className="text-white/80 text-xs sm:text-sm">Hiring</div>
               </div>
             </div>
           </div>
           
           {/* Tab Navigation */}
-          <div className="flex justify-center space-x-1 mb-6">
+          <div className="flex justify-center space-x-1 mb-6 flex-wrap gap-2">
             <button 
               onClick={() => setActiveTab('search')}
               className={`px-6 py-3 rounded-full font-medium flex items-center space-x-2 transition-all ${
@@ -782,7 +782,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
           {/* Search Bar - Only show in search tab */}
           {activeTab === 'search' && (
-          <div className="flex gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 mb-6">
             <div className="flex-1 relative">
               <input
                 type="text"
@@ -837,41 +837,43 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 </div>
               )}
             </div>
-            <select
-              value={radius}
-              onChange={(e) => {
-                const newRadius = Number(e.target.value);
-                setRadius(newRadius);
-                if (location) {
-                  geocodeLocationText(location).then(coords => {
-                    if (coords) {
-                      handleLocationSearch({ latitude: coords.lat, longitude: coords.lng, radius: newRadius, query: searchTerm });
-                    }
-                  });
-                }
-              }}
-              className="bg-white text-gray-700 px-3 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium"
-            >
-              <option value={5}>5 km</option>
-              <option value={10}>10 km</option>
-              <option value={25}>25 km</option>
-              <option value={50}>50 km</option>
-              <option value={100}>100 km</option>
-              <option value={200}>200 km</option>
-            </select>
-            <button 
-              onClick={handleSearch}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors" 
-              title="Search jobs"
-            >
-              <Search className="w-5 h-5" />
-            </button>
+            <div className="flex gap-2">
+              <select
+                value={radius}
+                onChange={(e) => {
+                  const newRadius = Number(e.target.value);
+                  setRadius(newRadius);
+                  if (location) {
+                    geocodeLocationText(location).then(coords => {
+                      if (coords) {
+                        handleLocationSearch({ latitude: coords.lat, longitude: coords.lng, radius: newRadius, query: searchTerm });
+                      }
+                    });
+                  }
+                }}
+                className="bg-white text-gray-700 px-3 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium"
+              >
+                <option value={5}>5 km</option>
+                <option value={10}>10 km</option>
+                <option value={25}>25 km</option>
+                <option value={50}>50 km</option>
+                <option value={100}>100 km</option>
+                <option value={200}>200 km</option>
+              </select>
+              <button 
+                onClick={handleSearch}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex-shrink-0" 
+                title="Search jobs"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            </div>
           </div>
           )}
 
           {/* Quick Filters - Only show in search tab */}
           {activeTab === 'search' && (
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             {selectedCategory && (
               <div className="flex items-center gap-2 bg-blue-100 border border-blue-300 text-blue-700 px-3 py-1 rounded-full text-sm">
                 <span>Category: {selectedCategory}</span>
@@ -929,7 +931,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         {/* Job Alert Banner — shown to non-logged-in users */}
         {!user && !alertDismissed && activeTab === 'search' && (
-          <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl px-5 py-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl px-5 py-4 mb-4 gap-3">
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 flex-shrink-0 bg-blue-100 rounded-full flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -942,7 +944,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <p className="text-gray-500 text-xs mt-0.5">Get our best jobs and opportunities, personalized to your profile and delivered fresh to your inbox.</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+            <div className="flex items-center gap-3 flex-shrink-0">
               <button
                 onClick={() => onNavigate && onNavigate('login')}
                 className="flex items-center gap-1.5 border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-4 py-2 rounded-full text-sm font-medium transition-colors"
@@ -966,9 +968,57 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <RecommendedJobs resumeSkills={resumeSkills} location={location || ''} user={user} onNavigate={onNavigate} />
           </div>
         ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Left Sidebar - Filters */}
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Mobile Filter Toggle */}
+          <div className="lg:hidden flex items-center justify-between mb-2">
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+              {isFiltered && <span className="bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded-full">!</span>}
+            </button>
+          </div>
+
+          {/* Mobile Filter Panel */}
+          {showFilters && (
+            <div className="lg:hidden bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900">Filters</h3>
+                <button onClick={() => setShowFilters(false)} title="Close filters"><X className="w-5 h-5 text-gray-400" /></button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
+                  <select value={filters.jobType} onChange={(e) => handleFilterChange('jobType', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                    <option value="">All Types</option>
+                    <option value="Full-time">Full-time</option>
+                    <option value="Part-time">Part-time</option>
+                    <option value="Contract">Contract</option>
+                    <option value="Remote">Remote</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Remote','Hybrid','Work from office'].map(mode => (
+                      <label key={mode} className="flex items-center gap-1 text-sm">
+                        <input type="checkbox" checked={filters.workMode.includes(mode)} onChange={() => handleFilterChange('workMode', mode)} />
+                        {mode}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {isFiltered && (
+                <button onClick={() => { setFilters({ jobType: '', salaryRange: '', experience: '', department: [], location: [], workMode: [], industry: [], companySize: [], freshness: '' }); setSalaryMin(0); setSalaryMax(50); setExpMin(0); setExpMax(30); }} className="mt-3 text-sm text-red-500 hover:underline">Clear all filters</button>
+              )}
+            </div>
+          )}
+
+          {/* Left Sidebar - Filters (desktop only) */}
+          <div className="hidden lg:block lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y divide-gray-100">
               {/* Trending Job Titles - Dynamic count from real data */}
               {jobs.length > 0 && (() => {
@@ -1178,7 +1228,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           </div>
 
           {/* Right Content - Job Results */}
-          <div className="lg:col-span-3" ref={jobResultsRef}>
+          <div className="col-span-1 lg:col-span-3" ref={jobResultsRef}>
             <div className="mb-3 flex items-center justify-between">
               <p className="text-gray-600 text-sm">
                 {loading ? 'Searching...' : (
@@ -1278,8 +1328,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         ) : (
           <div className="space-y-6">
             {Array.isArray(filteredJobs) && filteredJobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage).map((job) => (
-            <div key={getId(job) || job.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
-              <div className="flex items-start justify-between">
+            <div key={getId(job) || job.id} className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-start mb-3">
                     <div className="flex-1">
@@ -1293,7 +1343,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
                               img.onerror = null;
-                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=32&background=3b82f6&color=ffffff&bold=true&format=png`;
+                              // Use Nambikkai logo as fallback for all companies
+                              img.src = '/images/company-logos/nambikkai-logo.png';
                             }}
                           />
                         </div>
@@ -1385,16 +1436,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   </div>
                 </div>
 
-                <div className="flex flex-col items-stretch gap-2 ml-4 min-w-[130px]">
+                <div className="flex flex-row sm:flex-col items-stretch gap-2 sm:ml-4 sm:min-w-[130px] w-full sm:w-auto">
                   {user?.type === 'candidate' && appliedJobIds.has(getId(job)) && (
-                    <span className="flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg text-sm font-medium">
+                    <span className="flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 px-4 py-2.5 rounded-lg text-sm font-medium h-10">
                       ✅ Applied
                     </span>
                   )}
                   {user?.type === 'candidate' && (
                     <button
                       onClick={() => handleSaveJob(job)}
-                      className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border transition-colors text-sm font-medium ${
+                      className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border transition-colors text-sm font-medium h-10 ${
                         savedJobs.includes(getId(job))
                           ? 'bg-blue-50 border-blue-300 text-blue-700'
                           : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
@@ -1406,7 +1457,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   )}
                   <button
                     onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: getId(job), companyName: job.company, jobData: job })}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center"
+                    className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center h-10"
                   >
                     View Details
                   </button>

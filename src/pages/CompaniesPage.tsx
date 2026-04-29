@@ -301,7 +301,7 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 py-12 border-b border-gray-200 overflow-hidden">
+      <div className="relative bg-gradient-to-r from-blue-600 via-purple-600 to-cyan-600 py-8 sm:py-12 border-b border-gray-200 overflow-hidden">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -311,15 +311,15 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
         </div>
         
         {/* Floating Elements */}
-        <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
+        <div className="absolute top-6 left-6 sm:top-10 sm:left-10 w-16 h-16 sm:w-20 sm:h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute top-12 right-12 sm:top-20 sm:right-20 w-24 h-24 sm:w-32 sm:h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-6 left-1/4 sm:bottom-10 w-12 h-12 sm:w-16 sm:h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
         
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <BackButton 
             onClick={() => onNavigate && onNavigate('job-listings')}
             text="Back to Jobs"
-            className="inline-flex items-center text-sm text-white/80 hover:text-white transition-colors mb-4 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-sm"
+            className="inline-flex items-center text-sm text-white/80 hover:text-white transition-colors mb-4 bg-white/10 px-3 py-2 sm:px-4 sm:py-2 rounded-lg backdrop-blur-sm"
           />
           
           <div className="text-center">
@@ -338,54 +338,57 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-3">
+            <h1 className="text-2xl sm:text-4xl font-bold text-white mb-3 drop-shadow-lg flex items-center justify-center gap-2 sm:gap-3">
               Explore Top Companies
-              <Building className="w-8 h-8" />
+              <Building className="w-6 h-6 sm:w-8 sm:h-8" />
             </h1>
-            <p className="text-lg text-white/90 mb-4 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2">
+            <p className="text-sm sm:text-lg text-white/90 mb-4 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2 text-center px-4">
               Discover amazing companies, read reviews, and find your dream workplace
-              <Star className="w-5 h-5" />
+              <Star className="w-4 h-4 sm:w-5 sm:h-5" />
             </p>
             
             {/* Stats */}
-            <div className="flex justify-center items-center gap-8 mb-6">
+            <div className="hidden sm:flex justify-center items-center gap-4 sm:gap-8 mb-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Shield className="w-6 h-6" />
-                  Verified
+                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-1 sm:gap-2">
+                  <Shield className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">Verified</span>
+                  <span className="sm:hidden">✓</span>
                 </div>
-                <div className="text-white/80 text-sm">Companies</div>
+                <div className="text-white/80 text-xs sm:text-sm">Companies</div>
               </div>
-              <div className="w-px h-8 bg-white/30"></div>
+              <div className="w-px h-6 sm:h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Flame className="w-6 h-6" />
-                  Trusted
+                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-1 sm:gap-2">
+                  <Flame className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">Trusted</span>
+                  <span className="sm:hidden">🔥</span>
                 </div>
-                <div className="text-white/80 text-sm">Partners</div>
+                <div className="text-white/80 text-xs sm:text-sm">Partners</div>
               </div>
-              <div className="w-px h-8 bg-white/30"></div>
+              <div className="w-px h-6 sm:h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <TrendingUp className="w-6 h-6" />
-                  Growing
+                <div className="text-lg sm:text-2xl font-bold text-white flex items-center justify-center gap-1 sm:gap-2">
+                  <TrendingUp className="w-4 h-4 sm:w-6 sm:h-6" />
+                  <span className="hidden sm:inline">Growing</span>
+                  <span className="sm:hidden">📈</span>
                 </div>
-                <div className="text-white/80 text-sm">Opportunities</div>
+                <div className="text-white/80 text-xs sm:text-sm">Opportunities</div>
               </div>
             </div>
             
             {/* Search Bar */}
-            <div className="max-w-md mx-auto">
+            <div className="max-w-sm sm:max-w-md mx-auto px-4 sm:px-0">
               <div className="relative">
                 <input
                   type="text"
                   placeholder="Search companies..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-6 py-3 rounded-full text-gray-900 placeholder-gray-500 bg-white/95 backdrop-blur-sm border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
+                  className="w-full px-4 sm:px-6 py-2 sm:py-3 rounded-full text-sm sm:text-base text-gray-900 placeholder-gray-500 bg-white/95 backdrop-blur-sm border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50 shadow-lg"
                 />
-                <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                  <Building className="w-5 h-5 text-gray-400" />
+                <div className="absolute right-3 sm:right-4 top-1/2 transform -translate-y-1/2">
+                  <Building className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 </div>
               </div>
             </div>
@@ -394,25 +397,25 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex flex-col lg:flex-row gap-6 sm:gap-8">
           {/* Sidebar Filters */}
-          <div className="w-64 flex-shrink-0">
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
-              <h3 className="font-semibold text-gray-900 mb-4">Company</h3>
+          <div className="w-full lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+              <h3 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">Company</h3>
               <input
                 type="text"
                 placeholder="Select a company"
                 value={companyFilter}
                 onChange={(e) => setCompanyFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-6 focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm mb-4 focus:ring-2 focus:ring-blue-500"
               />
 
-              <h3 className="font-semibold text-gray-900 mb-4">Industries</h3>
-              <div className="relative mb-6">
+              <h3 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">Industries</h3>
+              <div className="relative mb-4">
                 <input
                   type="text"
-                  placeholder="E.g. healthcare, internet, education"
+                  placeholder="E.g. healthcare, tech"
                   value={industryInput}
                   onChange={(e) => setIndustryInput(e.target.value)}
                   onFocus={() => setShowIndustryDropdown(true)}
@@ -434,10 +437,10 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                 )}
               </div>
 
-              <h3 className="font-semibold text-gray-900 mb-4">Location</h3>
+              <h3 className="font-semibold text-gray-900 mb-3 text-sm sm:text-base">Location</h3>
               <input
                 type="text"
-                placeholder="E.g. Bangalore, India, Remote"
+                placeholder="E.g. Bangalore, Remote"
                 value={locationFilter2}
                 onChange={(e) => setLocationFilter2(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
@@ -467,46 +470,60 @@ const CompaniesPage = ({ onNavigate, user, onLogout }: {
                       localStorage.setItem('selectedCompany', JSON.stringify(company));
                       onNavigate && onNavigate('company-details');
                     }}
-                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                    className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer"
                   >
-                    <div className="flex items-start gap-6">
+                    <div className="flex items-start gap-3 sm:gap-6">
                       <div className="flex-shrink-0">
                         <img 
-                          src={getCompanyLogoForCard(company)} 
+                          src={(() => {
+                            // Force Nambikkai companies to use the local logo
+                            if (company.name.toLowerCase().includes('nambikkai')) {
+                              return '/images/company-logos/nambikkai-logo.png';
+                            }
+                            return getCompanyLogoForCard(company);
+                          })()
+                          } 
                           alt={company.name}
                           data-company-name={company.name}
-                          onError={handleLogoError}
-                          className="w-20 h-20 rounded-lg object-contain border border-gray-200 bg-white p-1"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.onerror = null;
+                            // Use Nambikkai logo as fallback for all companies
+                            target.src = '/images/company-logos/nambikkai-logo.png';
+                          }}
+                          className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 rounded-lg object-contain border border-gray-200 bg-white p-1"
                         />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <h3 className="text-lg font-semibold text-gray-900">{company.name}</h3>
-                            <p className="text-sm text-gray-600">{company.industry}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-2 gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{company.name}</h3>
+                            <p className="text-xs sm:text-sm text-gray-600 truncate">{company.industry}</p>
                           </div>
-                          <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1 rounded">
-                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                            <span className="font-semibold text-gray-900">
+                          <div className="flex items-center gap-1 bg-yellow-50 px-2 sm:px-3 py-1 rounded flex-shrink-0">
+                            <Star className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-400 fill-yellow-400" />
+                            <span className="font-semibold text-gray-900 text-xs sm:text-sm">
                               {company.rating > 0 ? company.rating : '—'}
                             </span>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-600 mb-3">
-                          {[company.location, `${company.employees} employees`, company.officeLocations ? `${company.officeLocations} office locations` : null].filter(Boolean).join(' • ')}
+                        <p className="text-xs sm:text-sm text-gray-600 mb-2 sm:mb-3 line-clamp-2">
+                          {[company.location, `${company.employees} employees`, company.officeLocations ? `${company.officeLocations} offices` : null].filter(Boolean).join(' • ')}
                         </p>
-                        <div className="flex items-center gap-6 text-sm">
-                          <div>
+                        <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs sm:text-sm">
+                          <div className="flex items-center gap-1">
                             <span className="font-semibold text-blue-600">{company.reviews?.toLocaleString() || 0}</span>
-                            <span className="text-gray-600 ml-1">reviews</span>
+                            <span className="text-gray-600 hidden sm:inline">reviews</span>
+                            <span className="text-gray-600 sm:hidden">rev</span>
                           </div>
-                          <div>
+                          <div className="flex items-center gap-1">
                             <span className="font-semibold text-blue-600">{formatSalary(company.salaries || 0)}</span>
-                            <span className="text-gray-600 ml-1">salaries</span>
+                            <span className="text-gray-600 hidden sm:inline">salaries</span>
+                            <span className="text-gray-600 sm:hidden">sal</span>
                           </div>
-                          <div>
+                          <div className="flex items-center gap-1">
                             <span className="font-semibold text-blue-600">{company.openJobs}</span>
-                            <span className="text-gray-600 ml-1">jobs</span>
+                            <span className="text-gray-600">jobs</span>
                           </div>
                         </div>
                       </div>

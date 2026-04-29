@@ -67,12 +67,19 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     { id: 10,  name: 'Google',                           domain: 'google.com',      logoUrl: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
     { id: 9,   name: 'Microsoft',                        domain: 'microsoft.com',   logoUrl: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
     { id: 101, name: 'Trinity Technology Solutions LLC', domain: 'trinitetech.com', logoUrl: 'https://img.logo.dev/trinitetech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80&retina=true' },
+    { id: 102, name: 'Nambikkai',                        domain: 'nambikkai.com',   logoUrl: '/images/company-logos/nambikkai-logo.png' },
   ];
 
   const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData({ ...formData, companyName: value });
     setCompanyLogo('');
+    
+    // Special handling for Nambikkai
+    if (value.toLowerCase().includes('nambikkai')) {
+      setCompanyLogo('/images/company-logos/nambikkai-logo.png');
+    }
+    
     if (value.trim().length >= 1) {
       try {
         const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);

@@ -110,16 +110,19 @@ export default function AISuggestionsStep() {
 
       {/* AI Generate Content */}
       <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border border-blue-200">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Wand2 className="w-5 h-5 text-white" />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Wand2 className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 mb-2">AI Content Generator</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Let AI generate a professional summary and suggest relevant skills based on your experience
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 mb-2">AI Content Generator</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Let AI generate a professional summary and suggest relevant skills based on your experience
-            </p>
-            <button
+          <button
               onClick={handleGenerateContent}
               disabled={loading || !data.experience.length}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -136,32 +139,34 @@ export default function AISuggestionsStep() {
                 </>
               )}
             </button>
-          </div>
         </div>
       </div>
 
       {/* JD Optimization */}
       <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
-        <div className="flex items-start gap-4">
-          <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Target className="w-5 h-5 text-white" />
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Target className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-gray-900 mb-2">🔥 JD-Based Optimization</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Paste a job description to optimize your resume with relevant keywords and improve ATS score
+              </p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="font-semibold text-gray-900 mb-2">🔥 JD-Based Optimization</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Paste a job description to optimize your resume with relevant keywords and improve ATS score
-            </p>
-            <textarea
-              value={jdText}
-              onChange={(e) => setJdText(e.target.value)}
-              placeholder="Paste the job description here..."
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 text-sm"
-            />
-            <button
+          <textarea
+            value={jdText}
+            onChange={(e) => setJdText(e.target.value)}
+            placeholder="Paste the job description here..."
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent mb-3 text-sm"
+          />
+          <button
               onClick={handleOptimizeWithJD}
               disabled={optimizing || !jdText.trim()}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {optimizing ? (
                 <>
@@ -175,7 +180,6 @@ export default function AISuggestionsStep() {
                 </>
               )}
             </button>
-          </div>
         </div>
       </div>
 

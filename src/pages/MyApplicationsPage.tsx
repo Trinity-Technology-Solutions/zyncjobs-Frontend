@@ -336,7 +336,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       
       {/* Page Header */}
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center space-x-4">
             <button
               onClick={() => onNavigate('dashboard')}
@@ -424,27 +424,28 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               ) : (
                 filteredApplications.map((application) => (
                   application && application.jobId ? (
-                  <div key={application._id} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all border border-gray-100">
-                    <div className="flex items-start justify-between">
-                      {/* Left side - Job info */}
-                      <div className="flex items-start space-x-4 flex-1">
+                    <div key={application._id} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-xl transition-all border border-gray-100">
+                      <div className="flex flex-col sm:flex-row items-start gap-4">
                         <div className="flex-1">
                           {/* Company logo + name row */}
                           <div className="flex items-center gap-3 mb-2">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-blue-50 border border-blue-100">
                               <img 
-                                src={getCompanyLogo(application.jobId?.company || '')} 
+                                src={(() => {
+                                  // Force Nambikkai companies to use the local logo
+                                  if ((application.jobId?.company || '').toLowerCase().includes('nambikkai')) {
+                                    return '/images/company-logos/nambikkai-logo.png';
+                                  }
+                                  return getCompanyLogo(application.jobId?.company || '');
+                                })()
+                                } 
                                 alt={`${application.jobId?.company || 'Company'} Logo`} 
                                 className="w-10 h-10 object-contain"
                                 onError={(e) => {
                                   const target = e.target as HTMLImageElement;
-                                  const company = application.jobId?.company || 'Company';
-                                  const initials = company.split(' ').map((n: string) => n[0]).join('').toUpperCase();
-                                  target.style.display = 'none';
-                                  const fb = document.createElement('div');
-                                  fb.className = 'w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-white font-semibold text-xs';
-                                  fb.textContent = initials;
-                                  target.parentElement!.appendChild(fb);
+                                  target.onerror = null;
+                                  // Use Nambikkai logo as fallback for all companies
+                                  target.src = '/images/company-logos/nambikkai-logo.png';
                                 }}
                               />
                             </div>
@@ -452,7 +453,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           </div>
 
                           {/* Job title + status */}
-                          <div className="flex items-center space-x-3 mb-2">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-2">
                             <h3 className="font-semibold text-lg text-gray-900">
                               {application.jobId?.jobTitle || 'Job Title Not Available'}
                             </h3>
@@ -608,82 +609,79 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             </div>
                           )}
                         </div>
+                        
+                        {/* Right side - Actions */}
+                        <div className="flex flex-row sm:flex-col items-start sm:items-end gap-2 flex-shrink-0">
+                          {/* Action buttons */}
+                          <div className="flex flex-col space-y-2">
+                            <div className="flex space-x-2">
+                              <button 
+                                onClick={() => onNavigate('job-detail', { jobId: getId(application.jobId) || (typeof application.jobId === 'string' ? application.jobId : ''), jobData: application.jobId })}
+                                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                              >
+                                View Job
+                              </button>
+                            </div>
+                            
+                            {(application.status === 'applied' || application.status === 'ai_rejected') && (
+                              <button
+                                onClick={() => setWithdrawingApp(application._id)}
+                                className="flex items-center justify-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors"
+                              >
+                                <X className="w-4 h-4" />
+                                <span>Withdraw</span>
+                              </button>
+                            )}
+                            
+                            {scheduledAppIds.has(application._id) && (
+                              <button
+                                onClick={() => onNavigate('candidate-interviews')}
+                                className="flex items-center justify-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 transition-colors"
+                              >
+                                <Calendar className="w-4 h-4" />
+                                <span>View Interview</span>
+                              </button>
+                            )}
+                            
+                            {application.status === 'withdrawn' && (
+                              <button
+                                onClick={() => handleReapply(application)}
+                                className="flex items-center justify-center space-x-1 px-3 py-2 border border-green-300 text-green-600 text-sm rounded-lg hover:bg-green-50 transition-colors"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                <span>Reapply</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                       
-                      {/* Right side - Actions */}
-                      <div className="flex flex-col items-end space-y-3">
-                        {/* Action buttons */}
-                        <div className="flex flex-col space-y-2">
-                          <div className="flex space-x-2">
-                            <button 
-                              onClick={() => onNavigate('job-detail', { jobId: getId(application.jobId) || (typeof application.jobId === 'string' ? application.jobId : ''), jobData: application.jobId })}
-                              className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                            >
-                              View Job
-                            </button>
-                          </div>
-                          
-                          {(application.status === 'applied' || application.status === 'ai_rejected') && (
-                            <button
-                              onClick={() => setWithdrawingApp(application._id)}
-                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-red-300 text-red-600 text-sm rounded-lg hover:bg-red-50 transition-colors"
-                            >
-                              <X className="w-4 h-4" />
-                              <span>Withdraw</span>
-                            </button>
-                          )}
-                          
-                          {scheduledAppIds.has(application._id) && (
-                            <button
-                              onClick={() => onNavigate('candidate-interviews')}
-                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-indigo-300 text-indigo-600 text-sm rounded-lg hover:bg-indigo-50 transition-colors"
-                            >
-                              <Calendar className="w-4 h-4" />
-                              <span>View Interview</span>
-                            </button>
-                          )}
-                          
-                          {application.status === 'withdrawn' && (
-                            <button
-                              onClick={() => handleReapply(application)}
-                              className="flex items-center justify-center space-x-1 px-3 py-2 border border-green-300 text-green-600 text-sm rounded-lg hover:bg-green-50 transition-colors"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              <span>Reapply</span>
-                            </button>
-                          )}
+                      {/* Timeline */}
+                      {showTimeline === application._id && (
+                        <div className="mt-4 pt-4 border-t border-gray-100">
+                          <ApplicationTimeline 
+                            applicationId={application._id}
+                            currentStatus={application.status}
+                          />
                         </div>
-                        
-
-                      </div>
-                    </div>
-                    
-                    {/* Timeline */}
-                    {showTimeline === application._id && (
+                      )}
+                      
+                      {/* Bottom section with additional info */}
                       <div className="mt-4 pt-4 border-t border-gray-100">
-                        <ApplicationTimeline 
-                          applicationId={application._id}
-                          currentStatus={application.status}
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Bottom section with additional info */}
-                    <div className="mt-4 pt-4 border-t border-gray-100">
-                      <div className="flex items-center justify-between text-sm text-gray-500">
-                        <div>
-                          {application.withdrawnAt && application.withdrawalReason && (
-                            <span className="text-red-600">
-                              Withdrawn: {application.withdrawalReason}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs">
-                          Last updated {new Date(application.createdAt).toLocaleDateString()}
+                        <div className="flex items-center justify-between text-sm text-gray-500">
+                          <div>
+                            {application.withdrawnAt && application.withdrawalReason && (
+                              <span className="text-red-600">
+                                Withdrawn: {application.withdrawalReason}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs">
+                            Last updated {new Date(application.createdAt).toLocaleDateString()}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
                   ) : null
                 ))
               )}

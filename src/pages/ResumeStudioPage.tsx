@@ -127,36 +127,36 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
     <div className="min-h-screen" style={{ background: '#F8FAFC' }}>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div className="max-w-4xl mx-auto px-6 py-16">
+      <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-12 md:py-16">
         <button
           onClick={() => onNavigate('dashboard')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-6"
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-xs sm:text-sm font-medium mb-6 sm:mb-8 md:mb-12"
         >
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </button>
 
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold px-4 py-1.5 rounded-full mb-5">
-            <Zap className="w-3.5 h-3.5" /> AI-Powered Resume Tools
+        <div className="text-center mb-10 sm:mb-14 md:mb-16">
+          <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4 md:mb-5">
+            <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" /> AI-Powered Resume Tools
           </div>
-          <h1 className="text-5xl font-bold text-gray-900 leading-tight mb-4">
-            Everything you need to<br />
-            <span className="text-blue-600">analyze and perfect</span><br />
+          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold text-gray-900 leading-tight mb-2 sm:mb-3 md:mb-4">
+            Everything you need to<br className="hidden sm:inline" />
+            <span className="text-blue-600">analyze and perfect</span><br className="hidden sm:inline" />
             your resume.
           </h1>
-          <p className="text-gray-500 text-lg mb-8 max-w-xl mx-auto">
+          <p className="text-gray-500 text-xs sm:text-base md:text-lg mb-6 sm:mb-8 md:mb-8 max-w-xl mx-auto">
             Powerful tools in one place — parse, analyze, and improve your resume with AI.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 md:gap-5">
           {cards.map((card) => (
             <div
               key={card.id}
               onMouseEnter={() => setHovered(card.id)}
               onMouseLeave={() => setHovered(null)}
-              className="rounded-2xl border p-6 flex flex-col justify-between cursor-pointer transition-all duration-300"
+              className="rounded-lg sm:rounded-2xl border p-3 sm:p-4 md:p-6 flex flex-col justify-between cursor-pointer transition-all duration-300 active:scale-95 sm:active:scale-100"
               style={{
                 background: hovered === card.id ? card.accentLight : '#ffffff',
                 borderColor: hovered === card.id ? card.accentBorder : '#e5e7eb',
@@ -167,29 +167,29 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
               }}
             >
               {card.visual}
-              <div className="mt-4">
-                <h2 className="text-lg font-bold text-gray-900 mb-1.5">{card.title}</h2>
-                <p className="text-sm text-gray-500 leading-relaxed mb-5">{card.desc}</p>
+              <div className="mt-3 sm:mt-4 md:mt-6">
+                <h2 className="text-base sm:text-lg md:text-2xl font-bold text-gray-900 mb-1 sm:mb-1.5 md:mb-2">{card.title}</h2>
+                <p className="text-xs sm:text-sm md:text-base text-gray-500 leading-relaxed mb-3 sm:mb-4 md:mb-5">{card.desc}</p>
                 <button
                   onClick={() => onNavigate(card.page)}
-                  className="inline-flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-full transition-all"
+                  className="inline-flex items-center gap-2 text-xs sm:text-sm md:text-base font-semibold px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 md:py-2.5 rounded-full transition-all active:scale-95"
                   style={{
                     background: card.accent,
                     color: '#fff',
                     boxShadow: `0 4px 14px -2px ${card.accent}50`,
                   }}
                 >
-                  {card.cta} <ArrowRight className="w-3.5 h-3.5" />
+                  {card.cta} <ArrowRight className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4" />
                 </button>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-14 flex items-center justify-center gap-8 text-sm text-gray-400">
+        <div className="mt-10 sm:mt-12 md:mt-14 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 md:gap-8 text-xs sm:text-sm text-gray-400 flex-wrap">
           {['ATS Optimized', 'AI-Powered', 'Free to Use', 'Instant Download'].map((t, i) => (
-            <div key={i} className="flex items-center gap-1.5">
-              <CheckCircle className="w-4 h-4 text-emerald-400" />
+            <div key={i} className="flex items-center gap-1.5 sm:gap-2">
+              <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-5 md:h-5 text-emerald-400 flex-shrink-0" />
               {t}
             </div>
           ))}

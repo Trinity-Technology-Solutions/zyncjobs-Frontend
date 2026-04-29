@@ -75,14 +75,14 @@ const ChatWidget = () => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         title={isOpen ? "Close chat" : "Open chat"}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-[9999]"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 bg-blue-600 text-white p-2 sm:p-3 rounded-full shadow-lg hover:bg-blue-700 transition-colors z-[9999] w-12 h-12 sm:w-auto sm:h-auto flex items-center justify-center"
       >
-        {isOpen ? <X className="w-5 h-5" /> : <MessageCircle className="w-5 h-5" />}
+        {isOpen ? <X className="w-4 h-4 sm:w-5 sm:h-5" /> : <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />}
       </button>
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-20 right-6 w-80 h-96 bg-white rounded-lg shadow-xl border z-[9998]">
+        <div className="fixed bottom-16 right-4 left-4 sm:bottom-20 sm:right-6 sm:left-auto sm:w-80 h-96 bg-white rounded-lg shadow-xl border z-[9998] max-w-md sm:max-w-none mx-auto">
           <div className="bg-blue-600 text-white p-3 rounded-t-lg flex justify-between items-center">
             <div>
               <h3 className="font-semibold text-sm">ZyncJobs</h3>

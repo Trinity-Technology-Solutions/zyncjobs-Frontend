@@ -178,7 +178,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
                     </button>
                   )}
                 </div>
-                <div className="grid grid-cols-2 gap-x-12 gap-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                   {[
                     { label: 'Name',     value: profile.name || profile.fullName || '—' },
                     { label: 'Email',    value: userData.email },

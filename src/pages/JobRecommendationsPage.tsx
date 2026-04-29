@@ -117,10 +117,18 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
     } catch {}
   };
 
-  const getLogoSrc = (job: any) =>
-    companyLogos[(job.company || '').toLowerCase()] ||
-    job.companyLogo || job.logoUrl ||
-    getSafeCompanyLogo(job);
+  const getLogoSrc = (job: any) => {
+    const companyName = job.company || '';
+    
+    // Force Nambikkai companies to use the local logo
+    if (companyName.toLowerCase().includes('nambikkai')) {
+      return '/images/company-logos/nambikkai-logo.png';
+    }
+    
+    return companyLogos[(job.company || '').toLowerCase()] ||
+      job.companyLogo || job.logoUrl ||
+      getSafeCompanyLogo(job);
+  };
 
   const formatSalary = (job: any) => {
     if (job.salaryMin && job.salaryMax) return `₹${Number(job.salaryMin).toLocaleString()} – ₹${Number(job.salaryMax).toLocaleString()}`;

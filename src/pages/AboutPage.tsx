@@ -35,11 +35,11 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => 
             </div>
           </div>
           
-          <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">About ZyncJobs</h1>
-          <p className="text-xl text-blue-100 mb-8 drop-shadow">Connecting Tech Talent with Opportunity</p>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 drop-shadow-lg">About ZyncJobs</h1>
+          <p className="text-base sm:text-xl text-blue-100 mb-8 drop-shadow">Connecting Tech Talent with Opportunity</p>
           
           {/* Quick Stats */}
-          <div className="flex justify-center items-center gap-8 mb-8">
+          <div className="flex justify-center items-center gap-4 sm:gap-8 mb-8">
             <div className="text-center">
               <div className="text-2xl font-bold text-white">10K+</div>
               <div className="text-white/80 text-sm">Job Seekers</div>
@@ -66,7 +66,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => 
       </div>
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 mb-16">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Mission</h2>
             <p className="text-gray-700 leading-relaxed mb-4 text-lg">
@@ -144,7 +144,7 @@ const AboutPage: React.FC<AboutPageProps> = ({ onNavigate, user, onLogout }) => 
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-12 text-white text-center">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-lg p-6 sm:p-12 text-white text-center">
           <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Career?</h2>
           <p className="text-blue-100 mb-8 text-lg max-w-2xl mx-auto">
             Whether you're a job seeker looking for your next opportunity or an employer searching for top talent, ZyncJobs is here to help you succeed.

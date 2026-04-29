@@ -360,33 +360,21 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                           <img
-                            src={companyLogos[(company).toLowerCase()] || getSafeCompanyLogo(job)}
+                            src={(() => {
+                              // Force Nambikkai companies to use the local logo
+                              if (company.toLowerCase().includes('nambikkai')) {
+                                return '/images/company-logos/nambikkai-logo.png';
+                              }
+                              return companyLogos[(company).toLowerCase()] || getSafeCompanyLogo(job);
+                            })()
+                            }
                             alt={`${company} logo`}
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              const container = img.parentElement;
-                              if (container) {
-                                // Hide the image
-                                img.style.display = 'none';
-                                // Add LinkedIn-style building icon
-                                container.innerHTML = `
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                    <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
-                                    <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                    <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
-                                  </svg>
-                                `;
-                                container.classList.add('bg-gray-50');
-                              }
+                              img.onerror = null;
+                              // Use Nambikkai logo as fallback for all companies
+                              img.src = '/images/company-logos/nambikkai-logo.png';
                             }}
                           />
                         </div>
