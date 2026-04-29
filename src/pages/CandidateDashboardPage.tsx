@@ -344,7 +344,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 educationClass10: pick(profileData.educationClass10, parsedUser.educationClass10),
                 careerPreferences: pick(profileData.careerPreferences, parsedUser.careerPreferences),
                 skills: pick(profileData.skills, parsedUser.skills),
-                resume: profileData.resume || parsedUser.resume || (profileData.resumeUrl ? { name: profileData.resumeUrl.split('/').pop(), url: profileData.resumeUrl, uploadDate: '' } : null)
+                resume: profileData.resume !== undefined
+                  ? profileData.resume
+                  : parsedUser.resume !== undefined
+                    ? parsedUser.resume
+                    : (profileData.resumeUrl ? { name: profileData.resumeUrl.split('/').pop(), url: profileData.resumeUrl, uploadDate: '' } : null),
+                resumeUrl: profileData.resumeUrl !== undefined ? profileData.resumeUrl : (parsedUser.resumeUrl || '')
               };
               setUser(updatedUser);
               // Update localStorage with fresh data
@@ -2032,12 +2037,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
-                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: '' })
-                              });
-                              setNotification({ type: 'success', message: 'Resume removed successfully!', isVisible: true });
+                              try {
+                                const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: '', removeResume: true })
+                                });
+                                if (!res.ok) throw new Error('Save failed');
+                                setNotification({ type: 'success', message: 'Resume removed successfully!', isVisible: true });
+                              } catch {
+                                // Revert on failure
+                                setUser(user);
+                                localStorage.setItem('user', JSON.stringify(user));
+                                setNotification({ type: 'error', message: 'Failed to remove resume. Please try again.', isVisible: true });
+                              }
                             }}
                             className="text-red-500 hover:text-red-700 text-sm font-medium"
                           >
