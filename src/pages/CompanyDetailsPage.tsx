@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
+import { getCompanyLogo } from '../utils/logoUtils';
 
 interface Company {
   _id: string;
@@ -268,7 +269,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <BackButton onClick={() => onNavigate && onNavigate('companies')} text="Back to Companies" className="text-white mb-6 hover:text-gray-200" />
           <div className="flex items-start gap-6">
-            <img src={company.logo} alt={company.name} className="w-24 h-24 rounded-lg bg-white p-2 border-4 border-white" />
+            <img src={getCompanyLogo(company.name) || company.logo} alt={company.name} className="w-24 h-24 rounded-lg bg-white p-2 border-4 border-white" />
             <div className="flex-1 text-white">
               <h1 className="text-4xl font-bold mb-2">{company.name}</h1>
               <div className="flex items-center gap-4 mb-3">
