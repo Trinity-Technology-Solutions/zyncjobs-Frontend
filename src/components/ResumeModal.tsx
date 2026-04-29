@@ -1,5 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Download, ExternalLink, RefreshCw } from 'lucide-react';
+import {
+  getResumeByApplicationId,
+  getResumeByEmail,
+  downloadResumeByApplicationId,
+  downloadResumeFromUrl,
+} from '../services/resumeService';
 
 interface ResumeModalProps {
   applicationId: string | null;
@@ -10,206 +16,191 @@ interface ResumeModalProps {
   candidateEmail?: string;
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-
-// Resolve absolute backend base (handles both '/api' proxy and 'https://api.x.com/api')
-const getBackendBase = (): string => {
-  const base = API_BASE_URL.replace(/\/api\/?$/, '');
-  if (base === '' || base === '/') {
-    // Running via Vite proxy — use current origin for uploads served by backend
-    // But uploads are on the backend server, not the frontend origin.
-    // Read the proxy target from a meta tag injected at build, or fallback to window.location.origin.
-    // In production the nginx proxy forwards /uploads → backend, so window.location.origin works.
-    return window.location.origin;
-  }
-  return base;
-};
-
-const buildFullUrl = (fileUrl: string) => {
-  if (!fileUrl || fileUrl === 'resume_from_quick_apply') return null;
-  if (fileUrl.startsWith('http')) return fileUrl;
-  const filePath = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`;
-  return `${getBackendBase()}${filePath}`;
-};
-
 const ResumeModal: React.FC<ResumeModalProps> = ({
-  applicationId, isOpen, onClose,
+  applicationId,
+  isOpen,
+  onClose,
   resumeUrl: directResumeUrl,
   candidateName: directCandidateName,
-  candidateEmail
+  candidateEmail,
 }) => {
-  const [resumeFileUrl, setResumeFileUrl] = useState<string | null>(null);
-  const [candidateName, setCandidateName] = useState<string>('');
+  const [presignedUrl, setPresignedUrl] = useState<string | null>(null);
+  const [candidateName, setCandidateName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [noResume, setNoResume] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
-    setResumeFileUrl(null);
+    setPresignedUrl(null);
     setError(null);
-    setNoResume(false);
     setCandidateName(directCandidateName || '');
+    fetchPresignedUrl();
+  }, [isOpen, applicationId, candidateEmail]);
 
-    // Priority 1: use the resume submitted with the application
-    if (directResumeUrl && directResumeUrl !== 'resume_from_quick_apply') {
-      const resolved = buildFullUrl(directResumeUrl);
-      if (resolved) { setResumeFileUrl(resolved); return; }
-    }
-
-    // Priority 2: fetch from candidate profile as fallback
-    if (candidateEmail) {
-      fetchFromProfile(candidateEmail, directResumeUrl);
-    } else {
-      setNoResume(true);
-    }
-  }, [isOpen, applicationId, directResumeUrl, candidateEmail]);
-
-  const fetchFromProfile = async (email: string, fallbackUrl?: string) => {
+  const fetchPresignedUrl = async () => {
     setLoading(true);
+    setError(null);
+
     try {
-      // Try profile endpoint first (resume is saved here)
-      let data: any = null;
-      const profileRes = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(email)}`);
-      if (profileRes.ok) data = await profileRes.json();
-      // Fallback to users endpoint
-      if (!data) {
-        const res = await fetch(`${API_BASE_URL}/users?email=${encodeURIComponent(email)}`);
-        if (res.ok) {
-          const users = await res.json();
-          data = Array.isArray(users) ? users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase()) : users;
+      // Step 1: Get presigned URL via application ID
+      // Backend: GET /api/applications/:id/resume
+      // Backend uses: s3.getSignedUrl('getObject', { Bucket: 'qa-zync-jobs', Key: 'resumes/...', Expires: 60 })
+      if (applicationId) {
+        const result = await getResumeByApplicationId(applicationId);
+        if (result.presignedUrl) {
+          setPresignedUrl(result.presignedUrl);
+          if (result.candidateName) setCandidateName(prev => prev || result.candidateName!);
+          return;
         }
       }
-      if (!data) throw new Error('User not found');
 
-      console.log('User resume data:', JSON.stringify({ resume: data.resume, resumeUrl: data.resumeUrl }, null, 2));
-      if (data.name || data.fullName) setCandidateName(prev => prev || data.name || data.fullName);
-
-      const resume = data.resume || data.user?.resume;
-      let fileUrl: string | null = null;
-
-      if (resume?.url) {
-        fileUrl = buildFullUrl(resume.url);
-      } else if (resume?.fileUrl) {
-        fileUrl = buildFullUrl(resume.fileUrl);
-      } else if (resume?.filename) {
-        fileUrl = buildFullUrl(`/uploads/${resume.filename}`);
-      } else if (resume?.path) {
-        fileUrl = buildFullUrl(resume.path);
-      } else if (data.resumeUrl) {
-        fileUrl = buildFullUrl(data.resumeUrl);
-      } else if (resume?.name) {
-        fileUrl = buildFullUrl(`/uploads/${resume.name}`);
+      // Step 2: Fallback — get presigned URL via candidate email
+      // Backend: GET /api/resume/presigned?email=...
+      if (candidateEmail) {
+        const result = await getResumeByEmail(candidateEmail);
+        if (result.presignedUrl) {
+          setPresignedUrl(result.presignedUrl);
+          return;
+        }
       }
 
-      console.log('Resolved fileUrl:', fileUrl);
-
-      if (fileUrl) {
-        setResumeFileUrl(fileUrl);
-      } else {
-        // No resume in profile — try the application's resumeUrl as fallback
-        const fallback = fallbackUrl ? buildFullUrl(fallbackUrl) : null;
-        if (fallback) setResumeFileUrl(fallback);
-        else setNoResume(true);
+      // Step 3: If directResumeUrl is already an https URL (e.g. already presigned), use it
+      if (directResumeUrl && directResumeUrl !== 'resume_from_quick_apply' && directResumeUrl.startsWith('http')) {
+        setPresignedUrl(directResumeUrl);
+        return;
       }
+
+      setError('Resume not found. The candidate may not have uploaded a resume yet.');
     } catch (e) {
-      console.error('fetchFromProfile error:', e);
-      if (applicationId) await fetchFromApi(applicationId);
-      else setNoResume(true);
+      console.error('ResumeModal fetchPresignedUrl error:', e);
+      setError('Failed to load resume. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchFromApi = async (appId: string) => {
-    // resume-viewer endpoint doesn't exist — skip it, just mark no resume
-    setNoResume(true);
-  };
-
-  const handleDownload = () => {
-    if (!resumeFileUrl) return;
-    // Extract just the filename from the URL and use the dedicated download route
-    const filenameMatch = resumeFileUrl.match(/\/uploads\/resumes\/([^?#]+)/);
-    if (filenameMatch) {
-      const name = (candidateName || 'candidate').replace(/\s+/g, '_');
-      const downloadUrl = `${getBackendBase()}/uploads/download/${encodeURIComponent(filenameMatch[1])}?name=${encodeURIComponent(name)}`;
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } else {
-      // Fallback: blob fetch
-      fetch(resumeFileUrl, { mode: 'cors', credentials: 'omit' })
-        .then(r => r.blob())
-        .then(blob => {
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = blobUrl;
-          a.download = `${(candidateName || 'candidate').replace(/\s+/g, '_')}_resume.pdf`;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-        })
-        .catch(() => window.open(resumeFileUrl, '_blank'));
+  const handleDownload = async () => {
+    if (!presignedUrl) return;
+    setDownloading(true);
+    try {
+      if (applicationId) {
+        // Use backend download proxy — streams S3 file through qaapi.zyncjobs.com
+        await downloadResumeByApplicationId(applicationId, candidateName);
+      } else {
+        // Fallback: download directly from presigned URL
+        await downloadResumeFromUrl(presignedUrl, candidateName);
+      }
+    } catch {
+      // Last resort: open presigned URL in new tab
+      window.open(presignedUrl, '_blank');
+    } finally {
+      setDownloading(false);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold">{candidateName ? `Resume - ${candidateName}` : 'Resume'}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700"><X className="w-6 h-6" /></button>
+    <div
+      className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-4xl flex flex-col"
+        style={{ maxHeight: '92vh' }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">
+              {candidateName ? `Resume — ${candidateName}` : 'Resume Viewer'}
+            </h2>
+            {candidateEmail && (
+              <p className="text-xs text-gray-400 mt-0.5">{candidateEmail}</p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        <div className="p-6">
-          {loading && <div className="text-center py-8 text-gray-600">Loading resume...</div>}
-          {error && <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-4">{error}</div>}
+        {/* Body */}
+        <div className="flex-1 overflow-hidden p-4 min-h-0">
+          {loading && (
+            <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-500">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+              <p className="text-sm">Fetching resume from S3...</p>
+            </div>
+          )}
 
-          {!loading && (
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              {resumeFileUrl ? (
-                <>
-                  <iframe
-                    src={`${resumeFileUrl}#toolbar=1&navpanes=0`}
-                    width="100%"
-                    height="600"
-                    title="Resume"
-                    style={{ minHeight: '600px' }}
-                  />
-                  <div className="p-2 bg-gray-50 border-t text-center">
-                    <button
-                      onClick={() => window.open(resumeFileUrl, '_blank')}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Open in new tab
-                    </button>
-                  </div>
-                </>
-              ) : noResume || (!loading && !error) ? (
-                <div className="flex flex-col items-center justify-center h-64 text-gray-500 bg-gray-50 p-6">
-                  <span className="text-4xl mb-3">📄</span>
-                  <p className="font-medium text-gray-700">Resume not accessible</p>
-                  <p className="text-sm mt-2 text-center text-gray-500">
-                    {candidateName ? `Ask ${candidateName} to` : 'The candidate needs to'} re-upload their resume from their profile page to make it viewable.
-                  </p>
-                </div>
-              ) : null}
+          {!loading && error && (
+            <div className="flex flex-col items-center justify-center h-64 gap-3 bg-red-50 rounded-xl p-6 border border-red-100">
+              <span className="text-5xl">📄</span>
+              <p className="font-medium text-red-700 text-center">{error}</p>
+              <button
+                onClick={fetchPresignedUrl}
+                className="flex items-center gap-2 text-sm text-blue-600 border border-blue-300 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Retry
+              </button>
+            </div>
+          )}
+
+          {!loading && !error && presignedUrl && (
+            <iframe
+              src={presignedUrl}
+              title={`Resume - ${candidateName || 'Candidate'}`}
+              className="w-full rounded-lg border border-gray-200"
+              style={{ height: 'calc(92vh - 170px)', minHeight: '480px' }}
+            />
+          )}
+
+          {!loading && !error && !presignedUrl && (
+            <div className="flex flex-col items-center justify-center h-64 gap-2 bg-gray-50 rounded-xl p-6 border border-gray-100">
+              <span className="text-5xl">📄</span>
+              <p className="font-medium text-gray-700">No resume available</p>
+              <p className="text-sm text-gray-500 text-center">
+                {candidateName ? `${candidateName} has` : 'This candidate has'} not uploaded a resume yet.
+              </p>
             </div>
           )}
         </div>
 
-        <div className="flex gap-3 p-6 border-t border-gray-200 justify-end">
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-200 justify-end flex-shrink-0">
+          {presignedUrl && (
+            <>
+              <button
+                onClick={() => window.open(presignedUrl, '_blank')}
+                className="flex items-center gap-2 border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open in new tab
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {downloading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                {downloading ? 'Downloading...' : 'Download'}
+              </button>
+            </>
+          )}
           <button
-            onClick={handleDownload}
-            disabled={!resumeFileUrl}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={onClose}
+            className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
           >
-            📥 Download Resume
-          </button>
-          <button onClick={onClose} className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors">
             Close
           </button>
         </div>
