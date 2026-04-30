@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import BackButton from '../components/BackButton';
 import { Mail, Phone, MapPin, Send } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 
@@ -48,60 +49,64 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
     <div className="min-h-screen bg-white">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="relative bg-gradient-to-r from-purple-600 to-purple-800 text-white py-12 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 text-gray-900 py-8 overflow-hidden border-b border-gray-200">
+        {/* Back Button */}
+        <div className="absolute top-4 left-4 z-10">
+          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
+        </div>
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='50' height='50' viewBox='0 0 50 50' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M25 5L30 20L45 20L35 30L40 45L25 35L10 45L15 30L5 20L20 20Z'/%3E%3C/g%3E%3C/svg%3E")`,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='50' height='50' viewBox='0 0 50 50' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Cpath d='M25 5L30 20L45 20L35 30L40 45L25 35L10 45L15 30L5 20L20 20Z'/%3E%3C/g%3E%3C/svg%3E")`,
             backgroundSize: '50px 50px'
           }}></div>
         </div>
         
         {/* Floating Elements */}
-        <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
+        <div className="absolute top-10 left-10 w-20 h-20 bg-purple-200/30 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute top-20 right-20 w-32 h-32 bg-pink-200/20 rounded-full blur-2xl animate-pulse delay-1000"></div>
+        <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-indigo-200/30 rounded-full blur-lg animate-pulse delay-500"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           {/* Contact Icons */}
-          <div className="flex justify-center items-center mb-6">
+          <div className="flex justify-center items-center mb-4">
             <div className="flex -space-x-2">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                <Mail className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
+                <Mail className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                <Phone className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
+                <Phone className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                <MapPin className="w-6 h-6 text-white" />
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center border border-blue-200">
+                <MapPin className="w-5 h-5 text-blue-600" />
               </div>
             </div>
           </div>
           
-          <h1 className="text-5xl font-bold mb-4 drop-shadow-lg">Contact Us</h1>
-          <p className="text-xl text-purple-100 mb-8 drop-shadow">We'd love to hear from you. Get in touch with our team.</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 text-gray-900 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Contact Us</h1>
+          <p className="text-base sm:text-lg text-gray-600 mb-6">We'd love to hear from you. Get in touch with our team.</p>
           
           {/* Contact Stats */}
-          <div className="flex justify-center items-center gap-8 mb-8">
+          <div className="flex justify-center items-center gap-4 sm:gap-8 mb-6">
             <div className="text-center">
-              <div className="text-2xl font-bold text-white">24/7</div>
-              <div className="text-white/80 text-sm">Support</div>
+              <div className="text-2xl font-bold text-gray-900">24/7</div>
+              <div className="text-gray-600 text-sm">Support</div>
             </div>
-            <div className="w-px h-8 bg-white/30"></div>
+            <div className="w-px h-8 bg-gray-300"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-white">&lt;1hr</div>
-              <div className="text-white/80 text-sm">Response Time</div>
+              <div className="text-2xl font-bold text-gray-900">&lt;1hr</div>
+              <div className="text-gray-600 text-sm">Response Time</div>
             </div>
-            <div className="w-px h-8 bg-white/30"></div>
+            <div className="w-px h-8 bg-gray-300"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-white">99%</div>
-              <div className="text-white/80 text-sm">Satisfaction</div>
+              <div className="text-2xl font-bold text-gray-900">99%</div>
+              <div className="text-gray-600 text-sm">Satisfaction</div>
             </div>
           </div>
           
           {/* Quick Contact CTA */}
-          <div className="max-w-2xl mx-auto bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-            <p className="text-lg text-white/90 mb-4">
+          <div className="max-w-2xl mx-auto bg-white/60 backdrop-blur-sm border border-purple-200 rounded-2xl p-6 shadow-lg">
+            <p className="text-lg text-gray-700 mb-4">
               Have a question? Need support? Our team is here to help!
             </p>
             <div className="flex flex-wrap justify-center gap-4">
@@ -109,7 +114,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, user, onLogout })
                 href="mailto:support@zyncjobs.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white/20 hover:bg-white/30 text-white px-6 py-2 rounded-lg transition-all backdrop-blur-sm border border-white/30 flex items-center gap-2"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-all border border-purple-600 flex items-center gap-2 shadow-md"
               >
                 <Mail className="w-4 h-4" />
                 Email Us

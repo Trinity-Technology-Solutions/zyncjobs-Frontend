@@ -3,22 +3,22 @@ export const getCompanyLogo = (companyName: string): string => {
     return '';
   }
 
-  // Trinity special case — use local logo
+  // Trinity special case — use local logo (PRIORITY)
   if (companyName.toLowerCase().includes('trinity')) {
     return '/images/company-logos/trinity-logo.png';
   }
 
-  // Nambikkai special case
+  // Nambikkai special case (PRIORITY)
   if (companyName.toLowerCase().includes('nambikkai')) {
     return '/images/company-logos/nambikkai-logo.png';
   }
 
-  // ZyncJobs special case
+  // ZyncJobs special case (PRIORITY)
   if (companyName.toLowerCase().includes('zync')) {
     return '/images/zyncjobs-logo.png';
   }
 
-  // Known domain map — use logo.dev (reliable)
+  // Known domain map — use logo.dev (FALLBACK)
   const domain = getCompanyDomain(companyName);
   if (domain) {
     return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
@@ -73,7 +73,8 @@ const getCompanyDomain = (companyName: string): string => {
     'aws': 'aws.amazon.com',
     'azure': 'azure.microsoft.com',
     'gcp': 'cloud.google.com',
-    'trinity technology solution': 'trinitetech.com',
+    // Remove Trinity from domain mapping since we handle it locally
+    // 'trinity technology solution': 'trinitetech.com',
     'growthpulss private solutions': 'growthpulss.com',
     'growthpulse solutions': 'growthpulss.com',
     'growthpulse': 'growthpulss.com',

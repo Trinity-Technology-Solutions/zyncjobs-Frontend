@@ -1,5 +1,6 @@
 import React from 'react';
-import { ArrowLeft, Code } from 'lucide-react';
+import { Code } from 'lucide-react';
+import BackButton from '../components/BackButton';
 
 interface JobRolePageProps {
   onNavigate: (page: string) => void;
@@ -60,13 +61,7 @@ const JobRolePage: React.FC<JobRolePageProps> = ({ onNavigate, jobTitle }) => {
   return (
     <div className={`min-h-screen bg-gradient-to-br ${currentRole.color} p-8`}>
       <div className="mb-8">
-        <button 
-          onClick={() => onNavigate('home')}
-          className="bg-white/20 backdrop-blur-sm text-white px-6 py-3 rounded-2xl font-medium hover:bg-white/30 transition-all flex items-center space-x-2"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back to Home</span>
-        </button>
+        <BackButton onClick={() => onNavigate('home')} className="mb-8" />
       </div>
 
       <div className="flex items-center justify-center min-h-[80vh]">

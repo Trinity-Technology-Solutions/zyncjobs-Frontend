@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
@@ -67,12 +68,19 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     { id: 10,  name: 'Google',                           domain: 'google.com',      logoUrl: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
     { id: 9,   name: 'Microsoft',                        domain: 'microsoft.com',   logoUrl: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
     { id: 101, name: 'Trinity Technology Solutions LLC', domain: 'trinitetech.com', logoUrl: 'https://img.logo.dev/trinitetech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80&retina=true' },
+    { id: 102, name: 'Nambikkai',                        domain: 'nambikkai.com',   logoUrl: '/images/company-logos/nambikkai-logo.png' },
   ];
 
   const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData({ ...formData, companyName: value });
     setCompanyLogo('');
+    
+    // Special handling for Nambikkai
+    if (value.toLowerCase().includes('nambikkai')) {
+      setCompanyLogo('/images/company-logos/nambikkai-logo.png');
+    }
+    
     if (value.trim().length >= 1) {
       try {
         const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);
@@ -238,10 +246,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
             <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-blue-50 opacity-50 translate-x-1/3 translate-y-1/3" />
 
             <div className="relative z-10 w-full max-w-md flex flex-col gap-6">
-              <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-orange-500 hover:text-orange-700 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
+              <BackButton onClick={() => onNavigate('home')} />
 
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
@@ -287,11 +292,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
           <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-6 bg-white border-l border-gray-100">
             <div className="w-full max-w-md">
 
-              {/* Mobile back button */}
-              <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-orange-500 hover:text-orange-700 mb-6 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
 
               <div className="bg-white rounded-2xl shadow-xl p-8">
 

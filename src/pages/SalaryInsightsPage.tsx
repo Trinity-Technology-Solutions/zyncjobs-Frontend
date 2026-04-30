@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Search, IndianRupee, BarChart2, Award, ArrowLeft } from 'lucide-react';
+import { TrendingUp, Search, IndianRupee, BarChart2, Award } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 
 interface SalaryInsightsProps {
@@ -63,13 +64,7 @@ const SalaryInsights: React.FC<SalaryInsightsProps> = ({ defaultTitle = '', comp
       {!compact && (
         <div className="mb-6">
           {onNavigate && (
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm mb-4 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </button>
+            <BackButton onClick={() => onNavigate('dashboard')} className="mb-4" />
           )}
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-2 mb-3">

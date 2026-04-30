@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Target, TrendingUp, Loader, ChevronRight, BookOpen, Zap, RotateCcw } from 'lucide-react';
+import { Target, TrendingUp, Loader, ChevronRight, BookOpen, Zap, RotateCcw } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { callAIWithFallback, generateCareerRoadmap } from '../services/aiChatService';
@@ -134,9 +135,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
       {/* Hero */}
       <div className="px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <button onClick={() => onNavigate('dashboard')} className="inline-flex items-center text-gray-500 hover:text-gray-800 text-sm mb-4">
-            <ArrowLeft className="w-4 h-4 mr-1" /> Back to Dashboard
-          </button>
+          <BackButton onClick={() => onNavigate('dashboard')} className="mb-4" />
           <div className="flex flex-col items-center text-center">
             <div className="flex items-center gap-2 mb-3">
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-full">

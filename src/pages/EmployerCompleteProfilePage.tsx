@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Building, Phone, Globe, MapPin, ChevronRight, CheckCircle2, Users, Briefcase, ArrowLeft } from 'lucide-react';
+import { Building, Phone, Globe, MapPin, ChevronRight, CheckCircle2, Users, Briefcase } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 interface Props {
@@ -200,21 +201,13 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
         <div className="flex-1 bg-white px-10 py-6 flex flex-col justify-center">
 
           {/* Back button */}
-          <button
-            type="button"
-            onClick={() => {
+          <BackButton onClick={() => {
               tokenStorage.clear();
-
-
               localStorage.removeItem('user');
               sessionStorage.clear();
               const apiUrl = import.meta.env.VITE_API_URL || '/api';
               window.location.href = `${apiUrl}/auth/google/employer?prompt=select_account`;
-            }}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+            }} className="mb-4" />
 
           {/* Progress indicator */}
           <div className="flex items-center gap-2 mb-5">

@@ -1,5 +1,6 @@
 import React from 'react';
-import { ArrowLeft, Search, Target, Clock, CheckCircle } from 'lucide-react';
+import { Search, Target, Clock, CheckCircle } from 'lucide-react';
+import BackButton from '../components/BackButton';
 
 interface JobHuntingPageProps {
   onNavigate: (page: string) => void;
@@ -33,13 +34,7 @@ const JobHuntingPage: React.FC<JobHuntingPageProps> = ({ onNavigate }) => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button
-            onClick={() => onNavigate('home')}
-            className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Back to Home</span>
-          </button>
+          <BackButton onClick={() => onNavigate('home')} />
         </div>
       </div>
 

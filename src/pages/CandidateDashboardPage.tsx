@@ -613,7 +613,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         <div className="bg-white border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-2 sm:space-x-8 flex-shrink-0">
                 <BackButton 
                   onClick={() => onNavigate && onNavigate(readOnly ? 'dashboard' : 'home')}
                   text={readOnly ? 'Back' : 'Back to Home'}
@@ -623,7 +623,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   <>
                     <button 
                       onClick={() => { setActiveTab('Profile'); setSearchParams({}); }}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                      className={`py-4 px-1 border-b-2 font-medium text-xs sm:text-sm font-['IBM_Plex_Sans'] whitespace-nowrap ${
                         activeTab === 'Profile' 
                           ? 'border-black text-gray-900' 
                           : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -639,7 +639,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           fetchActivityInsights(user.email);
                         }
                       }}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm font-['IBM_Plex_Sans'] ${
+                      className={`py-4 px-1 border-b-2 font-medium text-xs sm:text-sm font-['IBM_Plex_Sans'] whitespace-nowrap ${
                         activeTab === 'Activity' 
                           ? 'border-black text-gray-900' 
                           : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -683,13 +683,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         )}
 
         {/* Main Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
           {activeTab === 'Profile' && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-6">
               {!readOnly && (
               
-              <div className="md:col-span-1">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="lg:col-span-1 order-3 lg:order-1">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
                   <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
                   <div className="space-y-1">
                     <button 
@@ -851,16 +851,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </div>
 
                 {/* Stats between Quick Actions and Followed Companies */}
-                <div className="grid grid-cols-3 gap-2 mb-6">
+                <div className="grid grid-cols-3 gap-2 mb-4 sm:mb-6">
                   {[
                     { label: 'Applications', value: applications.length, bg: 'bg-blue-600', onClick: () => onNavigate('my-applications') },
                     { label: 'Shortlisted', value: applications.filter((a: any) => a.status === 'shortlisted').length, bg: 'bg-green-600', onClick: () => onNavigate('my-applications') },
                     { label: 'Interviews', value: applications.filter((a: any) => ['reviewed','hired','shortlisted'].includes(a.status)).length, bg: 'bg-orange-500', onClick: () => onNavigate('interviews') },
                   ].map(stat => (
                     <button key={stat.label} onClick={stat.onClick}
-                      className={`${stat.bg} text-white rounded-xl p-3 text-center hover:opacity-90 transition-opacity`}>
-                      <div className="text-xl font-bold">{stat.value}</div>
-                      <div className="text-xs font-medium opacity-90 leading-tight mt-0.5">{stat.label}</div>
+                      className={`${stat.bg} text-white rounded-xl p-2 sm:p-3 text-center hover:opacity-90 transition-opacity`}>
+                      <div className="text-lg sm:text-xl font-bold">{stat.value}</div>
+                      <div className="text-[10px] sm:text-xs font-medium opacity-90 leading-tight mt-0.5">{stat.label}</div>
                     </button>
                   ))}
                 </div>
@@ -1140,11 +1140,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               )}
 
               {/* Main Content Area */}
-              <div className="md:col-span-3">
+              <div className="lg:col-span-3 order-1 lg:order-2">
                 {/* Profile Header Card — LinkedIn style with cover */}
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 sm:mb-6 overflow-hidden">
                   {/* Cover Photo */}
-                  <div className="relative h-52 bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200 group">
+                  <div className="relative h-32 sm:h-40 lg:h-52 bg-gradient-to-r from-slate-400 via-slate-300 to-slate-200 group">
                     {user?.coverPhoto ? (
                       <img src={user.coverPhoto} alt="Cover" className="w-full h-full object-cover" />
                     ) : null}
@@ -1233,8 +1233,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             user?.profileFrame === 'gold'   ? '#F59E0B' :
                             user?.openToWork               ? '#22c55e' : null;
                           return (
-                            <div
-                              className="w-28 h-28 rounded-full overflow-hidden cursor-pointer bg-white"
+                      <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full overflow-hidden cursor-pointer bg-white"
                               style={{
                                 border: frameColor ? `4px solid ${frameColor}` : '4px solid white',
                                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
@@ -1291,7 +1290,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           )}
                           
                           {/* Contact Info */}
-                          <div className="flex items-center space-x-6 text-sm text-gray-600 mb-3">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm text-gray-600 mb-3">
                             <button 
                               onClick={() => {
                                 setActiveModal('personalDetails');
@@ -1357,7 +1356,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             </button>
                           </div>
                           {/* Action Links */}
-                          <div className="flex items-center space-x-4 text-sm">
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
                             <button 
                               onClick={() => {
                                 setActiveModal('personalDetails');
@@ -2515,8 +2514,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Personal Details Modal */}
       {activeModal === 'personalDetails' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <h2 className="text-2xl font-bold">All about you</h2>
@@ -2740,8 +2739,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Career Preferences Modal */}
       {activeModal === 'careerPreferences' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -2879,8 +2878,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Key Skills Modal */}
       {activeModal === 'skills' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -2960,8 +2959,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Languages Modal */}
       {activeModal === 'languages' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -3091,8 +3090,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Profile Summary Modal */}
       {activeModal === 'profileSummary' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -3149,8 +3148,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Employment Modal */}
       {activeModal === 'employment' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -3309,8 +3308,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Projects Modal */}
       {activeModal === 'projects' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>
@@ -3411,8 +3410,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
       {/* Internships Modal */}
       {activeModal === 'internships' && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-8">
               <div className="flex justify-between items-start mb-6">
                 <div>

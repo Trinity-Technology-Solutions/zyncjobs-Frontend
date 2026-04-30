@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Search, MapPin, Users, Star, Building, Globe, Briefcase, Sparkles, Filter, TrendingUp, Clock } from 'lucide-react';
 import { searchAPI } from '../api/search';
+import { searchAccuracy } from '../utils/searchAccuracy';
 
 const SearchEngine: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -123,13 +124,17 @@ const SearchEngine: React.FC = () => {
       'Sydney', 'Melbourne', 'Singapore', 'Tokyo', 'Dubai', 'Remote', 'Work from Home'
     ];
 
-    if (!input || input.length < 1) return [];
+    if (!input || input.length < 2) return [];
     
-    const inputLower = input.toLowerCase();
-    const jobMatches = allJobs.filter(job => job.toLowerCase().includes(inputLower));
-    const locationMatches = allLocations.filter(location => location.toLowerCase().includes(inputLower));
+    // Use enhanced search accuracy for better matching
+    const jobMatches = searchAccuracy.getAccurateMatches(input, allJobs, 'job')
+      .slice(0, 4)
+      .map(m => m.item);
+    const locationMatches = searchAccuracy.getAccurateMatches(input, allLocations, 'location')
+      .slice(0, 4)
+      .map(m => m.item);
     
-    return [...jobMatches, ...locationMatches].slice(0, 8);
+    return [...jobMatches, ...locationMatches];
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,11 +157,10 @@ const SearchEngine: React.FC = () => {
 
   const handleLocationSearch = (value: string) => {
     setLocation(value);
-    if (value.length > 0) {
-      const filtered = allLocations.filter(loc => 
-        loc.toLowerCase().includes(value.toLowerCase())
-      );
-      setLocationSuggestions(filtered.slice(0, 10));
+    if (value.length >= 2) {
+      // Use enhanced location matching
+      const filtered = searchAccuracy.getLocationMatches(value, allLocations);
+      setLocationSuggestions(filtered);
       setShowLocationDropdown(true);
     } else {
       setLocationSuggestions(allLocations.slice(0, 10));

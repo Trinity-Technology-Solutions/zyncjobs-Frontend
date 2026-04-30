@@ -60,7 +60,8 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       { id: '7', name: 'TCS', logo: 'https://logo.clearbit.com/tcs.com', followers: 600000 },
       { id: '8', name: 'Infosys', logo: 'https://logo.clearbit.com/infosys.com', followers: 550000 },
       { id: '9', name: 'Wipro', logo: 'https://logo.clearbit.com/wipro.com', followers: 400000 },
-      { id: '10', name: 'Zoho', logo: 'https://logo.clearbit.com/zoho.com', followers: 300000 }
+      { id: '10', name: 'Zoho', logo: 'https://logo.clearbit.com/zoho.com', followers: 300000 },
+      { id: '11', name: 'Nambikkai', logo: '/images/company-logos/nambikkai-logo.png', followers: 2500 }
     ];
     
     try {
@@ -111,6 +112,11 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
     // Special handling for Trinity Technology Solutions
     if (company.name.toLowerCase().includes('trinity')) {
       return '/images/company-logos/trinity-logo.png';
+    }
+    
+    // Special handling for Nambikkai
+    if (company.name.toLowerCase().includes('nambikkai')) {
+      return '/images/company-logos/nambikkai-logo.png';
     }
     
     // Try multiple logo sources
@@ -186,6 +192,12 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
                         // Special handling for Trinity - don't fallback, keep trying Trinity logo
                         if (company.name.toLowerCase().includes('trinity')) {
                           img.src = '/images/company-logos/trinity-logo.png';
+                          return;
+                        }
+                        
+                        // Special handling for Nambikkai - don't fallback, keep trying Nambikkai logo
+                        if (company.name.toLowerCase().includes('nambikkai')) {
+                          img.src = '/images/company-logos/nambikkai-logo.png';
                           return;
                         }
                         

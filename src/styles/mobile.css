@@ -339,6 +339,21 @@ html, body {
     grid-template-columns: repeat(2, 1fr) !important;
   }
 
+  /* Fix chatbot positioning on mobile */
+  .chat-widget-button {
+    right: 0.5rem !important;
+    bottom: 1rem !important;
+    width: 3rem !important;
+    height: 3rem !important;
+  }
+  
+  .chat-widget-window {
+    left: 0.25rem !important;
+    right: 0.25rem !important;
+    width: auto !important;
+    max-width: calc(100vw - 0.5rem) !important;
+  }
+
   /* Fix long text overflow */
   .truncate-mobile {
     overflow: hidden;

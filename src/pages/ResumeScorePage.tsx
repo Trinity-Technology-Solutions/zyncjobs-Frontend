@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Upload, CheckCircle, XCircle, AlertCircle, ArrowLeft, Loader, BarChart3, Target, TrendingUp, Award } from 'lucide-react';
+import { Upload, CheckCircle, XCircle, AlertCircle, Loader, BarChart3, Target, TrendingUp, Award } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { resumeIntelligenceEngine, ResumeAnalysis } from '../services/resumeIntelligenceEngine';
@@ -111,9 +112,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
         {/* Header */}
         <div style={{ background: 'linear-gradient(135deg, #0f9d58, #16a34a, #059669)', padding: '36px 40px 36px', borderRadius: '0 0 16px 16px' }}>
           <div className="max-w-4xl mx-auto">
-            <button onClick={() => onNavigate('resume-studio')} className="inline-flex items-center text-green-200 hover:text-white text-sm mb-4 transition-colors">
-              <ArrowLeft className="w-4 h-4 mr-1" /> Back to Resume Studio
-            </button>
+            <BackButton onClick={() => onNavigate('resume-studio')} className="mb-4" />
             {/* Glass card */}
             <div style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', borderRadius: '12px', padding: '20px 24px' }}>
               <div className="flex items-center justify-between">

@@ -76,7 +76,7 @@ export default function TemplateSelection() {
         <p className="text-xs text-gray-400 mt-1">You can change your template at any time.</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {TEMPLATES.map(t => {
           const isSelected = data.template === t.id;
           const previewData: ResumeData = { ...DUMMY, template: t.id };
@@ -91,7 +91,7 @@ export default function TemplateSelection() {
               }`}
             >
               {/* Live scaled preview */}
-              <div className="relative bg-white border-b border-gray-100 overflow-hidden" style={{ height: 220 }}>
+              <div className="relative bg-white border-b border-gray-100 overflow-hidden h-56 sm:h-60" style={{ minHeight: 220 }}>
                 <div style={{ transform: 'scale(0.38)', transformOrigin: 'top left', width: '263%', pointerEvents: 'none' }}>
                   <ResumeTemplate data={previewData} />
                 </div>

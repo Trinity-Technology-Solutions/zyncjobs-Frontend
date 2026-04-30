@@ -59,20 +59,20 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
             <Sparkles className="w-3.5 h-3.5" />
             🚀 India’s Smartest Job Platform is Live
           </div>
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-5">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold text-gray-900 leading-tight mb-5">
             Get Hired.
             <span className="block" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               Hire Better. 🚀
             </span>
           </h1>
-          <p className="text-gray-500 text-base max-w-2xl mx-auto leading-relaxed whitespace-nowrap">
+          <p className="text-gray-500 text-base max-w-2xl mx-auto leading-relaxed text-center px-4">
             Stop scrolling. Start winning. Find your dream job or your next star hire — ZyncJobs makes it{' '}
             <span className="font-semibold text-blue-600">hit different.</span>
           </p>
         </div>
 
         {/* Cards */}
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto mb-16">
 
           {/* Candidate Card */}
           <div
@@ -187,7 +187,7 @@ const RoleSelectionPage: React.FC<RoleSelectionPageProps> = ({ onNavigate, user 
 
         {/* Feature highlights — no static numbers */}
         <div ref={statsRef} className="max-w-3xl mx-auto mb-12">
-          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 px-8 py-6 grid grid-cols-3 gap-6">
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 px-4 sm:px-8 py-6 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
             {[
               { icon: Zap,       emoji: '⚡', label: 'AI-Powered Matching',   desc: 'Right job, right person — instantly',  color: '#3b82f6' },
               { icon: Shield,    emoji: '🛡️', label: 'Verified Listings',     desc: 'Every job & employer is screened',      color: '#f97316' },
