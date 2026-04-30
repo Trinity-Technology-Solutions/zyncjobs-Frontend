@@ -77,24 +77,24 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div className="w-full px-4 pt-4 pb-2">
+      <div className="w-full px-2 sm:px-3 md:px-4 pt-2 sm:pt-3 md:pt-4 pb-1 sm:pb-2">
         <BackButton
           onClick={() => onNavigate?.('resume-studio')}
           text="Back to Resume Studio"
-          className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 mb-4"
+          className="inline-flex items-center text-xs sm:text-sm text-gray-600 hover:text-gray-800 mb-3 sm:mb-4"
         />
       </div>
 
-      <div className="flex flex-1 w-full px-4 gap-0">
+      <div className="flex flex-col lg:flex-row flex-1 w-full px-2 sm:px-3 md:px-4 gap-0 lg:gap-3 xl:gap-4">
         {/* ── LEFT: form panel ── */}
-        <div className={`flex flex-col ${showPreview ? 'w-[52%]' : 'w-full'} transition-all`}>
+        <div className={`flex flex-col w-full ${showPreview ? 'lg:w-1/2 xl:w-[52%]' : 'w-full'} transition-all`}>
 
           {/* ── Horizontal step tabs ── */}
-          <div className="bg-white border border-gray-200 rounded-tl-xl rounded-tr-xl px-6 pt-5 pb-4">
+          <div className="bg-white border border-gray-200 rounded-t-lg sm:rounded-t-xl lg:rounded-tl-xl lg:rounded-tr-xl px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-5 pb-3 sm:pb-4 md:pb-4">
             {/* Step label */}
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-semibold text-blue-600">{steps[currentStep].name}</span>
-              <span className="text-xs text-gray-400">Step {currentStep + 1} of {steps.length}</span>
+            <div className="flex items-center justify-between mb-2 sm:mb-3">
+              <span className="text-xs sm:text-sm font-semibold text-blue-600 truncate">{steps[currentStep].name}</span>
+              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">Step {currentStep + 1}/{steps.length}</span>
             </div>
             {/* Progress dots */}
             <div className="flex items-center relative">
@@ -127,64 +127,65 @@ const ResumeBuilderPage: React.FC<ResumeBuilderPageProps> = ({ onNavigate, user,
             </div>
           </div>
 
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mt-6">
+            {/* Navigation Buttons - Hidden on mobile, shown below */}
+            <div className="hidden lg:flex items-center justify-between mt-4 sm:mt-6">
               <button
                 onClick={handlePrev}
                 disabled={currentStep === 0}
-                className="flex items-center gap-2 px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs sm:text-sm"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Previous
+                <span className="hidden sm:inline">Previous</span>
               </button>
 
-              <div className="text-sm text-gray-500">
-                Step {currentStep + 1} of {steps.length}
+              <div className="text-xs sm:text-sm text-gray-500">
+                {currentStep + 1} / {steps.length}
               </div>
 
               <button
                 onClick={isLastStep ? () => onNavigate?.('resume-studio') : handleNext}
                 disabled={!isLastStep && !canGoNext()}
-                className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs sm:text-sm"
               >
                 {isLastStep ? 'Done ✓' : 'Next'}
                 {!isLastStep && <ChevronRight className="w-4 h-4" />}
               </button>
             </div>
           {/* ── Step content ── */}
-          <div className="bg-white border-l border-r border-gray-200 px-8 py-8 flex-1 overflow-y-auto">
+          <div className="bg-white border-l border-r border-gray-200 px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8 flex-1 overflow-y-auto">
             <CurrentStepComponent />
           </div>
 
           {/* ── Bottom nav ── */}
-          <div className="bg-white border border-gray-200 rounded-bl-xl rounded-br-xl px-8 py-4 flex items-center justify-between">
+          <div className="bg-white border border-gray-200 rounded-b-lg sm:rounded-b-xl lg:rounded-bl-xl lg:rounded-br-xl px-3 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-4 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-3">
             <button
               onClick={handlePrev}
               disabled={currentStep === 0}
-              className="flex items-center gap-2 px-5 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full sm:w-auto flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 border border-gray-300 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors justify-center sm:justify-start"
             >
-              <ChevronLeft className="w-4 h-4" />
-              {currentStep > 0 ? `Back: ${steps[currentStep - 1].name}` : 'Back'}
+              <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">{currentStep > 0 ? `Back: ${steps[currentStep - 1].name}` : 'Back'}</span>
+              <span className="sm:hidden">Back</span>
             </button>
 
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 flex-shrink-0">
               {currentStep + 1} / {steps.length}
             </span>
 
             <button
               onClick={isLastStep ? () => onNavigate?.('resume-studio') : handleNext}
               disabled={!isLastStep && !canGoNext()}
-              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full sm:w-auto flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg text-xs sm:text-sm font-semibold hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors justify-center sm:justify-start"
             >
-              {isLastStep ? 'Done ✓' : `Next: ${steps[currentStep + 1].name}`}
-              {!isLastStep && <ChevronRight className="w-4 h-4" />}
+              {isLastStep ? 'Done ✓' : <><span className="hidden sm:inline">{`Next: ${steps[currentStep + 1].name}`}</span><span className="sm:hidden">Next</span></>}
+              {!isLastStep && <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />}
             </button>
           </div>
         </div>
 
         {/* ── RIGHT: live preview ── */}
         {showPreview && (
-          <div className="w-[48%] pl-4 sticky top-6 self-start" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+          <div className="hidden lg:flex w-full lg:w-1/2 xl:w-[48%] lg:flex-col lg:sticky lg:top-6 lg:self-start" style={{ maxHeight: 'calc(100vh - 120px)' }}>
             <LivePreview />
           </div>
         )}

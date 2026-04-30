@@ -106,11 +106,11 @@ export default function SummaryStep() {
       </div>
 
       {/* AI Buttons */}
-      <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row gap-2">
         <button
           onClick={generateSummary}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? (
             <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
@@ -161,7 +161,7 @@ export default function SummaryStep() {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           {points.length === 0 ? 'Your Summary' : 'Add Another Point'}
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <textarea
             value={newPoint}
             onChange={(e) => setNewPoint(e.target.value)}
@@ -175,7 +175,7 @@ export default function SummaryStep() {
           <button
             onClick={addPoint}
             disabled={!newPoint.trim()}
-            className="self-end flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            className="w-full sm:w-auto self-end flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
           >
             <Plus className="w-4 h-4" />
             Add

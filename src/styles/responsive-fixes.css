@@ -1,0 +1,69 @@
+/* Enhanced Mobile Responsiveness for ZyncJobs */
+
+/* Global mobile improvements */
+@media (max-width: 640px) {
+  /* Ensure proper spacing on mobile */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Better button sizing on mobile */
+  .btn-mobile {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Improved form inputs on mobile */
+  input, textarea, select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+  
+  /* Better table responsiveness */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Stack cards vertically on mobile */
+  .card-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+/* Tablet improvements */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Desktop improvements */
+@media (min-width: 1025px) {
+  .card-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Navigation improvements */
+@media (max-width: 768px) {
+  .nav-mobile {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .nav-item {
+    width: 100%;
+    text-align: center;
+  }
+}
+
+/* Modal improvements for mobile */
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+  }
+}

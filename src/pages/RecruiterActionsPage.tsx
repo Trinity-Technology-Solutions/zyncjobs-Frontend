@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Users, RefreshCw, Eye, TrendingUp, MapPin, Building2, Sparkles } from 'lucide-react';
+import { Users, RefreshCw, Eye, TrendingUp, MapPin, Building2, Sparkles } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
@@ -128,9 +129,7 @@ const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =
 
       <div className="max-w-5xl mx-auto px-4 py-6">
 
-        <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 text-sm mb-5 transition-colors group">
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Dashboard
-        </button>
+        <BackButton onClick={() => onNavigate('dashboard')} className="mb-5" />
 
         <div className="flex items-center justify-between mb-5">
           <div>

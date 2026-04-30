@@ -3,12 +3,13 @@ import { Search, MapPin, Bot, Sparkles, Brain, Zap, Palette, MessageCircle, Comp
 import { API_ENDPOINTS } from '../config/env';
 import { useHeroSection } from '../store/useHeroSection';
 import { strapiAPI } from '../api/strapi';
+import { searchAccuracy } from '../utils/searchAccuracy';
 
 const COMPANIES = [
   { name: 'Birlasoft',   logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
   { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
   { name: 'LTIMindtree',logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { name: 'Saksoft',    logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'Trinity',    logo: '/images/trinity-logo.webp' },
   { name: 'L&T',        logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
   { name: 'Cognizant',  logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
   { name: 'Accenture',  logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
@@ -17,6 +18,7 @@ const COMPANIES = [
 const CompanyMarquee: React.FC = () => {
   const [paused, setPaused] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  // Create seamless marquee by duplicating companies for smooth animation
   const items = [...COMPANIES, ...COMPANIES];
 
   return (
@@ -35,7 +37,7 @@ const CompanyMarquee: React.FC = () => {
           animation-play-state: paused;
         }
       `}</style>
-      <p className="text-center text-sm text-gray-500 uppercase tracking-widest mb-4 font-semibold">Trusted by top companies</p>
+      <p className="text-center text-sm text-gray-500 uppercase tracking-widest mb-4 font-semibold">Trusted by leading companies</p>
       <div className="overflow-hidden">
         <div className={`marquee-track${paused ? ' paused' : ''}`}>
           {items.map((c, i) => (
@@ -85,7 +87,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   const [location, setLocation] = useState('');
   const [allJobTitles, setAllJobTitles] = useState<string[]>([]);
   const [allLocations, setAllLocations] = useState<string[]>([]);
-  const [popularSearches, setPopularSearches] = useState<string[]>([]);
+  const [popularSearches, setPopularSearches] = useState<string[]>(['iOS Developer', 'Digital Marketing Specialist', 'AI Engineer', 'Video Editor', 'Software Engineer']);
+  const [displayedSearches, setDisplayedSearches] = useState<string[]>([]);
   const [jobSuggestions, setJobSuggestions] = useState<string[]>([]);
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showJobDropdown, setShowJobDropdown] = useState(false);
@@ -95,6 +98,11 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
   const locationInputRef = useRef<HTMLInputElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   const { data: heroData, fetchHeroSection } = useHeroSection();
+
+  useEffect(() => {
+    // Initialize with first 3 popular searches
+    setDisplayedSearches(popularSearches.slice(0, 3));
+  }, [popularSearches]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -157,12 +165,17 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
       try {
         const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search-analytics/popular`);
         const data = await response.json();
-        if (data.searches) {
-          setPopularSearches(data.searches);
+        if (data.searches && data.searches.length > 0) {
+          // Sort by search count/frequency and take top searches
+          const sortedSearches = data.searches
+            .sort((a: any, b: any) => (b.count || b.frequency || 0) - (a.count || a.frequency || 0))
+            .map((item: any) => item.query || item.term || item)
+            .slice(0, 8); // Keep top 8 for rotation
+          setPopularSearches(sortedSearches);
         }
       } catch (error) {
         console.error('Error fetching popular searches:', error);
-        setPopularSearches(['Software developer', 'Software engineer', 'Devops engineer']);
+        // Keep default searches if API fails
       }
     };
     
@@ -173,20 +186,46 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
   const handleJobSearch = (value: string) => {
     setSearchTerm(value);
-    const filtered = value.length > 0
-      ? allJobTitles.filter(job => job.toLowerCase().includes(value.toLowerCase()))
-      : allJobTitles;
-    setJobSuggestions(filtered.slice(0, 50));
-    setShowJobDropdown(true);
+    if (value.length >= 2) {
+      // Use enhanced search accuracy for better job title matching
+      const filtered = searchAccuracy.getContextAwareJobSuggestions(value);
+      setJobSuggestions(filtered);
+      setShowJobDropdown(filtered.length > 0);
+    } else {
+      setJobSuggestions([]);
+      setShowJobDropdown(false);
+    }
   };
 
   const handleLocationSearch = (value: string) => {
     setLocation(value);
-    const filtered = value.length > 0
-      ? allLocations.filter(loc => loc.toLowerCase().includes(value.toLowerCase()))
-      : allLocations;
-    setLocationSuggestions(filtered.slice(0, 50));
-    setShowLocationDropdown(true);
+    if (value.length >= 2) {
+      // Use enhanced location matching
+      const filtered = searchAccuracy.getLocationMatches(value, allLocations);
+      setLocationSuggestions(filtered);
+      setShowLocationDropdown(filtered.length > 0);
+    } else {
+      setLocationSuggestions([]);
+      setShowLocationDropdown(false);
+    }
+  };
+
+  const handlePopularSearchClick = (clickedTerm: string) => {
+    setSearchTerm(clickedTerm);
+    trackSearch(clickedTerm);
+    
+    // Get remaining searches (excluding the clicked one)
+    const remainingSearches = popularSearches.filter(term => term !== clickedTerm);
+    
+    // Get next 3 most popular searches from remaining ones
+    const nextSearches = remainingSearches.slice(0, 3);
+    
+    // Update displayed searches with next most popular
+    setDisplayedSearches(nextSearches);
+    
+    if (onNavigate) {
+      onNavigate('job-listings', { searchTerm: clickedTerm, location: location.trim() });
+    }
   };
 
   const selectJob = (job: string) => {
@@ -277,27 +316,21 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     );
                   })}
                 </h1>
-                <h6 className="text-base leading-relaxed whitespace-nowrap" style={{color: 'rgba(255,255,255,0.7)'}}>
+                <h6 className="text-xs sm:text-sm lg:text-base leading-relaxed break-words" style={{color: 'rgba(255,255,255,0.7)'}}>
                   <style>{`
-                    @keyframes desc-letter-pop {
+                    @keyframes desc-fade-in {
                       0% { opacity: 0; transform: translateY(10px); }
                       100% { opacity: 1; transform: translateY(0); }
                     }
-                    .anim-desc-letter {
-                      display: inline-block;
+                    .anim-desc-text {
                       opacity: 0;
-                      animation: desc-letter-pop 0.03s ease forwards;
+                      animation: desc-fade-in 0.8s ease forwards;
+                      animation-delay: 2s;
                     }
                   `}</style>
-                  {description.split('').map((char, i) => (
-                    <span
-                      key={`${animationKey}-desc-${i}`}
-                      className="anim-desc-letter"
-                      style={{ animationDelay: `${title.length * 0.06 + i * 0.04}s` }}
-                    >
-                      {char === ' ' ? '\u00A0' : char}
-                    </span>
-                  ))}
+                  <span className="anim-desc-text">
+                    {description}
+                  </span>
                 </h6>
               </div>
 
@@ -319,8 +352,13 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                             value={searchTerm}
                             onChange={(e) => handleJobSearch(e.target.value)}
                             onFocus={() => {
-                              setJobSuggestions(allJobTitles.length > 0 ? allJobTitles.slice(0, 50) : []);
-                              setShowJobDropdown(true);
+                              if (searchTerm.length >= 2) {
+                                const filtered = allJobTitles.filter(job => 
+                                  job.toLowerCase().includes(searchTerm.toLowerCase())
+                                ).slice(0, 8);
+                                setJobSuggestions(filtered);
+                                setShowJobDropdown(filtered.length > 0);
+                              }
                             }}
                             onBlur={() => setTimeout(() => setShowJobDropdown(false), 200)}
                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -332,7 +370,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                                 top: '100%',
                                 left: 0,
                                 right: 0,
-                                zIndex: 9999,
+                                zIndex: 99999,
                                 background: '#fff',
                                 border: '1px solid #d1d5db',
                                 borderRadius: '8px',
@@ -370,8 +408,13 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                             value={location}
                             onChange={(e) => handleLocationSearch(e.target.value)}
                             onFocus={() => {
-                              setLocationSuggestions(allLocations.length > 0 ? allLocations.slice(0, 50) : []);
-                              setShowLocationDropdown(true);
+                              if (location.length >= 2) {
+                                const filtered = allLocations.filter(loc => 
+                                  loc.toLowerCase().includes(location.toLowerCase())
+                                ).slice(0, 8);
+                                setLocationSuggestions(filtered);
+                                setShowLocationDropdown(filtered.length > 0);
+                              }
                             }}
                             onBlur={() => setTimeout(() => setShowLocationDropdown(false), 200)}
                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -383,7 +426,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                                 top: '100%',
                                 left: 0,
                                 right: 0,
-                                zIndex: 9999,
+                                zIndex: 99999,
                                 background: '#fff',
                                 border: '1px solid #d1d5db',
                                 borderRadius: '8px',
@@ -427,17 +470,12 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="font-semibold" style={{color: 'rgba(255,255,255,0.9)'}}>Popular Searches:</h4>
                 <div className="flex flex-wrap gap-2">
-                  {popularSearches.map((term) => (
+                  {displayedSearches.map((term) => (
                     <button
                       key={term}
-                      onClick={() => {
-                        setSearchTerm(term);
-                        trackSearch(term);
-                        if (onNavigate) {
-                          onNavigate('job-listings', { searchTerm: term, location: location.trim() });
-                        }
-                      }}
-                      className="hover:underline cursor-pointer" style={{color: '#a78bfa'}}
+                      onClick={() => handlePopularSearchClick(term)}
+                      className="hover:underline cursor-pointer transition-colors" 
+                      style={{color: '#a78bfa'}}
                     >
                       {term}
                     </button>

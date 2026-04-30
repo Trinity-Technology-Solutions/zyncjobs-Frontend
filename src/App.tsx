@@ -10,8 +10,8 @@ import HowItWorks from './components/HowItWorks';
 import TalentedPeople from './components/TalentedPeople';
 import CallToAction from './components/CallToAction';
 import OfflineIndicator from './components/OfflineIndicator';
-import ChatWidget from './components/ChatWidget';
 import Notification from './components/Notification';
+import ChatWidget from './components/ChatWidget';
 import MobileNavigation from './components/MobileNavigation';
 import JobAlertsManager from './components/JobAlertsManager';
 import AuthGuard from './components/AuthGuard';
@@ -36,6 +36,7 @@ const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage')
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
+const EmployerLandingPage = lazy(() => import('./pages/EmployerLandingPage').then(module => ({ default: module.default })));
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
@@ -392,7 +393,7 @@ function App() {
         <Routes>
           {/* -- Public home -- */}
           <Route path="/" element={
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-white overflow-x-hidden">
               <Header {...nav} />
               <NewHero onNavigate={handleNavigation} user={user as any} />
               <LatestJobs onNavigate={handleNavigation} />
@@ -435,6 +436,7 @@ function App() {
           <Route path="/company-profile" element={<Navigate to="/dashboard" replace />} />
           <Route path="/company-view" element={<Navigate to="/companies" replace />} />
           <Route path="/employers" element={<EmployersPage {...nav} />} />
+          <Route path="/employer-landing" element={<EmployerLandingPage onNavigate={handleNavigation} user={user} onLogout={handleLogout} />} />
           <Route path="/job-hunting" element={<Navigate to="/job-listings" replace />} />
           <Route path="/job-role" element={<Navigate to="/job-listings" replace />} />
           <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />} />

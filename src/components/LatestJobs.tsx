@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
+import { formatJobDescription } from '../utils/htmlUtils';
 import { getId } from '../utils/getId';
 
 interface LatestJobsProps {
@@ -222,7 +223,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                     </div>
                     
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{(job.description || '').replace(/<[^>]*>/g, '').trim()}</p>
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{formatJobDescription(job.description || '', 100)}</p>
                     
                     <div className="flex justify-between items-center mb-4">
                       <div className="flex space-x-2">

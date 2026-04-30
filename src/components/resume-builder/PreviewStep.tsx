@@ -383,12 +383,12 @@ export default function PreviewStep() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Preview & Download</h2>
           <p className="text-gray-600">Review your resume and download</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={downloadTxt}
             className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -399,7 +399,7 @@ export default function PreviewStep() {
           <button
             onClick={downloadDocx}
             disabled={docxLoading}
-            className="flex items-center gap-2 px-4 py-2 border border-indigo-500 text-indigo-600 rounded-lg hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 border border-indigo-500 text-indigo-600 rounded-lg hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             <Download className="w-4 h-4" />
             {docxLoading ? 'Generating...' : 'DOCX'}
@@ -407,7 +407,7 @@ export default function PreviewStep() {
           <button
             onClick={downloadPdf}
             disabled={pdfLoading}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             <Download className="w-4 h-4" />
             {pdfLoading ? 'Generating...' : 'PDF'}

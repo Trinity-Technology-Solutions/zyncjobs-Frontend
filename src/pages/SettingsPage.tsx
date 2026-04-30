@@ -181,7 +181,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         {/* Tab Navigation */}
         <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex space-x-8">
+            <div className="flex overflow-x-auto">
               <button 
                 onClick={() => setActiveTab('Account Information')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${

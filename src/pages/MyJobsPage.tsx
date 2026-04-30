@@ -480,17 +480,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
           {notification.message}
         </div>
       )}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="bg-white rounded-2xl shadow-sm px-6 lg:px-8 py-8">
-          <BackButton onClick={() => window.history.back()} text="Back" className="mb-6" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+          <BackButton onClick={() => onNavigate('dashboard')} text="Back to Dashboard" className="mb-4 sm:mb-6" />
 
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex space-x-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+            <div className="flex flex-wrap gap-1">
               {user?.type === 'employer' ? (
                 <>
                   <button
                     onClick={() => setActiveTab('Posted Jobs')}
-                    className={`px-6 py-2 rounded-full font-medium transition-colors ${
+                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
                       activeTab === 'Posted Jobs'
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-600 hover:text-gray-900'
@@ -500,20 +500,21 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                   </button>
                   <button
                     onClick={() => setActiveTab('Applications')}
-                    className={`px-6 py-2 rounded-full font-medium transition-colors ${
+                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
                       activeTab === 'Applications'
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
-                    Applications ({employerApplications.length})
+                    <span className="hidden sm:inline">Applications ({employerApplications.length})</span>
+                    <span className="sm:hidden">Apps ({employerApplications.length})</span>
                   </button>
                 </>
               ) : (
                 <>
                   <button
                     onClick={() => setActiveTab('Saved')}
-                    className={`px-6 py-2 rounded-full font-medium transition-colors ${
+                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
                       activeTab === 'Saved'
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-600 hover:text-gray-900'
@@ -523,7 +524,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                   </button>
                   <button
                     onClick={() => setActiveTab('Applied')}
-                    className={`px-6 py-2 rounded-full font-medium transition-colors ${
+                    className={`px-4 sm:px-6 py-2 rounded-full font-medium transition-colors text-sm sm:text-base ${
                       activeTab === 'Applied'
                         ? 'bg-blue-600 text-white'
                         : 'text-gray-600 hover:text-gray-900'
@@ -538,9 +539,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {user?.type === 'candidate' && (
               <button
                 onClick={() => onNavigate('job-listings', { tab: 'recommended' })}
-                className="text-blue-600 hover:text-blue-800 flex items-center space-x-1 font-medium"
+                className="text-blue-600 hover:text-blue-800 flex items-center space-x-1 font-medium text-sm sm:text-base"
               >
-                <span>View Recommended Jobs</span>
+                <span className="hidden sm:inline">View Recommended Jobs</span>
+                <span className="sm:hidden">Recommended</span>
                 <ChevronRight className="w-4 h-4" />
               </button>
             )}
@@ -588,8 +590,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             </div>
           )}
 
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-semibold text-gray-900">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+            <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
               {activeTab} {activeTab === 'Applications' ? '' : ''}
             </h2>
               
@@ -638,16 +640,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {user?.type === 'employer' && activeTab === 'Posted Jobs' && (
                 <>
                   {postedJobs.length > 0 ? (
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {postedJobs.map((job) => {
                         const k = getId(job) || `posted-${Math.random()}`;
                         return <React.Fragment key={k}>{renderJobCard(job, true, 'posted')}</React.Fragment>;
                       })}
                       {hasMoreJobs && (
-                        <div className="text-center py-6">
+                        <div className="col-span-full text-center py-6">
                           <button
                             onClick={handleLoadMorePostedJobs}
-                            className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                            className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
                           >
                             Load More Jobs
                           </button>
@@ -746,7 +748,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
               {user?.type === 'candidate' && activeTab === 'Saved' && (
                 savedJobs.length > 0 ? (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {savedJobs.map((job) => {
                     const k = getId(job) || `saved-${Math.random()}`;
                     return <React.Fragment key={k}>{renderJobCard(job, true, 'saved')}</React.Fragment>;

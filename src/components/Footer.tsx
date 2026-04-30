@@ -144,7 +144,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
             <div className="text-gray-500 text-sm mb-4 md:mb-0">
               © 2026 ZyncJobs. All rights reserved.
             </div>
-            <div className="flex space-x-6 text-sm">
+            <div className="flex flex-wrap gap-4 text-sm">
               {legalLinks.map((link, index) => (
                 <button
                   key={index}

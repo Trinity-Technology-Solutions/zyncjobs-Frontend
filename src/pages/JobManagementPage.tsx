@@ -181,34 +181,34 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
         <BackButton 
           onClick={() => onNavigate('dashboard')}
           text="Back to Dashboard"
-          className="mb-6"
+          className="mb-4 sm:mb-6"
         />
         
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Job Management</h1>
-            <p className="text-gray-600 mt-2">Manage your job postings and track responses</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Job Management</h1>
+            <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">Manage your job postings and track responses</p>
           </div>
           <button
             onClick={() => { sessionStorage.removeItem('editJobData'); onNavigate('job-posting-selection'); }}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2 text-sm sm:text-base"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 sm:w-5 h-4 sm:h-5" />
             <span>Post New Job</span>
           </button>
         </div>
 
         {/* Filters and Search */}
-        <div className="bg-white rounded-lg shadow-sm border mb-6">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <Filter className="w-5 h-5 text-gray-400" />
-                <span className="font-medium text-gray-700">Filters</span>
+        <div className="bg-white rounded-lg shadow-sm border mb-4 sm:mb-6">
+          <div className="p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-4 gap-3">
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                <Filter className="w-4 sm:w-5 h-4 sm:h-5 text-gray-400" />
+                <span className="font-medium text-gray-700 text-sm sm:text-base">Filters</span>
               </div>
               <button
                 onClick={() => {
@@ -217,14 +217,14 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     fetchEmployerJobs(JSON.parse(userData));
                   }
                 }}
-                className="flex items-center space-x-2 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                className="flex items-center space-x-2 px-3 py-1.5 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3 sm:w-4 h-3 sm:h-4" />
                 <span>Refresh</span>
               </button>
             </div>
             
-            <div className="flex items-center space-x-4 mb-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-3 sm:mb-4">
               <div className="flex-1 relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
@@ -232,13 +232,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   placeholder="Search by Title/Ref Code/Job ID"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                 />
               </div>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
               >
                 <option value="posted">Sort by: Posted/sent date</option>
                 <option value="responses">Sort by: Response count</option>
@@ -248,8 +248,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           </div>
           
           {/* Job Status Filters */}
-          <div className="border-t px-4 py-3">
-            <div className="flex items-center space-x-6">
+          <div className="border-t px-3 sm:px-4 py-3">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
@@ -260,10 +260,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 <span className="text-sm text-gray-700">Select All</span>
               </label>
               
-              <div className="flex space-x-4">
+              <div className="flex flex-wrap gap-2 sm:gap-4">
                 <button
                   onClick={() => setFilter('all')}
-                  className={`text-sm font-medium ${
+                  className={`text-xs sm:text-sm font-medium ${
                     filter === 'all' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -271,7 +271,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 </button>
                 <button
                   onClick={() => setFilter('closed')}
-                  className={`text-sm font-medium ${
+                  className={`text-xs sm:text-sm font-medium ${
                     filter === 'closed' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -279,7 +279,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 </button>
                 <button
                   onClick={() => setFilter('expired')}
-                  className={`text-sm font-medium ${
+                  className={`text-xs sm:text-sm font-medium ${
                     filter === 'expired' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -314,16 +314,16 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border">
-            <div className="p-4 border-b">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-6">
+            <div className="p-3 sm:p-4 border-b">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-6">
                   <button
                     onClick={handleSelectAll}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
                     title="Select all jobs"
                   >
-                    <CheckSquare className="w-5 h-5" />
-                    <span className="text-sm font-medium">Select All</span>
+                    <CheckSquare className="w-4 h-4" />
+                    <span className="font-medium">Select All</span>
                   </button>
                   
                   <button
@@ -333,11 +333,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         fetchEmployerJobs(JSON.parse(userData));
                       }
                     }}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
                     title="Refresh jobs"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    <span className="text-sm font-medium">Refresh</span>
+                    <span className="font-medium">Refresh</span>
                   </button>
                   
                   <button
@@ -349,11 +349,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       console.log('Collaborating on jobs:', selectedJobs);
                       window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `Collaboration initiated for ${selectedJobs.length} job(s)` } }));
                     }}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
                     title="Collaborate on selected jobs"
                   >
                     <Users className="w-4 h-4" />
-                    <span className="text-sm font-medium">Collaborate</span>
+                    <span className="font-medium hidden sm:inline">Collaborate</span>
                   </button>
                   
                   <button
@@ -369,13 +369,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         setSelectedJobs([]);
                       }
                     }}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors"
+                    className="flex items-center space-x-2 text-gray-600 hover:text-red-600 transition-colors text-sm"
                     title="Close selected jobs"
                   >
-                    <span className="text-sm font-medium">Close</span>
+                    <span className="font-medium">Close</span>
                   </button>
                 </div>
-                <span className="text-sm text-gray-500">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
+                <span className="text-xs sm:text-sm text-gray-500 self-start sm:self-center">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>
             </div>
             
@@ -383,88 +383,85 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               {sortJobs(filteredJobs).map((job: Job) => {
                 const jobId = job.id || job._id;
                 return (
-                <div key={jobId} className="p-4 hover:bg-gray-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4 flex-1">
+                <div key={jobId} className="p-3 sm:p-4 hover:bg-gray-50">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div className="flex items-start space-x-3 flex-1">
                       <input
                         type="checkbox"
                         checked={selectedJobs.includes(jobId!)}
                         onChange={() => handleSelectJob(jobId!)}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 mt-1 flex-shrink-0"
                       />
                       
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-1">
-                          <h3 className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                          <h3 className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm sm:text-base truncate">
                             {job.jobTitle || job.title || 'Job Position'}
                           </h3>
                           {(job.applicationCount ?? 0) > 0 && (
-                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium">
+                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium self-start">
                               {job.applicationCount} New
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-600">
+                        <div className="text-xs sm:text-sm text-gray-600 mb-1">
                           {job.location} {job.company && `• ${job.company}`} {(job.jobCategory || job.category) && `• ${job.jobCategory || job.category}`} {job.locationType && `• ${job.locationType}`}
                         </div>
-                        <div className="text-xs text-gray-500 mt-0.5">
+                        <div className="text-xs text-gray-500 mb-1">
                           {[job.country, (() => { const lang = job.language || job.languages; return Array.isArray(lang) ? lang.join(', ') : lang; })(), job.experienceRange || job.experience].filter(Boolean).join(' • ')}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {job.status === 'active' ? 'Active' : job.status || 'Active'}
+                          {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
                         </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-8">
-                      <button
-                        key="responses"
-                        onClick={() => {
-                          console.log('🔘 Button clicked for job:', jobId, job.jobTitle);
-                          sessionStorage.setItem('selectedJobId', jobId!);
-                          sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
-                          sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
-                          console.log('✅ SessionStorage set:', {
-                            jobId: sessionStorage.getItem('selectedJobId'),
-                            title: sessionStorage.getItem('selectedJobTitle'),
-                            company: sessionStorage.getItem('selectedJobCompany')
-                          });
-                          onNavigate('application-management');
-                        }}
-                        className="text-center hover:bg-blue-50 p-2 rounded transition-colors cursor-pointer"
-                      >
-                        <div className="text-lg font-semibold text-blue-600">{job.applicationCount || 0}</div>
-                        <div className="text-xs text-gray-500">Total Responses</div>
-                      </button>
-                      
-                      <button
-                        key="shortlisted"
-                        onClick={() => {
-                          sessionStorage.setItem('selectedJobId', jobId!);
-                          sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
-                          sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
-                          onNavigate('application-management');
-                        }}
-                        className="text-center hover:bg-green-50 p-2 rounded transition-colors cursor-pointer"
-                      >
-                        <div className="text-lg font-semibold text-green-600">{job.hiredCount || 0}</div>
-                        <div className="text-xs text-gray-500">Hired</div>
-                      </button>
-                      
-                      <div key="sent" className="text-right">
-                        <div className="text-sm text-gray-600">sent by Me</div>
-                        <div className="text-xs text-gray-500">
-                          {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
-                        </div>
+                    {/* Mobile: Stack buttons vertically, Desktop: Horizontal */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-6 mt-3 sm:mt-0">
+                      {/* Stats buttons */}
+                      <div className="flex gap-2 sm:gap-6">
+                        <button
+                          onClick={() => {
+                            console.log('🔘 Button clicked for job:', jobId, job.jobTitle);
+                            sessionStorage.setItem('selectedJobId', jobId!);
+                            sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
+                            sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
+                            console.log('✅ SessionStorage set:', {
+                              jobId: sessionStorage.getItem('selectedJobId'),
+                              title: sessionStorage.getItem('selectedJobTitle'),
+                              company: sessionStorage.getItem('selectedJobCompany')
+                            });
+                            onNavigate('application-management');
+                          }}
+                          className="flex-1 sm:flex-none text-center hover:bg-blue-50 p-2 rounded transition-colors cursor-pointer border border-blue-200 sm:border-none"
+                        >
+                          <div className="text-base sm:text-lg font-semibold text-blue-600">{job.applicationCount || 0}</div>
+                          <div className="text-xs text-gray-500">Responses</div>
+                        </button>
+                        
+                        <button
+                          onClick={() => {
+                            sessionStorage.setItem('selectedJobId', jobId!);
+                            sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
+                            sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
+                            onNavigate('application-management');
+                          }}
+                          className="flex-1 sm:flex-none text-center hover:bg-green-50 p-2 rounded transition-colors cursor-pointer border border-green-200 sm:border-none"
+                        >
+                          <div className="text-base sm:text-lg font-semibold text-green-600">{job.hiredCount || 0}</div>
+                          <div className="text-xs text-gray-500">Hired</div>
+                        </button>
                       </div>
                       
-                      <div className="relative">
+                      {/* Actions menu */}
+                      <div className="relative flex-shrink-0">
                         <button 
                           onClick={() => setOpenMenuId(openMenuId === jobId ? null : jobId ?? null)}
-                          className="p-1 hover:bg-gray-100 rounded transition-colors"
+                          className="w-full sm:w-auto p-2 hover:bg-gray-100 rounded transition-colors border border-gray-200 sm:border-none flex items-center justify-center"
                           title="More options"
                         >
                           <MoreVertical className="w-4 h-4 text-gray-400" />
+                          <span className="ml-2 text-xs text-gray-500 sm:hidden">Actions</span>
                         </button>
                         
                         {openMenuId === jobId && (
