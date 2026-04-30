@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { FileText, Upload, BarChart2, BookOpen, ArrowRight, ArrowLeft, CheckCircle, Zap, Layout } from 'lucide-react';
+import { FileText, Upload, BarChart2, BookOpen, ArrowRight, CheckCircle, Zap, Layout } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -128,13 +129,7 @@ const ResumeStudioPage: React.FC<ResumeStudioPageProps> = ({ onNavigate, user, o
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-8 sm:py-12 md:py-16">
-        <button
-          onClick={() => onNavigate('dashboard')}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-xs sm:text-sm font-medium mb-6 sm:mb-8 md:mb-12"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
-        </button>
+        <BackButton onClick={() => onNavigate('dashboard')} className="mb-6 sm:mb-8 md:mb-12" />
 
         <div className="text-center mb-10 sm:mb-14 md:mb-16">
           <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-100 text-blue-600 text-xs font-semibold px-3 sm:px-4 py-1 sm:py-1.5 rounded-full mb-3 sm:mb-4 md:mb-5">

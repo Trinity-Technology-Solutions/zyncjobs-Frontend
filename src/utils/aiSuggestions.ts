@@ -1,3 +1,5 @@
+import { searchAccuracy } from './searchAccuracy';
+
 // AI-powered suggestion system
 export class AISuggestionService {
   private static instance: AISuggestionService;
@@ -28,19 +30,28 @@ export class AISuggestionService {
   }
 
   async getJobSuggestions(input: string): Promise<string[]> {
-    if (!input || input.length < 1) return [];
+    if (!input || input.length < 2) return [];
     const cacheKey = `job_${input.toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) return cached.data;
 
-    // Use backend job_titles.json first — instant & reliable
+    // Use enhanced search accuracy first
+    const contextAwareSuggestions = searchAccuracy.getContextAwareJobSuggestions(input);
+    if (contextAwareSuggestions.length > 0) {
+      this.cache.set(cacheKey, { data: contextAwareSuggestions, timestamp: Date.now() });
+      return contextAwareSuggestions;
+    }
+
+    // Fallback to backend job_titles.json
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const res = await fetch(`${apiBase}/jobs/titles`);
       if (res.ok) {
         const data = await res.json();
         const titles: string[] = data.job_titles || [];
-        const matched = titles.filter(t => t.toLowerCase().includes(input.toLowerCase())).slice(0, 8);
+        const matched = searchAccuracy.getAccurateMatches(input, titles, 'job')
+          .slice(0, 8)
+          .map(m => m.item);
         if (matched.length > 0) {
           this.cache.set(cacheKey, { data: matched, timestamp: Date.now() });
           return matched;
@@ -48,26 +59,26 @@ export class AISuggestionService {
       }
     } catch {}
 
-    // Fallback to local patterns
+    // Final fallback to local patterns
     const suggestions = this.generateJobSuggestions(input.toLowerCase());
     this.cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
     return suggestions;
   }
 
   async getLocationSuggestions(input: string): Promise<string[]> {
-    if (!input || input.length < 1) return [];
+    if (!input || input.length < 2) return [];
     const cacheKey = `location_${input.toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) return cached.data;
 
-    // Use backend locations.json first — instant & reliable
+    // Use backend locations.json with enhanced matching
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
       const res = await fetch(`${apiBase}/locations`);
       if (res.ok) {
         const data = await res.json();
         const locs: string[] = data.locations || [];
-        const matched = locs.filter(l => l.toLowerCase().includes(input.toLowerCase())).slice(0, 8);
+        const matched = searchAccuracy.getLocationMatches(input, locs);
         if (matched.length > 0) {
           this.cache.set(cacheKey, { data: matched, timestamp: Date.now() });
           return matched;
@@ -75,10 +86,11 @@ export class AISuggestionService {
       }
     } catch {}
 
-    // Fallback to local patterns
-    const suggestions = this.generateLocationSuggestions(input.toLowerCase());
-    this.cache.set(cacheKey, { data: suggestions, timestamp: Date.now() });
-    return suggestions;
+    // Fallback to local patterns with enhanced matching
+    const fallbackLocations = this.generateLocationSuggestions(input.toLowerCase());
+    const enhancedMatches = searchAccuracy.getLocationMatches(input, fallbackLocations);
+    this.cache.set(cacheKey, { data: enhancedMatches, timestamp: Date.now() });
+    return enhancedMatches;
   }
 
   private fallbackSuggestions(input: string): string[] {
@@ -96,7 +108,9 @@ export class AISuggestionService {
   }
 
   private generateJobSuggestions(input: string): string[] {
+    // Enhanced job suggestion patterns with better accuracy
     const patterns = new Map([
+      ['so', ['Software Engineer', 'Software Developer', 'Solutions Architect', 'Social Media Manager']],
       ['react', ['React Developer', 'Senior React Developer', 'React Native Developer', 'Frontend React Developer']],
       ['python', ['Python Developer', 'Senior Python Developer', 'Python Data Scientist', 'Backend Python Developer']],
       ['java', ['Java Developer', 'Senior Java Developer', 'Java Full Stack Developer', 'Java Spring Developer']],
@@ -112,8 +126,20 @@ export class AISuggestionService {
       ['analyst', ['Business Analyst', 'Financial Analyst', 'Systems Analyst', 'Research Analyst']]
     ]);
 
+    // Use enhanced matching for better accuracy
+    const allSuggestions: string[] = [];
+    patterns.forEach((suggestions) => {
+      allSuggestions.push(...suggestions);
+    });
+    
+    const matches = searchAccuracy.getAccurateMatches(input, allSuggestions, 'job');
+    if (matches.length > 0) {
+      return matches.slice(0, 8).map(m => m.item);
+    }
+
+    // Fallback to pattern matching
     for (const [key, suggestions] of patterns) {
-      if (input.includes(key)) {
+      if (input.startsWith(key) || key.includes(input)) {
         return suggestions;
       }
     }
@@ -167,7 +193,7 @@ export class AISuggestionService {
   }
 
   async getSkillSuggestions(input: string): Promise<string[]> {
-    if (!input || input.length < 1) return [];
+    if (!input || input.length < 2) return [];
 
     const cacheKey = `skill_${input.toLowerCase()}`;
     const cached = this.cache.get(cacheKey);
@@ -176,6 +202,14 @@ export class AISuggestionService {
       return cached.data;
     }
 
+    // Use enhanced skill matching first
+    const enhancedSkills = searchAccuracy.getSkillSuggestions(input);
+    if (enhancedSkills.length > 0) {
+      this.cache.set(cacheKey, { data: enhancedSkills, timestamp: Date.now() });
+      return enhancedSkills;
+    }
+
+    // Fallback to AI suggestions
     const prompt = `Generate 8 relevant professional skills for "${input}". Return only skill names, one per line.`;
     
     const suggestions = await this.callAI(prompt);

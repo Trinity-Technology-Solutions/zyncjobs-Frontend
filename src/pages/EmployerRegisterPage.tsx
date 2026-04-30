@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
@@ -245,10 +246,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
             <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-blue-50 opacity-50 translate-x-1/3 translate-y-1/3" />
 
             <div className="relative z-10 w-full max-w-md flex flex-col gap-6">
-              <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-orange-500 hover:text-orange-700 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
+              <BackButton onClick={() => onNavigate('home')} />
 
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
@@ -294,11 +292,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
           <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-6 bg-white border-l border-gray-100">
             <div className="w-full max-w-md">
 
-              {/* Mobile back button */}
-              <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-orange-500 hover:text-orange-700 mb-6 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
 
               <div className="bg-white rounded-2xl shadow-xl p-8">
 

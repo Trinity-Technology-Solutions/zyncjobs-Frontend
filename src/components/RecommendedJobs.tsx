@@ -4,6 +4,7 @@ import { Bookmark, BookmarkCheck, MapPin, Briefcase } from 'lucide-react';
 import localStorageMigration from '../services/localStorageMigration';
 import { formatSalary } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { formatJobDescription } from '../utils/htmlUtils';
 
 interface Job {
   _id: string;
@@ -337,7 +338,34 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
             const salary = formatSalary(job.salary);
             const skills: string[] = job.skills || [];
             const jobType = Array.isArray(job.jobType) ? job.jobType[0] : job.type || job.jobType || '';
-            const desc = (job.description || job.jobDescription || '').replace(/<[^>]*>/g, '');
+            const desc = (() => {
+              const rawDesc = job.description || job.jobDescription || '';
+              const formatted = formatJobDescription(rawDesc, 200);
+              // Remove HTML tags showing as text and Job Summary headings
+              return formatted
+                .replace(/<h[1-6]>Job Summary<\/h[1-6]>\s*<p>/gi, '') // Remove <h3>Job Summary</h3> <p>
+                .replace(/<h[1-6]>Job Summary<\/h[1-6]>/gi, '') // Remove <h3>Job Summary</h3>
+                .replace(/<h[1-6]>Summary<\/h[1-6]>\s*<p>/gi, '') // Remove <h3>Summary</h3> <p>
+                .replace(/<h[1-6]>Summary<\/h[1-6]>/gi, '') // Remove <h3>Summary</h3>
+                .replace(/Job\s*Summary[:\s]*/gi, '') // Job Summary with optional colon/spaces
+                .replace(/Summary[:\s]*/gi, '') // Summary with optional colon/spaces
+                .replace(/^[\s\n]*Job[\s\n]+Summary[\s\n:]*/gi, '') // Multi-line Job Summary
+                .replace(/[\s\n]*Job[\s\n]+Summary[\s\n:]*/gi, ' ') // Job Summary anywhere
+                .replace(/^[\s\n]*Summary[\s\n:]*/gi, '') // Summary at start
+                .replace(/[\s\n]*Summary[\s\n:]*/gi, ' ') // Summary anywhere
+                .replace(/^[\s\n]*Overview[\s\n:]*/gi, '') // Also remove Overview
+                .replace(/[\s\n]*Overview[\s\n:]*/gi, ' ') // Overview anywhere
+                .replace(/^[\s\n]*Description[\s\n:]*/gi, '') // Also remove Description
+                .replace(/[\s\n]*Description[\s\n:]*/gi, ' ') // Description anywhere
+                .replace(/^[\s\n]*About[\s\n]+the[\s\n]+role[\s\n:]*/gi, '') // About the role
+                .replace(/[\s\n]*About[\s\n]+the[\s\n]+role[\s\n:]*/gi, ' ') // About the role anywhere
+                .replace(/^[\s\n]*Role[\s\n]+Description[\s\n:]*/gi, '') // Role Description
+                .replace(/[\s\n]*Role[\s\n]+Description[\s\n:]*/gi, ' ') // Role Description anywhere
+                .replace(/^[\s\n]*Position[\s\n]+Summary[\s\n:]*/gi, '') // Position Summary
+                .replace(/[\s\n]*Position[\s\n]+Summary[\s\n:]*/gi, ' ') // Position Summary anywhere
+                .replace(/\s+/g, ' ') // Clean up multiple spaces
+                .trim();
+            })();
             const isNew = job.createdAt && (Date.now() - new Date(job.createdAt).getTime()) < 48 * 3600000;
             const postedAgo = job.createdAt ? (() => {
               const diff = Date.now() - new Date(job.createdAt).getTime();
@@ -406,7 +434,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                       {/* Description */}
                       {desc && (
                         <p className="text-sm text-gray-600 mb-2 line-clamp-2 leading-relaxed border-l-2 border-blue-400 pl-2.5">
-                          {desc.substring(0, 150)}...
+                          {desc}
                         </p>
                       )}
 

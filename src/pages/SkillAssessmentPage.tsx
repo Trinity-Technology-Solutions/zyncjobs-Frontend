@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Clock, CheckCircle, ArrowLeft, Search, ExternalLink } from 'lucide-react';
+import { Clock, CheckCircle, Search, ExternalLink } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
@@ -654,14 +655,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
         <div className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-10">
 
           {/* Back button */}
-          <button
-            onClick={() => onNavigate('dashboard')}
-            className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-800 mb-4 sm:mb-6 transition-colors touch-target"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Back to Dashboard</span>
-            <span className="sm:hidden">Back</span>
-          </button>
+          <BackButton onClick={() => onNavigate('dashboard')} className="mb-4 sm:mb-6" />
 
           {/* Greeting */}
           <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between mb-6 sm:mb-8 lg:mb-10">
@@ -767,8 +761,8 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
                 className="w-8 h-8 sm:w-9 sm:h-9 bg-gray-900 rounded-full flex items-center justify-center hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed transition-all flex-shrink-0 active:scale-95"
               >
                 {loading
-                  ? <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  : <ArrowLeft className="w-3.5 h-3.5 text-white rotate-180" />}
+                  ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  : <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>}
               </button>
             </div>
             {/* Dropdown outside the flex row to avoid overlap */}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ArrowLeft, Search, TrendingUp, Eye, RefreshCw, Zap, Clock, User } from 'lucide-react';
+import { Search, TrendingUp, Eye, RefreshCw, Zap, Clock, User } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
@@ -110,9 +111,7 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
 
       <div className="max-w-4xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
 
-        <button onClick={() => onNavigate('dashboard')} className="flex items-center gap-2 text-gray-500 hover:text-blue-600 text-xs sm:text-sm mb-4 sm:mb-5 transition-colors group">
-          <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4 group-hover:-translate-x-0.5 transition-transform flex-shrink-0" /> Back to Dashboard
-        </button>
+        <BackButton onClick={() => onNavigate('dashboard')} className="mb-4 sm:mb-5" />
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-2 mb-4 sm:mb-5">

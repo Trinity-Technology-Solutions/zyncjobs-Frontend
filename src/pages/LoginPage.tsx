@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
@@ -91,13 +92,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-blue-50 opacity-60" />
 
           <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-            <button
-              onClick={() => onNavigate('home')}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors w-fit"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back to Home</span>
-            </button>
+            <BackButton onClick={() => onNavigate('home')} />
 
             <div>
               <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
@@ -137,14 +132,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         {/* RIGHT PANEL */}
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
           <div className="w-full max-w-md">
-            <button
-              onClick={() => onNavigate('home')}
-              className="lg:hidden flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back to Home</span>
-            </button>
-
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="mb-8">
                 <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>

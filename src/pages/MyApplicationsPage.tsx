@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { ArrowLeft, Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { getId } from '../utils/getId';
 import Header from '../components/Header';
@@ -338,13 +338,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
       <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => onNavigate('dashboard')}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-1"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Dashboard
-            </button>
+            <BackButton onClick={() => onNavigate('dashboard')} />
           </div>
           <div className="flex items-center space-x-4">
             <div className="text-2xl">📊</div>

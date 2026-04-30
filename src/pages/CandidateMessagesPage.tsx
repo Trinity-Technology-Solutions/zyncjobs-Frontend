@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Send, Search, Menu, X, Info, MoreVertical, CheckCheck, Paperclip, ArrowLeft } from 'lucide-react';
+import { Send, Search, Menu, X, Info, MoreVertical, CheckCheck, Paperclip } from 'lucide-react';
+import BackButton from '../components/BackButton';
 
 interface Conversation {
   _id: string;
@@ -323,13 +324,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2 min-w-0">
               {onNavigate && (
-                <button
-                  onClick={() => onNavigate('dashboard')}
-                  className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-800 transition-colors flex-shrink-0"
-                  title="Back to Dashboard"
-                >
-                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
+                <BackButton onClick={() => onNavigate('dashboard')} />
               )}
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Messages</h1>
             </div>

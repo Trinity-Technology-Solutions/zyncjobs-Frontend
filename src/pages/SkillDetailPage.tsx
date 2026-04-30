@@ -1,5 +1,6 @@
 import React from 'react';
-import { ArrowLeft, Brain, Database, Code, Zap, Server, Globe, Smartphone, Cloud } from 'lucide-react';
+import { Brain, Database, Code, Zap, Server, Globe, Smartphone, Cloud } from 'lucide-react';
+import BackButton from '../components/BackButton';
 
 interface SkillDetailPageProps {
   onNavigate: (page: string) => void;
@@ -72,14 +73,7 @@ const SkillDetailPage: React.FC<SkillDetailPageProps> = ({ onNavigate, skillName
 
       {/* Back Button */}
       <div className="fixed top-8 left-8 z-50">
-        <button
-          onClick={() => onNavigate('home')}
-          className="flex items-center space-x-3 text-white bg-purple-600 hover:bg-purple-700 transition-all duration-300 px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl cursor-pointer"
-          style={{ pointerEvents: 'auto' }}
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span className="font-medium">Back to Home</span>
-        </button>
+        <BackButton onClick={() => onNavigate('home')} />
       </div>
 
       {/* Main Content */}

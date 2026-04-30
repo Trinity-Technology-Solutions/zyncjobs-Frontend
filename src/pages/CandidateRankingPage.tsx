@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star, ArrowLeft } from 'lucide-react';
+import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -134,12 +135,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <button
-                onClick={() => onNavigate?.('employer-dashboard')}
-                className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back
-              </button>
+              <BackButton onClick={() => onNavigate?.('employer-dashboard')} className="border-white/60 text-white hover:bg-white/10" />
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
                 <Trophy className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
               </div>

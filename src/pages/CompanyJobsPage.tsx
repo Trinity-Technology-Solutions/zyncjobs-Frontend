@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, IndianRupee, Clock, ArrowLeft, Users, TrendingUp, Eye } from 'lucide-react';
+import { MapPin, Briefcase, IndianRupee, Clock, Users, TrendingUp, Eye } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';

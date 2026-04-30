@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
+import { decodeHtmlEntities, htmlToFormattedText } from '../utils/htmlUtils';
 import Notification from '../components/Notification';
 
 const fmtNum = (n: number): string => {
@@ -585,8 +586,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   const hasHTML = /<(p|ul|ol|li|br|div|h[1-6]|strong|em|b|i)[\s>]/i.test(sourceDesc);
                   
                   if (hasHTML) {
-                    // Strip $→₹ for HTML path
-                    const htmlDesc = sourceDesc.replace(/\$([0-9,]+)/g, '₹$1');
+                    // Use decodeHtmlEntities and strip $→₹ for HTML path
+                    const htmlDesc = decodeHtmlEntities(sourceDesc).replace(/\$([0-9,]+)/g, '₹$1');
                     return (
                       <div
                         className="job-description-html"

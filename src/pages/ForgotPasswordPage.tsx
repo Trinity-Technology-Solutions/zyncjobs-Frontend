@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Mail, CheckCircle } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
 
@@ -126,14 +127,7 @@ const ForgotPasswordPage: React.FC<ForgotPasswordPageProps> = ({ onNavigate }) =
               {loading ? 'Sending...' : 'Send Reset Link'}
             </button>
             
-            <button
-              type="button"
-              onClick={() => onNavigate('login')}
-              className="w-full flex items-center justify-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span>Back to Login</span>
-            </button>
+            <BackButton onClick={() => onNavigate('login')} className="w-full justify-center" />
           </form>
         </div>
       </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/env';
-import { ArrowLeft, MapPin, Mail, Phone, Download, MessageCircle, Briefcase, GraduationCap, Star, User } from 'lucide-react';
+import { MapPin, Mail, Phone, Download, MessageCircle, Briefcase, GraduationCap, Star, User } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -302,9 +303,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       {/* Sticky back bar */}
       <div className="bg-white border-b sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-6 py-3">
-          <button onClick={handleBack} className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-blue-600 transition-colors">
-            <ArrowLeft className="w-4 h-4" />{backLabel}
-          </button>
+          <BackButton onClick={handleBack} />
         </div>
       </div>
 

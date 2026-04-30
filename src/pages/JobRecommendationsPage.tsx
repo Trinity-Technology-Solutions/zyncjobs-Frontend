@@ -4,6 +4,7 @@ import { MatchBreakdownModal } from '../components/match/MatchBreakdownModal';
 import { MatchScoreBadge } from '../components/match/MatchScoreBadge';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import BackButton from '../components/BackButton';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import { computeMatchBreakdown, normalizeSkill, getUserProfile } from '../utils/matchScore';
@@ -148,13 +149,6 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
       <div className="px-4 py-8">
         <div className="max-w-6xl mx-auto">
-          <button
-            onClick={() => onNavigate?.('dashboard')}
-            className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-800 text-sm mb-4 transition-colors"
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7"/></svg>
-            Back to Dashboard
-          </button>
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="flex flex-col items-center text-center md:items-start md:text-left">
               <div className="flex items-center gap-2 mb-3">
@@ -339,7 +333,27 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
 
                         {/* Description */}
                         {job.description && (
-                          <p className="text-gray-600 text-sm line-clamp-2 mb-3">{job.description}</p>
+                          <p className="text-gray-600 text-sm line-clamp-2 mb-3">
+                            {(() => {
+                              let desc = job.description;
+                              // Remove HTML tags showing as text and Job Summary headings
+                              desc = desc
+                                .replace(/<h[1-6]>Job Summary<\/h[1-6]>\s*<p>/gi, '') // Remove <h3>Job Summary</h3> <p>
+                                .replace(/<h[1-6]>Job Summary<\/h[1-6]>/gi, '') // Remove <h3>Job Summary</h3>
+                                .replace(/<h[1-6]>Summary<\/h[1-6]>\s*<p>/gi, '') // Remove <h3>Summary</h3> <p>
+                                .replace(/<h[1-6]>Summary<\/h[1-6]>/gi, '') // Remove <h3>Summary</h3>
+                                .replace(/Job\s*Summary[:\s]*/gi, '') // Job Summary with optional colon/spaces
+                                .replace(/Summary[:\s]*/gi, '') // Summary with optional colon/spaces
+                                .replace(/^[\s\n]*Job[\s\n]+Summary[\s\n:]*/gi, '') // Multi-line Job Summary
+                                .replace(/[\s\n]*Job[\s\n]+Summary[\s\n:]*/gi, ' ') // Job Summary anywhere
+                                .replace(/^[\s\n]*Summary[\s\n:]*/gi, '') // Summary at start
+                                .replace(/[\s\n]*Summary[\s\n:]*/gi, ' ') // Summary anywhere
+                                .replace(/\s+/g, ' ') // Clean up multiple spaces
+                                .trim();
+                              return desc;
+                            })()
+                          }
+                          </p>
                         )}
 
                         {/* Skills */}
@@ -413,6 +427,11 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       </div>
 
       <Footer onNavigate={onNavigate} user={user} />
+
+      {/* Floating Back Button */}
+      <BackButton 
+        onClick={() => onNavigate ? onNavigate('dashboard') : window.history.back()}
+      />
 
       {/* Match Breakdown Modal */}
       {breakdownJob && (

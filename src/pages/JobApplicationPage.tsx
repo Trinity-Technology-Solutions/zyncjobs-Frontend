@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, User, FileText, Send, CheckCircle, Upload, Briefcase, MapPin, Building2 } from 'lucide-react';
+import { User, FileText, Send, CheckCircle, Upload, Briefcase, MapPin, Building2 } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 import Header from '../components/Header';
@@ -142,13 +143,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
           <div className="max-w-4xl mx-auto px-8 py-6">
 
             {/* Back button — same style as reference */}
-            <button
-              onClick={() => window.history.back()}
-              className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 font-medium text-sm mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back
-            </button>
+            <BackButton onClick={() => onNavigate('job-detail')} className="mb-6" />
 
             {/* Job info header card */}
             <div

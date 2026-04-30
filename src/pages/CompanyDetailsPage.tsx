@@ -265,39 +265,41 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       {/* Company Header Banner */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-800 py-6 sm:py-8 md:py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50 py-6 sm:py-8 md:py-12 border-b border-gray-200">
+        {/* Back Button */}
+        <div className="absolute top-4 left-4 z-10">
           <BackButton 
             onClick={() => onNavigate && onNavigate('companies')} 
-            text="Back to Companies" 
-            className="text-white mb-4 sm:mb-6 hover:text-gray-200" 
+            className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" 
           />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
           <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
             <img 
               src={getCompanyLogo(company.name) || company.logo} 
               alt={company.name} 
               className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-lg sm:rounded-xl bg-white p-2 sm:p-3 border-2 sm:border-4 border-white object-contain flex-shrink-0 mx-auto sm:mx-0" 
             />
-            <div className="flex-1 text-white min-w-0 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 break-words">{company.name}</h1>
+            <div className="flex-1 text-gray-900 min-w-0 text-center sm:text-left">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 break-words bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{company.name}</h1>
               <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-3">
                 <div className="flex items-center justify-center sm:justify-start gap-1">
-                  <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-300 text-yellow-300" />
-                  <span className="font-semibold text-sm sm:text-base">{avgRating ?? '—'}</span>
-                  <span className="text-blue-200 text-xs sm:text-sm ml-1">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
+                  <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-400 text-yellow-400" />
+                  <span className="font-semibold text-sm sm:text-base text-gray-900">{avgRating ?? '—'}</span>
+                  <span className="text-gray-600 text-xs sm:text-sm ml-1">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
                 </div>
-                <span className="hidden sm:inline">•</span>
-                <span className="text-sm sm:text-base text-center">{company.industry}</span>
-                <span className="hidden sm:inline">•</span>
-                <span className="text-sm sm:text-base text-center">{company.employees} employees</span>
+                <span className="hidden sm:inline text-gray-400">•</span>
+                <span className="text-sm sm:text-base text-center text-gray-700">{company.industry}</span>
+                <span className="hidden sm:inline text-gray-400">•</span>
+                <span className="text-sm sm:text-base text-center text-gray-700">{company.employees} employees</span>
               </div>
-              <p className="text-blue-100 mb-4 text-sm sm:text-base leading-relaxed">{company.description}</p>
+              <p className="text-gray-600 mb-4 text-sm sm:text-base leading-relaxed">{company.description}</p>
               <div className="flex flex-col sm:flex-row gap-3 items-center">
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
                   {isCandidate && (
                     <button 
                       onClick={() => setShowReviewModal(true)} 
-                      className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 text-sm sm:text-base"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm sm:text-base shadow-md"
                     >
                       Add a review
                     </button>
@@ -305,7 +307,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   {!user && (
                     <button 
                       onClick={() => onNavigate && onNavigate('login')} 
-                      className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-white text-blue-600 rounded-lg font-semibold hover:bg-gray-100 text-sm sm:text-base"
+                      className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm sm:text-base shadow-md"
                     >
                       Login to review
                     </button>
@@ -313,17 +315,17 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   {user && !isEmployer && (
                     <button
                       onClick={handleFollow}
-                      className={`w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg font-semibold border transition-colors text-sm sm:text-base ${
+                      className={`w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg font-semibold border transition-colors text-sm sm:text-base shadow-md ${
                         isFollowing 
-                          ? 'bg-white text-blue-600 border-white hover:bg-gray-100' 
-                          : 'bg-blue-700 text-white border-white hover:bg-blue-800'
+                          ? 'bg-white text-blue-600 border-blue-300 hover:bg-gray-50' 
+                          : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                       }`}
                     >
                       {isFollowing ? '✓ Following' : 'Follow'}
                     </button>
                   )}
                 </div>
-                <span className="text-blue-100 text-xs sm:text-sm">
+                <span className="text-gray-500 text-xs sm:text-sm">
                   {followersCount} follower{followersCount !== 1 ? 's' : ''}
                 </span>
               </div>

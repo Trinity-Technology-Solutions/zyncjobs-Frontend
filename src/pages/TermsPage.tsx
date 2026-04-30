@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import BackButton from '../components/BackButton';
 import { ChevronRight, FileText, Shield, Building2 } from 'lucide-react';
 
 interface TermsPageProps {
@@ -53,17 +54,26 @@ const TermsPage: React.FC<TermsPageProps> = ({ onNavigate, user, onLogout }) => 
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Hero */}
-      <div className={`text-white py-14 ${activeTab === 'terms' ? 'bg-gradient-to-r from-blue-700 to-blue-900' : 'bg-gradient-to-r from-orange-600 to-orange-800'}`}>
+      <div className="relative bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 text-gray-900 py-14 border-b border-gray-200">
+        {/* Back Button */}
+        <div className="absolute top-4 left-4 z-10">
+          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
+        </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
-            {activeTab === 'terms' ? <FileText className="w-8 h-8 opacity-80" /> : <Building2 className="w-8 h-8 opacity-80" />}
-            <span className="text-sm font-medium opacity-75 uppercase tracking-wider">Legal</span>
+            {activeTab === 'terms' ? <FileText className="w-8 h-8 text-gray-600" /> : <Building2 className="w-8 h-8 text-gray-600" />}
+            <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Legal</span>
           </div>
-          <h1 className="text-4xl font-bold mb-2">
-            {activeTab === 'terms' ? 'Terms & Conditions' : 'Employer Declaration'}
+          <h1 className="text-4xl font-bold mb-2 text-gray-900">
+            <span className={`bg-gradient-to-r bg-clip-text text-transparent ${
+              activeTab === 'terms' 
+                ? 'from-blue-600 to-indigo-600' 
+                : 'from-orange-600 to-red-600'
+            }`}>
+              {activeTab === 'terms' ? 'Terms & Conditions' : 'Employer Declaration'}
+            </span>
           </h1>
-          <p className="opacity-75 text-sm">Last updated: June 2025 · ZyncJobs Platform</p>
+          <p className="text-gray-600 text-sm">Last updated: June 2025 · ZyncJobs Platform</p>
         </div>
       </div>
 

@@ -677,7 +677,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '280px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
-              <BackButton onClick={() => window.history.back()} text="Back" className="inline-flex items-center text-sm text-white hover:text-blue-100 transition-colors mb-3" />
+              <BackButton onClick={() => onNavigate('dashboard')} text="Back to Dashboard" className="inline-flex items-center text-sm text-white hover:text-blue-100 transition-colors mb-3" />
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
                   <img src={getDisplayLogo()} alt={companyName || employerName}

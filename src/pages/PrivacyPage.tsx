@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import BackButton from '../components/BackButton';
 import { ChevronRight, Shield } from 'lucide-react';
 
 interface PrivacyPageProps {
@@ -34,15 +35,18 @@ const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, user, onLogout })
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Hero */}
-      <div className="bg-gradient-to-r from-orange-600 to-orange-800 text-white py-14">
+      <div className="relative bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 text-gray-900 py-14 border-b border-gray-200">
+        {/* Back Button */}
+        <div className="absolute top-4 left-4 z-10">
+          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" />
+        </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3 mb-3">
-            <Shield className="w-8 h-8 opacity-80" />
-            <span className="text-sm font-medium opacity-75 uppercase tracking-wider">Legal</span>
+            <Shield className="w-8 h-8 text-gray-600" />
+            <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">Legal</span>
           </div>
-          <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
-          <p className="opacity-75 text-sm">Last updated: June 2025 · ZyncJobs Platform</p>
+          <h1 className="text-4xl font-bold mb-2 text-gray-900 bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Privacy Policy</h1>
+          <p className="text-gray-600 text-sm">Last updated: June 2025 · ZyncJobs Platform</p>
         </div>
       </div>
 

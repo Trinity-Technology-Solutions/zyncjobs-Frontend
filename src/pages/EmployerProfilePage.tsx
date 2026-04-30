@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building, MapPin, Mail, Calendar, ArrowLeft } from 'lucide-react';
+import { Building, MapPin, Mail, Calendar } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/constants';
 
