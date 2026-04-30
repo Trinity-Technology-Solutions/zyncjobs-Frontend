@@ -2550,7 +2550,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         
         {/* Key Responsibilities Section */}
         <div>
-          <label className="block text-gray-700 font-bold mb-2">Key Responsibilities</label>
+          <label className="block text-gray-900 font-bold text-base mb-1 pl-3 border-l-4 border-blue-600">Key Responsibilities</label>
           <p className="text-gray-500 text-sm mb-4">List the main responsibilities for this role (one per line)</p>
           
           <div className="space-y-2">
@@ -2593,7 +2593,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         
         {/* Requirements Section */}
         <div>
-          <label className="block text-gray-700 font-bold mb-2">Requirements</label>
+          <label className="block text-gray-900 font-bold text-base mb-1 pl-3 border-l-4 border-blue-600">Requirements</label>
           <p className="text-gray-500 text-sm mb-4">List the key requirements for this role (one per line)</p>
           
           <div className="space-y-2">
