@@ -83,7 +83,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
           window.history.replaceState({}, document.title, window.location.pathname);
 
           if (accountIsEmployer && !userData.company && !userData.companyName) {
-            onNavigate('employer-register-complete');
+            onNavigate('employer-complete-profile');
           } else {
             onNavigate('dashboard');
           }

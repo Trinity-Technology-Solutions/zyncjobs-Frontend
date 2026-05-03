@@ -19,6 +19,23 @@ export interface RegisterData {
   companyWebsite?: string;
   location?: string;
   employerId?: string;
+  // New company verification fields
+  domainVerification?: {
+    isValid: boolean;
+    isCompanyDomain: boolean;
+    verificationMethod: string;
+    companyProfile?: any;
+  };
+  companyProfile?: {
+    id?: string;
+    name: string;
+    domain: string;
+    logo?: string;
+    website?: string;
+    industry?: string;
+    size?: string;
+    verified?: boolean;
+  };
 }
 
 export interface User {
@@ -39,6 +56,19 @@ export interface User {
   experience?: string;
   location?: string;
   employerId?: string;
+  // New verification fields
+  verificationStatus?: 'pending' | 'verified' | 'rejected';
+  companyDomain?: string;
+  companyProfile?: {
+    id?: string;
+    name: string;
+    domain: string;
+    logo?: string;
+    website?: string;
+    industry?: string;
+    size?: string;
+    verified?: boolean;
+  };
 }
 
 export const authAPI = {
@@ -60,7 +90,8 @@ export const authAPI = {
       } catch {
         error = { error: 'Registration failed' };
       }
-      throw new Error(error.error || 'An account with this email already exists. Please login instead.');
+      // Pass the full message for invite-only check
+      throw new Error(error.message || error.error || 'An account with this email already exists. Please login instead.');
     }
 
     const result = await response.json();

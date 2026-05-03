@@ -9,6 +9,13 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     server: {
+      watch: {
+        usePolling: true,
+        interval: 1000,
+      },
+      hmr: {
+        overlay: false,
+      },
       proxy: {
         '/api': {
           target: proxyTarget,

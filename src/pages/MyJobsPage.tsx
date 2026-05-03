@@ -7,6 +7,8 @@ import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
+import JobRefreshButton from '../components/JobRefreshButton';
+import BulkJobRefresh from '../components/BulkJobRefresh';
 
 
 interface MyJobsPageProps {
@@ -32,6 +34,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [allJobs, setAllJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
 
   const fetchCompanyLogos = async (jobList: any[]) => {
     try {
@@ -333,89 +336,113 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     fetchPostedJobs(nextPage, true);
   };
 
-  const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default') => {
+  const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default', showCheckbox: boolean = false) => {
     const jobKey = getId(job) || `job-${Math.random()}`;
+    const jobId = getId(job);
     return (
-    <div key={jobKey} className="border border-gray-200 rounded-xl p-5 hover:shadow-lg hover:border-blue-300 transition-all bg-white relative overflow-hidden group">
-      {/* Gradient accent bar - left corner only */}
-      <div className="absolute top-0 left-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 via-purple-500 to-pink-500 rounded-l-xl"></div>
+    <div key={jobKey} className="group relative bg-white rounded-2xl border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
+      {/* Gradient Header */}
+      <div className="h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
       
-      <div className="flex items-start justify-between gap-4">
-        {/* Left: Logo + Content */}
-        <div className="flex gap-4 flex-1 min-w-0">
+      {/* Checkbox for selection */}
+      {showCheckbox && (
+        <div className="absolute top-4 left-4 z-10">
+          <input
+            type="checkbox"
+            checked={selectedJobs.includes(jobId)}
+            onChange={() => {
+              if (selectedJobs.includes(jobId)) {
+                setSelectedJobs(prev => prev.filter(id => id !== jobId));
+              } else {
+                setSelectedJobs(prev => [...prev, jobId]);
+              }
+            }}
+            className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 bg-white shadow-sm"
+          />
+        </div>
+      )}
+      
+      <div className="p-6 pt-8">
+        {/* Header Section */}
+        <div className="flex items-start gap-4 mb-4">
           {/* Company Logo */}
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
+            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-100 border-2 border-blue-200 flex items-center justify-center shadow-sm">
               <img
                 src={companyLogos[(job.company || job.companyName || '').toLowerCase()] || getSafeCompanyLogo(job)}
                 alt={`${job.company || job.companyName} logo`}
-                className="w-8 h-8 object-contain"
+                className="w-10 h-10 object-contain"
                 onError={(e) => {
                   const img = e.target as HTMLImageElement;
                   const name = job.company || job.companyName || '';
-                  const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
-                  img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                  if (name.toLowerCase().includes('nambikkai')) {
+                    img.src = '/images/company-logos/nambikkai-logo.png';
+                  } else if (name.toLowerCase().includes('trinity')) {
+                    img.src = '/images/trinity-logo.webp';
+                  } else {
+                    const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+                    img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40"><circle cx="20" cy="20" r="20" fill="#3B82F6"/><text x="20" y="26" text-anchor="middle" fill="white" font-family="Arial" font-size="14" font-weight="bold">${initials}</text></svg>`)}`;
+                  }
                 }}
               />
             </div>
           </div>
-
-          {/* Content */}
+          
+          {/* Company Info & Date */}
           <div className="flex-1 min-w-0">
-            {/* Company name + Date */}
             <div className="flex items-center justify-between mb-2">
-              <span className="text-blue-600 font-bold text-sm uppercase tracking-wide">{job.company}</span>
-              <span className="text-xs font-medium text-gray-500 bg-gray-50 px-2 py-1 rounded-md">
+              <h4 className="text-sm font-bold text-blue-600 uppercase tracking-wider">{job.company}</h4>
+              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
                 {formatDate(job.createdAt)}
               </span>
             </div>
-
+            
             {/* Job Title */}
-            <h3 className="text-lg font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-3 line-clamp-2">
+            <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-3 line-clamp-2 leading-tight">
               {job.jobTitle || job.title}
             </h3>
-            
-            {/* Tags row */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <div className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md">
-                <MapPin className="w-3.5 h-3.5 text-gray-600" />
-                <span className="text-xs font-medium text-gray-700">{job.location}</span>
-              </div>
-              {formatSalary(job.salary) && (
-                <div className="flex items-center gap-1 bg-green-50 px-2.5 py-1 rounded-md">
-                  <IndianRupee className="w-3.5 h-3.5 text-green-600" />
-                  <span className="text-xs font-semibold text-green-700">{formatSalary(job.salary)}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-1 bg-blue-50 px-2.5 py-1 rounded-md">
-                <Briefcase className="w-3.5 h-3.5 text-blue-600" />
-                <span className="text-xs font-medium text-blue-700">{job.type}</span>
-              </div>
-              {job.positionId && actionType === 'posted' && (
-                <div className="flex items-center gap-1 bg-purple-50 px-2.5 py-1 rounded-md">
-                  <span className="text-xs font-semibold text-purple-600">PID: {job.positionId}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Description */}
-            {(job.jobDescription || job.description) && (
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-3 rounded-lg border-l-3 border-blue-500">
-                <p className="text-xs text-gray-700 leading-relaxed line-clamp-2">
-                  {(() => {
-                    const desc = job.jobDescription || job.description || '';
-                    const plain = formatJobDescription(desc);
-                    return plain.length > 150 ? `${plain.substring(0, 150)}...` : plain;
-                  })()}
-                </p>
-              </div>
-            )}
           </div>
         </div>
+        
+        {/* Job Details Tags */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg">
+            <MapPin className="w-4 h-4 text-gray-600" />
+            <span className="text-sm font-medium text-gray-700">{job.location}</span>
+          </div>
+          {formatSalary(job.salary) && (
+            <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
+              <IndianRupee className="w-4 h-4 text-green-600" />
+              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
+            <Briefcase className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-700">{job.type}</span>
+          </div>
+          {job.positionId && actionType === 'posted' && (
+            <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-lg">
+              <span className="text-sm font-semibold text-purple-600">PID: {job.positionId}</span>
+            </div>
+          )}
+        </div>
 
-        {/* Right: Action Buttons */}
+        {/* Description */}
+        {(job.jobDescription || job.description) && (
+          <div className="bg-gradient-to-r from-slate-50 to-gray-50 border border-gray-200 p-4 rounded-xl mb-4">
+            <p className="text-sm text-gray-700 leading-relaxed line-clamp-3">
+              {(() => {
+                const desc = job.jobDescription || job.description || '';
+                const plain = formatJobDescription(desc);
+                return plain.length > 180 ? `${plain.substring(0, 180)}...` : plain;
+              })()}
+            </p>
+          </div>
+        )}
+        
+        {/* Action Buttons */}
         {showActions && (
-          <div className="flex flex-col gap-2 flex-shrink-0">
+          <div className="flex gap-3 pt-2">
             {actionType === 'posted' && (
               <>
                 <button 
@@ -425,15 +452,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                       onNavigate('job-detail', { jobId, jobData: job });
                     }
                   }}
-                  className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md hover:shadow-lg text-sm"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg text-sm"
                 >
-                  View Job
+                  View Details
                 </button>
                 <button 
                   onClick={() => deleteJob(getId(job))}
-                  className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-all shadow-md hover:shadow-lg text-sm"
+                  className="px-4 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-100 hover:border-red-300 transition-all text-sm"
                 >
-                  Delete Job
+                  Delete
                 </button>
               </>
             )}
@@ -441,7 +468,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <>
                 <button 
                   onClick={() => handleRemoveSavedJob(getId(job))}
-                  className="px-4 py-2 rounded-lg border-2 border-gray-300 text-gray-700 hover:bg-gray-100 transition-all text-sm font-medium"
+                  className="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 hover:border-gray-300 transition-all text-sm"
                 >
                   Remove
                 </button>
@@ -450,7 +477,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     localStorage.setItem('selectedJob', JSON.stringify(job));
                     onNavigate('job-application');
                   }}
-                  className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md text-sm"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md text-sm"
                 >
                   Apply Now
                 </button>
@@ -459,9 +486,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'default' && (
               <button 
                 onClick={() => onNavigate('job-detail', { jobId: getId(job) })}
-                className="bg-blue-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-all shadow-md text-sm"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md text-sm"
               >
-                View Job
+                View Details
               </button>
             )}
           </div>
@@ -640,22 +667,95 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {user?.type === 'employer' && activeTab === 'Posted Jobs' && (
                 <>
                   {postedJobs.length > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      {postedJobs.map((job) => {
-                        const k = getId(job) || `posted-${Math.random()}`;
-                        return <React.Fragment key={k}>{renderJobCard(job, true, 'posted')}</React.Fragment>;
-                      })}
-                      {hasMoreJobs && (
-                        <div className="col-span-full text-center py-6">
-                          <button
-                            onClick={handleLoadMorePostedJobs}
-                            className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                          >
-                            Load More Jobs
-                          </button>
+                    <>
+                      {/* Bulk Actions Bar */}
+                      <div className="mb-6 p-4 bg-gray-50 rounded-lg border">
+                        <div className="flex flex-wrap items-center gap-4">
+                          <label className="flex items-center space-x-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedJobs.length === postedJobs.length && postedJobs.length > 0}
+                              onChange={() => {
+                                if (selectedJobs.length === postedJobs.length) {
+                                  setSelectedJobs([]);
+                                } else {
+                                  setSelectedJobs(postedJobs.map(job => getId(job)).filter(Boolean));
+                                }
+                              }}
+                              className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Select All</span>
+                          </label>
+                          
+                          <span className="text-sm text-gray-500">
+                            {selectedJobs.length} of {postedJobs.length} jobs selected
+                          </span>
+                          
+                          <div className="flex gap-3 ml-auto">
+                            <BulkJobRefresh
+                              selectedJobIds={selectedJobs}
+                              selectedJobs={postedJobs.filter(job => selectedJobs.includes(getId(job))).map(job => ({
+                                id: getId(job),
+                                title: job.jobTitle || job.title,
+                                refreshCount: job.refreshCount || 0,
+                                lastRefreshedAt: job.lastRefreshedAt
+                              }))}
+                              userPlan="free"
+                              onRefreshComplete={() => {
+                                fetchPostedJobs();
+                                setSelectedJobs([]);
+                              }}
+                              className="text-sm"
+                            />
+                            
+                            <button
+                              onClick={() => {
+                                if (selectedJobs.length === 0) {
+                                  showNotification('Please select jobs to delete', 'error');
+                                  return;
+                                }
+                                // Bulk delete logic here
+                                console.log('Bulk delete:', selectedJobs);
+                              }}
+                              disabled={selectedJobs.length === 0}
+                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                              Delete Selected
+                            </button>
+                            
+                            <button
+                              onClick={() => onNavigate('job-refresh-management')}
+                              className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors text-sm flex items-center gap-2"
+                            >
+                              <RefreshCw className="w-4 h-4" />
+                              Manage Refreshes
+                            </button>
+                          </div>
                         </div>
-                      )}
-                    </div>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        {postedJobs.map((job) => {
+                          const jobId = getId(job);
+                          const k = jobId || `posted-${Math.random()}`;
+                          return (
+                            <React.Fragment key={k}>
+                              {renderJobCard(job, true, 'posted', true)}
+                            </React.Fragment>
+                          );
+                        })}
+                        {hasMoreJobs && (
+                          <div className="col-span-full text-center py-6">
+                            <button
+                              onClick={handleLoadMorePostedJobs}
+                              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                            >
+                              Load More Jobs
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   ) : (
                     <div className="text-center py-16">
                       <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
@@ -748,10 +848,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
               {user?.type === 'candidate' && activeTab === 'Saved' && (
                 savedJobs.length > 0 ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-4">
                   {savedJobs.map((job) => {
                     const k = getId(job) || `saved-${Math.random()}`;
-                    return <React.Fragment key={k}>{renderJobCard(job, true, 'saved')}</React.Fragment>;
+                    return <React.Fragment key={k}>{renderJobCard(job, true, 'saved', false)}</React.Fragment>;
                   })}
                   </div>
                 ) : (
@@ -783,8 +883,14 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                     onError={(e) => {
                                       const img = e.target as HTMLImageElement;
                                       const name = application.jobId?.company || application.jobId?.companyName || '';
-                                      const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
-                                      img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                                      if (name.toLowerCase().includes('nambikkai')) {
+                                        img.src = '/images/company-logos/nambikkai-logo.png';
+                                      } else if (name.toLowerCase().includes('trinity')) {
+                                        img.src = '/images/trinity-logo.webp';
+                                      } else {
+                                        const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
+                                        img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                                      }
                                     }}
                                   />
                                 </div>
