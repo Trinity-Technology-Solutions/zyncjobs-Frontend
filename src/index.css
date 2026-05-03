@@ -4,13 +4,26 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Reset all fonts and force IBM Plex Sans */
+/* Prevent horizontal scroll - aggressive approach */
+html, body {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+/* Box sizing for all elements */
 * {
+  box-sizing: border-box;
   font-family: 'IBM Plex Sans', sans-serif !important;
+  max-width: 100%;
 }
 
 html {
   font-family: 'IBM Plex Sans', sans-serif !important;
+  overflow-x: hidden !important;
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
@@ -18,14 +31,37 @@ body {
   font-weight: 400;
   line-height: 1.6;
   font-size: 16px;
-  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden !important;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
 }
 
-html {
-  overflow-x: hidden;
+/* Ensure root container stays within viewport */
+#root, .root, [data-theme] {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
 }
 
-/* Consistent base size for all text elements */
+/* Mobile-specific overrides */
+@media (max-width: 1024px) {
+  * {
+    max-width: 100vw;
+  }
+  
+  body {
+    max-width: 100vw;
+    overflow-x: hidden !important;
+  }
+  
+  #root {
+    max-width: 100vw;
+    overflow-x: hidden !important;
+  }
+}
 p, span, a, li, td, th, label, input, select, textarea, button, nav, nav a, nav button {
   font-size: 1rem;
 }

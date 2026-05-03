@@ -88,7 +88,7 @@ export default function ExperienceStep() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Work Experience</h2>
           <p className="text-gray-600">Add your professional experience</p>
@@ -212,7 +212,7 @@ export default function ExperienceStep() {
 
                   return (
                     <div key={bIdx} className="space-y-2">
-                      <div className="flex gap-2">
+                      <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
                           value={bullet}
@@ -232,7 +232,7 @@ export default function ExperienceStep() {
                         <button
                           onClick={() => getSuggestions(exp.id, bIdx, bullet)}
                           disabled={aiLoading === key || !bullet.trim() || bullet.length < 10}
-                          className="px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="w-full sm:w-auto px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title="Get AI suggestions"
                         >
                           {aiLoading === key ? (

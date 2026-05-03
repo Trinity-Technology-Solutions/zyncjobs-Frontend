@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
@@ -73,13 +74,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
 
           <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-            <button
-              onClick={() => onNavigate('home')}
-              className="flex items-center gap-2 text-orange-500 hover:text-orange-700 transition-colors w-fit"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back to Home</span>
-            </button>
+            <BackButton onClick={() => onNavigate('home')} />
 
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-6 bg-orange-50 text-orange-600 border border-orange-200">
@@ -124,14 +119,6 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         {/* RIGHT PANEL */}
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
           <div className="w-full max-w-md">
-            <button
-              onClick={() => onNavigate('home')}
-              className="lg:hidden flex items-center gap-2 text-orange-500 hover:text-orange-700 mb-6 transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back to Home</span>
-            </button>
-
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="mb-8">
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600">

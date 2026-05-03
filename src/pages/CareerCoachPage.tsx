@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import RoleGuard from '../components/RoleGuard';
-import { Send, Mic, Search, MoreHorizontal, Zap, RefreshCw, Bot, User, TrendingUp, MessageCircle, ArrowLeft } from 'lucide-react';
+import { Send, Mic, Search, MoreHorizontal, Zap, RefreshCw, Bot, User, TrendingUp, MessageCircle } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_BASE_URL } from '../config/env';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { sendAIMessageStream, callAIWithFallback } from '../services/aiChatService';
@@ -164,13 +165,7 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
         <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
         <div className="flex-1 flex flex-col max-w-4xl w-full mx-auto px-6 py-8 pb-8" style={{ minHeight: 0 }}>
-          <button
-            onClick={() => onNavigate?.('dashboard')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 text-sm font-medium mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
-          </button>
+          <BackButton onClick={() => onNavigate?.('dashboard')} className="mb-4" />
 
           {/* Home screen */}
           {!chatStarted && (

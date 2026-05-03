@@ -1359,7 +1359,7 @@ ${description.slice(0, 2000)}`;
 
         {/* Header */}
         <div className="bg-white border-b border-gray-200">
-          <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
             <BackButton onClick={() => onNavigate('job-posting-selection')} text="Back" />
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -1367,7 +1367,8 @@ ${description.slice(0, 2000)}`;
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15M14.25 3.104c.251.023.501.05.75.082M19.8 15l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23-.607L5 14.5m14.8.5l1.196 4.784A2.25 2.25 0 0118.8 21.75H5.2a2.25 2.25 0 01-2.196-1.966L4 15m1 0l-.804-.201" />
                 </svg>
               </div>
-              <h1 className="text-lg font-semibold text-gray-900">AI Job Parser</h1>
+              <h1 className="text-lg font-semibold text-gray-900 hidden sm:block">AI Job Parser</h1>
+              <h1 className="text-base font-semibold text-gray-900 sm:hidden">Parser</h1>
             </div>
             <button
               onClick={() => onNavigate('dashboard')}
@@ -1380,10 +1381,10 @@ ${description.slice(0, 2000)}`;
           </div>
         </div>
 
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
           {/* How it works */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 sm:mb-8">
             {[
               {
                 step: '01',
@@ -1444,29 +1445,29 @@ ${description.slice(0, 2000)}`;
               </div>
             </div>
 
-            <div className="p-6">
+            <div className="px-4 sm:px-6">
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder={`Paste your job description here...\n\nExample:\nSoftware Engineer - Full Stack Developer\n\nWe are looking for a talented Full Stack Developer to join our growing team at TechCorp.\n\nRequirements:\n- 3-5 years of experience in web development\n- Proficiency in JavaScript, React, Node.js\n- Experience with databases (MongoDB, PostgreSQL)\n- Bachelor's degree in Computer Science\n\nBenefits:\n- Competitive salary $70,000 - $90,000\n- Health insurance\n- Remote work options`}
-                className="w-full p-4 min-h-[360px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 text-sm leading-relaxed placeholder-gray-300 transition-colors"
+                className="w-full p-3 sm:p-4 min-h-[280px] sm:min-h-[360px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 text-sm leading-relaxed placeholder-gray-300 transition-colors"
               />
 
-              <div className="flex items-center justify-between mt-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 gap-3 sm:gap-0">
                 <p className="text-xs text-gray-400">
                   {jobDescription.length > 0 ? `${jobDescription.length} characters` : 'Supports LinkedIn, Indeed, Naukri, and any job board format'}
                 </p>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button
                     onClick={() => onNavigate('job-posting-selection')}
-                    className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium"
+                    className="flex-1 sm:flex-none px-4 sm:px-5 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors font-medium text-center"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleStartParsing}
                     disabled={!jobDescription.trim() || isParsing}
-                    className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+                    className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2 text-sm font-medium shadow-sm"
                   >
                     {isParsing ? (
                       <>

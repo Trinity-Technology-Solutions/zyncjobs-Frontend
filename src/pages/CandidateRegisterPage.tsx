@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft, Briefcase, TrendingUp, Award, Users } from 'lucide-react';
+import { Eye, EyeOff, Briefcase, TrendingUp, Award, Users } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
@@ -200,10 +201,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
           <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
 
           <div className="relative z-10 flex flex-col px-16 py-8 w-full justify-start gap-6">
-            <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-blue-500 hover:text-blue-700 transition-colors w-fit">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back to Home</span>
-            </button>
+            <BackButton onClick={() => onNavigate('home')} />
 
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-blue-50 text-blue-600 border border-blue-200">
@@ -248,11 +246,6 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
         {/* RIGHT PANEL */}
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
           <div className="w-full max-w-md">
-            <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-blue-500 hover:text-blue-700 mb-6 transition-colors">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm font-medium">Back to Home</span>
-            </button>
-
             <div className="bg-white rounded-2xl shadow-xl p-8">
               {/* Step Indicator */}
               <div className="flex items-center justify-between mb-6">

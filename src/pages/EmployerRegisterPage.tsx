@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, ArrowLeft, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
 import { generateEmployerId } from '../utils/employerIdUtils';
+import { EnhancedCompanyVerificationService as CompanyVerificationService, type DomainVerificationResult, type CompanyProfile } from '../services/enhancedCompanyVerificationService';
 
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
   const existingToast = document.getElementById('toast');
@@ -37,6 +39,12 @@ interface EmployerRegisterPageProps {
 const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate }) => {
   useEffect(() => {
     if (localStorage.getItem('user')) onNavigate('dashboard');
+    // Handle Google OAuth invite-only block redirect
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('blocked') === '1') {
+      const cName = params.get('company') || 'This company';
+      setError(`⚠️ ${cName} already has an account on ZyncJobs.\n\nAsk your company admin to invite you from their Team Management page.`);
+    }
   }, []);
 
   const [step, setStep] = useState(1);
@@ -50,8 +58,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
-  const [companySuggestions, setCompanySuggestions] = useState<any[]>([]);
+  const [companySuggestions, setCompanySuggestions] = useState<CompanyProfile[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  
+  // New company verification states
+  const [domainVerification, setDomainVerification] = useState<DomainVerificationResult | null>(null);
+  const [selectedCompanyProfile, setSelectedCompanyProfile] = useState<CompanyProfile | null>(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [showVerificationDetails, setShowVerificationDetails] = useState(false);
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToDeclaration, setAgreedToDeclaration] = useState(false);
@@ -60,59 +74,103 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const fallbackCompanies = [
-    { id: 1,   name: 'Zoho',                             domain: 'zoho.com',        logoUrl: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 2,   name: 'TCS',                              domain: 'tcs.com',         logoUrl: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 3,   name: 'Infosys',                          domain: 'infosys.com',     logoUrl: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 10,  name: 'Google',                           domain: 'google.com',      logoUrl: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 9,   name: 'Microsoft',                        domain: 'microsoft.com',   logoUrl: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-    { id: 101, name: 'Trinity Technology Solutions LLC', domain: 'trinitetech.com', logoUrl: 'https://img.logo.dev/trinitetech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80&retina=true' },
-  ];
-
   const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setFormData({ ...formData, companyName: value });
     setCompanyLogo('');
-    if (value.trim().length >= 1) {
+    setSelectedCompanyProfile(null);
+    setDomainVerification(null);
+    
+    if (value.trim().length >= 2) {
       try {
-        const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(value)}`);
-        if (response.ok) {
-          const data = await response.json();
-          const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-          setCompanySuggestions(list.slice(0, 6));
-          const exact = list.find((c: any) => (c.name || c.companyName || '').toLowerCase() === value.toLowerCase());
-          if (exact) { const logo = exact.logo || exact.logoUrl || ''; if (logo) setCompanyLogo(logo); }
-        } else {
-          setCompanySuggestions(fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 6));
-        }
-        setShowSuggestions(true);
-      } catch {
-        const filtered = fallbackCompanies.filter(c => c.name.toLowerCase().includes(value.toLowerCase())).slice(0, 6);
-        setCompanySuggestions(filtered);
-        setShowSuggestions(filtered.length > 0);
+        const suggestions = await CompanyVerificationService.getCompanySuggestions(value);
+        setCompanySuggestions(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } catch (error) {
+        console.error('Error fetching company suggestions:', error);
+        setShowSuggestions(false);
       }
     } else {
       setShowSuggestions(false);
     }
   };
 
-  const selectCompany = (company: any) => {
+  const selectCompany = (company: CompanyProfile) => {
     setFormData({ ...formData, companyName: company.name });
-    setCompanyLogo(company.logoUrl || company.logo || '');
+    setCompanyLogo(company.logo || '');
+    setSelectedCompanyProfile(company);
     setShowSuggestions(false);
+    
+    // If company is already verified, show verification status
+    if (company.verified) {
+      setDomainVerification({
+        isValid: true,
+        isCompanyDomain: true,
+        companyProfile: company,
+        verificationMethod: 'company_database',
+        message: 'Company found in database and verified'
+      });
+    }
+  };
+
+  const handleDomainVerification = async () => {
+    if (!formData.email.trim() || !formData.companyName.trim()) {
+      setError('Please enter both company name and email');
+      return;
+    }
+
+    setVerificationLoading(true);
+    setError('');
+    
+    try {
+      const result = await CompanyVerificationService.verifyCompanyDomain(
+        formData.email, 
+        formData.companyName
+      );
+      
+      setDomainVerification(result);
+      
+      if (result.companyProfile) {
+        setSelectedCompanyProfile(result.companyProfile);
+        setCompanyLogo(result.companyProfile.logo || '');
+      }
+      
+      // Remove the toast notification - only show inline card
+      // const message = CompanyVerificationService.getVerificationStatusMessage(result);
+      // showToast(message, result.isCompanyDomain ? 'success' : 'warning');
+      
+    } catch (error) {
+      setError('Domain verification failed. Please try again.');
+      showToast('Domain verification failed', 'error');
+    } finally {
+      setVerificationLoading(false);
+    }
   };
 
   const handleStep1Next = async () => {
     if (!formData.name.trim()) { setError('Please enter your full name.'); return; }
     if (!formData.companyName.trim()) { setError('Please enter your company name.'); return; }
     if (!formData.email.trim()) { setError('Please enter your company email.'); return; }
+    
+    // Verify domain first if not already done
+    if (!domainVerification) {
+      await handleDomainVerification();
+      return;
+    }
+    
     setError('');
     setLoading(true);
     try {
       const response = await fetch(API_ENDPOINTS.OTP_SEND, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: formData.email, name: formData.name, userType: 'employer' })
+        body: JSON.stringify({ 
+          email: formData.email, 
+          name: formData.name, 
+          userType: 'employer',
+          companyName: formData.companyName,
+          domainVerification: domainVerification
+        })
       });
       const data = await response.json();
       if (response.ok) {
@@ -200,26 +258,59 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setError('');
     try {
       const employerId = generateEmployerId();
-      const response = await authAPI.register({
-        email: formData.email, password: formData.password, name: formData.name,
-        companyName: formData.companyName, companyLogo, userType: 'employer', employerId,
-      });
-      // Backend decides: company domain → auto verified, gmail/yahoo/etc. → pending admin
+      
+      // Prepare registration data with company verification
+      const registrationData = {
+        email: formData.email, 
+        password: formData.password, 
+        name: formData.name,
+        companyName: formData.companyName, 
+        companyLogo, 
+        userType: 'employer' as const, 
+        employerId,
+        // Include domain verification results
+        domainVerification,
+        companyProfile: selectedCompanyProfile
+      };
+      
+      console.log('Sending registration data:', registrationData);
+      
+      const response = await authAPI.register(registrationData);
+      
+      // Backend decides verification status based on domain verification
       const isVerified = response.verificationStatus === 'verified';
       const msg = isVerified
         ? '✅ Account created! Your company email was verified automatically. Redirecting to sign in...'
-        : '⏳ Account created! Since you used a personal email (gmail/yahoo/etc.), your account is pending admin verification.';
+        : domainVerification?.verificationMethod === 'company_database'
+        ? '✅ Account created! Your company is verified. Redirecting to sign in...'
+        : domainVerification?.verificationMethod === 'domain_check'
+        ? '🔍 Account created! Your corporate domain is being verified. You can start using the platform.'
+        : '⏳ Account created! Since you used a personal email or unverified domain, your account is pending admin verification.';
+      
       setSuccess(msg);
       showToast(msg, isVerified ? 'success' : 'warning');
+      
       if (response.user) {
         if (!response.user.employerId) response.user.employerId = employerId;
+        // Store verification status
+        response.user.verificationStatus = response.verificationStatus;
+        response.user.companyProfile = selectedCompanyProfile;
+        response.user.companyDomain = formData.email.split('@')[1];
         localStorage.setItem('user', JSON.stringify(response.user));
       }
-      setTimeout(() => onNavigate('employer-login'), isVerified ? 2000 : 4000);
+      
+      setTimeout(() => onNavigate('employer-complete-profile'), isVerified ? 2000 : 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
-      setError(msg);
-      showToast(msg, 'error');
+      if (msg.includes('already has an account') || msg.includes('COMPANY_ALREADY_EXISTS')) {
+        const companyMatch = msg.match(/^(.+?) already has an account/);
+        const cName = companyMatch ? companyMatch[1] : 'Your company';
+        setError(`⚠️ ${cName} already has an account on ZyncJobs.\n\nAsk your company admin to invite you from their Team Management page.`);
+        showToast('Company already registered — get an invite from your admin', 'warning');
+      } else {
+        setError(msg);
+        showToast(msg, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -238,10 +329,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
             <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-blue-50 opacity-50 translate-x-1/3 translate-y-1/3" />
 
             <div className="relative z-10 w-full max-w-md flex flex-col gap-6">
-              <button onClick={() => onNavigate('home')} className="flex items-center gap-2 text-orange-500 hover:text-orange-700 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
+              <BackButton onClick={() => onNavigate('home')} />
 
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
@@ -287,11 +375,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
           <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-6 bg-white border-l border-gray-100">
             <div className="w-full max-w-md">
 
-              {/* Mobile back button */}
-              <button onClick={() => onNavigate('home')} className="lg:hidden flex items-center gap-2 text-orange-500 hover:text-orange-700 mb-6 transition-colors">
-                <ArrowLeft className="w-4 h-4" />
-                <span className="text-sm font-medium">Back to Home</span>
-              </button>
 
               <div className="bg-white rounded-2xl shadow-xl p-8">
 
@@ -318,9 +401,20 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
               </div>
 
               {error && (
-                <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                  <span className="text-red-500 text-xs mt-0.5">⚠</span>
-                  <span className="text-red-600 text-sm">{error}</span>
+                <div className="mb-4 flex flex-col gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    <span className="text-red-500 text-xs mt-0.5">⚠</span>
+                    <span className="text-red-600 text-sm whitespace-pre-line">{error}</span>
+                  </div>
+                  {error.includes('Team Management') && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('employer-login')}
+                      className="self-start mt-1 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg transition"
+                    >
+                      Go to Login instead →
+                    </button>
+                  )}
                 </div>
               )}
               {success && (
@@ -354,7 +448,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         )}
                         <input type="text" name="companyName" value={formData.companyName}
                           onChange={handleCompanyNameChange}
-                          onFocus={() => formData.companyName.length >= 1 && setShowSuggestions(true)}
+                          onFocus={() => formData.companyName.length >= 2 && setShowSuggestions(true)}
                           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                           className={`w-full h-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition ${companyLogo ? 'pl-10 pr-4' : 'px-4'}`}
                           placeholder="Enter company name" />
@@ -364,11 +458,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                               <button key={company.id} type="button" onMouseDown={() => selectCompany(company)}
                                 className="w-full text-left px-4 py-2.5 hover:bg-orange-50 border-b last:border-b-0 flex items-center gap-3">
                                 <div className="bg-gray-100 w-7 h-7 rounded flex items-center justify-center p-1 flex-shrink-0">
-                                  <img src={company.logoUrl || company.logo} alt={company.name} className="w-full h-full object-contain"
+                                  <img src={company.logo} alt={company.name} className="w-full h-full object-contain"
                                     onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                                 </div>
-                                <div>
-                                  <div className="font-medium text-gray-900 text-sm">{company.name}</div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium text-gray-900 text-sm">{company.name}</span>
+                                    {company.verified && <CheckCircle className="w-4 h-4 text-green-500" />}
+                                  </div>
                                   <div className="text-xs text-gray-400">{company.domain}</div>
                                 </div>
                               </button>
@@ -379,13 +476,91 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Email</label>
-                      <input type="email" name="email" value={formData.email} onChange={handleChange}
-                        className="w-full h-11 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
-                        placeholder="Enter company email" />
+                      <div className="relative">
+                        <input type="email" name="email" value={formData.email} onChange={handleChange}
+                          className="w-full h-11 px-4 pr-12 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
+                          placeholder="Enter company email" />
+                        {formData.email && formData.companyName && (
+                          <button
+                            type="button"
+                            onClick={handleDomainVerification}
+                            disabled={verificationLoading}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-orange-500 hover:text-orange-600 disabled:opacity-50"
+                            title="Verify domain"
+                          >
+                            {verificationLoading ? (
+                              <div className="w-4 h-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Shield className="w-4 h-4" />
+                            )}
+                          </button>
+                        )}
+                      </div>
+                      
+                      {/* Domain Verification Status */}
+                      {domainVerification && (
+                        <div className={`mt-2 p-3 rounded-lg border text-sm ${
+                          domainVerification.verificationMethod === 'company_database' ? 'bg-green-50 border-green-200 text-green-700' :
+                          domainVerification.verificationMethod === 'domain_check' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                          'bg-yellow-50 border-yellow-200 text-yellow-700'
+                        }`}>
+                          <div className="flex items-start gap-2">
+                            {domainVerification.verificationMethod === 'company_database' ? (
+                              <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            ) : domainVerification.verificationMethod === 'domain_check' ? (
+                              <Shield className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            ) : (
+                              <Clock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            )}
+                            <div className="flex-1">
+                              <div className="font-medium mb-1">
+                                {domainVerification.verificationMethod === 'company_database' ? 'Email Verified' :
+                                 domainVerification.verificationMethod === 'domain_check' ? 'Corporate Email' :
+                                 'Verification Pending'}
+                              </div>
+                              <div className="text-xs opacity-90">
+                                {domainVerification.verificationMethod === 'company_database' 
+                                  ? ''
+                                  : domainVerification.verificationMethod === 'domain_check'
+                                  ? 'Corporate email detected. Your account will be verified after registration.'
+                                  : 'Manual verification required. Our team will review your application.'}
+                              </div>
+                              {domainVerification.companyProfile && (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowVerificationDetails(!showVerificationDetails)}
+                                  className="text-xs underline mt-1 hover:no-underline"
+                                >
+                                  {showVerificationDetails ? 'Hide' : 'Show'} company details
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Company Profile Details */}
+                          {showVerificationDetails && domainVerification.companyProfile && (
+                            <div className="mt-3 pt-3 border-t border-current border-opacity-20">
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div><strong>Domain:</strong> {domainVerification.companyProfile.domain}</div>
+                                {domainVerification.companyProfile.industry && (
+                                  <div><strong>Industry:</strong> {domainVerification.companyProfile.industry}</div>
+                                )}
+                                {domainVerification.companyProfile.size && (
+                                  <div><strong>Size:</strong> {domainVerification.companyProfile.size}</div>
+                                )}
+                                {domainVerification.companyProfile.website && (
+                                  <div><strong>Website:</strong> {domainVerification.companyProfile.website}</div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <button type="button" onClick={handleStep1Next}
-                      className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm transition-all">
-                      Continue →
+                      disabled={loading || verificationLoading}
+                      className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                      {loading ? 'Sending...' : verificationLoading ? 'Verifying...' : domainVerification ? 'Continue →' : 'Verify & Continue →'}
                     </button>
                   </div>
 

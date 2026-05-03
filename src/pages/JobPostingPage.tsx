@@ -2173,7 +2173,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           </div>
           <p className="text-gray-500 text-sm mb-6">You can skip this section or add pay information to attract more candidates.</p>
           
-          <div className="grid grid-cols-5 gap-4 items-end">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
             <div>
               <label className="block text-gray-600 text-sm mb-2">Show pay by</label>
               <select
@@ -3061,9 +3061,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         </div>
         
         {/* Step Content */}
-        <div className="flex max-w-6xl mx-auto">
+        <div className="flex flex-col lg:flex-row max-w-6xl mx-auto">
           {/* Main Content */}
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             {currentStep === 1 && renderStep1()}
             {currentStep === 3 && renderStep3()}
             {currentStep === 4 && renderStep4()}
@@ -3073,7 +3073,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           </div>
           
           {/* Sidebar with Tips */}
-          <div className="w-80 bg-gray-50 border-l border-gray-200 p-6">
+          <div className="hidden lg:block w-80 bg-gray-50 border-l border-gray-200 p-6">
             <div className="sticky top-32">
               <h3 className="text-lg font-semibold text-gray-800 mb-4">💡 Tips & Help</h3>
               

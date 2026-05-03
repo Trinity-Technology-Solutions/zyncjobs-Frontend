@@ -292,63 +292,57 @@ return (
         </div>
         
         {/* Floating Elements */}
-        <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse"></div>
-        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000"></div>
-        <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500"></div>
+        <div className="absolute top-10 left-10 w-20 h-20 bg-white/10 rounded-full blur-xl animate-pulse hidden sm:block"></div>
+        <div className="absolute top-20 right-20 w-32 h-32 bg-white/5 rounded-full blur-2xl animate-pulse delay-1000 hidden lg:block"></div>
+        <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500 hidden md:block"></div>
         
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <BackButton 
-            onClick={() => onNavigate && onNavigate('dashboard')}
-            text="Back to Dashboard"
-            className="inline-flex items-center text-sm text-white/80 hover:text-white transition-colors mb-6 bg-white/10 px-4 py-2 rounded-lg backdrop-blur-sm"
-          />
-          
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
           <div className="text-center">
             {/* Talent Icons */}
-            <div className="flex justify-center items-center mb-6">
+            <div className="flex justify-center items-center mb-4 sm:mb-6">
               <div className="flex -space-x-2">
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Users className="w-6 h-6 text-white" />
+                <div className="w-10 sm:w-12 h-10 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Users className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
                 </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Star className="w-6 h-6 text-white" />
+                <div className="w-10 sm:w-12 h-10 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Star className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
                 </div>
-                <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
-                  <Code className="w-6 h-6 text-white" />
+                <div className="w-10 sm:w-12 h-10 sm:h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border border-white/30">
+                  <Code className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
                 </div>
               </div>
             </div>
             
-            <h1 className="text-4xl font-bold text-white mb-4 drop-shadow-lg flex items-center justify-center gap-3">
-              Find Top Talent That Hits Different
-              <Target className="w-8 h-8" />
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4 drop-shadow-lg flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
+              <span>Find Top Talent That Hits Different</span>
+              <Target className="w-6 sm:w-8 h-6 sm:h-8" />
             </h1>
-            <p className="text-lg text-white/90 mb-6 max-w-2xl mx-auto drop-shadow flex items-center justify-center gap-2">
-              Browse our pool of verified professionals and find the perfect candidates for your team
-              <Users className="w-5 h-5" />
+            <p className="text-base sm:text-lg text-white/90 mb-4 sm:mb-6 max-w-2xl mx-auto drop-shadow flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+              <span>Browse our pool of verified professionals and find the perfect candidates for your team</span>
+              <Users className="w-4 sm:w-5 h-4 sm:h-5" />
             </p>
             
             {/* Stats */}
-            <div className="flex justify-center items-center gap-8 mb-8">
+            <div className="flex flex-col sm:flex-row justify-center items-center gap-4 sm:gap-8 mb-6 sm:mb-8">
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Target className="w-6 h-6" />
+                <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Target className="w-5 sm:w-6 h-5 sm:h-6" />
                   Quality
                 </div>
                 <div className="text-white/80 text-sm">Talent Pool</div>
               </div>
-              <div className="w-px h-8 bg-white/30"></div>
+              <div className="w-8 sm:w-px h-px sm:h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <CheckCircle className="w-6 h-6" />
+                <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <CheckCircle className="w-5 sm:w-6 h-5 sm:h-6" />
                   Verified
                 </div>
                 <div className="text-white/80 text-sm">Profiles</div>
               </div>
-              <div className="w-px h-8 bg-white/30"></div>
+              <div className="w-8 sm:w-px h-px sm:h-8 bg-white/30"></div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
-                  <Bot className="w-6 h-6" />
+                <div className="text-xl sm:text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  <Bot className="w-5 sm:w-6 h-5 sm:h-6" />
                   AI-Powered
                 </div>
                 <div className="text-white/80 text-sm">Matching</div>
@@ -357,113 +351,115 @@ return (
             
             {/* Search Bar */}
             <div className="max-w-4xl mx-auto">
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 border border-white/30 shadow-lg">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
+              <div className="bg-white/95 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/30 shadow-lg">
+                <div className="flex flex-col gap-3">
+                  <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
                       placeholder="Search candidates"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm"
+                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm"
                     />
                   </div>
-                  <div className="relative flex-1">
-                    <Code className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Skills (e.g., Python)"
-                      value={selectedSkill}
-                      onChange={(e) => {
-                        setSelectedSkill(e.target.value);
-                        const filtered = allSkills.filter(skill =>
-                          skill.toLowerCase().includes(e.target.value.toLowerCase())
-                        ).slice(0, 50);
-                        setSkillSuggestions(filtered);
-                        setShowSkillSuggestions(true);
-                      }}
-                      onFocus={() => {
-                        const filtered = selectedSkill
-                          ? allSkills.filter(s => s.toLowerCase().includes(selectedSkill.toLowerCase())).slice(0, 50)
-                          : allSkills.slice(0, 50);
-                        setSkillSuggestions(filtered);
-                        setShowSkillSuggestions(true);
-                      }}
-                      onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
-                    />
-                    {showSkillSuggestions && skillSuggestions.length > 0 && (
-                      <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
-                        <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
-                          {skillSuggestions.map((skill, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              onMouseDown={() => {
-                                setSelectedSkill(skill);
-                                setShowSkillSuggestions(false);
-                              }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
-                            >
-                              <span className="flex items-center gap-2">
-                                <Code className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                                {skill}
-                              </span>
-                            </button>
-                          ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="relative">
+                      <Code className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Skills (e.g., Python)"
+                        value={selectedSkill}
+                        onChange={(e) => {
+                          setSelectedSkill(e.target.value);
+                          const filtered = allSkills.filter(skill =>
+                            skill.toLowerCase().includes(e.target.value.toLowerCase())
+                          ).slice(0, 50);
+                          setSkillSuggestions(filtered);
+                          setShowSkillSuggestions(true);
+                        }}
+                        onFocus={() => {
+                          const filtered = selectedSkill
+                            ? allSkills.filter(s => s.toLowerCase().includes(selectedSkill.toLowerCase())).slice(0, 50)
+                            : allSkills.slice(0, 50);
+                          setSkillSuggestions(filtered);
+                          setShowSkillSuggestions(true);
+                        }}
+                        onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                      />
+                      {showSkillSuggestions && skillSuggestions.length > 0 && (
+                        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
+                          <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
+                            {skillSuggestions.map((skill, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onMouseDown={() => {
+                                  setSelectedSkill(skill);
+                                  setShowSkillSuggestions(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <Code className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                                  {skill}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="relative flex-1">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                    <input
-                      type="text"
-                      placeholder="Location (e.g., Mumbai)"
-                      value={selectedLocation}
-                      onChange={(e) => {
-                        setSelectedLocation(e.target.value);
-                        const filtered = allLocations.filter(location =>
-                          location.toLowerCase().includes(e.target.value.toLowerCase())
-                        ).slice(0, 50);
-                        setLocationSuggestions(filtered);
-                        setShowLocationSuggestions(true);
-                      }}
-                      onFocus={() => {
-                        const filtered = selectedLocation
-                          ? allLocations.filter(l => l.toLowerCase().includes(selectedLocation.toLowerCase())).slice(0, 50)
-                          : allLocations.slice(0, 50);
-                        setLocationSuggestions(filtered);
-                        setShowLocationSuggestions(true);
-                      }}
-                      onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
-                    />
-                    {showLocationSuggestions && locationSuggestions.length > 0 && (
-                      <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
-                        <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
-                          {locationSuggestions.map((location, index) => (
-                            <button
-                              key={index}
-                              type="button"
-                              onMouseDown={() => {
-                                setSelectedLocation(location);
-                                setShowLocationSuggestions(false);
-                              }}
-                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
-                            >
-                              <span className="flex items-center gap-2">
-                                <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                                {location}
-                              </span>
-                            </button>
-                          ))}
+                      )}
+                    </div>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Location (e.g., Mumbai)"
+                        value={selectedLocation}
+                        onChange={(e) => {
+                          setSelectedLocation(e.target.value);
+                          const filtered = allLocations.filter(location =>
+                            location.toLowerCase().includes(e.target.value.toLowerCase())
+                          ).slice(0, 50);
+                          setLocationSuggestions(filtered);
+                          setShowLocationSuggestions(true);
+                        }}
+                        onFocus={() => {
+                          const filtered = selectedLocation
+                            ? allLocations.filter(l => l.toLowerCase().includes(selectedLocation.toLowerCase())).slice(0, 50)
+                            : allLocations.slice(0, 50);
+                          setLocationSuggestions(filtered);
+                          setShowLocationSuggestions(true);
+                        }}
+                        onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
+                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
+                      />
+                      {showLocationSuggestions && locationSuggestions.length > 0 && (
+                        <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
+                          <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
+                            {locationSuggestions.map((location, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onMouseDown={() => {
+                                  setSelectedLocation(location);
+                                  setShowLocationSuggestions(false);
+                                }}
+                                className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
+                              >
+                                <span className="flex items-center gap-2">
+                                  <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                  {location}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
-                  <button onClick={() => fetchCandidates()} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 whitespace-nowrap shadow-md">
+                  <button onClick={() => fetchCandidates()} className="w-full sm:w-auto sm:self-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg sm:rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md">
                     <Filter className="w-4 h-4" />
                     <span>Search Candidates</span>
                   </button>
@@ -474,25 +470,25 @@ return (
         </div>
       </div>
       
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
 
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           {/* AI Insights Bar */}
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl p-4 mb-4 text-white">
-            <div className="flex flex-wrap items-center gap-4">
+          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg sm:rounded-xl p-3 sm:p-4 mb-4 text-white">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 lg:gap-4">
               <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-yellow-300" />
+                <Zap className="w-4 sm:w-5 h-4 sm:h-5 text-yellow-300" />
                 <span className="font-semibold text-sm">AI Talent Insights</span>
               </div>
               {/* Job Selector */}
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 w-full lg:min-w-[200px]">
                 <button
                   onClick={() => setShowJobDropdown(!showJobDropdown)}
                   className="w-full flex items-center justify-between bg-white/20 hover:bg-white/30 border border-white/30 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                 >
                   <span className="flex items-center gap-2 truncate">
                     <Briefcase className="w-4 h-4 flex-shrink-0" />
-                    {selectedJob ? selectedJob.jobTitle : 'Select a job to rank candidates'}
+                    <span className="truncate">{selectedJob ? selectedJob.jobTitle : 'Select a job to rank candidates'}</span>
                   </span>
                   <ChevronDown className="w-4 h-4 flex-shrink-0" />
                 </button>
@@ -515,8 +511,8 @@ return (
                             selectedJob?._id === job._id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700'
                           }`}
                         >
-                          <div className="font-medium">{job.jobTitle}</div>
-                          <div className="text-xs text-gray-400">{job.company} · {job.location}</div>
+                          <div className="font-medium truncate">{job.jobTitle}</div>
+                          <div className="text-xs text-gray-400 truncate">{job.company} · {job.location}</div>
                         </button>
                       ))
                     )}
@@ -524,46 +520,52 @@ return (
                 )}
               </div>
               {/* Sort */}
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full lg:w-auto">
                 <span className="text-white/70 text-xs">Sort:</span>
-                {(['ai_score', 'skills', 'name'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setSortBy(s)}
-                    className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 ${
-                      sortBy === s ? 'bg-white text-indigo-700' : 'bg-white/20 text-white hover:bg-white/30'
-                    }`}
-                  >
-                    {s === 'ai_score' ? (
-                      <><Bot className="w-3.5 h-3.5" /> AI Score</>
-                    ) : s === 'skills' ? (
-                      <><Target className="w-3.5 h-3.5" /> Skills</>
-                    ) : (
-                      <><Users className="w-3.5 h-3.5" /> Name</>
-                    )}
-                  </button>
-                ))}
+                <div className="flex flex-wrap gap-2">
+                  {(['ai_score', 'skills', 'name'] as const).map(s => (
+                    <button
+                      key={s}
+                      onClick={() => setSortBy(s)}
+                      className={`text-xs px-2 sm:px-3 py-1.5 rounded-full font-medium transition-colors flex items-center gap-1.5 ${
+                        sortBy === s ? 'bg-white text-indigo-700' : 'bg-white/20 text-white hover:bg-white/30'
+                      }`}
+                    >
+                      {s === 'ai_score' ? (
+                        <><Bot className="w-3.5 h-3.5" /> <span className="hidden sm:inline">AI Score</span><span className="sm:hidden">AI</span></>
+                      ) : s === 'skills' ? (
+                        <><Target className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Skills</span><span className="sm:hidden">Skills</span></>
+                      ) : (
+                        <><Users className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Name</span><span className="sm:hidden">Name</span></>
+                      )}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {/* Summary — always visible */}
-              <div className="text-xs text-white/80 ml-auto">
-                {scoredCandidates.filter(c => (c.aiScore ?? 0) >= 70).length} excellent matches · {scoredCandidates.filter(c => (c.aiScore ?? 0) >= 50 && (c.aiScore ?? 0) < 70).length} good fits
+              {/* Summary */}
+              <div className="text-xs text-white/80 w-full lg:w-auto lg:ml-auto">
+                <span className="block sm:inline">{scoredCandidates.filter(c => (c.aiScore ?? 0) >= 70).length} excellent matches</span>
+                <span className="hidden sm:inline"> · </span>
+                <span className="block sm:inline">{scoredCandidates.filter(c => (c.aiScore ?? 0) >= 50 && (c.aiScore ?? 0) < 70).length} good fits</span>
               </div>
             </div>
           </div>
 
-          <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-gray-200">
-              <div className="text-gray-700 font-medium text-lg">
+          <div className="bg-white/60 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-200">
+              <div className="text-gray-700 font-medium text-base sm:text-lg">
                 {loading ? (
                   <div className="flex items-center space-x-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span>Searching candidates...</span>
+                    <span className="text-sm sm:text-base">Searching candidates...</span>
                   </div>
                 ) : (
-                  <div>
-                    <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
-                    <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                    <div>
+                      <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
+                      <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
+                    </div>
                     {(searchTerm || selectedSkill || selectedLocation) && (
-                      <span className="ml-2 text-gray-500">
+                      <span className="text-sm sm:text-base text-gray-500 sm:ml-2">
                         {searchTerm && ` matching "${searchTerm}"`}
                         {selectedSkill && ` with ${selectedSkill} skills`}
                         {selectedLocation && ` in ${selectedLocation}`}
@@ -607,7 +609,7 @@ return (
             </div>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
             {scoredCandidates.map((candidate) => {
               const score = candidate.aiScore ?? 0;
               const fitLabel = candidate.fitLabel ?? 'Low';
@@ -620,11 +622,11 @@ return (
               const scoreBarColor = score >= 75 ? 'bg-emerald-500' : score >= 50 ? 'bg-blue-500' : score >= 30 ? 'bg-amber-500' : 'bg-red-400';
               const fit = fitConfig[fitLabel];
               return (
-                <div key={candidate._id} className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
+                <div key={candidate._id} className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
                   {/* Top section */}
-                  <div className="p-5 flex items-start gap-4">
+                  <div className="p-3 sm:p-4 md:p-5 flex items-start gap-2 sm:gap-3 md:gap-4">
                     {/* Avatar */}
-                    <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg flex-shrink-0 overflow-hidden shadow">
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-base sm:text-lg flex-shrink-0 overflow-hidden shadow">
                       {candidate.profilePhoto ? (
                         <img 
                           src={candidate.profilePhoto} 
@@ -648,17 +650,17 @@ return (
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="text-base font-bold text-gray-900 leading-tight">{getCandidateName(candidate)}</h3>
-                          <p className="text-sm text-gray-500 mt-0.5">{candidate.jobTitle || candidate.title || 'Professional'}</p>
-                          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                            <MapPin className="w-3 h-3" />{getCandidateLocation(candidate)}
+                        <div className="min-w-0">
+                          <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight truncate">{getCandidateName(candidate)}</h3>
+                          <p className="text-xs sm:text-sm text-gray-500 mt-0.5 truncate">{candidate.jobTitle || candidate.title || 'Professional'}</p>
+                          <p className="text-xs text-gray-400 mt-0.5 sm:mt-1 flex items-center gap-1 truncate">
+                            <MapPin className="w-3 h-3 flex-shrink-0" /><span className="truncate">{getCandidateLocation(candidate)}</span>
                           </p>
                         </div>
                         {/* AI Score */}
                         <div className="flex flex-col items-center flex-shrink-0">
-                          <div className="relative w-12 h-12">
-                            <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
+                          <div className="relative w-10 h-10 sm:w-12 sm:h-12">
+                            <svg className="w-10 h-10 sm:w-12 sm:h-12 -rotate-90" viewBox="0 0 36 36">
                               <circle cx="18" cy="18" r="15" fill="none" stroke="#e5e7eb" strokeWidth="3" />
                               <circle cx="18" cy="18" r="15" fill="none"
                                 stroke={score >= 75 ? '#10b981' : score >= 50 ? '#3b82f6' : score >= 30 ? '#f59e0b' : '#ef4444'}
@@ -669,7 +671,7 @@ return (
                             </svg>
                             <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-800">{score}%</span>
                           </div>
-                          <span className={`mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${fit.bg} ${fit.text}`}>
+                          <span className={`mt-1 text-xs font-semibold px-2 py-0.5 rounded-full ${fit.bg} ${fit.text} text-xs whitespace-nowrap`}>
                             <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1 ${fit.dot}`}></span>
                             {fitLabel}
                           </span>
@@ -679,11 +681,11 @@ return (
                   </div>
 
                   {/* Divider */}
-                  <div className="mx-5 border-t border-gray-100" />
+                  <div className="mx-3 sm:mx-4 md:mx-5 border-t border-gray-100" />
 
                   {/* Skills */}
-                  <div className="px-5 py-3">
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-3">
+                    <div className="flex flex-wrap gap-1 sm:gap-1.5">
                       {getCandidateSkills(candidate).slice(0, 5).map((skill, idx) => {
                         const isMatched = candidate.matchedSkills?.map(s => s.toLowerCase()).includes(skill.toLowerCase());
                         return (
@@ -702,16 +704,16 @@ return (
 
                   {/* AI Match bar */}
                   {selectedJob && (
-                    <div className="px-5 pb-3">
-                      <div className="bg-gray-50 rounded-xl p-3">
-                        <div className="flex items-center justify-between mb-2">
+                    <div className="px-3 sm:px-4 md:px-5 pb-3">
+                      <div className="bg-gray-50 rounded-xl p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                           <span className="text-xs font-semibold text-gray-600">Match — <span className="text-indigo-600">{selectedJob.jobTitle}</span></span>
                           <span className="text-xs font-bold text-gray-700">{score}%</span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                           <div className={`h-1.5 rounded-full ${scoreBarColor}`} style={{ width: `${score}%` }} />
                         </div>
-                        <div className="flex gap-3 text-xs">
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs">
                           {(candidate.matchedSkills?.length ?? 0) > 0 && <span className="text-emerald-600 font-medium">✓ {candidate.matchedSkills!.length} matched</span>}
                           {(candidate.missingSkills?.length ?? 0) > 0 && <span className="text-red-500 font-medium">✗ {candidate.missingSkills!.length} missing</span>}
                         </div>
@@ -720,24 +722,24 @@ return (
                   )}
 
                   {/* Actions */}
-                  <div className="px-5 pb-5 flex gap-2">
+                  <div className="px-3 sm:px-4 md:px-5 pb-5 flex flex-col sm:flex-row gap-2">
                     <button
                       onClick={() => handleViewProfile(candidate)}
-                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+                      className="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
                     >
                       View Profile
                     </button>
-                    <div className="relative" data-contact-menu>
+                    <div className="relative w-full sm:w-auto" data-contact-menu>
                       <button
                         onClick={() => setOpenContactMenu(openContactMenu === candidate._id ? null : candidate._id)}
-                        className="flex items-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
+                        className="w-full sm:w-auto flex items-center justify-center sm:justify-start gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors"
                       >
                         <Mail className="w-4 h-4" />
                         Contact
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openContactMenu === candidate._id ? 'rotate-180' : ''}`} />
                       </button>
                       {openContactMenu === candidate._id && (
-                        <div className="absolute bottom-full right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 mb-1 w-48 overflow-hidden">
+                        <div className="absolute bottom-full right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 mb-1 w-full sm:w-48 overflow-hidden">
                           <button onClick={() => { setSelectedCandidateForMessage(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                             <MessageCircle className="w-4 h-4 text-gray-400" /> Send Message
                           </button>

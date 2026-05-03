@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircle, Clock, Smartphone, Brain, Calendar, Filter } from 'lucide-react';
+import BackButton from '../components/BackButton';
 
 interface FeaturesPageProps {
   onNavigate: (page: string) => void;
@@ -49,12 +50,7 @@ const FeaturesPage: React.FC<FeaturesPageProps> = ({ onNavigate, user, onLogout 
               <h1 className="text-3xl font-bold text-gray-900">Trinity Jobs Features</h1>
               <p className="text-gray-600 mt-2">Medium Priority Features Implementation</p>
             </div>
-            <button
-              onClick={() => onNavigate('home')}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-            >
-              Back to Home
-            </button>
+            <BackButton onClick={() => onNavigate('home')} text="Back to Home" />
           </div>
         </div>
       </div>

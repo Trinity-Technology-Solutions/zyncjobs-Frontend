@@ -6,8 +6,11 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { tokenStorage } from '../utils/tokenStorage';
 import RecommendedJobs from '../components/RecommendedJobs';
-import { JobCardSkeleton } from '../components/LoadingStates';
+import { aiSuggestions } from '../utils/aiSuggestions';
+import { searchAccuracy } from '../utils/searchAccuracy';
+import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
+import { formatJobDescription } from '../utils/htmlUtils';
 import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
@@ -573,23 +576,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     });
   };
 
-  // Strictly single-select: clicking active button deselects, clicking another replaces
-  const handleQuickFilter = (key: string, filterType: string, value: string) => {
-    if (activeQuickFilter === key) {
-      // deselect
-      setActiveQuickFilter(null);
-      setFilters(prev => ({ ...prev, freshness: [], workMode: [] }));
-    } else {
-      // select only this one — clear ALL quick-filter related state first
-      setActiveQuickFilter(key);
-      setFilters(prev => ({
-        ...prev,
-        freshness: filterType === 'freshness' ? [value] : [],
-        workMode: filterType === 'workMode' ? [value] : [],
-      }));
-    }
-  };
-
   const getJobSuggestions = async (input: string): Promise<{keywords: string[], jobTitles: string[], companies: string[]}> => {
     if (input.length < 2) return {keywords: [], jobTitles: [], companies: []};
     
@@ -628,13 +614,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     const uniqueSkills = [...new Set(allSkills)];
     
     // Use enhanced search accuracy engine
-    return searchAccuracy_simple(input, uniqueJobTitles, uniqueCompanies, uniqueSkills);
-  };
-
-  const searchAccuracy_simple = (input: string, titles: string[], companies: string[], skills: string[]) => {
-    const q = input.toLowerCase();
-    const match = (arr: string[]) => arr.filter(s => s.toLowerCase().includes(q)).slice(0, 5);
-    return { keywords: match(skills), jobTitles: match(titles), companies: match(companies) };
+    return searchAccuracy.getCategorizedSuggestions(
+      input,
+      uniqueJobTitles,
+      uniqueCompanies,
+      uniqueSkills
+    );
   };
   
   const generateKeywordSuggestions = (input: string): string[] => {
@@ -733,8 +718,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     
     // Remove duplicates and use enhanced matching
     const uniqueLocations = [...new Set(allLocations)];
-    const q = input.toLowerCase();
-    return uniqueLocations.filter(l => l.toLowerCase().includes(q)).slice(0, 8);
+    return searchAccuracy.getLocationMatches(input, uniqueLocations);
   };
 
   const handleJobInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1172,27 +1156,27 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
+              onClick={() => handleFilterChange('freshness', '24h')}
               className={`px-3 py-1 rounded-full text-sm border ${
-                activeQuickFilter === '24h'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                filters.freshness.includes('24h') 
+                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               Last 48 hours
             </button>
             <button
-              onClick={() => handleQuickFilter('7d', 'freshness', '7d')}
+              onClick={() => handleFilterChange('freshness', '7d')}
               className={`px-3 py-1 rounded-full text-sm border ${
-                activeQuickFilter === '7d'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                filters.freshness.includes('7d') 
+                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               This week
             </button>
             <button
-              onClick={() => handleQuickFilter('remote', 'workMode', 'Remote')}
+              onClick={() => handleFilterChange('workMode', 'Remote')}
               className={`px-3 py-1 rounded-full text-sm border ${
                 activeQuickFilter === 'remote'
                   ? 'bg-blue-100 border-blue-300 text-blue-700'
@@ -1284,15 +1268,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   <div className="flex flex-wrap gap-2">
                     {['Remote','Hybrid','Work from office'].map(mode => (
                       <label key={mode} className="flex items-center gap-1 text-sm">
-                        <input 
-                          type="radio" 
-                          name="workModeMobile"
-                          checked={filters.workMode.includes(mode)} 
-                          onChange={() => {
-                            const key = mode === 'Remote' ? 'remote' : mode === 'Hybrid' ? 'hybrid' : 'office';
-                            handleQuickFilter(key, 'workMode', mode);
-                          }} 
-                        />
+                        <input type="checkbox" checked={filters.workMode.includes(mode)} onChange={() => handleFilterChange('workMode', mode)} />
                         {mode}
                       </label>
                     ))}
@@ -1530,7 +1506,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               {isFiltered ? (
                 <button
                   onClick={() => {
-                    setActiveQuickFilter(null);
                     setFilters({ jobType: '', salaryRange: '', experience: '', department: [], location: [], workMode: [], industry: [], companySize: [], freshness: [] });
                     setSalaryMin(0); setSalaryMax(50); setExpMin(0); setExpMax(30);
                     setFilteredJobs(jobs);
@@ -1708,7 +1683,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       {job.description && (
                         <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                           <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">
-                            {formatJobDescription_simple(job.description, 180)}
+                            {formatJobDescription(job.description, 180)}
                           </p>
                         </div>
                       )}

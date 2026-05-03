@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw, ArrowLeft } from 'lucide-react';
+import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
@@ -186,45 +187,43 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
 
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
-        <div className="max-w-6xl mx-auto px-6 py-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => onNavigate?.('employer-dashboard')}
-              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors mr-1"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
-            </button>
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-violet-500 rounded-2xl flex items-center justify-center shadow-lg">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">AI Recruiter Assistant</h1>
-              <p className="text-blue-300 text-sm mt-0.5">Powered by AI · Automate your hiring workflow</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {jobContext.length > 0 && (
-              <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-3 py-1.5 rounded-full border border-white/20">
-                <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                <span className="text-xs text-white/80">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <BackButton onClick={() => onNavigate?.('employer-dashboard')} className="border-white/60 text-white hover:bg-white/10" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-400 to-violet-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                <Sparkles className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
               </div>
-            )}
-            <button
-              onClick={resetChat}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" /> New Chat
-            </button>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">AI Recruiter Assistant</h1>
+                <p className="text-blue-300 text-xs sm:text-sm mt-0.5">Powered by AI · Automate your hiring workflow</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
+              {jobContext.length > 0 && (
+                <div className="flex items-center gap-2 bg-white/10 backdrop-blur px-2 sm:px-3 py-1.5 rounded-full border border-white/20 flex-1 sm:flex-none">
+                  <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  <span className="text-xs text-white/80 truncate">{jobContext.length} job{jobContext.length > 1 ? 's' : ''} in context</span>
+                </div>
+              )}
+              <button
+                onClick={resetChat}
+                className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-3 sm:px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-colors flex-shrink-0"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /> 
+                <span className="hidden sm:inline">New Chat</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 max-w-6xl w-full mx-auto px-6 py-6 flex gap-6" style={{ minHeight: 0 }}>
+      <div className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-4 sm:py-6 flex gap-4 sm:gap-6" style={{ minHeight: 0 }}>
 
         {/* Left Sidebar — Quick Actions */}
-        <div className="w-64 flex-shrink-0 hidden lg:block">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden sticky top-6">
-            <div className="px-4 py-3 border-b border-gray-100 bg-gray-50">
+        <div className="w-56 sm:w-64 flex-shrink-0 hidden lg:block">
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm overflow-hidden sticky top-6">
+            <div className="px-3 sm:px-4 py-3 border-b border-gray-100 bg-gray-50">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Quick Actions</p>
             </div>
             <div className="p-2 space-y-1">
@@ -234,16 +233,16 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
                   <button
                     key={i}
                     onClick={() => sendMessage(action.prompt)}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-left group"
+                    className="w-full flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2.5 rounded-lg sm:rounded-xl hover:bg-gray-50 transition-colors text-left group"
                   >
-                    <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
-                      <Icon className="w-4 h-4 text-white" />
+                    <div className={`w-7 sm:w-8 h-7 sm:h-8 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0 shadow-sm`}>
+                      <Icon className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{action.label}</p>
-                      <p className="text-xs text-gray-400 truncate">{action.desc}</p>
+                      <p className="text-xs sm:text-sm font-medium text-gray-800 truncate">{action.label}</p>
+                      <p className="text-xs text-gray-400 truncate hidden sm:block">{action.desc}</p>
                     </div>
-                    <ChevronRight className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" />
+                    <ChevronRight className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-gray-300 group-hover:text-gray-500 flex-shrink-0 transition-colors" />
                   </button>
                 );
               })}
@@ -263,10 +262,10 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
                   <button
                     key={i}
                     onClick={() => sendMessage(action.prompt)}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                    className="flex flex-col sm:flex-row items-center sm:items-start gap-2 px-2 sm:px-3 py-2.5 bg-white border border-gray-200 rounded-lg sm:rounded-xl text-center sm:text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
                   >
-                    <div className={`w-7 h-7 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0`}>
-                      <Icon className="w-3.5 h-3.5 text-white" />
+                    <div className={`w-6 sm:w-7 h-6 sm:h-7 rounded-lg bg-gradient-to-br ${action.color} flex items-center justify-center flex-shrink-0`}>
+                      <Icon className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-white" />
                     </div>
                     <span className="text-xs font-medium text-gray-700 truncate">{action.label}</span>
                   </button>
@@ -276,24 +275,24 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           )}
 
           {/* Chat Messages */}
-          <div ref={chatRef} className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-y-auto p-5 space-y-5 mb-3">
+          <div ref={chatRef} className="flex-1 bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5 mb-3">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div key={i} className={`flex gap-2 sm:gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 {/* Avatar */}
-                <div className={`w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm ${
+                <div className={`w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm ${
                   msg.role === 'assistant'
                     ? 'bg-gradient-to-br from-blue-500 to-violet-600'
                     : 'bg-gradient-to-br from-gray-600 to-gray-700'
                 }`}>
                   {msg.role === 'assistant'
-                    ? <Sparkles className="w-4 h-4 text-white" />
-                    : <User className="w-4 h-4 text-white" />
+                    ? <Sparkles className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
+                    : <User className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
                   }
                 </div>
 
                 {/* Bubble */}
-                <div className={`max-w-[75%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                <div className={`max-w-[85%] sm:max-w-[75%] flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                  <div className={`px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
                     msg.role === 'assistant'
                       ? 'bg-gray-50 text-gray-800 rounded-tl-sm border border-gray-100'
                       : 'bg-gradient-to-br from-blue-600 to-blue-700 text-white rounded-tr-sm'
@@ -309,12 +308,12 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
             ))}
 
             {loading && !isTyping && (
-              <div className="flex gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Sparkles className="w-4 h-4 text-white" />
+              <div className="flex gap-2 sm:gap-3">
+                <div className="w-8 sm:w-9 h-8 sm:h-9 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+                  <Sparkles className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
                 </div>
-                <div className="bg-gray-50 border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm">
-                  <div className="flex gap-1.5 items-center h-5">
+                <div className="bg-gray-50 border border-gray-100 px-3 sm:px-4 py-2 sm:py-3 rounded-xl sm:rounded-2xl rounded-tl-sm shadow-sm">
+                  <div className="flex gap-1.5 items-center h-4 sm:h-5">
                     <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                     <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                     <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
@@ -325,8 +324,8 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           </div>
 
           {/* Input Box */}
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 flex-shrink-0">
-            <div className="flex gap-3 items-end">
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-2 sm:p-3 flex-shrink-0">
+            <div className="flex gap-2 sm:gap-3 items-end">
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -340,9 +339,9 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim() || loading}
-                className="w-10 h-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-xl flex items-center justify-center hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex-shrink-0 shadow-sm"
+                className="w-9 sm:w-10 h-9 sm:h-10 bg-gradient-to-br from-blue-600 to-violet-600 rounded-lg sm:rounded-xl flex items-center justify-center hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed transition-opacity flex-shrink-0 shadow-sm"
               >
-                <Send className="w-4 h-4 text-white" />
+                <Send className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-white" />
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-2 px-1">Press Enter to send · Shift+Enter for new line</p>

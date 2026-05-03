@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, ArrowLeft, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, TrendingUp, Award, Target, BookOpen, RotateCcw } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
@@ -148,9 +149,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
         <div className="max-w-3xl mx-auto px-4">
 
           {/* Back button */}
-          <button onClick={() => onNavigate('skill-assessment')} className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6 transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Back to Assessments
-          </button>
+          <BackButton onClick={() => onNavigate('skill-assessment')} className="mb-6" />
 
           {/* Score Card — same style as result screen */}
           <div className="text-center mb-8">

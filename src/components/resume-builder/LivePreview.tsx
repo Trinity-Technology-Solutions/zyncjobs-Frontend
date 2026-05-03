@@ -41,8 +41,8 @@ export default function LivePreview() {
 
   return (
     <div
-      className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col"
-      style={{ height: 'calc(100vh - 140px)' }}
+      className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col min-h-[520px]"
+      style={{ maxHeight: 'calc(100vh - 140px)' }}
     >
       {/* Header bar */}
       <div className="bg-gray-50 px-4 py-3 border-b border-gray-100 flex items-center justify-between flex-shrink-0">

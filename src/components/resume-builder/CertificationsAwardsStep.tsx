@@ -18,7 +18,7 @@ export default function CertificationsAwardsStep() {
 
       {/* Certifications */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
           <div className="flex items-center gap-2">
             <BadgeCheck className="w-5 h-5 text-blue-600" />
             <h3 className="font-semibold text-gray-900">Certifications</h3>
@@ -88,7 +88,7 @@ export default function CertificationsAwardsStep() {
 
       {/* Awards */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-3">
           <div className="flex items-center gap-2">
             <Award className="w-5 h-5 text-amber-500" />
             <h3 className="font-semibold text-gray-900">Awards & Achievements</h3>

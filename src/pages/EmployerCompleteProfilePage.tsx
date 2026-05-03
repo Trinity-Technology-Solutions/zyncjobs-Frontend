@@ -1,387 +1,305 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Building, Phone, Globe, MapPin, ChevronRight, CheckCircle2, Users, Briefcase, ArrowLeft } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Building2, Check, Shield, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
-import { tokenStorage } from '../utils/tokenStorage';
+
 interface Props {
   onNavigate: (page: string) => void;
-  user?: any;
 }
 
-const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user }) => {
-  const [companyName, setCompanyName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [location, setLocation] = useState('');
-  const [website, setWebsite] = useState('');
+const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
+  const [formData, setFormData] = useState({
+    companyName: '',
+    industry: '',
+    companySize: '',
+    headquarters: '',
+    description: '',
+    companyWebsite: ''
+  });
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState('');
-  const [companyLogo, setCompanyLogo] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const [step, setStep] = useState(1);
-  const suggestRef = useRef<HTMLDivElement>(null);
+  const [domainStatus, setDomainStatus] = useState<'idle' | 'verified' | 'corporate' | 'pending' | 'blocked'>('idle');
+  const [blockedCompany, setBlockedCompany] = useState('');
 
-  const fetchCompanyLogoFromJobs = async (name: string) => {
-    if (!name.trim()) return;
-    try {
-      const res = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(name)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-        const match = companies.find((c: any) =>
-          (c.name || c.companyName || '').toLowerCase().includes(name.toLowerCase())
-        );
-        if (match) {
-          const logo = match.logo || match.logoUrl || match.imageUrl || match.image || '';
-          if (logo) { setCompanyLogo(logo); return; }
-        }
-      }
-    } catch {}
-    const domain = guessDomain(name);
-    if (domain) setCompanyLogo(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`);
-  };
-
-  const guessDomain = (name: string): string => {
-    const n = name.toLowerCase().trim();
-    const map: Record<string, string> = {
-      zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
-      google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
-      accenture: 'accenture.com', cognizant: 'cognizant.com', hcl: 'hcltech.com',
-      oracle: 'oracle.com', ibm: 'ibm.com', capgemini: 'capgemini.com',
-      deloitte: 'deloitte.com', pwc: 'pwc.com', kpmg: 'kpmg.com',
-      trinity: 'trinitetech.com',
-    };
-    for (const [key, domain] of Object.entries(map)) {
-      if (n.includes(key)) return domain;
-    }
-    const clean = n.replace(/[^a-z0-9]/g, '');
-    return clean.length > 2 ? `${clean}.com` : '';
-  };
-
-  const handleCompanyChange = async (val: string) => {
-    setCompanyName(val);
-    setCompanyLogo('');
-    if (val.trim().length < 1) { setSuggestions([]); setShowSuggestions(false); return; }
-    try {
-      const res = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(val)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const list: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-        setSuggestions(list.slice(0, 6));
-        setShowSuggestions(list.length > 0);
-      }
-    } catch { setSuggestions([]); setShowSuggestions(false); }
-  };
-
-  const selectCompany = (c: any) => {
-    const name = c.name || c.companyName || '';
-    setCompanyName(name);
-    const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-    if (logo) setCompanyLogo(logo);
-    else fetchCompanyLogoFromJobs(name);
-    setShowSuggestions(false);
-  };
-
+  // Pre-fill companyName from user email domain if corporate
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (suggestRef.current && !suggestRef.current.contains(e.target as Node)) setShowSuggestions(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const stored = localStorage.getItem('user');
+    if (!stored) return;
+    const user = JSON.parse(stored);
+    const domain = user.email?.split('@')[1];
+    const generic = ['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','live.com'];
+    if (domain && !generic.includes(domain)) {
+      // Pre-fill company name from domain
+      const guessed = domain.split('.')[0];
+      setFormData(prev => ({
+        ...prev,
+        companyName: prev.companyName || (guessed.charAt(0).toUpperCase() + guessed.slice(1))
+      }));
+      // Auto verify domain
+      verifyDomain(user.email, guessed);
+    }
   }, []);
 
-  const handleSkip = () => {
-    if (!companyName.trim()) {
-      setError('Company name is required. Please fill in your company name before proceeding.');
-      return;
+  const verifyDomain = async (email: string, companyName: string) => {
+    if (!email || !companyName) return;
+    setVerifying(true);
+    setDomainStatus('idle');
+    setError('');
+    try {
+      const API = import.meta.env.VITE_API_URL || '/api';
+      const stored = localStorage.getItem('user');
+      const user = stored ? JSON.parse(stored) : {};
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      const generic = ['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','live.com'];
+
+      // 1. Invite-only check via team/check endpoint
+      if (emailDomain && !generic.includes(emailDomain)) {
+        const checkRes = await fetch(`${API}/team/check?memberEmail=${encodeURIComponent(email)}`);
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          // No invite — check if domain already taken
+          if (!checkData.hasInvite) {
+            const domainCheckRes = await fetch(`${API}/users/check-domain?domain=${encodeURIComponent(emailDomain)}`);
+            if (domainCheckRes.ok) {
+              const domainData = await domainCheckRes.json();
+              if (domainData.exists && domainData.email !== user.email) {
+                setBlockedCompany(domainData.companyName || emailDomain);
+                setDomainStatus('blocked');
+                setVerifying(false);
+                return;
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Domain verification using existing /api/companies/verify
+      const res = await fetch(`${API}/companies/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, companyName })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.verificationMethod === 'company_database') setDomainStatus('verified');
+        else if (data.verificationMethod === 'domain_check') setDomainStatus('corporate');
+        else setDomainStatus('pending');
+      } else {
+        setDomainStatus('pending');
+      }
+    } catch {
+      setDomainStatus('pending');
+    } finally {
+      setVerifying(false);
     }
-    onNavigate('dashboard');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!companyName.trim()) { setError('Company name is required'); return; }
+  const handleCompanyNameBlur = () => {
+    const stored = localStorage.getItem('user');
+    if (!stored) return;
+    const user = JSON.parse(stored);
+    if (formData.companyName.trim()) {
+      verifyDomain(user.email, formData.companyName);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.companyName.trim()) { setError('Company name is required'); return; }
+    if (!formData.industry) { setError('Industry is required'); return; }
+    if (!formData.companySize) { setError('Company size is required'); return; }
+    if (domainStatus === 'blocked') { setError(`${blockedCompany} already has an account. Ask admin to invite you.`); return; }
+
     setLoading(true);
     setError('');
     try {
       const stored = localStorage.getItem('user');
-      const userData = stored ? JSON.parse(stored) : {};
-      const token = tokenStorage.getAccess();
+      if (!stored) { onNavigate('employer-login'); return; }
+      const user = JSON.parse(stored);
+      const API = import.meta.env.VITE_API_URL || '/api';
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/profile/save`, {
+      const res = await fetch(`${API}/profile`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`
+        },
         body: JSON.stringify({
-          email: userData.email,
-          userId: userData.id || userData._id,
-          companyName, phone, location,
-          companyWebsite: website,
-          companyLogo,
-          userType: 'employer',
-        }),
+          userId: user.id || user._id,
+          email: user.email,
+          companyName: formData.companyName,
+          industry: formData.industry,
+          companySize: formData.companySize,
+          headquarters: formData.headquarters,
+          description: formData.description,
+          companyWebsite: formData.companyWebsite,
+          userType: 'employer'
+        })
       });
 
-      if (res.ok) {
-        const updated = { ...userData, company: companyName, companyName, companyLogo, phone, location };
-        localStorage.setItem('user', JSON.stringify(updated));
-        onNavigate('dashboard');
-      } else {
-        const err = await res.json().catch(() => ({}));
-        setError(err.error || 'Failed to save. Please try again.');
-      }
+      // Update localStorage user with companyName
+      const updatedUser = { ...user, companyName: formData.companyName, company: formData.companyName };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
+      onNavigate('dashboard');
     } catch {
-      setError('Connection error. Please try again.');
+      setError('Failed to save profile. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  const userName = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}').name?.split(' ')[0] || 'there'; } catch { return 'there'; }
-  })();
-
-  const logoInitials = companyName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+  const domainStatusUI = () => {
+    if (verifying) return (
+      <div className="flex items-center gap-2 text-blue-600 text-xs mt-1.5">
+        <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        Verifying domain...
+      </div>
+    );
+    if (domainStatus === 'verified') return (
+      <div className="flex items-center gap-1.5 text-green-600 text-xs mt-1.5">
+        <CheckCircle className="w-3.5 h-3.5" /> Company verified in database
+      </div>
+    );
+    if (domainStatus === 'corporate') return (
+      <div className="flex items-center gap-1.5 text-blue-600 text-xs mt-1.5">
+        <Shield className="w-3.5 h-3.5" /> Corporate email detected — will be verified
+      </div>
+    );
+    if (domainStatus === 'pending') return (
+      <div className="flex items-center gap-1.5 text-yellow-600 text-xs mt-1.5">
+        <Clock className="w-3.5 h-3.5" /> Pending admin verification
+      </div>
+    );
+    if (domainStatus === 'blocked') return (
+      <div className="flex items-center gap-1.5 text-red-600 text-xs mt-1.5">
+        <AlertTriangle className="w-3.5 h-3.5" />
+        <span><strong>{blockedCompany}</strong> already registered. Ask admin to invite you.</span>
+      </div>
+    );
+    return null;
+  };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-900 flex items-center justify-center p-4 overflow-hidden">
+    <div className="min-h-screen bg-gray-50">
+      <Header onNavigate={onNavigate} />
 
-      {/* Background decorations */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-500 rounded-full opacity-10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-500 rounded-full opacity-10 blur-3xl" />
-      </div>
-
-      <div className="relative w-full max-w-4xl flex rounded-3xl overflow-hidden shadow-2xl">
-
-        {/* LEFT PANEL */}
-        <div className="hidden lg:flex lg:w-2/5 bg-gradient-to-b from-blue-600 to-indigo-700 p-7 flex-col justify-between">
-          <div>
-            <div className="flex items-center mb-4">
-              <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-14 w-auto" />
-            </div>
-
-            <h2 className="text-2xl font-bold text-white leading-tight mb-2">
-              Welcome aboard,<br />
-              <span className="text-blue-200">{userName}! 👋</span>
-            </h2>
-            <p className="text-blue-100 text-sm leading-relaxed mb-5">
-              You're just one step away from accessing your employer dashboard and connecting with top talent.
-            </p>
-
-            <div className="space-y-2.5">
-              {[
-                { icon: Users, title: 'Access Top Talent', desc: 'Browse thousands of verified candidates' },
-                { icon: Briefcase, title: 'Post Jobs Instantly', desc: 'AI-powered job posting in minutes' },
-                { icon: CheckCircle2, title: 'Smart Matching', desc: 'Get matched with the right candidates' },
-              ].map(({ icon: Icon, title, desc }) => (
-                <div key={title} className="flex items-start gap-3 bg-white/10 rounded-xl p-2.5">
-                  <div className="w-7 h-7 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Icon className="w-3.5 h-3.5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold text-sm">{title}</p>
-                    <p className="text-blue-200 text-xs mt-0.5">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 mt-4">
-            {[['10K+', 'Companies'], ['500K+', 'Candidates'], ['48hr', 'Avg. Hire']].map(([num, label]) => (
-              <div key={label} className="text-center bg-white/10 rounded-xl p-2.5">
-                <div className="text-lg font-bold text-white">{num}</div>
-                <div className="text-blue-200 text-xs mt-0.5">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* RIGHT PANEL */}
-        <div className="flex-1 bg-white px-10 py-6 flex flex-col justify-center">
-
-          {/* Back button */}
-          <button
-            type="button"
-            onClick={() => {
-              tokenStorage.clear();
-
-
-              localStorage.removeItem('user');
-              sessionStorage.clear();
-              const apiUrl = import.meta.env.VITE_API_URL || '/api';
-              window.location.href = `${apiUrl}/auth/google/employer?prompt=select_account`;
-            }}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm mb-4 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-
-          {/* Progress indicator */}
-          <div className="flex items-center gap-2 mb-5">
-            <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-              </div>
-              <span className="text-xs font-medium text-blue-600">Google Sign-in</span>
-            </div>
-            <div className="flex-1 h-px bg-blue-200" />
-            <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full bg-blue-600 flex items-center justify-center">
-                <span className="text-white text-xs font-bold">2</span>
-              </div>
-              <span className="text-xs font-medium text-blue-600">Company Details</span>
-            </div>
-            <div className="flex-1 h-px bg-gray-200" />
-            <div className="flex items-center gap-1.5">
-              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
-                <span className="text-gray-400 text-xs font-bold">3</span>
-              </div>
-              <span className="text-xs font-medium text-gray-400">Dashboard</span>
-            </div>
-          </div>
-
-          {/* Company logo preview */}
-          <div className="flex items-center gap-4 mb-5 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl border border-blue-100">
-            <div className="relative flex-shrink-0">
-              <div className="w-16 h-16 rounded-2xl border-2 border-white bg-white flex items-center justify-center overflow-hidden shadow-md">
-                {companyLogo ? (
-                  <img src={companyLogo} alt="Company logo" className="w-full h-full object-contain p-1.5" onError={() => setCompanyLogo('')} />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                    <span className="text-white font-black text-lg tracking-tight">{logoInitials}</span>
-                  </div>
-                )}
-              </div>
-              {companyName && (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white shadow">
-                  <CheckCircle2 className="w-3 h-3 text-white" />
-                </div>
-              )}
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-gray-900">Complete Your Profile</h1>
-              <p className="text-gray-500 text-sm mt-0.5">
-                {companyName ? (
-                  <span>Setting up <span className="font-semibold text-blue-600">{companyName}</span></span>
-                ) : 'Tell us about your company to get started'}
-              </p>
-              {!companyName && <p className="text-xs text-blue-500 mt-1 font-medium">Logo preview will appear here ✨</p>}
-            </div>
+      <div className="max-w-2xl mx-auto px-6 py-12">
+        <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="text-center mb-8">
+            <Building2 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Complete Your Company Profile</h1>
+            <p className="text-gray-500 text-sm">Add your company details to start hiring</p>
           </div>
 
           {error && (
-            <div className="mb-3 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-              <span className="text-red-500 text-sm">⚠</span>
-              <span className="text-red-600 text-sm">{error}</span>
+            <div className="mb-5 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-red-600 text-sm">
+              {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-
-            {/* Company Name with autocomplete */}
-            <div ref={suggestRef} className="relative">
-              <label className="block text-sm font-semibold text-gray-700 mb-1">
-                Company Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={companyName}
-                  onChange={e => handleCompanyChange(e.target.value)}
-                  onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); if (companyName) fetchCompanyLogoFromJobs(companyName); }}
-                  placeholder="e.g. Zoho, Infosys, TCS..."
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
-                  required
-                />
-              </div>
-              {showSuggestions && suggestions.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden">
-                  {suggestions.map((c: any, i: number) => {
-                    const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-                    const name = c.name || c.companyName || '';
-                    const initials = name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
-                    return (
-                      <button
-                        key={i} type="button" onMouseDown={() => selectCompany(c)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors border-b last:border-b-0"
-                      >
-                        <div className="w-8 h-8 rounded-lg border border-gray-100 bg-gray-50 flex items-center justify-center overflow-hidden flex-shrink-0">
-                          {logo ? (
-                            <img src={logo} alt={name} className="w-full h-full object-contain p-0.5" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center rounded-lg">
-                              <span className="text-white text-xs font-bold">{initials}</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-semibold text-gray-900">{name}</p>
-                          {c.location && <p className="text-xs text-gray-400">{c.location}</p>}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+          <div className="space-y-5">
+            {/* Company Name + Domain Verify */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Name *</label>
+              <input
+                type="text"
+                value={formData.companyName}
+                onChange={e => setFormData(p => ({ ...p, companyName: e.target.value }))}
+                onBlur={handleCompanyNameBlur}
+                placeholder="e.g. Trinity Technology Solutions"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {domainStatusUI()}
             </div>
 
-            {/* Two-column row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Phone Number</label>
-                <div className="relative">
-                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
-                  />
-                </div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Industry *</label>
+                <select
+                  value={formData.industry}
+                  onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Industry</option>
+                  <option>Information Technology</option>
+                  <option>Healthcare</option>
+                  <option>Finance & Banking</option>
+                  <option>Education</option>
+                  <option>Manufacturing</option>
+                  <option>Retail</option>
+                  <option>Media & Entertainment</option>
+                  <option>Other</option>
+                </select>
               </div>
+
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">Location</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text" value={location} onChange={e => setLocation(e.target.value)}
-                    placeholder="Chennai, India"
-                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
-                  />
-                </div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Size *</label>
+                <select
+                  value={formData.companySize}
+                  onChange={e => setFormData(p => ({ ...p, companySize: e.target.value }))}
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select Size</option>
+                  <option>1-10 employees</option>
+                  <option>11-50 employees</option>
+                  <option>51-200 employees</option>
+                  <option>201-500 employees</option>
+                  <option>500+ employees</option>
+                </select>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-1">Company Website</label>
-              <div className="relative">
-                <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="url" value={website} onChange={e => setWebsite(e.target.value)}
-                  placeholder="https://yourcompany.com"
-                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:outline-none focus:border-blue-500 transition-colors bg-gray-50 focus:bg-white"
-                />
-              </div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Headquarters</label>
+              <input
+                type="text"
+                value={formData.headquarters}
+                onChange={e => setFormData(p => ({ ...p, headquarters: e.target.value }))}
+                placeholder="Chennai, Tamil Nadu, India"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
-            <button
-              type="submit" disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3.5 rounded-xl font-semibold text-sm hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
-              ) : (
-                <> Complete Setup & Go to Dashboard <ChevronRight className="w-4 h-4" /></>
-              )}
-            </button>
-          </form>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Website</label>
+              <input
+                type="url"
+                value={formData.companyWebsite}
+                onChange={e => setFormData(p => ({ ...p, companyWebsite: e.target.value }))}
+                placeholder="https://yourcompany.com"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
-          <button
-            type="button" onClick={handleSkip}
-            className="w-full text-center text-gray-400 text-sm hover:text-gray-600 transition-colors mt-3"
-          >
-            Skip for now — I'll complete this later
-          </button>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Description</label>
+              <textarea
+                value={formData.description}
+                onChange={e => setFormData(p => ({ ...p, description: e.target.value }))}
+                rows={3}
+                placeholder="Tell candidates about your company..."
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mt-8 pt-6 border-t border-gray-100">
+            <button
+              onClick={() => onNavigate('dashboard')}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Skip for now
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading || !formData.companyName || !formData.industry || !formData.companySize || domainStatus === 'blocked'}
+              className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {loading ? 'Saving...' : 'Complete Profile'}
+              <Check className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

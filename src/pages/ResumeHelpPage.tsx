@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { FileText, CheckCircle, AlertCircle, Lightbulb, ArrowLeft } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, Lightbulb } from 'lucide-react';
+import BackButton from '../components/BackButton';
 
 interface ResumeHelpPageProps {
   onNavigate?: (page: string) => void;
@@ -105,12 +106,7 @@ const ResumeHelpPage: React.FC<ResumeHelpPageProps> = ({ onNavigate, user, onLog
       
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <button
-            onClick={() => onNavigate && onNavigate('resume-studio')}
-            className="flex items-center gap-2 text-blue-200 hover:text-white mb-6 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" /> Back to Resume Studio
-          </button>
+          <BackButton onClick={() => onNavigate && onNavigate('resume-studio')} className="mb-6" />
           <div className="text-center">
             <h1 className="text-5xl font-bold mb-4">Resume Tips &amp; Guide</h1>
             <p className="text-xl text-blue-100">Master the art of creating a compelling resume that gets noticed</p>

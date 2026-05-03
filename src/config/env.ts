@@ -47,6 +47,9 @@ export const API_ENDPOINTS = {
   
   // Jobs
   JOBS: `${config.API_URL}/jobs`,
+  JOB_REFRESH: `${config.API_URL}/jobs/:id/refresh`,
+  JOB_BULK_REFRESH: `${config.API_URL}/jobs/bulk-refresh`,
+  JOB_REFRESH_STATUS: `${config.API_URL}/jobs/:id/refresh-status`,
   SEARCH: `${config.API_URL}/search`,
   
   // Applications

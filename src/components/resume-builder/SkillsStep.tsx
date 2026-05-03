@@ -36,7 +36,7 @@ export default function SkillsStep() {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Add Skills (press Enter to add)
         </label>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
             value={input}
@@ -47,7 +47,7 @@ export default function SkillsStep() {
           />
           <button
             onClick={addSkill}
-            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Add
           </button>

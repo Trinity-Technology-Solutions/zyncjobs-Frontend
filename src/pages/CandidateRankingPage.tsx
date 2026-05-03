@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star, ArrowLeft } from 'lucide-react';
+import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star } from 'lucide-react';
+import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -131,32 +132,29 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
 
       {/* Hero */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => onNavigate?.('employer-dashboard')}
-              className="flex items-center gap-1.5 text-white/70 hover:text-white text-sm transition-colors mr-1"
-            >
-              <ArrowLeft className="w-4 h-4" /> Back
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <BackButton onClick={() => onNavigate?.('employer-dashboard')} className="border-white/60 text-white hover:bg-white/10" />
+              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
+                <Trophy className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Candidate Ranking & Matching</h1>
+                <p className="text-blue-300 text-xs sm:text-sm mt-0.5">AI-powered scoring · Find your best candidates instantly</p>
+              </div>
+            </div>
+            <button onClick={fetchData} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-colors">
+              <RefreshCw className="w-3.5 h-3.5" /> Refresh
             </button>
-            <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-2xl flex items-center justify-center shadow-lg">
-              <Trophy className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight">Candidate Ranking & Matching</h1>
-              <p className="text-blue-300 text-sm mt-0.5">AI-powered scoring · Find your best candidates instantly</p>
-            </div>
           </div>
-          <button onClick={fetchData} className="flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-colors">
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {[
             { label: 'Total Applicants', value: rankedCandidates.length, color: 'text-slate-700', icon: Users, bg: 'bg-slate-100' },
             { label: 'Avg Match Score', value: `${avgScore}%`, color: 'text-blue-600', icon: TrendingUp, bg: 'bg-blue-50' },
@@ -165,13 +163,13 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           ].map((s, i) => {
             const Icon = s.icon;
             return (
-              <div key={i} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
-                <div className={`w-11 h-11 ${s.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                  <Icon className={`w-5 h-5 ${s.color}`} />
+              <div key={i} className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-gray-100 shadow-sm flex items-center gap-2 sm:gap-4">
+                <div className={`w-8 sm:w-11 h-8 sm:h-11 ${s.bg} rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0`}>
+                  <Icon className={`w-4 sm:w-5 h-4 sm:h-5 ${s.color}`} />
                 </div>
-                <div>
-                  <p className="text-xs text-gray-500 font-medium">{s.label}</p>
-                  <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <div className="min-w-0">
+                  <p className="text-xs text-gray-500 font-medium truncate">{s.label}</p>
+                  <p className={`text-lg sm:text-2xl font-bold ${s.color}`}>{s.value}</p>
                 </div>
               </div>
             );
@@ -211,29 +209,33 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         )}
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4 flex flex-wrap gap-3 items-center">
-          <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 flex-1 min-w-[180px]">
+        <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4 mb-4 space-y-3">
+          <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
             <input type="text" placeholder="Search by name, email or job..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent text-sm outline-none w-full text-gray-700 placeholder-gray-400" />
           </div>
-          <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)} className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white min-w-[160px]">
-            <option value="all">All Jobs</option>
-            {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{j.jobTitle || j.title}</option>)}
-          </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="all">All Status</option>
-            <option value="not_scheduled">Pending</option>
-            <option value="scheduled">Scheduled</option>
-            <option value="completed">Interviewed</option>
-            <option value="hired">Hired</option>
-            <option value="rejected">Rejected</option>
-          </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-            <option value="rank">Sort by Rank</option>
-            <option value="score">Sort by Score</option>
-            <option value="name">Sort by Name</option>
-          </select>
-          <span className="text-xs text-gray-400 ml-auto">{filtered.length} candidate{filtered.length !== 1 ? 's' : ''}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">All Jobs</option>
+              {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{j.jobTitle || j.title}</option>)}
+            </select>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="all">All Status</option>
+              <option value="not_scheduled">Pending</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="completed">Interviewed</option>
+              <option value="hired">Hired</option>
+              <option value="rejected">Rejected</option>
+            </select>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
+              <option value="rank">Sort by Rank</option>
+              <option value="score">Sort by Score</option>
+              <option value="name">Sort by Name</option>
+            </select>
+            <div className="flex items-center justify-center sm:justify-end">
+              <span className="text-xs text-gray-400">{filtered.length} candidate{filtered.length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
         </div>
 
         {/* List */}
@@ -254,34 +256,52 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
               const st = STATUS_CONFIG[c.interviewStatus];
               const isTop = c.rank <= 3;
               return (
-                <div key={c.id} className={`bg-white rounded-2xl border shadow-sm p-5 hover:shadow-md transition-all ${isTop && c.rank === 1 ? 'border-yellow-200' : 'border-gray-100'}`}>
-                  <div className="flex items-start gap-4">
+                <div key={c.id} className={`bg-white rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 hover:shadow-md transition-all ${isTop && c.rank === 1 ? 'border-yellow-200' : 'border-gray-100'}`}>
+                  <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
 
-                    {/* Rank */}
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 ${c.rank === 1 ? 'bg-yellow-400 text-yellow-900' : c.rank === 2 ? 'bg-gray-200 text-gray-700' : c.rank === 3 ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
-                      #{c.rank}
+                    {/* Mobile: Rank and Avatar in same row */}
+                    <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
+                      {/* Rank */}
+                      <div className={`w-8 sm:w-10 h-8 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 ${c.rank === 1 ? 'bg-yellow-400 text-yellow-900' : c.rank === 2 ? 'bg-gray-200 text-gray-700' : c.rank === 3 ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                        #{c.rank}
+                      </div>
+
+                      {/* Avatar */}
+                      <Avatar name={c.name} photo={c.profilePicture} />
+
+                      {/* Mobile: Score on the right */}
+                      <div className="ml-auto sm:hidden">
+                        <div className={`text-lg font-bold px-2 py-1 rounded-lg border ${scoreColor(c.score)}`}>{c.score}%</div>
+                      </div>
                     </div>
 
-                    {/* Avatar */}
-                    <Avatar name={c.name} photo={c.profilePicture} />
-
                     {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-3 flex-wrap">
-                        <div>
-                          <h3 className="font-semibold text-gray-900 text-base">{c.name}</h3>
-                          <p className="text-sm text-gray-400">{c.email}</p>
+                    <div className="flex-1 min-w-0 w-full">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{c.name}</h3>
+                          <p className="text-xs sm:text-sm text-gray-400 truncate">{c.email}</p>
                           <div className="flex items-center gap-1.5 mt-1">
-                            <Briefcase className="w-3.5 h-3.5 text-blue-400" />
-                            <span className="text-xs text-blue-600 font-medium">{c.jobTitle}</span>
+                            <Briefcase className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-blue-400 flex-shrink-0" />
+                            <span className="text-xs text-blue-600 font-medium truncate">{c.jobTitle}</span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 flex-shrink-0">
+                        
+                        {/* Desktop: Score and Status */}
+                        <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
                           <div className="text-center">
                             <div className={`text-xl font-bold px-3 py-1.5 rounded-xl border-2 ${scoreColor(c.score)}`}>{c.score}%</div>
                             <p className="text-xs text-gray-400 mt-0.5">Match</p>
                           </div>
                           <span className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full ${st.color}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                            {st.label}
+                          </span>
+                        </div>
+                        
+                        {/* Mobile: Status only */}
+                        <div className="sm:hidden">
+                          <span className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
                             {st.label}
                           </span>
@@ -294,29 +314,33 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                           <span className="text-xs text-gray-400">Job Fit Score</span>
                           <span className="text-xs font-medium text-gray-600">{c.score}/100</span>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-2">
-                          <div className={`h-2 rounded-full ${barColor(c.score)} transition-all`} style={{ width: `${c.score}%` }} />
+                        <div className="w-full bg-gray-100 rounded-full h-1.5 sm:h-2">
+                          <div className={`h-1.5 sm:h-2 rounded-full ${barColor(c.score)} transition-all`} style={{ width: `${c.score}%` }} />
                         </div>
                       </div>
 
                       {/* Match reasons */}
                       {c.matchReasons.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2">
-                          {c.matchReasons.map((r, i) => (
+                          {c.matchReasons.slice(0, 3).map((r, i) => (
                             <span key={i} className="text-xs bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-full flex items-center gap-1">
-                              <CheckCircle className="w-3 h-3" /> {r}
+                              <CheckCircle className="w-3 h-3 flex-shrink-0" /> 
+                              <span className="truncate">{r}</span>
                             </span>
                           ))}
+                          {c.matchReasons.length > 3 && (
+                            <span className="text-xs text-gray-400 px-1">+{c.matchReasons.length - 3} more</span>
+                          )}
                         </div>
                       )}
 
                       {/* Skills */}
                       {c.skills.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
-                          {c.skills.slice(0, 7).map((sk, i) => (
-                            <span key={i} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{sk}</span>
+                          {c.skills.slice(0, 5).map((sk, i) => (
+                            <span key={i} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full truncate">{sk}</span>
                           ))}
-                          {c.skills.length > 7 && <span className="text-xs text-gray-400 px-1">+{c.skills.length - 7} more</span>}
+                          {c.skills.length > 5 && <span className="text-xs text-gray-400 px-1">+{c.skills.length - 5} more</span>}
                         </div>
                       )}
                     </div>
