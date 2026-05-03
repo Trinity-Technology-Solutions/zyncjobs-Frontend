@@ -76,40 +76,23 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     setLoading(false);
   }, [user]);
 
-  const loadSavedJobs = async () => {
-    // Try backend first
+  const loadSavedJobs = () => {
+    const key = `savedJobDetails_${user?.email || user?.name || 'user'}`;
     try {
-      const token = tokenStorage.getAccess();
-      if (token) {
-        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          // Backend may return full job objects or just ids
-          const jobs: any[] = Array.isArray(data.jobs) ? data.jobs
-            : Array.isArray(data.jobIds) ? [] // ids only, fall through to localStorage
-            : Array.isArray(data) ? data : [];
-          if (jobs.length > 0) {
-            setSavedJobs(jobs);
-            fetchCompanyLogos(jobs);
-            // Keep localStorage in sync
-            localStorage.setItem(`savedJobDetails_${user?.name || 'user'}`, JSON.stringify(jobs));
-            return;
-          }
-        }
+      const jobs = JSON.parse(localStorage.getItem(key) || '[]');
+      // Deduplicate by job id
+      const seen = new Set<string>();
+      const unique = jobs.filter((j: any) => {
+        const id = j._id || j.id;
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      if (unique.length > 0) {
+        setSavedJobs(unique);
+        fetchCompanyLogos(unique);
       }
-    } catch { /* fall through to localStorage */ }
-    // Fallback: localStorage
-    const userKey = `savedJobDetails_${user?.name || 'user'}`;
-    const stored = localStorage.getItem(userKey);
-    if (stored) {
-      try {
-        const jobs = JSON.parse(stored);
-        setSavedJobs(jobs);
-        fetchCompanyLogos(jobs);
-      } catch { /* ignore */ }
-    }
+    } catch { /* ignore */ }
   };
 
   useEffect(() => {
@@ -285,24 +268,19 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
-  const handleRemoveSavedJob = async (jobId: string) => {
+  const handleRemoveSavedJob = (jobId: string) => {
     const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
     setSavedJobs(updatedJobs);
-    const userKey = `savedJobDetails_${user?.name || 'user'}`;
-    const userJobIdsKey = `savedJobs_${user?.name || 'user'}`;
-    localStorage.setItem(userKey, JSON.stringify(updatedJobs));
-    const savedJobIds = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
-    localStorage.setItem(userJobIdsKey, JSON.stringify(savedJobIds.filter((id: string) => id !== jobId)));
-    // Also remove from backend
+    const userKey = user?.email || user?.name || 'user';
+    const detailsKey = `savedJobDetails_${userKey}`;
+    const idsKey = `savedJobs_${userKey}`;
+    localStorage.setItem(detailsKey, JSON.stringify(updatedJobs));
     try {
-      const token = tokenStorage.getAccess();
-      if (token) {
-        await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
-    } catch { /* silent */ }
+      const ids = JSON.parse(localStorage.getItem(idsKey) || '[]');
+      localStorage.setItem(idsKey, JSON.stringify(ids.filter((id: string) => id !== jobId)));
+    } catch { /* ignore */ }
+    // Notify dashboard to sync bookmark state
+    window.dispatchEvent(new CustomEvent('zync:savedJobsUpdated', { detail: { removedId: jobId } }));
   };
 
   const handleSearch = () => {

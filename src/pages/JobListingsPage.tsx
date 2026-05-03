@@ -562,6 +562,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
   
+  // Single active quick filter: '24h' | '7d' | 'remote' | null
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
+
   const handleFilterChange = (filterType: string, value: string) => {
     const arrayFilters = ['department', 'location', 'workMode', 'industry', 'companySize', 'freshness'];
     setFilters(prev => {
@@ -868,6 +871,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
+  const formatJobDescription_simple = (desc: string, maxLen: number) => {
+    if (!desc) return '';
+    const plain = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return plain.length > maxLen ? plain.substring(0, maxLen) + '...' : plain;
+  };
+
   const [totalPages, setTotalPages] = useState(1);
   const jobResultsRef = React.useRef<HTMLDivElement>(null);
 
@@ -1169,8 +1178,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <button
               onClick={() => handleFilterChange('workMode', 'Remote')}
               className={`px-3 py-1 rounded-full text-sm border ${
-                filters.workMode.includes('Remote') 
-                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                activeQuickFilter === 'remote'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
@@ -1431,13 +1440,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       if (mode === 'Hybrid') return lt === 'hybrid' || loc === 'hybrid';
                       return lt === 'in person' || (lt !== 'remote' && lt !== 'hybrid' && loc !== 'remote');
                     }).length;
+                    const modeKey = mode === 'Remote' ? 'remote' : mode === 'Hybrid' ? 'hybrid' : 'office';
+                    const isActive = filters.workMode.includes(mode);
                     return (
-                      <label key={mode} className="flex items-center">
+                      <label key={mode} className="flex items-center cursor-pointer" onClick={() => handleQuickFilter(modeKey, 'workMode', mode)}>
                         <input
-                          type="checkbox"
+                          type="radio"
+                          name="workMode"
                           className="mr-2"
-                          checked={filters.workMode.includes(mode)}
-                          onChange={() => handleFilterChange('workMode', mode)}
+                          checked={isActive}
+                          onChange={() => {}}
                         />
                         <span className="text-sm">{mode} ({count})</span>
                       </label>
