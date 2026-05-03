@@ -36,7 +36,7 @@ const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage')
 const EmployerRegisterPage = lazy(() => import('./pages/EmployerRegisterPage'));
 const EmployerCompleteProfilePage = lazy(() => import('./pages/EmployerCompleteProfilePage'));
 const EmployersPage = lazy(() => import('./pages/EmployersPage'));
-const EmployerLandingPage = lazy(() => import('./pages/EmployerLandingPage').then(module => ({ default: module.default })));
+
 const JobListingsPage = lazy(() => import('./pages/JobListingsPage'));
 const JobDetailPage = lazy(() => import('./pages/JobDetailPage'));
 const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
@@ -47,6 +47,7 @@ const CareerCoachPage = lazy(() => import('./pages/CareerCoachPage'));
 const CandidateRankingPage = lazy(() => import('./pages/CandidateRankingPage'));
 const AIRecruiterAssistant = lazy(() => import('./pages/AIRecruiterAssistant'));
 const CandidateSearchPage = lazy(() => import('./pages/CandidateSearchPage'));
+const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const JobPostingPage = lazy(() => import('./pages/JobPostingPage'));
 const JobPostingSelectionPage = lazy(() => import('./pages/JobPostingSelectionPage'));
 const JobParsingPage = lazy(() => import('./pages/JobParsingPage'));
@@ -60,6 +61,7 @@ const RecruiterActionsPage = lazy(() => import('./pages/RecruiterActionsPage'));
 const SearchAppearancesPage = lazy(() => import('./pages/SearchAppearancesPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const MyJobsPage = lazy(() => import('./pages/MyJobsPage'));
+const JobRefreshManagementPage = lazy(() => import('./pages/JobRefreshManagementPage'));
 const MyApplicationsPage = lazy(() => import('./pages/MyApplicationsPage'));
 const ResumeParserPage = lazy(() => import('./pages/ResumeParserPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage'));
@@ -421,7 +423,7 @@ function App() {
           } />
           <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
           <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
-          <Route path="/employer-register-complete" element={<EmployerCompleteProfilePage onNavigate={handleNavigation} user={user as any} />} />
+          <Route path="/employer-complete-profile" element={<EmployerCompleteProfilePage onNavigate={handleNavigation} />} />
           <Route path="/role-selection" element={<RoleSelectionPage {...nav} />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigation} />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage onNavigate={handleNavigation} />} />
@@ -436,7 +438,7 @@ function App() {
           <Route path="/company-profile" element={<Navigate to="/dashboard" replace />} />
           <Route path="/company-view" element={<Navigate to="/companies" replace />} />
           <Route path="/employers" element={<EmployersPage {...nav} />} />
-          <Route path="/employer-landing" element={<EmployerLandingPage onNavigate={handleNavigation} user={user} onLogout={handleLogout} />} />
+
           <Route path="/job-hunting" element={<Navigate to="/job-listings" replace />} />
           <Route path="/job-role" element={<Navigate to="/job-listings" replace />} />
           <Route path="/interview-tips" element={<InterviewTipsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />} />
@@ -499,6 +501,12 @@ function App() {
                 <Header {...nav} />
                 <MyJobsPage {...nav} />
               </>
+            </AuthGuard>
+          } />
+
+          <Route path="/job-refresh-management" element={
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+              <JobRefreshManagementPage {...nav} />
             </AuthGuard>
           } />
 
@@ -625,7 +633,15 @@ function App() {
           } />
 
 
-          <Route path="/candidate-profile-view" element={<Navigate to="/candidate-search" replace />} />
+          <Route path="/candidate-profile-view" element={
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+              <CandidateProfileView 
+                candidateId="" 
+                onNavigate={handleNavigation} 
+                onBack={() => navigate(-1)} 
+              />
+            </AuthGuard>
+          } />
 
           {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={

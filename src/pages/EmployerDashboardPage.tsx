@@ -15,6 +15,8 @@ import NotificationService, { Notification } from '../services/notificationServi
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast, ToastType } from '../hooks/useToast';
 import NotificationComponent from '../components/Notification';
+import JobRefreshButton from '../components/JobRefreshButton';
+import BulkJobRefresh from '../components/BulkJobRefresh';
 
 interface EmployerDashboardPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -58,6 +60,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -182,6 +185,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     if (userData) {
       const parsedUser = JSON.parse(userData);
       console.log('Dashboard - User data:', parsedUser);
+      console.log('Dashboard - Company name:', parsedUser.companyName);
+      console.log('Dashboard - Email:', parsedUser.email);
       
       // Force clear any cached state that might interfere
       setJobs([]);
@@ -194,6 +199,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       setEmployerName(parsedUser.name || 'Employer');
       // Fix: Use actual company name from registration, not generic 'Company'
       const actualCompanyName = parsedUser.companyName || parsedUser.company || parsedUser.organizationName || 'Company';
+      console.log('Dashboard - Actual company name:', actualCompanyName);
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
       setCompanyWebsite(parsedUser.companyWebsite || '');
@@ -319,10 +325,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
           console.log('Dashboard - All jobs:', allJobs.length);
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          const myEmployerId = storedUser.employerId;
+          const myTeamEmployerId = storedUser.teamRole ? storedUser.employerId : null;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
             const email = userEmail?.toLowerCase().trim();
+            // Match own jobs
             const matchesEmail = job.postedBy?.toLowerCase().trim() === email || job.employerEmail?.toLowerCase().trim() === email;
-            return matchesEmail;
+            // If team member — also show all jobs posted under same employerId (owner + all team)
+            const matchesEmployerId = myEmployerId && (
+              job.employerId === myEmployerId ||
+              job.postedByEmployerId === myEmployerId
+            );
+            return matchesEmail || matchesEmployerId;
           }) : [];
           console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
           setJobs(employerJobs);
@@ -384,8 +399,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           
           employerApps = Array.isArray(appsWithJobDetails) ? appsWithJobDetails.filter((app: any) => {
             const matchesEmail = app.employerEmail === userEmail;
-            console.log(`App: ${app.candidateName}, matchesEmail: ${matchesEmail}`);
-            return matchesEmail;
+            // Team member — also show apps for jobs posted under same company
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            const myEmployerId = storedUser.employerId;
+            const matchesEmployerId = myEmployerId && app.employerEmployerId === myEmployerId;
+            return matchesEmail || matchesEmployerId;
           }) : [];
           console.log('Dashboard - Filtered employer applications:', employerApps.length);
           setApplications(employerApps);
@@ -484,14 +502,40 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
 
   const getDisplayLogo = () => {
+    console.log('getDisplayLogo called with:', {
+      companyLogo,
+      companyName,
+      employerName,
+      userEmail: user?.email
+    });
+    
     // 1. Use stored logo from profile/localStorage (set during complete-profile or register)
-    if (companyLogo && companyLogo.trim() !== '') return companyLogo;
+    if (companyLogo && companyLogo.trim() !== '') {
+      console.log('Using stored company logo:', companyLogo);
+      return companyLogo;
+    }
 
-    // 2. Trinity special case
-    if (user?.email?.includes('@trinitetech') || companyName?.toLowerCase().includes('trinity'))
-      return '/images/company-logos/trinity-logo.png';
+    // 2. Trinity special case - try webp first, then png
+    const isTrinity = user?.email?.includes('@trinitetech') || 
+                     user?.email?.includes('trinity') ||
+                     companyName?.toLowerCase().includes('trinity') ||
+                     employerName?.toLowerCase().includes('trinity');
+    
+    if (isTrinity) {
+      console.log('Trinity detected, using Trinity logo');
+      return '/images/trinity-logo.webp'; // Try webp first since it exists
+    }
 
-    // 3. Use logo.dev with guessed domain
+    // 3. Nambikkai special case
+    const isNambikkai = companyName?.toLowerCase().includes('nambikkai') ||
+                       employerName?.toLowerCase().includes('nambikkai');
+    
+    if (isNambikkai) {
+      console.log('Nambikkai detected, using Nambikkai logo');
+      return '/images/company-logos/nambikkai-logo.png';
+    }
+
+    // 4. Use logo.dev with guessed domain
     const domainMap: Record<string, string> = {
       zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
       google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
@@ -500,19 +544,32 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     };
     const n = (companyName || '').toLowerCase();
     for (const [key, domain] of Object.entries(domainMap)) {
-      if (n.includes(key)) return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+      if (n.includes(key)) {
+        console.log('Using logo.dev for:', domain);
+        return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+      }
     }
 
-    // 4. Try email domain (non-generic)
+    // 5. Try email domain (non-generic)
     if (user?.email?.includes('@')) {
       const emailDomain = user.email.split('@')[1];
-      if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain))
+      if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain)) {
+        console.log('Using email domain logo:', emailDomain);
         return `https://img.logo.dev/${emailDomain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+      }
     }
 
-    // 5. Letter avatar fallback
+    // 6. Letter avatar fallback - return a proper circular SVG
     const displayName = companyName && companyName !== 'Company' ? companyName : employerName;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=6366f1&color=ffffff&bold=true`;
+    const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
+    console.log('Using letter avatar fallback for:', displayName, 'initials:', initials);
+    
+    return `data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="32" fill="#1e40af"/>
+        <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text>
+      </svg>`
+    )}`;
   };
 
 
@@ -677,18 +734,54 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '280px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
-              <BackButton onClick={() => onNavigate('dashboard')} text="Back to Dashboard" className="inline-flex items-center text-sm text-white hover:text-blue-100 transition-colors mb-3" />
               <div className="flex items-center gap-3">
                 <div className="relative flex-shrink-0">
-                  <img src={getDisplayLogo()} alt={companyName || employerName}
-                    className="w-12 sm:w-16 h-12 sm:h-16 rounded-full object-cover border-2 border-white"
-                    onError={(e) => {
-                      const img = e.target as HTMLImageElement;
-                      const displayName = companyName || employerName;
-                      const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&size=128&background=1e3a8a&color=ffffff&bold=true`;
-                      if (img.src !== fallbackUrl) img.src = fallbackUrl;
-                    }}
-                  />
+                  <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md overflow-hidden">
+                    <img src={getDisplayLogo()} alt={companyName || employerName}
+                      className="w-10 sm:w-14 h-10 sm:h-14 object-contain"
+                      onError={(e) => {
+                        const img = e.target as HTMLImageElement;
+                        const displayName = companyName || employerName;
+                        console.log('Logo error for:', displayName, 'Current src:', img.src);
+                        
+                        // Try Trinity logo first if it's Trinity related
+                        if ((displayName.toLowerCase().includes('trinity') || 
+                             user?.email?.includes('trinity') || 
+                             user?.email?.includes('@trinitetech')) && 
+                            !img.src.includes('trinity-logo')) {
+                          console.log('Trying Trinity logo...');
+                          // Try both .png and .webp versions
+                          if (!img.src.includes('trinity-logo.webp')) {
+                            img.src = '/images/trinity-logo.webp';
+                          } else {
+                            img.src = '/images/company-logos/trinity-logo.png';
+                          }
+                          return;
+                        }
+                        
+                        // Try Nambikkai logo
+                        if (displayName.toLowerCase().includes('nambikkai') && 
+                            !img.src.includes('nambikkai-logo.png')) {
+                          img.src = '/images/company-logos/nambikkai-logo.png';
+                          return;
+                        }
+                        
+                        // Generate initials fallback with proper styling
+                        const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
+                        const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
+                          `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+                            <circle cx="32" cy="32" r="32" fill="#1e40af"/>
+                            <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text>
+                          </svg>`
+                        )}`;
+                        
+                        if (img.src !== fallbackUrl) {
+                          console.log('Using initials fallback:', initials);
+                          img.src = fallbackUrl;
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-white text-sm sm:text-base leading-tight truncate">{employerName}</p>
@@ -829,10 +922,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       {/* Main Content */}
       <div className="flex-1 bg-gray-50 min-w-0">
-        {/* Top bar */}
-        <div className="flex items-center justify-between lg:justify-end gap-3 py-3 pl-16 lg:pl-6 pr-4 lg:pr-6">
-          <h1 className="lg:hidden text-lg font-bold text-gray-900 truncate">Dashboard</h1>
+        {/* Top bar with Back Button */}
+        <div className="flex items-center justify-between lg:justify-between gap-3 py-3 pl-16 lg:pl-6 pr-4 lg:pr-6">
+          <div className="flex items-center gap-3">
+            <BackButton 
+              onClick={() => onNavigate('home')}
+              text="Back to Home"
+              className="hidden lg:flex"
+            />
+            <h1 className="lg:hidden text-lg font-bold text-gray-900 truncate">Dashboard</h1>
+          </div>
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Complete Profile Button */}
+            <button
+              onClick={() => onNavigate('employer-complete-profile')}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs sm:text-sm shadow-lg flex items-center gap-1"
+              title="Complete your company profile"
+            >
+              <span className="hidden sm:inline">Complete Profile</span>
+              <span className="sm:hidden">Profile</span>
+              <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
             <div className="relative">
               <button
                 onClick={async () => {
@@ -1027,11 +1139,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
               {/* ── Row 2: Bottom Cards ── */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
-                {/* Top Jobs */}
+                {/* Top Jobs with Refresh */}
                 <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-sm font-bold text-gray-900">Top Active Jobs</h2>
-                    <span className="text-xs text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">Last 30 days</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">Last 30 days</span>
+                      {jobs.length > 0 && (
+                        <BulkJobRefresh
+                          selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
+                          selectedJobs={jobs.map(j => ({
+                            id: j.id || j._id,
+                            title: j.jobTitle || j.title,
+                            refreshCount: j.refreshCount || 0,
+                            lastRefreshedAt: j.lastRefreshedAt
+                          }))}
+                          userPlan="free"
+                          onRefreshComplete={() => {
+                            if (user) fetchDashboardData(user);
+                          }}
+                          className="text-xs px-2 py-1"
+                        />
+                      )}
+                    </div>
                   </div>
                   {topJobs.length === 0 ? (
                     <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No jobs posted yet</div>
@@ -1039,11 +1169,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     <div className="space-y-3">
                       {topJobs.slice(0,5).map((job, i) => {
                         const total = Math.max(job.applications, 1);
+                        const jobData = jobs.find(j => (j.jobTitle || j.title) === job.name);
                         return (
                           <div key={i}>
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-xs font-medium text-gray-700 truncate flex-1 mr-2">{job.name}</p>
-                              <span className="text-xs font-bold text-gray-900">{job.applications}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-gray-900">{job.applications}</span>
+                                {jobData && (
+                                  <JobRefreshButton
+                                    jobId={jobData.id || jobData._id}
+                                    jobTitle={jobData.jobTitle || jobData.title}
+                                    refreshCount={jobData.refreshCount || 0}
+                                    lastRefreshedAt={jobData.lastRefreshedAt}
+                                    userPlan="free"
+                                    onRefreshSuccess={() => {
+                                      if (user) fetchDashboardData(user);
+                                    }}
+                                    className="text-xs px-2 py-1"
+                                  />
+                                )}
+                              </div>
                             </div>
                             <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
                               <div className="h-full rounded-full bg-violet-500" style={{width:`${(job.applications/total)*100}%`}} />
@@ -1980,6 +2126,8 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
   const [inviteName, setInviteName] = React.useState('');
   const [showInvite, setShowInvite] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<TeamRole | null>(null);
+  const [inviteSent, setInviteSent] = React.useState(false);
+  const [inviting, setInviting] = React.useState(false);
 
   const fetchMembers = React.useCallback(async () => {
     try {
@@ -2017,21 +2165,30 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) { showToast('Enter a valid email address', 'error'); return; }
     if (members.find(m => m.memberEmail === inviteEmail.trim())) { showToast('This email is already in the team', 'error'); return; }
+    setInviting(true);
     try {
       const res = await fetch(`${API_BASE}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole })
+        body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole, companyName })
       });
       if (res.ok) {
         await fetchMembers();
-        setInviteEmail(''); setInviteName(''); setShowInvite(false);
-        showToast(`${inviteEmail} invited as ${inviteRole}`, 'success');
+        setInviteSent(true);
       } else {
         const err = await res.json();
         showToast(err.error || 'Failed to invite', 'error');
       }
     } catch { showToast('Network error', 'error'); }
+    finally { setInviting(false); }
+  };
+
+  const handleCloseInvite = () => {
+    setShowInvite(false);
+    setInviteSent(false);
+    setInviteEmail('');
+    setInviteName('');
+    setInviteRole('Recruiter');
   };
 
   const handleRoleChange = async (id: string, role: TeamRole) => {
@@ -2134,36 +2291,88 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900">Invite Team Member</h3>
-              <button onClick={() => setShowInvite(false)} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+              <h3 className="text-lg font-bold text-gray-900">
+                {inviteSent ? '✅ Invite Sent!' : 'Invite Team Member'}
+              </h3>
+              <button onClick={handleCloseInvite} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)}
-                  placeholder="John Doe" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+
+            {inviteSent ? (
+              <div className="text-center py-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">🎉</span>
+                </div>
+                <p className="text-gray-700 font-medium mb-1">{inviteEmail}</p>
+                <p className="text-gray-500 text-sm mb-4">
+                  Invited as <span className="font-semibold text-blue-600">{inviteRole}</span>.
+                  They will receive an email with a link to join.
+                </p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 mb-4">
+                  <span className="text-xs text-gray-500 truncate flex-1">
+                    {window.location.origin}/team/accept?token=...
+                  </span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${window.location.origin}/team/accept`);
+                      showToast('Invite link copied!', 'success');
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
+                  >
+                    Copy Link
+                  </button>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={handleCloseInvite}
+                    className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Done</button>
+                  <button onClick={() => setInviteSent(false)}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Invite Another</button>
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-                  placeholder="recruiter@company.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                <select value={inviteRole} onChange={e => setInviteRole(e.target.value as TeamRole)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                  <option value="Recruiter">Recruiter — Can post jobs & manage applications</option>
-                  <option value="Viewer">Viewer — View only access</option>
-                  <option value="Owner">Owner — Full access</option>
-                </select>
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowInvite(false)}
-                className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-              <button onClick={handleInvite}
-                className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Send Invite</button>
-            </div>
+            ) : (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                    <input type="text" value={inviteName} onChange={e => setInviteName(e.target.value)}
+                      placeholder="John Doe" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="recruiter@company.com" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
+                      onKeyDown={e => e.key === 'Enter' && handleInvite()} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value as TeamRole)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                      <option value="Recruiter">Recruiter — Can post jobs & manage applications</option>
+                      <option value="Viewer">Viewer — View only access</option>
+                      <option value="Owner">Owner — Full access</option>
+                    </select>
+                  </div>
+                  {/* Role permissions preview */}
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 font-medium mb-1.5">This person will be able to:</p>
+                    <ul className="space-y-1">
+                      {ROLE_PERMISSIONS[inviteRole].map(p => (
+                        <li key={p} className="text-xs text-gray-600 flex items-center gap-1.5">
+                          <span className="text-green-500">✓</span>{p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <div className="flex gap-3 mt-6">
+                  <button onClick={handleCloseInvite}
+                    className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {inviting ? 'Sending...' : 'Send Invite'}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
