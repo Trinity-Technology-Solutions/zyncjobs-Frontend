@@ -77,8 +77,8 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
         return {
           ...updatedCompany,
           openJobs: companyJobs.length,
-          // Only add mock rating if no rating exists
-          rating: company.rating || (Math.random() * 2 + 3),
+          // Ensure rating is always a number
+          rating: typeof company.rating === 'number' ? company.rating : (Math.random() * 2 + 3),
         };
       });
       
@@ -157,11 +157,6 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       
       {/* Hero Section */}
       <div className="relative bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-20">
-        {/* Back Button */}
-        <div className="absolute top-6 left-6 z-10">
-          <BackButton onClick={() => onNavigate && onNavigate('home')} className="bg-white/90 hover:bg-white text-gray-700 border-gray-200 shadow-lg backdrop-blur-sm" />
-        </div>
-        
         <div className="container max-w-4xl mx-auto px-6 text-center">
           {/* Main Heading with Gradient */}
           <h1 className="text-4xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent leading-tight tracking-tight">
@@ -302,7 +297,9 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                     {/* Rating */}
                     <div className="flex items-center mt-1">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm text-gray-600 ml-1">{company.rating?.toFixed(1) || '4.2'}</span>
+                      <span className="text-sm text-gray-600 ml-1">
+                        {typeof company.rating === 'number' ? company.rating.toFixed(1) : '4.2'}
+                      </span>
                     </div>
                   </div>
                 </div>

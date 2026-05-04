@@ -43,6 +43,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
+  const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
+    try {
+      const userData = localStorage.getItem('user') || sessionStorage.getItem('user');
+      const parsed = userData ? JSON.parse(userData) : {};
+      const key = `savedJobs_${parsed?.email || parsed?.name || 'user'}`;
+      return JSON.parse(localStorage.getItem(key) || '[]');
+    } catch { return []; }
+  });
   const [myAssessments, setMyAssessments] = useState<any[]>([]);
   const [colleges, setColleges] = useState<any[]>([]);
   const [collegeSearch, setCollegeSearch] = useState('');
@@ -394,6 +402,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           fetchApplications(parsedUser.email);
           fetchRecommendedJobs(parsedUser);
           fetchMyAssessments();
+          // Sync savedJobIds from localStorage after user loads
+          try {
+            const key = `savedJobs_${parsedUser.email || parsedUser.name || 'user'}`;
+            setSavedJobIds(JSON.parse(localStorage.getItem(key) || '[]'));
+          } catch { /* silent */ }
         } catch (error) {
           console.error('Error parsing user data:', error);
           // Still try to show popup even if JSON parse fails
@@ -408,7 +421,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     // Re-fetch assessments when a new local assessment is saved
     const onAssessmentDone = () => fetchMyAssessments();
     window.addEventListener('zync:assessmentSaved', onAssessmentDone);
-    return () => window.removeEventListener('zync:assessmentSaved', onAssessmentDone);
+    // Sync bookmark state when MyJobs removes a saved job
+    const onSavedJobsUpdated = (e: Event) => {
+      const { removedId } = (e as CustomEvent).detail;
+      setSavedJobIds(prev => prev.filter(id => id !== removedId));
+    };
+    window.addEventListener('zync:savedJobsUpdated', onSavedJobsUpdated);
+    return () => {
+      window.removeEventListener('zync:assessmentSaved', onAssessmentDone);
+      window.removeEventListener('zync:savedJobsUpdated', onSavedJobsUpdated);
+    };
   }, []);
 
   const fetchMyAssessments = async () => {
@@ -976,7 +998,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: any) => String(s || '').toLowerCase());
                         const matchCount = jobSkills.filter(js => userSkills.some(us => us.includes(js) || js.includes(us))).length;
                         const matchPct = job.matchScore || (jobSkills.length > 0 ? Math.round((matchCount / jobSkills.length) * 100) : 0);
-                        const isSaved = (() => { try { const userName = user?.name || 'user'; return JSON.parse(localStorage.getItem(`savedJobs_${userName}`) || '[]').includes(jobId); } catch { return false; } })();
+                        const isSaved = savedJobIds.includes(jobId);
                         return (
                         <div key={jobId || index} className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-sm bg-white transition-all">
                           <div className="flex justify-between items-start mb-2">
@@ -987,24 +1009,27 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               )}
                               <button
                                 onClick={() => {
-                                  const userName = user?.name || 'user';
-                                  const userJobIdsKey = `savedJobs_${userName}`;
-                                  const userJobDetailsKey = `savedJobDetails_${userName}`;
-                                  const savedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem(userJobIdsKey) || '[]'); } catch { return []; } })();
-                                  const savedDetails: any[] = (() => { try { return JSON.parse(localStorage.getItem(userJobDetailsKey) || '[]'); } catch { return []; } })();
+                                  const userEmail = user?.email || user?.name || 'user';
+                                  const idsKey = `savedJobs_${userEmail}`;
+                                  const detailsKey = `savedJobDetails_${userEmail}`;
+                                  const savedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem(idsKey) || '[]'); } catch { return []; } })();
+                                  const savedDetails: any[] = (() => { try { return JSON.parse(localStorage.getItem(detailsKey) || '[]'); } catch { return []; } })();
                                   const isAlreadySaved = savedIds.includes(jobId);
                                   if (isAlreadySaved) {
                                     const updatedIds = savedIds.filter(id => id !== jobId);
                                     const updatedDetails = savedDetails.filter((j: any) => (j._id || j.id) !== jobId);
-                                    localStorage.setItem(userJobIdsKey, JSON.stringify(updatedIds));
-                                    localStorage.setItem(userJobDetailsKey, JSON.stringify(updatedDetails));
-                                    window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Job removed from saved list' } }));
+                                    localStorage.setItem(idsKey, JSON.stringify(updatedIds));
+                                    localStorage.setItem(detailsKey, JSON.stringify(updatedDetails));
+                                    setSavedJobIds(updatedIds);
+                                    setNotification({ type: 'info', message: 'Job removed from saved list', isVisible: true });
                                   } else {
-                                    localStorage.setItem(userJobIdsKey, JSON.stringify([...savedIds, jobId]));
-                                    localStorage.setItem(userJobDetailsKey, JSON.stringify([...savedDetails, job]));
-                                    window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Job saved successfully!' } }));
+                                    const updatedIds = [...savedIds, jobId];
+                                    const updatedDetails = [...savedDetails.filter((j: any) => (j._id || j.id) !== jobId), job];
+                                    localStorage.setItem(idsKey, JSON.stringify(updatedIds));
+                                    localStorage.setItem(detailsKey, JSON.stringify(updatedDetails));
+                                    setSavedJobIds(updatedIds);
+                                    setNotification({ type: 'success', message: 'Job saved! View in My Jobs → Saved', isVisible: true });
                                   }
-                                  setRecommendedJobs(prev => [...prev]);
                                 }}
                                 className={`p-1 rounded transition-colors ${isSaved ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
                                 title={isSaved ? 'Remove from saved' : 'Save job'}

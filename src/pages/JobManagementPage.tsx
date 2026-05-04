@@ -4,6 +4,9 @@ import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, M
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import JobRefreshButton from '../components/JobRefreshButton';
+import BulkJobRefresh from '../components/BulkJobRefresh';
+import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
 
 interface Job {
   jobTitle: string;
@@ -20,6 +23,8 @@ interface Job {
   company: string;
   applicationCount?: number;
   hiredCount?: number;
+  refreshCount?: number;
+  lastRefreshedAt?: string;
   [key: string]: any;
 }
 
@@ -340,6 +345,26 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     <span className="font-medium">Refresh</span>
                   </button>
                   
+                  {/* Bulk Refresh Component */}
+                  <BulkJobRefresh
+                    selectedJobIds={selectedJobs}
+                    selectedJobs={filteredJobs.filter(job => selectedJobs.includes(job.id || job._id!)).map(job => ({
+                      id: job.id || job._id!,
+                      title: job.jobTitle || job.title || 'Job Position',
+                      refreshCount: job.refreshCount || 0,
+                      lastRefreshedAt: job.lastRefreshedAt
+                    }))}
+                    userPlan="free" // TODO: Get from user data
+                    onRefreshComplete={() => {
+                      // Refresh the jobs list and clear selection
+                      const userData = localStorage.getItem('user');
+                      if (userData) {
+                        fetchEmployerJobs(JSON.parse(userData));
+                      }
+                      setSelectedJobs([]);
+                    }}
+                  />
+                  
                   <button
                     onClick={() => {
                       if (selectedJobs.length === 0) {
@@ -413,6 +438,14 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         <div className="text-xs text-gray-500">
                           {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
                         </div>
+                        
+                        {/* Refresh Status Indicator */}
+                        <RefreshStatusIndicator
+                          refreshCount={job.refreshCount}
+                          lastRefreshedAt={job.lastRefreshedAt}
+                          maxRefreshes={3} // TODO: Get from user plan
+                          className="mt-1"
+                        />
                       </div>
                     </div>
                     
@@ -451,6 +484,25 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           <div className="text-base sm:text-lg font-semibold text-green-600">{job.hiredCount || 0}</div>
                           <div className="text-xs text-gray-500">Hired</div>
                         </button>
+                      </div>
+                      
+                      {/* Refresh Button */}
+                      <div className="flex-shrink-0">
+                        <JobRefreshButton
+                          jobId={jobId!}
+                          jobTitle={job.jobTitle || job.title || 'Job Position'}
+                          refreshCount={job.refreshCount || 0}
+                          lastRefreshedAt={job.lastRefreshedAt}
+                          userPlan="free" // TODO: Get from user data
+                          onRefreshSuccess={() => {
+                            // Refresh the jobs list
+                            const userData = localStorage.getItem('user');
+                            if (userData) {
+                              fetchEmployerJobs(JSON.parse(userData));
+                            }
+                          }}
+                          className="w-full sm:w-auto"
+                        />
                       </div>
                       
                       {/* Actions menu */}

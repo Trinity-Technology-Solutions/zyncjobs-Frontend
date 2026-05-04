@@ -308,12 +308,6 @@ return (
         <div className="absolute bottom-10 left-1/4 w-16 h-16 bg-white/10 rounded-full blur-lg animate-pulse delay-500 hidden md:block"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-          <BackButton 
-            onClick={() => onNavigate && onNavigate('dashboard')}
-            text="Back to Dashboard"
-            className="inline-flex items-center text-sm text-white/80 hover:text-white transition-colors mb-4 sm:mb-6 bg-white/10 px-3 sm:px-4 py-2 rounded-lg backdrop-blur-sm"
-          />
-          
           <div className="text-center">
             {/* Talent Icons */}
             <div className="flex justify-center items-center mb-4 sm:mb-6">

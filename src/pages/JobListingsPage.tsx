@@ -889,6 +889,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
+  const formatJobDescription_simple = (desc: string, maxLen: number) => {
+    if (!desc) return '';
+    const plain = desc.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    return plain.length > maxLen ? plain.substring(0, maxLen) + '...' : plain;
+  };
+
   const [totalPages, setTotalPages] = useState(1);
   const jobResultsRef = React.useRef<HTMLDivElement>(null);
 
