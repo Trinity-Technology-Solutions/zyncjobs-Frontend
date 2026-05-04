@@ -748,7 +748,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </button>
 
       {/* Sidebar */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '280px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -801,8 +801,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white text-sm sm:text-base leading-tight truncate">{employerName}</p>
-                  <p className="text-xs sm:text-sm text-white leading-snug mt-0.5 font-medium truncate">
+                  <p className="font-bold text-white text-sm sm:text-base leading-tight">{employerName}</p>
+                  <p className="text-xs sm:text-sm text-white leading-snug mt-0.5 font-medium" style={{wordBreak:'break-word', whiteSpace:'normal'}}>
                     {companyName && companyName !== 'Company' ? companyName :
                      user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
                      user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
@@ -2142,6 +2142,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
   const [selectedRole, setSelectedRole] = React.useState<TeamRole | null>(null);
   const [inviteSent, setInviteSent] = React.useState(false);
   const [inviting, setInviting] = React.useState(false);
+  const [inviteToken, setInviteToken] = React.useState('');
 
   const fetchMembers = React.useCallback(async () => {
     try {
@@ -2184,9 +2185,11 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
       const res = await fetch(`${API_BASE}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole, companyName })
+        body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole, companyName, inviteBaseUrl: `${window.location.origin}/team/accept` })
       });
       if (res.ok) {
+        const result = await res.json();
+        setInviteToken(result.token || result.inviteToken || result.data?.token || '');
         await fetchMembers();
         setInviteSent(true);
       } else {
@@ -2203,6 +2206,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
     setInviteEmail('');
     setInviteName('');
     setInviteRole('Recruiter');
+    setInviteToken('');
   };
 
   const handleRoleChange = async (id: string, role: TeamRole) => {
@@ -2323,11 +2327,16 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                 </p>
                 <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 mb-4">
                   <span className="text-xs text-gray-500 truncate flex-1">
-                    {window.location.origin}/team/accept?token=...
+                    {inviteToken
+                      ? `${window.location.origin}/team/accept?token=${inviteToken}`
+                      : `${window.location.origin}/team/accept?token=...`}
                   </span>
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(`${window.location.origin}/team/accept`);
+                      const link = inviteToken
+                        ? `${window.location.origin}/team/accept?token=${inviteToken}`
+                        : `${window.location.origin}/team/accept`;
+                      navigator.clipboard.writeText(link);
                       showToast('Invite link copied!', 'success');
                     }}
                     className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
