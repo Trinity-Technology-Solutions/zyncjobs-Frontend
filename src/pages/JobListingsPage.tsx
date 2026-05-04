@@ -1,3 +1,4 @@
+// Quick filter buttons: Last 48h, This week, Remote Jobs (single-select only) - v2
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Trophy, Flame, Sparkles } from 'lucide-react';
@@ -522,18 +523,21 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     });
   };
 
-  const handleQuickFilterToggle = (key: string, filterType: string, value: string) => {
-    const isActive = activeQuickFilter === key;
-    setActiveQuickFilter(isActive ? null : key);
-    setFilters(prev => {
-      if (filterType === 'freshness') {
-        return { ...prev, freshness: isActive ? [] : [value], workMode: [] };
-      }
-      if (filterType === 'workMode') {
-        return { ...prev, workMode: isActive ? [] : [value], freshness: [] };
-      }
-      return prev;
-    });
+  // Strictly single-select: clicking active button deselects, clicking another replaces
+  const handleQuickFilter = (key: string, filterType: string, value: string) => {
+    if (activeQuickFilter === key) {
+      // deselect
+      setActiveQuickFilter(null);
+      setFilters(prev => ({ ...prev, freshness: [], workMode: [] }));
+    } else {
+      // select only this one — clear ALL quick-filter related state first
+      setActiveQuickFilter(key);
+      setFilters(prev => ({
+        ...prev,
+        freshness: filterType === 'freshness' ? [value] : [],
+        workMode: filterType === 'workMode' ? [value] : [],
+      }));
+    }
   };
 
   const getJobSuggestions = async (input: string): Promise<{keywords: string[], jobTitles: string[], companies: string[]}> => {
@@ -1116,27 +1120,27 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilterToggle('24h', 'freshness', '48h')}
+              onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
               className={`px-3 py-1 rounded-full text-sm border ${
                 activeQuickFilter === '24h'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               Last 48 hours
             </button>
             <button
-              onClick={() => handleQuickFilterToggle('7d', 'freshness', '7d')}
+              onClick={() => handleQuickFilter('7d', 'freshness', '7d')}
               className={`px-3 py-1 rounded-full text-sm border ${
                 activeQuickFilter === '7d'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               This week
             </button>
             <button
-              onClick={() => handleQuickFilterToggle('remote', 'workMode', 'Remote')}
+              onClick={() => handleQuickFilter('remote', 'workMode', 'Remote')}
               className={`px-3 py-1 rounded-full text-sm border ${
                 activeQuickFilter === 'remote'
                   ? 'bg-blue-100 border-blue-300 text-blue-700'
@@ -1228,7 +1232,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   <div className="flex flex-wrap gap-2">
                     {['Remote','Hybrid','Work from office'].map(mode => (
                       <label key={mode} className="flex items-center gap-1 text-sm">
-                        <input type="checkbox" checked={filters.workMode.includes(mode)} onChange={() => handleFilterChange('workMode', mode)} />
+                        <input 
+                          type="radio" 
+                          name="workModeMobile"
+                          checked={filters.workMode.includes(mode)} 
+                          onChange={() => {
+                            const key = mode === 'Remote' ? 'remote' : mode === 'Hybrid' ? 'hybrid' : 'office';
+                            handleQuickFilter(key, 'workMode', mode);
+                          }} 
+                        />
                         {mode}
                       </label>
                     ))}

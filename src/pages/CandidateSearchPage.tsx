@@ -6,6 +6,7 @@ import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import CandidateProfileView from './CandidateProfileView';
 
 interface Candidate {
   _id: string;
@@ -34,12 +35,13 @@ interface Candidate {
 }
 
 interface CandidateSearchPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, params?: any) => void;
   user?: any;
   onLogout?: () => void;
 }
 
 const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, user, onLogout }) => {
+  const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSkill, setSelectedSkill] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
@@ -273,13 +275,22 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       email: candidate.email || '',
       skills: candidate.skills || [],
     }));
-    sessionStorage.setItem('profileViewSource', 'candidate-search');
-    onNavigate('candidate-profile-view', { candidateId: cid });
+    setViewingCandidateId(cid);
   };
 
 return (
     <div className="min-h-screen bg-gray-50">
-      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+      {viewingCandidateId && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
+          <CandidateProfileView
+            candidateId={viewingCandidateId}
+            onNavigate={onNavigate}
+            onBack={() => setViewingCandidateId(null)}
+          />
+        </div>
+      )}
+      {!viewingCandidateId && (
+      <><Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       {/* Hero Header Section */}
       <div className="relative bg-gradient-to-r from-green-600 via-teal-600 to-blue-600 text-white">
@@ -811,6 +822,9 @@ return (
         )}
       </div>
       
+      <Footer onNavigate={onNavigate} />
+      </>
+      )}
 
       {selectedCandidateForMessage && (
         <DirectMessage
@@ -822,8 +836,6 @@ return (
           onClose={() => setSelectedCandidateForMessage(null)}
         />
       )}
-
-      <Footer onNavigate={onNavigate} />
     </div>
   );
 };
