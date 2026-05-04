@@ -117,28 +117,55 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
       if (!stored) { onNavigate('employer-login'); return; }
       const user = JSON.parse(stored);
       const API = import.meta.env.VITE_API_URL || '/api';
+      const token = localStorage.getItem('accessToken') || '';
+      const domain = user.email?.split('@')[1] || '';
 
-      const res = await fetch(`${API}/profile`, {
+      // 1. Save to Companies table (visible on Companies page)
+      await fetch(`${API}/companies`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken') || ''}`
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.id || user._id,
-          email: user.email,
-          companyName: formData.companyName,
+          name: formData.companyName,
+          domain,
           industry: formData.industry,
-          companySize: formData.companySize,
-          headquarters: formData.headquarters,
+          size: formData.companySize,
+          location: formData.headquarters,
+          website: formData.companyWebsite,
           description: formData.description,
-          companyWebsite: formData.companyWebsite,
-          userType: 'employer'
+          employerEmail: user.email,
+          verified: domainStatus === 'verified'
         })
       });
 
-      // Update localStorage user with companyName
-      const updatedUser = { ...user, companyName: formData.companyName, company: formData.companyName };
+      // 2. Update User record with company details (dashboard uses this)
+      const userId = user.id || user._id;
+      if (userId) {
+        await fetch(`${API}/users/${userId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            email: user.email,
+            companyName: formData.companyName,
+            company: formData.companyName,
+            industry: formData.industry,
+            companySize: formData.companySize,
+            headquarters: formData.headquarters,
+            companyWebsite: formData.companyWebsite,
+            companyDescription: formData.description
+          })
+        });
+      }
+
+      // 3. Update localStorage so dashboard reflects immediately
+      const updatedUser = {
+        ...user,
+        companyName: formData.companyName,
+        company: formData.companyName,
+        industry: formData.industry,
+        companySize: formData.companySize,
+        headquarters: formData.headquarters,
+        companyWebsite: formData.companyWebsite
+      };
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
       onNavigate('dashboard');
