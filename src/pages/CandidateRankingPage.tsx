@@ -38,32 +38,80 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
 };
 
+const norm = (s: string) => String(s || '').toLowerCase().trim();
+
 const scoreCandidate = (app: any, job: any): { score: number; reasons: string[] } => {
-  let score = 0;
   const reasons: string[] = [];
-  const jobSkills: string[] = Array.isArray(job?.skills) ? job.skills.map((s: string) => s.toLowerCase()) : [];
-  const candidateSkills: string[] = Array.isArray(app?.candidateSkills) ? app.candidateSkills.map((s: string) => s.toLowerCase()) : [];
+
+  // 1. Skill match (45%)
+  const jobSkills: string[] = Array.isArray(job?.skills) ? job.skills.map(norm) : [];
+  const candidateSkills: string[] = Array.isArray(app?.candidateSkills) ? app.candidateSkills.map(norm) : [];
+  let skillScore = 0;
   if (jobSkills.length > 0 && candidateSkills.length > 0) {
-    const matched = jobSkills.filter(s => candidateSkills.some(cs => cs.includes(s) || s.includes(cs)));
-    score += Math.round((matched.length / jobSkills.length) * 40);
+    const matched = jobSkills.filter(js => candidateSkills.some(cs => cs.includes(js) || js.includes(cs)));
+    skillScore = Math.round((matched.length / jobSkills.length) * 100);
     if (matched.length > 0) reasons.push(`${matched.length}/${jobSkills.length} skills matched`);
-  } else { score += 20; }
-  const expRange = job?.experienceRange || '';
-  const candidateExp = app?.candidateExperience || '';
+    else reasons.push('No skill overlap');
+  }
+
+  // 2. Role match (20%)
+  const jobTitle = norm(job?.jobTitle || job?.title || '');
+  const candidateTitle = norm(app?.candidateJobTitle || app?.currentTitle || '');
+  let roleScore = 0;
+  if (jobTitle && candidateTitle) {
+    const jWords = jobTitle.split(/\s+/).filter((w: string) => w.length > 2);
+    const cWords = candidateTitle.split(/\s+/).filter((w: string) => w.length > 2);
+    const common = jWords.filter((w: string) => cWords.some((cw: string) => cw.includes(w) || w.includes(cw)));
+    roleScore = jWords.length > 0 ? Math.round((common.length / jWords.length) * 100) : 0;
+    if (roleScore > 0) reasons.push('Role title match');
+  }
+
+  // 3. Experience match (15%)
+  const expRange = norm(job?.experienceRange || job?.experience || '');
+  const candidateExp = norm(app?.candidateExperience || '');
+  let experienceScore = 0;
   if (expRange && candidateExp) {
     const req = parseInt(expRange.match(/(\d+)/)?.[1] || '0');
     const has = parseInt(candidateExp.match(/(\d+)/)?.[1] || '0');
-    if (has >= req) { score += 30; reasons.push(`${has} yrs meets requirement`); }
-    else if (has >= req - 1) { score += 20; reasons.push('Near-match experience'); }
-    else { score += 10; }
-  } else { score += 15; }
-  const edu = (app?.candidateEducation || '').toLowerCase();
-  if (edu.includes('master') || edu.includes('phd')) { score += 15; reasons.push('Advanced degree'); }
-  else if (edu.includes('bachelor') || edu.includes('b.tech')) { score += 12; reasons.push("Bachelor's degree"); }
-  else { score += 5; }
-  if (app?.coverLetter && app.coverLetter.length > 50 && app.coverLetter !== 'No cover letter') { score += 10; reasons.push('Cover letter included'); }
-  if (app?.resumeUrl) { score += 5; reasons.push('Resume attached'); }
-  return { score: Math.min(score, 100), reasons };
+    if (has >= req) { experienceScore = 100; reasons.push(`${has} yrs meets requirement`); }
+    else if (req > 0 && has >= req - 1) { experienceScore = 70; reasons.push('Near-match experience'); }
+    else if (req > 0) { experienceScore = Math.max(0, Math.round((has / req) * 60)); }
+  } else if (candidateExp) {
+    experienceScore = 60;
+  }
+
+  // 4. Location match (10%)
+  const jobLoc = norm(job?.location || '');
+  const candidateLoc = norm(app?.candidateLocation || '');
+  let locationScore = 0;
+  if (jobLoc && candidateLoc) {
+    if (jobLoc.includes('remote') || candidateLoc.includes('remote')) { locationScore = 100; reasons.push('Remote friendly'); }
+    else if (jobLoc.includes(candidateLoc) || candidateLoc.includes(jobLoc)) { locationScore = 100; reasons.push('Location match'); }
+    else { locationScore = 20; }
+  }
+
+  // 5. Education match (10%)
+  const edu = norm(app?.candidateEducation || '');
+  let educationScore = 0;
+  if (edu.includes('phd') || edu.includes('doctorate')) { educationScore = 100; reasons.push('PhD / Doctorate'); }
+  else if (edu.includes('master') || edu.includes('mba') || edu.includes('m.tech')) { educationScore = 90; reasons.push('Master\'s degree'); }
+  else if (edu.includes('bachelor') || edu.includes('b.tech') || edu.includes('b.e') || edu.includes('degree')) { educationScore = 75; reasons.push('Bachelor\'s degree'); }
+  else if (edu.includes('diploma') || edu.includes('associate')) { educationScore = 55; }
+  else if (edu) { educationScore = 40; }
+
+  // Bonus signals
+  if (app?.resumeUrl) { reasons.push('Resume attached'); }
+  if (app?.coverLetter && app.coverLetter.length > 50 && app.coverLetter !== 'No cover letter') { reasons.push('Cover letter included'); }
+
+  const overall = Math.round(
+    skillScore * 0.45 +
+    roleScore * 0.20 +
+    experienceScore * 0.15 +
+    locationScore * 0.10 +
+    educationScore * 0.10
+  );
+
+  return { score: Math.min(Math.max(overall, 0), 100), reasons };
 };
 
 const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate, user }) => {

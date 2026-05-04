@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Phone, MapPin, Briefcase, FileText, Shield, ShieldOff, Trash2, ExternalLink, Layers } from 'lucide-react';
+import { X, Mail, Phone, MapPin, Briefcase, FileText, Shield, ShieldOff, Trash2, ExternalLink, Layers, Edit2, Check } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 
@@ -58,6 +58,28 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
     };
     load();
   }, [userId]);
+
+  const [editingEmail, setEditingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [emailSaving, setEmailSaving] = useState(false);
+
+  const saveEmail = async () => {
+    if (!newEmail.trim() || newEmail === user?.email) { setEditingEmail(false); return; }
+    setEmailSaving(true);
+    try {
+      const res = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ email: newEmail.trim() })
+      });
+      if (!res.ok) throw new Error('Failed');
+      setUser((u: any) => ({ ...u, email: newEmail.trim() }));
+      setEditingEmail(false);
+      onAction();
+    } catch { setError('Failed to update email.'); }
+    finally { setEmailSaving(false); }
+  };
+
 
   const banToggle = async () => {
     setActionLoading('ban');
@@ -118,8 +140,40 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
 
             {/* Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              {/* Email row — editable */}
+              <div className="flex items-center gap-2 text-gray-400 col-span-2">
+                <Mail className="w-4 h-4 shrink-0 text-gray-600" />
+                {editingEmail ? (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      autoFocus
+                      type="email"
+                      value={newEmail}
+                      onChange={e => setNewEmail(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveEmail(); if (e.key === 'Escape') setEditingEmail(false); }}
+                      className="flex-1 bg-gray-800 border border-blue-500 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none"
+                    />
+                    <button onClick={saveEmail} disabled={emailSaving} className="text-green-400 hover:text-green-300 disabled:opacity-50">
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setEditingEmail(false)} className="text-gray-500 hover:text-gray-300">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1">
+                    <span>{user.email}</span>
+                    <button
+                      onClick={() => { setNewEmail(user.email); setEditingEmail(true); }}
+                      className="text-gray-600 hover:text-blue-400 transition-colors"
+                      title="Edit email"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
               {[
-                { icon: Mail, label: user.email },
                 { icon: Phone, label: user.phone || user.phoneNumber || 'No phone' },
                 { icon: MapPin, label: user.location || user.city || 'No location' },
                 { icon: Briefcase, label: user.companyName || user.currentRole || 'N/A' },
