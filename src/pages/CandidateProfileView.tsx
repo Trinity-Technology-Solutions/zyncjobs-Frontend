@@ -77,14 +77,10 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   const handleBack = () => {
     sessionStorage.removeItem('profileViewSource');
-    if (profileViewSource === 'candidate-search') {
-      onNavigate('candidate-search');
-    } else {
-      onBack();
-    }
+    onBack();
   };
 
-  const effectiveCandidateId = searchParams.get('id') || candidateId || sessionStorage.getItem('viewCandidateId') || storedData.email || '';
+  const effectiveCandidateId = candidateId || searchParams.get('id') || sessionStorage.getItem('viewCandidateId') || storedData.email || '';
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });

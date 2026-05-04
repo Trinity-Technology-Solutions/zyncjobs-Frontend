@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, useNavigate, useLocation, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import GlobalAlert from './components/GlobalAlert';
@@ -92,6 +92,7 @@ const SalaryInsightsPage = lazy(() => import('./pages/SalaryInsightsPage'));
 const ProfileVisibilityToggle = lazy(() => import('./components/ProfileVisibilityToggle'));
 const PrivacySettingsPage = lazy(() => import('./pages/PrivacySettingsPage'));
 const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
+const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -101,6 +102,25 @@ const LoadingFallback = () => (
     </div>
   </div>
 );
+
+// Reads candidateId from live URL search params so it's always fresh
+const CandidateProfileViewWrapper: React.FC<{
+  onNavigate: (page: string, params?: any) => void;
+  navigate: (path: string) => void;
+}> = ({ onNavigate, navigate }) => {
+  const [searchParams] = useSearchParams();
+  const candidateId = searchParams.get('id') || sessionStorage.getItem('viewCandidateId') || '';
+  const handleBack = () => {
+    const src = sessionStorage.getItem('profileViewSource') || 'application-management';
+    sessionStorage.removeItem('profileViewSource');
+    navigate(src === 'candidate-search' ? '/candidate-search' : '/application-management');
+  };
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <CandidateProfileView candidateId={candidateId} onNavigate={onNavigate} onBack={handleBack} />
+    </Suspense>
+  );
+};
 
 type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin'; email?: string };
 
@@ -185,6 +205,11 @@ function App() {
     }
     if (page === 'assessment-review' && params?.assessmentId) { navigate(`/assessment-review/${params.assessmentId}`); return; }
     if (page === 'candidate-messages') { navigate('/candidate-messages'); return; }
+    if (page === 'candidate-profile-view') {
+      const cid = params?.candidateId || sessionStorage.getItem('viewCandidateId') || '';
+      navigate(`/candidate-profile-view${cid ? `?id=${encodeURIComponent(cid)}` : ''}`);
+      return;
+    }
     if (page === 'job-detail' && params?.jobId) { navigate(`/job-detail?id=${params.jobId}`); return; }
     if (page.startsWith('job-detail/')) { const id = page.replace('job-detail/', ''); navigate(`/job-detail?id=${id}`); return; }
     if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
@@ -352,7 +377,7 @@ function App() {
       '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
       '/resume-score', '/resume-parser', '/skill-assessment', '/career-coach', '/career-roadmap',
       '/job-application', '/candidate-messages', '/interviews', '/alerts', '/privacy-settings',
-      '/application-management', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
+      '/application-management', '/candidate-profile-view', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
       '/recruiter-actions', '/search-appearances',
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
       '/admin'];
@@ -625,7 +650,11 @@ function App() {
           } />
 
 
-          <Route path="/candidate-profile-view" element={<Navigate to="/candidate-search" replace />} />
+          <Route path="/candidate-profile-view" element={
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+              <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
+            </AuthGuard>
+          } />
 
           {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={
