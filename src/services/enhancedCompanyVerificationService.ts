@@ -334,11 +334,17 @@ export class EnhancedCompanyVerificationService {
       // 2. Add fallback suggestions
       const fallbackResults = this.getFallbackSuggestions(partialName);
 
-      // 3. Combine and deduplicate
+      // 3. Combine and deduplicate by normalized name OR domain
       const allResults = [...apiResults, ...fallbackResults];
-      const uniqueResults = allResults.filter((company, index, self) => 
-        index === self.findIndex(c => c.domain === company.domain)
-      );
+      const seen = new Set<string>();
+      const uniqueResults = allResults.filter(company => {
+        const nameKey = company.name.toLowerCase().replace(/\s+/g, '');
+        const domainKey = company.domain?.toLowerCase() || '';
+        if (seen.has(nameKey) || (domainKey && seen.has(domainKey))) return false;
+        seen.add(nameKey);
+        if (domainKey) seen.add(domainKey);
+        return true;
+      });
 
       return uniqueResults.slice(0, 10);
 
@@ -357,7 +363,6 @@ export class EnhancedCompanyVerificationService {
       { id: '2', name: 'Tata Consultancy Services', domain: 'tcs.com', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
       { id: '3', name: 'Infosys Limited', domain: 'infosys.com', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
       { id: '4', name: 'Wipro Limited', domain: 'wipro.com', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
-      { id: '101', name: 'Trinity Technology Solutions', domain: 'trinitetech.com', logo: '/images/trinity-logo.webp', verified: true, dataSource: 'fallback' as const }
     ];
 
     return fallbackCompanies.filter(company => 

@@ -43,7 +43,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     const params = new URLSearchParams(window.location.search);
     if (params.get('blocked') === '1') {
       const cName = params.get('company') || 'This company';
-      setError(`⚠️ ${cName} already has an account on ZyncJobs.\n\nAsk your company admin to invite you from their Team Management page.`);
+      setError(`COMPANY_EXISTS:${cName}`);
     }
   }, []);
 
@@ -302,11 +302,11 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       setTimeout(() => onNavigate('employer-complete-profile'), isVerified ? 2000 : 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
-      if (msg.includes('already has an account') || msg.includes('COMPANY_ALREADY_EXISTS')) {
+      if (msg.includes('already has an account') || msg.includes('COMPANY_ALREADY_EXISTS') || msg.includes('already registered') || msg.includes('already exists')) {
         const companyMatch = msg.match(/^(.+?) already has an account/);
-        const cName = companyMatch ? companyMatch[1] : 'Your company';
-        setError(`⚠️ ${cName} already has an account on ZyncJobs.\n\nAsk your company admin to invite you from their Team Management page.`);
-        showToast('Company already registered — get an invite from your admin', 'warning');
+        const cName = companyMatch ? companyMatch[1] : formData.companyName || 'Your company';
+        setError(`COMPANY_EXISTS:${cName}`);
+        showToast('Company already registered — joining as team member', 'warning');
       } else {
         setError(msg);
         showToast(msg, 'error');
@@ -400,7 +400,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 })}
               </div>
 
-              {error && (
+              {error && !error.startsWith('COMPANY_EXISTS:') && (
                 <div className="mb-4 flex flex-col gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                   <div className="flex items-start gap-2">
                     <span className="text-red-500 text-xs mt-0.5">⚠</span>
@@ -417,6 +417,65 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                   )}
                 </div>
               )}
+              {error.startsWith('COMPANY_EXISTS:') && (() => {
+                const cName = error.replace('COMPANY_EXISTS:', '');
+                return (
+                  <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">🏢</span>
+                      <p className="font-semibold text-gray-900 text-sm leading-tight">
+                        <span className="text-orange-600">{cName}</span> is already on ZyncJobs
+                      </p>
+                    </div>
+                    <p className="text-gray-500 text-xs mb-3">Choose how you'd like to proceed:</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onNavigate('employer-login')}
+                        className="h-9 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition"
+                      >
+                        Login →
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setError('');
+                          setLoading(true);
+                          try {
+                            const employerId = generateEmployerId();
+                            const response = await authAPI.register({
+                              email: formData.email,
+                              password: formData.password || 'TempPass@123',
+                              name: formData.name,
+                              companyName: formData.companyName,
+                              companyLogo,
+                              userType: 'employer' as const,
+                              employerId,
+                              isTeamMember: true,
+                              domainVerification,
+                              companyProfile: selectedCompanyProfile
+                            } as any);
+                            if (response.user) localStorage.setItem('user', JSON.stringify(response.user));
+                            setSuccess('✅ Registered as team member! Redirecting...');
+                            setTimeout(() => onNavigate('employer-complete-profile'), 1500);
+                          } catch (e2) {
+                            setError((e2 instanceof Error ? e2.message : 'Registration failed'));
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        disabled={loading || !formData.password}
+                        className="h-9 border border-orange-400 text-orange-600 hover:bg-orange-50 rounded-lg text-xs font-semibold transition disabled:opacity-50"
+                      >
+                        {loading ? 'Joining...' : 'Join as Team Member'}
+                      </button>
+                    </div>
+                    {!formData.password && (
+                      <p className="text-xs text-amber-700 mt-2">⚠ Complete Step 3 first to join as team member.</p>
+                    )}
+                  </div>
+                );
+              })()}
               {success && (
                 <div className="mb-4 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
                   <span className="text-green-500 text-xs mt-0.5">✓</span>
