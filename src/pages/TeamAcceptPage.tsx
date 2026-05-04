@@ -24,7 +24,11 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
 
   // Step 1 — validate token, get invite details
   useEffect(() => {
-    if (!token) { setError('Invalid invitation link.'); setStep('error'); return; }
+    if (!token) {
+      setError('This invitation link is missing a token. Please ask the employer to resend the invite or copy the link again.');
+      setStep('error');
+      return;
+    }
 
     fetch(`${API}/team/invite-info/${token}`)
       .then(r => r.json())
