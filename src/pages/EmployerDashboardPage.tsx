@@ -73,7 +73,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const { id, _id } = JSON.parse(userData);
         const userId = id || _id;
         if (!userId) return;
-        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/messages?candidateId=${encodeURIComponent(userId)}`);
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/messages?candidateId=${encodeURIComponent(userId)}`);
         if (!res.ok) return;
         const convos = await res.json();
         // Enrich each conversation with the other party's info
@@ -82,7 +82,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             const msg = c.lastMessage;
             const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId;
             try {
-              const uRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/${otherId}`);
+              const uRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/${otherId}`);
               const uData = uRes.ok ? await uRes.json() : {};
               return {
                 ...c,
@@ -233,7 +233,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
   const fetchCompanyDomain = async (companyName: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/companies`);
       if (response.ok) {
         const companies = await response.json();
         console.log('Companies loaded:', companies.length);
@@ -321,7 +321,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       // Fetch Jobs
       try {
         console.log('Fetching jobs from:', API_ENDPOINTS.JOBS);
-        const jobsRes = await fetch(API_ENDPOINTS.JOBS);
+        const jobsRes = await apiFetch(API_ENDPOINTS.JOBS);
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
           console.log('Dashboard - All jobs:', allJobs.length);
@@ -365,7 +365,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Applications
       try {
-        const appsRes = await fetch(API_ENDPOINTS.APPLICATIONS);
+        const appsRes = await apiFetch(API_ENDPOINTS.APPLICATIONS);
         if (appsRes.ok) {
           const response = await appsRes.json();
           const allApps = response.applications || response || [];
@@ -379,7 +379,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 console.log('Processing application:', app.candidateName, 'jobId:', appJobId);
                 
                 if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined') {
-                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
+                  const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
                     console.log('Fetched job data for', appJobId, ':', jobData.jobTitle || jobData.title);
@@ -419,7 +419,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        const interviewsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`);
+        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
@@ -430,7 +430,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               try {
                 const jobId = interview.jobId?.id || interview.jobId?._id || interview.jobId;
                 if (jobId && typeof jobId === 'string') {
-                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+                  const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
                     return { ...interview, jobTitle: jobData.jobTitle || jobData.title || 'Interview' };
@@ -454,7 +454,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Dashboard Stats (non-critical, fail silently)
       try {
-        const statsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
           dashboardStats = { ...dashboardStats, ...stats };
@@ -466,7 +466,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Recent Activity (non-critical, fail silently)
       try {
-        const activityRes = await fetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        const activityRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
         if (activityRes.ok) {
           const activity = await activityRes.json();
           recentActivity = activity;
@@ -879,9 +879,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     const stored = localStorage.getItem('user');
                     const userData = stored ? JSON.parse(stored) : {};
                     const userId = userData.id || userData._id;
-                    const token = tokenStorage.getAccess();
-                    if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
-                    const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
+                                        if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
+                    const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
                       headers: { Authorization: `Bearer ${token}` },
                     });
@@ -1423,7 +1422,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               const newStatus = e.target.value;
                               const appId = application._id || application.id;
                               try {
-                                const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ status: newStatus }),
@@ -1616,7 +1615,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             onChange={async (e) => {
                               const newStatus = e.target.value;
                               try {
-                                const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
+                                const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
                                   method: 'PUT',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ status: newStatus }),
@@ -2132,17 +2131,17 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   const fetchMembers = React.useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
+      const res = await apiFetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
       if (res.ok) {
         const data = await res.json();
         const hasOwner = data.some((m: TeamMember) => m.memberEmail === employerEmail && m.role === 'Owner');
         if (!hasOwner) {
-          await fetch(`${API_BASE}/team`, {
+          await apiFetch(`${API_BASE}/team`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ employerId: employerEmail, memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active' })
           });
-          const res2 = await fetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
+          const res2 = await apiFetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
           if (res2.ok) setMembers(await res2.json());
           else setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
         } else {
@@ -2163,12 +2162,20 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   React.useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
+  // Auto-refresh every 15s while there are pending invites
+  React.useEffect(() => {
+    const hasPending = members.some(m => m.status === 'pending');
+    if (!hasPending) return;
+    const interval = setInterval(fetchMembers, 15000);
+    return () => clearInterval(interval);
+  }, [members, fetchMembers]);
+
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) { showToast('Enter a valid email address', 'error'); return; }
     if (members.find(m => m.memberEmail === inviteEmail.trim())) { showToast('This email is already in the team', 'error'); return; }
     setInviting(true);
     try {
-      const res = await fetch(`${API_BASE}/team`, {
+      const res = await apiFetch(`${API_BASE}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole, companyName, inviteBaseUrl: `${window.location.origin}/team/accept` })
@@ -2197,7 +2204,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   const handleRoleChange = async (id: string, role: TeamRole) => {
     try {
-      const res = await fetch(`${API_BASE}/team/${id}`, {
+      const res = await apiFetch(`${API_BASE}/team/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role })
@@ -2208,7 +2215,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   const handleRemove = async (id: string) => {
     try {
-      const res = await fetch(`${API_BASE}/team/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`${API_BASE}/team/${id}`, { method: 'DELETE' });
       if (res.ok) { await fetchMembers(); showToast('Member removed', 'success'); }
     } catch { showToast('Failed to remove member', 'error'); }
   };
@@ -2228,10 +2235,19 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
           <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
           <p className="text-gray-500 text-sm mt-1">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
-        <button onClick={() => setShowInvite(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
-          <UserPlus className="w-4 h-4" /> Invite Member
-        </button>
+        <div className="flex items-center gap-2">
+          {members.some(m => m.status === 'pending') && (
+            <button onClick={fetchMembers}
+              className="flex items-center gap-1 text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+              Refresh
+            </button>
+          )}
+          <button onClick={() => setShowInvite(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+            <UserPlus className="w-4 h-4" /> Invite Member
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

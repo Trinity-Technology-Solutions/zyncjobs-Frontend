@@ -69,7 +69,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const sendChatMessage = async () => {
     if (!chatMessage.trim() || !selectedConversation) return;
     try {
-      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/messages`, {
+      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -207,7 +207,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   useEffect(() => {
     const fetchColleges = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/colleges`);
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/colleges`);
         console.log('Colleges API response:', response.status);
         if (response.ok) {
           const data = await response.json();
@@ -222,7 +222,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     const fetchLocations = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/locations`);
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/locations`);
         if (response.ok) {
           const data = await response.json();
           setLocations(data.locations || []);
@@ -233,7 +233,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     const fetchSkills = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills`);
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills`);
         if (response.ok) {
           const data = await response.json();
           setSkills(data.skills || []);
@@ -244,7 +244,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     };
     const fetchJobTitles = async () => {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/job-titles`);
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/job-titles`);
         if (response.ok) {
           const data = await response.json();
           setJobTitles(data.job_titles || []);
@@ -266,7 +266,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       if (readOnly && viewEmail) {
         // Load the target candidate's profile directly
         try {
-          const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(viewEmail)}`);
+          const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(viewEmail)}`);
           if (response.ok) {
             parsedUser = await response.json();
             setUser(parsedUser);
@@ -286,7 +286,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           let finalUser = parsedUser;
 // Fetch fresh data from database
           try {
-            const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
+            const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
             if (response.ok) {
               const profileData = await response.json();
               console.log('Dashboard - Fetched profile data:', {
@@ -452,7 +452,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         if (payload.exp * 1000 < Date.now()) {
           const refreshToken = tokenStorage.getRefresh();
           if (!refreshToken) { setMyAssessments(localAssessments); return; }
-          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
+          const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken })
@@ -465,7 +465,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           } else { setMyAssessments(localAssessments); return; }
         }
       } catch { /* use token as-is */ }
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/skill-assessments/my-assessments`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/skill-assessments/my-assessments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const backendList = response.ok ? await response.json() : [];
@@ -485,7 +485,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const fetchNotifications = async (userId: string) => {
     try {
       // Fetch real applications for notifications
-      const appsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userId}`);
+      const appsResponse = await apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userId}`);
       if (appsResponse.ok) {
         const apps = await appsResponse.json();
         const appNotifications = apps.slice(0, 5).map((app: any) => ({
@@ -505,7 +505,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         setTimeout(() => setShowNotifTooltip(false), 5000);
       } else {
         // Fallback to job notifications
-        const jobsResponse = await fetch(`${API_ENDPOINTS.JOBS}?limit=5`);
+        const jobsResponse = await apiFetch(`${API_ENDPOINTS.JOBS}?limit=5`);
         if (jobsResponse.ok) {
           const jobs = await jobsResponse.json();
           const jobNotifications = jobs.map((job: any, index: number) => ({
@@ -555,7 +555,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
   const fetchApplications = async (userEmail: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userEmail}`);
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/applications/candidate/${userEmail}`);
       if (response.ok) {
         const data = await response.json();
         setApplications(data);
@@ -569,7 +569,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
     try {
       const userId = userData?.id;
       if (userId) {
-        const res = await fetch(`${API_ENDPOINTS.BASE_URL}/match/recommendations/${userId}?limit=5`);
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/match/recommendations/${userId}?limit=5`);
         if (res.ok) {
           const data = await res.json();
           const matched = Array.isArray(data.jobs) ? data.jobs : [];
@@ -580,7 +580,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         }
       }
       // Fallback: skill-based filter
-      const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=50`);
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}?limit=50`);
       if (response.ok) {
         const allJobs = await response.json();
         const rawSkills = userData.skills || [];
@@ -839,7 +839,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             calculateProfileCompletion(merged);
                             // Persist to backend
                             try {
-                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                              await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ email: user?.email, ...merged }),
@@ -1199,7 +1199,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               const updatedUser = { ...user, coverPhoto: '' };
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
-                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: '' }) });
+                              await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: '' }) });
                               setNotification({ type: 'success', message: 'Cover photo removed!', isVisible: true });
                             }}
                           >
@@ -1675,7 +1675,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   const updatedUser = { ...user, employment: updated };
                                   setUser(updatedUser);
                                   localStorage.setItem('user', JSON.stringify(updatedUser));
-                                  await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, employment: updated }) });
+                                  await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, employment: updated }) });
                                 }} className="text-red-400 hover:text-red-600 text-xs">×</button>
                               </div>
                             </div>
@@ -1718,7 +1718,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   const updatedUser = { ...user, projects: updated };
                                   setUser(updatedUser);
                                   localStorage.setItem('user', JSON.stringify(updatedUser));
-                                  await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, projects: updated }) });
+                                  await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, projects: updated }) });
                                 }} className="text-red-400 hover:text-red-600 text-xs">×</button>
                               </div>
                             </div>
@@ -1761,7 +1761,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                   const updatedUser = { ...user, internships: updated };
                                   setUser(updatedUser);
                                   localStorage.setItem('user', JSON.stringify(updatedUser));
-                                  await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, internships: updated }) });
+                                  await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, internships: updated }) });
                                 }} className="text-red-400 hover:text-red-600 text-xs">×</button>
                               </div>
                             </div>
@@ -1919,7 +1919,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                                       const updatedUser = { ...user, competitiveExams: updated };
                                       setUser(updatedUser);
                                       localStorage.setItem('user', JSON.stringify(updatedUser));
-                                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, competitiveExams: updated }) });
+                                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, competitiveExams: updated }) });
                                     }}
                                     className="text-red-400 hover:text-red-600 text-xs font-bold"
                                   >×</button>
@@ -1987,8 +1987,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               formData.append('resume', file);
                               if (user?.id) formData.append('userId', user.id);
                               if (user?.email) formData.append('userEmail', user.email);
-                              const token = tokenStorage.getAccess();
-                              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+                                                            const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                                 method: 'POST',
                                 headers: token ? { Authorization: `Bearer ${token}` } : {},
                                 body: formData
@@ -2001,7 +2000,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               setUser(updatedUser);
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
-                              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                              await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
@@ -2027,7 +2026,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               localStorage.setItem('user', JSON.stringify(updatedUser));
                               calculateProfileCompletion(updatedUser);
                               try {
-                                const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: '', removeResume: true })
@@ -2068,8 +2067,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             formData.append('resume', file);
                             if (user?.id) formData.append('userId', user.id);
                             if (user?.email) formData.append('userEmail', user.email);
-                            const token = tokenStorage.getAccess();
-                            const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+                                                        const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                               method: 'POST',
                               headers: token ? { Authorization: `Bearer ${token}` } : {},
                               body: formData
@@ -2082,7 +2080,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             setUser(updatedUser);
                             localStorage.setItem('user', JSON.stringify(updatedUser));
                             calculateProfileCompletion(updatedUser);
-                            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                            await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
@@ -2334,7 +2332,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     // 1. Parse resume
                     const formData = new FormData();
                     formData.append('resume', resumePopupFile);
-                    const parseRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
+                    const parseRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
                       method: 'POST',
                       body: formData
                     });
@@ -2360,8 +2358,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     uploadForm.append('resume', resumePopupFile);
                     if (user?.id) uploadForm.append('userId', user.id);
                     if (user?.email) uploadForm.append('userEmail', user.email);
-                    const token = tokenStorage.getAccess();
-                    const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+                                        const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
                       method: 'POST',
                       headers: token ? { Authorization: `Bearer ${token}` } : {},
                       body: uploadForm
@@ -2411,7 +2408,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     calculateProfileCompletion(merged);
 
                     // 4. Save to backend
-                    await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                    await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ email: user?.email, ...merged })
@@ -2460,7 +2457,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
             try {
               const formData = new FormData();
               formData.append('photo', croppedBlob, 'cover.jpg');
-              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
+              const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, { method: 'POST', body: formData });
               if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
               const data = await uploadRes.json();
               const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
@@ -2468,7 +2465,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               const updatedUser = { ...user, coverPhoto: coverUrl };
               setUser(updatedUser);
               try { localStorage.setItem('user', JSON.stringify(updatedUser)); } catch { /* quota full */ }
-              await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
+              await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: user?.email, coverPhoto: coverUrl }) });
               setNotification({ type: 'success', message: 'Cover photo updated!', isVisible: true });
             } catch (err) {
               setNotification({ type: 'error', message: 'Cover photo upload failed. Try a smaller image.', isVisible: true });
@@ -2486,12 +2483,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 
             // If photo is base64, upload it to backend first
             if (photo && photo.startsWith('data:')) {
-              const res = await fetch(photo);
+              const res = await apiFetch(photo);
               const blob = await res.blob();
               const ext = blob.type.split('/')[1] || 'jpg';
               const formData = new FormData();
               formData.append('photo', blob, `profile.${ext}`);
-              const uploadRes = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, {
+              const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/profile-photo`, {
                 method: 'POST',
                 body: formData
               });
@@ -2510,7 +2507,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
 
-            await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+            await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -2708,7 +2705,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
@@ -2874,7 +2871,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, careerPreferences: modalData })
@@ -2943,7 +2940,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, skills: skillsArray })
@@ -3033,7 +3030,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, languages: modalData })
@@ -3086,7 +3083,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, [field]: modalData })
@@ -3138,7 +3135,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, profileSummary: modalData })
@@ -3298,7 +3295,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, employment: updated })
@@ -3400,7 +3397,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, projects: updated })
@@ -3530,7 +3527,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, internships: updated })
@@ -3658,7 +3655,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, certifications: modalData })
@@ -3706,7 +3703,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, awards: modalData })
@@ -3879,7 +3876,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, clubsCommittees: dataToSave })
@@ -4016,7 +4013,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, competitiveExams: finalList })
@@ -4064,7 +4061,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, academicAchievements: modalData })
@@ -4202,7 +4199,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, educationCollege: modalData })
@@ -4295,7 +4292,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, educationClass12: modalData })
@@ -4388,7 +4385,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     localStorage.setItem('user', JSON.stringify(updatedUser));
                     calculateProfileCompletion(updatedUser);
                     try {
-                      await fetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, educationClass10: modalData })

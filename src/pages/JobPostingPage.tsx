@@ -8,6 +8,8 @@ import { API_ENDPOINTS } from '../config/constants';
 import { generatePositionId } from '../utils/jobMigrationUtils';
 import { getCompanyLogo } from '../utils/logoUtils';
 import mistralAIService from '../services/mistralAIService';
+import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 
 
 interface JobPostingPageProps {
@@ -2912,11 +2914,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       const url = isEditMode ? `${API_ENDPOINTS.JOBS}/${editJobId}` : API_ENDPOINTS.JOBS;
       const method = isEditMode ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(jobPostData)
       });
       

@@ -131,14 +131,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const loadSavedJobsFromBackend = async () => {
     try {
-      const token = tokenStorage.getAccess();
-      if (!token) {
+            if (!token) {
         const userKey = `savedJobs_${user?.name}`;
         const saved = localStorage.getItem(userKey);
         if (saved) setSavedJobs(JSON.parse(saved));
         return;
       }
-      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
+      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -152,8 +151,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const loadResumeSkillsFromBackend = async () => {
     try {
-      const token = tokenStorage.getAccess();
-      if (!token) throw new Error('no token');
+            if (!token) throw new Error('no token');
       localStorageMigration.setToken(token);
       const skills = await localStorageMigration.getResumeSkills();
       if (skills.length > 0) { setResumeSkills(skills); return; }
@@ -206,7 +204,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           limit: jobsPerPage
         };
 
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(searchParams)
@@ -235,7 +233,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             const fallback = clientFilter(jobs, activeTerm, activeLoc);
             setFilteredJobs(fallback);
           } else {
-            const allRes = await fetch(`${API_ENDPOINTS.JOBS}?limit=200`);
+            const allRes = await apiFetch(`${API_ENDPOINTS.JOBS}?limit=200`);
             if (allRes.ok) {
               const allData = await allRes.json();
               const allArr = Array.isArray(allData) ? allData : (allData.jobs || []);
@@ -246,7 +244,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         }
       } else {
         url = `${API_ENDPOINTS.JOBS}?limit=500`;
-        const response = await fetch(url);
+        const response = await apiFetch(url);
         if (response.ok) {
           const contentType = response.headers.get('content-type');
           if (contentType && contentType.includes('application/json')) {
@@ -281,7 +279,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   // Fetch filter options and trending jobs
   const fetchFilterOptions = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/filters`);
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/filters`);
       if (response.ok) {
         const data = await response.json();
         setFilterOptions(data);
@@ -293,7 +291,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const fetchTrending = async () => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/trending?limit=5`);
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/trending?limit=5`);
       if (response.ok) {
         const data = await response.json();
         setTrending(data);
@@ -390,7 +388,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const fetchStats = async () => {
     try {
-      const jobsRes = await fetch(API_ENDPOINTS.JOBS);
+      const jobsRes = await apiFetch(API_ENDPOINTS.JOBS);
       if (jobsRes.ok) {
         const allJobs = await jobsRes.json();
         const uniqueCompanies = new Set(allJobs.map((j: any) => j.company).filter(Boolean));
@@ -398,7 +396,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       }
     } catch {}
     try {
-      const usersRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/stats/counts`);
+      const usersRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/stats/counts`);
       if (usersRes.ok) {
         const data = await usersRes.json();
         setStatsJobSeekers(data.candidates || 0);
@@ -408,7 +406,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const fetchCompanyLogos = async (jobList: any[]) => {
     try {
-      const res = await fetch(API_ENDPOINTS.COMPANIES);
+      const res = await apiFetch(API_ENDPOINTS.COMPANIES);
       if (!res.ok) return;
       const data = await res.json();
       const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
@@ -547,7 +545,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     // Extract from backend API
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${apiBase}/jobs/titles`);
+      const res = await apiFetch(`${apiBase}/jobs/titles`);
       if (res.ok) {
         const data = await res.json();
         const backendTitles: string[] = data.job_titles || [];
@@ -652,7 +650,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     // From backend API
     try {
       const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${apiBase}/locations`);
+      const res = await apiFetch(`${apiBase}/locations`);
       if (res.ok) {
         const data = await res.json();
         const locations: string[] = data.locations || [];
@@ -708,7 +706,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const geocodeLocationText = async (locationText: string): Promise<{ lat: number; lng: number } | null> => {
     try {
-      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/search/geocode?q=${encodeURIComponent(locationText)}`);
+      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/geocode?q=${encodeURIComponent(locationText)}`);
       const data = await res.json();
       if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
     } catch {}
@@ -753,7 +751,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const handleLocationSearch = async (params: { latitude: number; longitude: number; radius: number; query?: string }) => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/search/radius`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/radius`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -802,15 +800,14 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
 
     try {
-      const token = tokenStorage.getAccess();
-      if (token) {
+            if (token) {
         if (isAlreadySaved) {
-          await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
+          await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
           });
         } else {
-          await fetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
+          await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
             body: JSON.stringify({

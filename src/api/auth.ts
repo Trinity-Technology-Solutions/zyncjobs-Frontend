@@ -25,7 +25,7 @@ export interface RegisterData {
     isCompanyDomain: boolean;
     verificationMethod: string;
     companyProfile?: any;
-  };
+  } | null;
   companyProfile?: {
     id?: string;
     name: string;
@@ -35,7 +35,7 @@ export interface RegisterData {
     industry?: string;
     size?: string;
     verified?: boolean;
-  };
+  } | null;
 }
 
 export interface User {

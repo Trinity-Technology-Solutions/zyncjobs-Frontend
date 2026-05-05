@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../../../api/apiFetch';
 import { Upload, Users, UserX, Mail, ChevronRight } from 'lucide-react';
 
 const getToken = () =>
@@ -124,7 +125,7 @@ function UploadPage() {
       const fd = new FormData();
       chunkList[i].forEach(f => fd.append('resumes', f));
       try {
-        const res = await fetch('/api/admin/talent/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+        const res = await apiFetch('/api/admin/talent/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
         const data = await res.json();
         if (res.ok) {
           allResults.push(...(data.results || []));
@@ -314,7 +315,7 @@ function ExtractedPage() {
 
   const deleteCandidate = async (id: string) => {
     const token = getToken();
-    await fetch(`/api/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    await apiFetch(`/api/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
   };
 
@@ -484,7 +485,7 @@ function InternalPage() {
 
   const deleteCandidate = async (id: string) => {
     const token = getToken();
-    await fetch(`/api/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    await apiFetch(`/api/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
   };
 
@@ -823,7 +824,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
       setCurrentBatch(i + 1);
       const batch = selectedList.slice(i * batchSize, (i + 1) * batchSize);
       try {
-        const res = await fetch('/api/admin/talent/email', {
+        const res = await apiFetch('/api/admin/talent/email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ candidateIds: batch.map((c:any) => c.id), template, batchSize: batch.length })

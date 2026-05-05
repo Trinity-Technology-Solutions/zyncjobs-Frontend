@@ -9,7 +9,7 @@ function authHeaders() {
 }
 
 async function authFetch(url: string, options: RequestInit = {}) {
-  const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers as any || {}) } });
+  const res = await apiFetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers as any || {}) } });
   if (!res.ok) throw new Error(`${res.status}`);
   return res.json();
 }

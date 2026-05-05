@@ -229,8 +229,7 @@ const EnhancedJobMatching: React.FC<EnhancedJobMatchingProps> = ({ user, onJobSe
       const stored = localStorage.getItem('user');
       const u = stored ? JSON.parse(stored) : {};
       const identifier = u.id || u.email;
-      const token = tokenStorage.getAccess();
-      const res = await fetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
+            const res = await apiFetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -273,7 +272,7 @@ const EnhancedJobMatching: React.FC<EnhancedJobMatchingProps> = ({ user, onJobSe
 
   const loadJobs = async () => {
     try {
-      const res = await fetch(`${API_BASE}/jobs?limit=50`);
+      const res = await apiFetch(`${API_BASE}/jobs?limit=50`);
       if (!res.ok) throw new Error('Failed to fetch jobs');
       const data = await res.json();
       const raw: any[] = Array.isArray(data) ? data : (data.jobs ?? []);

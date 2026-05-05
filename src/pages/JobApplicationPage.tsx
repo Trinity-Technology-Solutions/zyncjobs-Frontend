@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, FileText, Send, CheckCircle, Upload, Briefcase, MapPin, Building2 } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
-import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 import Header from '../components/Header';
 
 interface JobApplicationPageProps {
@@ -33,7 +33,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   useEffect(() => {
     const token = tokenStorage.getAccess();
     if (!token || !userData.email) { onNavigate('login'); return; }
-    fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(userData.email)}`)
+    apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(userData.email)}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => {
         const merged = { ...userData, ...(data || {}) };
@@ -53,10 +53,8 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
       formData.append('resume', file);
       if (userData.id) formData.append('userId', userData.id);
       if (userData.email) formData.append('userEmail', userData.email);
-      const token = tokenStorage.getAccess() || '';
-      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
+      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
       });
       const result = await res.json();
@@ -84,10 +82,9 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
     }
     setSubmitting(true);
     try {
-      const token = tokenStorage.getAccess() || '';
-      const res = await fetch(API_ENDPOINTS.APPLICATIONS, {
+      const res = await apiFetch(API_ENDPOINTS.APPLICATIONS, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobId,
           candidateId: userData._id || userData.id,

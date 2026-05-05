@@ -143,8 +143,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         if (!userEmail) return;
 
         if (user.type === 'employer') {
-          const token = tokenStorage.getAccess();
-          const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
+                    const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
           const [jobsRes, appsRes] = await Promise.all([
             fetch(`${API_ENDPOINTS.JOBS}?limit=1000`, { headers }),
             fetch(`${API_ENDPOINTS.APPLICATIONS}`, { headers }),
@@ -168,7 +167,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
         } else {
           // Fetch real analytics from backend
-          const analyticsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(userEmail)}?userType=candidate`);
+          const analyticsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics/profile/${encodeURIComponent(userEmail)}?userType=candidate`);
           if (analyticsRes.ok) {
             const data = await analyticsRes.json();
             setProfileMetrics(prev => ({

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, Zap, Target, Lock } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
@@ -118,19 +118,44 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              {[['Zero cost.', 'Full power.', 'text-blue-600'], ['Any role.', 'Any field. We got you.', 'text-orange-500'], ['No limits.', 'Just opportunities.', 'text-blue-600']].map(([num, label, clr]) => (
-                <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <div className={`text-lg font-bold ${clr}`}>{num}</div>
-                  <div className="text-gray-500 text-xs mt-1">{label}</div>
+            <div className="space-y-4 mt-4">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-4 h-4 text-blue-600" />
                 </div>
-              ))}
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Instant Access</div>
+                  <div className="text-gray-500 text-xs mt-1">Start applying to jobs immediately</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Smart Matching</div>
+                  <div className="text-gray-500 text-xs mt-1">AI finds roles perfect for you</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Lock className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Secure & Private</div>
+                  <div className="text-gray-500 text-xs mt-1">Your data is always protected</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
+        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
+          {/* Decorative Blobs */}
+          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15" />
+          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15" />
+          
           <div className="w-full max-w-md">
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="mb-8">
