@@ -165,29 +165,27 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <BackButton 
-          onClick={() => onNavigate('my-jobs')}
-          text="Back to My Jobs"
-          className="mb-4 sm:mb-6"
-        />
-        
+        <div className="flex items-center gap-4 mb-4 sm:mb-6">
+          <BackButton 
+            onClick={() => onNavigate('my-jobs')}
+            className=""
+          />
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Job Refresh Center</h1>
+            <p className="text-gray-600 text-sm sm:text-base">Boost your job visibility and attract top talent</p>
+          </div>
+        </div>
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Job Refresh Center</h1>
-              <p className="text-gray-600">Boost your job visibility and attract top talent with strategic refreshes</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-900">Free Plan</span>
-                </div>
+          <div className="flex items-center justify-end gap-3">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-4 py-2 rounded-lg border border-blue-200">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">Free Plan</span>
               </div>
-              <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm">
-                Upgrade to Pro
-              </button>
             </div>
+            <button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm">
+              Upgrade to Pro
+            </button>
           </div>
         </div>
 

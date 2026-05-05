@@ -106,6 +106,7 @@ export const accountAPI = {
 
   clearUserData(): void {
     localStorage.removeItem('user');
+    localStorage.removeItem('lastUserType');
     tokenStorage.clear();
     sessionStorage.clear();
   },

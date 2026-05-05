@@ -24,16 +24,16 @@ const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '' }) => {
     <button
       onClick={handleClick}
       aria-label="Go back"
-      className={`inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/20 hover:bg-white/40 text-white backdrop-blur transition-colors ${className}`}
+      className={`inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-300 bg-white hover:bg-gray-50 text-gray-600 hover:text-gray-800 shadow-sm hover:shadow-md transition-all ${className}`}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        width="24"
-        height="24"
+        width="20"
+        height="20"
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
