@@ -296,7 +296,7 @@ function App() {
         const refreshToken = tokenStorage.getRefresh();
         if (!refreshToken) { setUserLoading(false); return; }
         try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/token/refresh`, {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/users/refresh`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ refreshToken }),
@@ -777,7 +777,6 @@ function App() {
                 tokenStorage.setAccess(token);
                 const userType = userData.role === 'employer' ? 'employer' : 'candidate';
                 handleLogin({ ...userData, type: userType as any });
-                handleNavigation('dashboard');
               }}
             />
           } />

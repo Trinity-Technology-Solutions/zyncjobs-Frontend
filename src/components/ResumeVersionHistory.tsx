@@ -29,8 +29,7 @@ export default function ResumeVersionHistory({ resumeId, onRestore }: ResumeVers
   const loadVersions = async () => {
     setLoading(true);
     try {
-      const token = tokenStorage.getAccess();
-      const res = await fetch(`${API_BASE}/resume-versions/${resumeId}`, {
+            const res = await apiFetch(`${API_BASE}/resume-versions/${resumeId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
@@ -49,8 +48,7 @@ export default function ResumeVersionHistory({ resumeId, onRestore }: ResumeVers
 
     setRestoring(version);
     try {
-      const token = tokenStorage.getAccess();
-      const res = await fetch(`${API_BASE}/resume-versions/${resumeId}/${version}/restore`, {
+            const res = await apiFetch(`${API_BASE}/resume-versions/${resumeId}/${version}/restore`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });

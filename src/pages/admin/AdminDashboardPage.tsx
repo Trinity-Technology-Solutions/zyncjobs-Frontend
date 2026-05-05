@@ -86,7 +86,7 @@ function authHeaders() {
 }
 
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
-  const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
+  const res = await apiFetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
   if (res.status === 401) {
     tokenStorage.clear();
     onUnauthorized?.();

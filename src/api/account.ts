@@ -57,13 +57,9 @@ export const accountAPI = {
 
   async deleteAccount(userId: string): Promise<DeleteAccountResponse> {
     try {
-      const token = tokenStorage.getAccess();
-      const res = await fetch(`${API}/users/${userId}`, {
+      const res = await apiFetch(`${API}/users/${userId}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
       const data = await res.json().catch(() => ({}));
       return {
@@ -77,13 +73,9 @@ export const accountAPI = {
 
   async changeEmail(userId: string, newEmail: string): Promise<AccountAPIResponse> {
     try {
-      const token = tokenStorage.getAccess();
-      const res = await fetch(`${API}/users/${userId}`, {
+      const res = await apiFetch(`${API}/users/${userId}`, {
         method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: newEmail }),
       });
       if (res.ok) return { success: true, message: 'Email updated successfully!' };

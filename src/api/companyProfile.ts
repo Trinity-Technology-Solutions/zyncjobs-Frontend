@@ -4,7 +4,7 @@
  */
 
 import { API_ENDPOINTS } from '../config/env';
-import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from './apiFetch';
 
 export interface CompanyProfileData {
   description: string;
@@ -32,11 +32,7 @@ export interface CompanyProfileResponse {
 
 class CompanyProfileAPI {
   private getAuthHeaders() {
-    const token = tokenStorage.getAccess();
-    return {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` })
-    };
+    return { 'Content-Type': 'application/json' };
   }
 
   /**
@@ -44,7 +40,7 @@ class CompanyProfileAPI {
    */
   async getProfile(companyId: string): Promise<CompanyProfileResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/profile`, {
+      const response = await apiFetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/profile`, {
         headers: this.getAuthHeaders()
       });
 
@@ -63,12 +59,9 @@ class CompanyProfileAPI {
     }
   }
 
-  /**
-   * Update company profile
-   */
   async updateProfile(companyId: string, profileData: CompanyProfileData): Promise<CompanyProfileResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/profile`, {
+      const response = await apiFetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/profile`, {
         method: 'PUT',
         headers: this.getAuthHeaders(),
         body: JSON.stringify(profileData)
@@ -90,20 +83,13 @@ class CompanyProfileAPI {
     }
   }
 
-  /**
-   * Upload company logo
-   */
   async uploadLogo(companyId: string, logoFile: File): Promise<{ success: boolean; logoUrl?: string; error?: string }> {
     try {
       const formData = new FormData();
       formData.append('logo', logoFile);
 
-      const token = tokenStorage.getAccess();
-      const response = await fetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/upload-logo`, {
+      const response = await apiFetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/upload-logo`, {
         method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
         body: formData
       });
 
@@ -123,20 +109,13 @@ class CompanyProfileAPI {
     }
   }
 
-  /**
-   * Upload company cover image
-   */
   async uploadCoverImage(companyId: string, coverFile: File): Promise<{ success: boolean; coverUrl?: string; error?: string }> {
     try {
       const formData = new FormData();
       formData.append('cover', coverFile);
 
-      const token = tokenStorage.getAccess();
-      const response = await fetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/upload-cover`, {
+      const response = await apiFetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/upload-cover`, {
         method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` })
-        },
         body: formData
       });
 
@@ -156,9 +135,6 @@ class CompanyProfileAPI {
     }
   }
 
-  /**
-   * Check profile completion status
-   */
   async getCompletionStatus(companyId: string): Promise<{ 
     success: boolean; 
     completionPercentage?: number; 
@@ -166,7 +142,7 @@ class CompanyProfileAPI {
     error?: string;
   }> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/completion-status`, {
+      const response = await apiFetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/completion-status`, {
         headers: this.getAuthHeaders()
       });
 
@@ -189,12 +165,9 @@ class CompanyProfileAPI {
     }
   }
 
-  /**
-   * Mark profile as completed
-   */
   async markProfileCompleted(companyId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/mark-completed`, {
+      const response = await apiFetch(`${API_ENDPOINTS.COMPANIES}/${companyId}/mark-completed`, {
         method: 'POST',
         headers: this.getAuthHeaders()
       });

@@ -4,7 +4,7 @@ import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
-import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 import JobRefreshButton from '../components/JobRefreshButton';
@@ -116,12 +116,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const fetchPostedJobs = async (page = 1, append = false) => {
     try {
       if (!append) setLoading(true);
-      const token = tokenStorage.getAccess() || '';
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      // Use dedicated employer email endpoint — returns ALL jobs, no limit
       const email = encodeURIComponent(user?.email || '');
-      const response = await fetch(`${API_ENDPOINTS.JOBS}/employer/email/${email}`, { headers });
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${email}`);
       if (response.ok) {
         const jobs: any[] = await response.json();
         const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -157,11 +153,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
     
     try {
-      const token = tokenStorage.getAccess() || '';
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`, { headers });
+      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/candidate/${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const applications = await response.json();
         setAppliedJobs(applications);

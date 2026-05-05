@@ -42,7 +42,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
 
   const fetchSkills = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/skill-assessments/skills`);
+      const response = await apiFetch(`${API_BASE_URL}/skill-assessments/skills`);
       if (response.ok) {
         const data = await response.json();
         setSkills(data);
@@ -68,7 +68,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       if (payload.exp * 1000 < Date.now()) {
         const refreshToken = tokenStorage.getRefresh();
         if (!refreshToken) return null;
-        const res = await fetch(`${API_BASE_URL}/users/refresh`, {
+        const res = await apiFetch(`${API_BASE_URL}/users/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken })
@@ -96,7 +96,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
     try {
       const token = await getAuthToken();
       if (!token) { setMyAssessments(localAssessments); return; }
-      const response = await fetch(`${API_BASE_URL}/skill-assessments/my-assessments`, {
+      const response = await apiFetch(`${API_BASE_URL}/skill-assessments/my-assessments`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const backendList = response.ok ? await response.json() : [];
@@ -127,7 +127,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds for AI
 
-      const response = await fetch(`${API_BASE_URL}/skill-assessments/start`, {
+      const response = await apiFetch(`${API_BASE_URL}/skill-assessments/start`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -304,7 +304,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
         throw new Error('No authentication token');
       }
       
-      const response = await fetch(`${API_BASE_URL}/skill-assessments/submit/${assessment.assessmentId}`, {
+      const response = await apiFetch(`${API_BASE_URL}/skill-assessments/submit/${assessment.assessmentId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ answers, timeSpent: 1800 - timeLeft })

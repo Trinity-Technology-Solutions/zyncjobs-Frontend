@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, AlertCircle, Clock, Target } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -321,14 +321,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       <Header onNavigate={onNavigate} />
 
       <div className="flex flex-1">
-        <div className="flex w-full">
 
           {/* LEFT PANEL */}
-          <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-10 relative bg-white sticky top-0 h-screen">
-            <div className="absolute top-0 left-0 w-72 h-72 rounded-full bg-orange-50 opacity-60 -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-64 h-64 rounded-full bg-blue-50 opacity-50 translate-x-1/3 translate-y-1/3" />
+          <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
+            <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
+            <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
 
-            <div className="relative z-10 w-full max-w-md flex flex-col gap-6">
+            <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
               <BackButton onClick={() => onNavigate('home')} />
 
               <div>
@@ -336,14 +336,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                   <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
                   Employer Portal
                 </div>
-                <h1 className="text-3xl font-bold leading-tight mb-3 text-gray-900">
+                <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
                   Build Your<br />
                   <span className="text-orange-500">Dream Team</span>
                 </h1>
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-gray-500 text-base mb-10">
                   Create your employer account and start connecting with top talent.
                 </p>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {[
                     { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
                     { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
@@ -351,7 +351,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
                   ].map(({ icon: Icon, text, color, bg }) => (
                     <div key={text} className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${bg}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
                         <Icon className={`w-4 h-4 ${color}`} />
                       </div>
                       <span className="text-gray-700 text-sm font-medium">{text}</span>
@@ -360,19 +360,44 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                {[['10K+', 'Companies', 'text-orange-500'], ['500K+', 'Candidates', 'text-blue-600'], ['48hr', 'Avg. Hire', 'text-orange-500']].map(([num, label, clr]) => (
-                  <div key={label} className="text-center p-2 rounded-xl bg-gray-50 border border-gray-100">
-                    <div className={`text-lg font-bold ${clr}`}>{num}</div>
-                    <div className="text-gray-500 text-xs mt-0.5">{label}</div>
+              <div className="space-y-4 mt-4">
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <BarChart2 className="w-4 h-4 text-orange-500" />
                   </div>
-                ))}
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">Quick Posting</div>
+                    <div className="text-gray-500 text-xs mt-1">Post jobs in under 2 minutes</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <Target className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">Smart Shortlists</div>
+                    <div className="text-gray-500 text-xs mt-1">AI matches best candidates</div>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-4 h-4 text-orange-500" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-900 text-sm">Instant Collaboration</div>
+                    <div className="text-gray-500 text-xs mt-1">Work with your team seamlessly</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* RIGHT PANEL — form */}
-          <div className="w-full lg:w-1/2 flex items-start justify-center px-8 py-6 bg-white border-l border-gray-100">
+          {/* RIGHT PANEL */}
+          <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
+            {/* Decorative Blobs */}
+            <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15" />
+            <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15" />
+            
             <div className="w-full max-w-md">
 
 
@@ -763,10 +788,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
               )}
 
               </div>
+
             </div>
           </div>
-
-        </div>
       </div>
     </div>
   );

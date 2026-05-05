@@ -205,9 +205,16 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
             <p className="text-gray-500 text-sm mb-4">
               You've joined as a <span className="font-semibold text-blue-600">{invite.role}</span>
             </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 text-left">
+              <p className="text-xs font-semibold text-blue-700 mb-1">🔑 How to login next time</p>
+              <p className="text-xs text-blue-600">
+                Use <span className="font-semibold">Employer Login</span> with your email{' '}
+                <span className="font-semibold">{invite.email}</span> and the password you just set.
+              </p>
+            </div>
             <p className="text-gray-400 text-xs">Redirecting to dashboard…</p>
             <div className="mt-4 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-blue-500 h-full rounded-full animate-[progress_2s_linear_forwards]" style={{ width: '100%', animation: 'none', transition: 'width 2s linear' }} />
+              <div className="bg-blue-500 h-full rounded-full" style={{ width: '100%', transition: 'width 2s linear' }} />
             </div>
           </>
         )}

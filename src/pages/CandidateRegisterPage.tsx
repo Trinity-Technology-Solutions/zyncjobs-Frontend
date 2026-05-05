@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Briefcase, TrendingUp, Award, Users } from 'lucide-react';
+import { Eye, EyeOff, Briefcase, TrendingUp, Award, Users, FileText, Rocket } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -200,7 +200,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
           <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-blue-100 opacity-40" />
           <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-orange-100 opacity-50" />
 
-          <div className="relative z-10 flex flex-col px-16 py-8 w-full justify-start gap-6">
+          <div className="relative z-10 flex flex-col px-16 py-12 w-full justify-between">
             <BackButton onClick={() => onNavigate('home')} />
 
             <div>
@@ -232,19 +232,44 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              {[['50K+', 'Active Jobs', 'text-blue-500'], ['100K+', 'Job Seekers', 'text-orange-500'], ['5K+', 'Companies', 'text-blue-500']].map(([num, label, clr]) => (
-                <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <div className={`text-2xl font-bold ${clr}`}>{num}</div>
-                  <div className="text-gray-500 text-xs mt-1">{label}</div>
+            <div className="space-y-4 mt-4">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-4 h-4 text-blue-600" />
                 </div>
-              ))}
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Easy Profile Setup</div>
+                  <div className="text-gray-500 text-xs mt-1">Build your profile in 2 minutes</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <Rocket className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">One-Click Apply</div>
+                  <div className="text-gray-500 text-xs mt-1">Apply to jobs instantly</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Briefcase className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Track Applications</div>
+                  <div className="text-gray-500 text-xs mt-1">Monitor all your applications</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
+        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
+          {/* Decorative Blobs */}
+          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15" />
+          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15" />
+          
           <div className="w-full max-w-md">
             <div className="bg-white rounded-2xl shadow-xl p-8">
               {/* Step Indicator */}

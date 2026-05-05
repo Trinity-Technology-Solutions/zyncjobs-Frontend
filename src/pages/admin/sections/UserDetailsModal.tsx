@@ -27,7 +27,7 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
     const load = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { headers: authHeaders() });
+        const res = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { headers: authHeaders() });
         const data = await res.json();
         const userData = data.user ?? data;
         setUser(userData);
@@ -36,13 +36,13 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
         const role = userData?.role || userData?.userType;
         if (role === 'employer') {
           try {
-            const jobsRes = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}/jobs`, { headers: authHeaders() });
+            const jobsRes = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}/jobs`, { headers: authHeaders() });
             if (jobsRes.ok) {
               const jobsData = await jobsRes.json();
               setPostedJobs(jobsData.jobs ?? jobsData ?? []);
             } else {
               // fallback: filter by employerId
-              const fallback = await fetch(`${API_ENDPOINTS.JOBS}?employerId=${userId}&limit=100`, { headers: authHeaders() });
+              const fallback = await apiFetch(`${API_ENDPOINTS.JOBS}?employerId=${userId}&limit=100`, { headers: authHeaders() });
               if (fallback.ok) {
                 const fd = await fallback.json();
                 setPostedJobs(fd.jobs ?? fd ?? []);
@@ -67,7 +67,7 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
     if (!newEmail.trim() || newEmail === user?.email) { setEditingEmail(false); return; }
     setEmailSaving(true);
     try {
-      const res = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, {
+      const res = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify({ email: newEmail.trim() })
@@ -84,7 +84,7 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
   const banToggle = async () => {
     setActionLoading('ban');
     try {
-      await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}/ban`, {
+      await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}/ban`, {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify({ ban: user?.isActive }),
@@ -100,7 +100,7 @@ export default function UserDetailsModal({ userId, onClose, onAction, onDeleted 
     if (!ok) return;
     setActionLoading('delete');
     try {
-      const res = await fetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE', headers: authHeaders() });
+      const res = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE', headers: authHeaders() });
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.error || body.message || `Delete failed (${res.status})`);
       onDeleted ? onDeleted(userId) : (onAction(), onClose());

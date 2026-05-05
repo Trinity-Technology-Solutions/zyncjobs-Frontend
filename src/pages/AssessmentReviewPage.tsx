@@ -22,7 +22,7 @@ const getAuthToken = async (): Promise<string | null> => {
     if (payload.exp * 1000 < Date.now()) {
       const refreshToken = tokenStorage.getRefresh();
       if (!refreshToken) return null;
-      const res = await fetch(`${API_BASE_URL}/users/refresh`, {
+      const res = await apiFetch(`${API_BASE_URL}/users/refresh`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })
       });
@@ -98,7 +98,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
       // Regular backend assessment
       const token = await getAuthToken();
       if (!token) { setError('Please log in to view your assessment review.'); setLoading(false); return; }
-      const response = await fetch(`${API_BASE_URL}/skill-assessments/review/${assessmentId}`, {
+      const response = await apiFetch(`${API_BASE_URL}/skill-assessments/review/${assessmentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch review');

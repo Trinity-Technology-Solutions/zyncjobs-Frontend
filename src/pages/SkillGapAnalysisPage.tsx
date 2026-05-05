@@ -41,8 +41,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
         const u = JSON.parse(saved);
         const identifier = u.id || u.email;
         if (!identifier) return;
-        const token = tokenStorage.getAccess();
-        const res = await fetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
+                const res = await apiFetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.ok) {
@@ -90,7 +89,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     if (cached) { setLearningResources(prev => ({ ...prev, [skill]: cached })); return; }
     setLoadingResources(prev => ({ ...prev, [skill]: true }));
     try {
-      const res = await fetch(`${API_BASE}/skill-assessments/learning-resources?skill=${encodeURIComponent(skill)}`);
+      const res = await apiFetch(`${API_BASE}/skill-assessments/learning-resources?skill=${encodeURIComponent(skill)}`);
       const data = res.ok ? await res.json() : { resources: [] };
       const resources = data.resources || [];
       setCached(key, resources);
@@ -127,8 +126,7 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
       const u = JSON.parse(saved);
       const email = u.email;
       if (!email) return;
-      const token = tokenStorage.getAccess();
-      await fetch(`${API_BASE}/profile/save`, {
+            await apiFetch(`${API_BASE}/profile/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ email, userId: u.id || undefined, skills })

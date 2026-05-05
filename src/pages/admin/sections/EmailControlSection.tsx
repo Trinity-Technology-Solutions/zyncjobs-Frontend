@@ -43,7 +43,7 @@ export default function EmailControlSection({ onUnauthorized }: { onUnauthorized
         ? { type: 'email', recipients: [form.specificEmail], subject: form.subject, message: form.body }
         : { subject: form.subject, message: form.body, userType: form.to };
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(payload),

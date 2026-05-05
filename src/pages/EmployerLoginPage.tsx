@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, Settings } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
@@ -105,19 +105,44 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
-              {[['Free.', 'No hidden stuff.', 'text-orange-500'], ['Any field.', 'Every industry.', 'text-blue-600'], ['AI-first.', 'Smart shortlists.', 'text-orange-500']].map(([num, label, clr]) => (
-                <div key={label} className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
-                  <div className={`text-lg font-bold ${clr}`}>{num}</div>
-                  <div className="text-gray-500 text-xs mt-1">{label}</div>
+            <div className="space-y-4 mt-4">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <Search className="w-4 h-4 text-orange-500" />
                 </div>
-              ))}
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">AI Search</div>
+                  <div className="text-gray-500 text-xs mt-1">Find top candidates instantly</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <BarChart2 className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Advanced Analytics</div>
+                  <div className="text-gray-500 text-xs mt-1">Track hiring metrics in detail</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <Settings className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Workflow Automation</div>
+                  <div className="text-gray-500 text-xs mt-1">Automate your hiring process</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
+        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
+          {/* Decorative Blobs */}
+          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15" />
+          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15" />
+          
           <div className="w-full max-w-md">
             <div className="bg-white rounded-2xl shadow-xl p-8">
               <div className="mb-8">

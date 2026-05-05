@@ -36,7 +36,7 @@ export default function ActivityLogsSection({ onUnauthorized }: { onUnauthorized
       const params = new URLSearchParams({ page: String(p), limit: '50' });
       if (actionFilter !== 'all') params.set('action', actionFilter);
       if (search) params.set('search', search);
-      const res = await fetch(`${API_ENDPOINTS.ADMIN_AUDIT}?${params}`, { headers: authHeaders() });
+      const res = await apiFetch(`${API_ENDPOINTS.ADMIN_AUDIT}?${params}`, { headers: authHeaders() });
       if (res.status === 401) { onUnauthorized(); return; }
       if (!res.ok) throw new Error();
       const data = await res.json();

@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 
 export interface JobRefreshResponse {
   success: boolean;
@@ -34,12 +35,9 @@ class JobRefreshAPI {
    */
   async refreshJob(jobId: string): Promise<JobRefreshResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/refresh`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           refreshedAt: new Date().toISOString(),
           action: 'refresh'
@@ -78,12 +76,9 @@ class JobRefreshAPI {
    */
   async refreshMultipleJobs(jobIds: string[]): Promise<BulkRefreshResponse> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/bulk-refresh`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/bulk-refresh`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           jobIds,
           refreshedAt: new Date().toISOString()
@@ -141,11 +136,8 @@ class JobRefreshAPI {
    */
   async getJobRefreshStatus(jobId: string) {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/refresh-status`, {
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/refresh-status`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        }
       });
 
       if (!response.ok) {

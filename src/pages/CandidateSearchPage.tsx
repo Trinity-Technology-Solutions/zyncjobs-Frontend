@@ -173,13 +173,13 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
 
   useEffect(() => {
     const loadSkillsAndLocations = async () => {      try {
-        const skillsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills`);
+        const skillsResponse = await apiFetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/skills`);
         if (skillsResponse.ok) {
           const skillsData = await skillsResponse.json();
           setAllSkills(Array.isArray(skillsData) ? skillsData : skillsData.skills || []);
         }
         
-        const locationsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`);
+        const locationsResponse = await apiFetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`);
         if (locationsResponse.ok) {
           const locationsData = await locationsResponse.json();
           setAllLocations(Array.isArray(locationsData) ? locationsData : locationsData.locations || []);
@@ -203,7 +203,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       ];
       for (const url of endpoints) {
         try {
-          const res = await fetch(url);
+          const res = await apiFetch(url);
           if (res.ok) {
             const data = await res.json();
             const arr = Array.isArray(data) ? data : data.candidates || data.profiles || data.users || [];
@@ -759,8 +759,7 @@ return (
                           </button>
                           <button onClick={() => {
                             const userData = JSON.parse(localStorage.getItem('user') || '{}');
-                            const token = tokenStorage.getAccess();
-                            if (!token) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to save candidates" } })); setOpenContactMenu(null); return; }
+                                                        if (!token) { window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please login to save candidates" } })); setOpenContactMenu(null); return; }
                             const payload = {
                               candidateId: candidate._id,
                               fullName: getCandidateName(candidate),
@@ -780,7 +779,7 @@ return (
                               .then(async res => {
                                 if (res.status === 409) {
                                   // Already saved — find the record and remove it
-                                  const existing = await fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                                  const existing = await apiFetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
                                     .then(r => r.ok ? r.json() : [])
                                     .then(data => {
                                       const list = Array.isArray(data) ? data : data.savedCandidates || [];
