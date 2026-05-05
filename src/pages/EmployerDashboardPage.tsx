@@ -8,6 +8,7 @@ import {
 import { API_ENDPOINTS } from '../config/constants';
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
+import { apiFetch } from '../api/apiFetch';
 import CandidateCredentialing from '../components/CandidateCredentialing';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
@@ -37,8 +38,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [employerName, setEmployerName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
-  const [companyWebsite, setCompanyWebsite] = useState('');
-  const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [interviews, setInterviews] = useState<any[]>([]);
@@ -61,11 +60,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
-<<<<<<< HEAD
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
-=======
-  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
->>>>>>> 617e7261bbd984810def7caf47cb02acd1efcd61
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -207,10 +202,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       console.log('Dashboard - Actual company name:', actualCompanyName);
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
-      setCompanyWebsite(parsedUser.companyWebsite || '');
-      
-      // Fetch company domain from companies.json
-      fetchCompanyDomain(actualCompanyName);
       
       fetchDashboardData(parsedUser);
     }
@@ -235,40 +226,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       window.removeEventListener('showApplications', handleShowApplications);
     };
   }, []);
-
-  const fetchCompanyDomain = async (companyName: string) => {
-    try {
-      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/companies`);
-      if (response.ok) {
-        const companies = await response.json();
-        console.log('Companies loaded:', companies.length);
-        
-        // Try exact match first
-        let company = companies.find((c: any) => 
-          c.name.toLowerCase() === companyName.toLowerCase()
-        );
-        
-        // If no exact match, try partial match
-        if (!company) {
-          company = companies.find((c: any) => 
-            c.name.toLowerCase().includes(companyName.toLowerCase()) ||
-            companyName.toLowerCase().includes(c.name.toLowerCase())
-          );
-        }
-        
-        if (company) {
-          console.log('Found company:', company.name, 'domain:', company.domain);
-          setCompanyDomain(company.domain);
-        } else {
-          console.log('Company not found in database:', companyName);
-        }
-      } else {
-        console.warn('Companies API returned error:', response.status);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    }
-  };
 
   // Add effect to refresh data when component becomes visible
   useEffect(() => {
@@ -332,7 +289,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           console.log('Dashboard - All jobs:', allJobs.length);
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           const myEmployerId = storedUser.employerId;
-          const myTeamEmployerId = storedUser.teamRole ? storedUser.employerId : null;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
             const email = userEmail?.toLowerCase().trim();
             // Match own jobs
@@ -897,6 +853,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     const userData = stored ? JSON.parse(stored) : {};
                     const userId = userData.id || userData._id;
                                         if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
+                    const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
                       headers: { Authorization: `Bearer ${token}` },

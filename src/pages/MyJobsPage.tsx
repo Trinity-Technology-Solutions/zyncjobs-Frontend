@@ -9,6 +9,7 @@ import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 
 interface MyJobsPageProps {
@@ -35,6 +36,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [loading, setLoading] = useState(true);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   const fetchCompanyLogos = async (jobList: any[]) => {
     try {
@@ -239,25 +246,30 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const deleteJob = async (jobId: string) => {
-    const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
-    if (!ok) return;
-    
-    try {
-      const response = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {
-        method: 'DELETE',
-      });
-      
-      if (response.ok) {
-        setPostedJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
-        showNotification('Job deleted successfully!');
-        window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
-      } else {
-        showNotification('Failed to delete job. Please try again.', 'error');
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Job',
+      message: 'Are you sure you want to delete this job posting? This action cannot be undone.',
+      onConfirm: async () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        try {
+          const response = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {
+            method: 'DELETE',
+          });
+          
+          if (response.ok) {
+            setPostedJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
+            showNotification('Job deleted successfully!');
+            window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
+          } else {
+            showNotification('Failed to delete job. Please try again.', 'error');
+          }
+        } catch (error) {
+          console.error('Error deleting job:', error);
+          showNotification('Error deleting job. Please try again.', 'error');
+        }
       }
-    } catch (error) {
-      console.error('Error deleting job:', error);
-      showNotification('Error deleting job. Please try again.', 'error');
-    }
+    });
   };
 
   const handleRemoveSavedJob = (jobId: string) => {
@@ -502,7 +514,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         
         {/* Action Buttons */}
         {showActions && (
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-2 pt-2">
             {actionType === 'posted' && (
               <>
                 <button 
@@ -512,13 +524,13 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                       onNavigate('job-detail', { jobId, jobData: job });
                     }
                   }}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg text-sm"
+                  className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm flex items-center justify-center gap-1"
                 >
-                  View Details
+                  <span>View Details</span>
                 </button>
                 <button 
                   onClick={() => deleteJob(getId(job))}
-                  className="px-4 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-100 hover:border-red-300 transition-all text-sm"
+                  className="px-3 py-2 bg-white border border-red-300 text-red-600 rounded-lg font-medium hover:bg-red-50 hover:border-red-400 transition-colors text-sm flex items-center justify-center"
                 >
                   Delete
                 </button>
@@ -527,7 +539,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             {actionType === 'default' && (
               <button 
                 onClick={() => onNavigate('job-detail', { jobId: getId(job) })}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md text-sm"
+                className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm"
               >
                 View Details
               </button>
@@ -755,8 +767,47 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                   showNotification('Please select jobs to delete', 'error');
                                   return;
                                 }
-                                // Bulk delete logic here
-                                console.log('Bulk delete:', selectedJobs);
+                                
+                                setConfirmDialog({
+                                  isOpen: true,
+                                  title: 'Delete Selected Jobs',
+                                  message: `Are you sure you want to delete ${selectedJobs.length} selected job${selectedJobs.length > 1 ? 's' : ''}? This action cannot be undone.`,
+                                  onConfirm: async () => {
+                                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+                                    try {
+                                      // Delete jobs one by one
+                                      const deletePromises = selectedJobs.map(jobId => 
+                                        fetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' })
+                                      );
+                                      
+                                      const results = await Promise.all(deletePromises);
+                                      const successCount = results.filter(res => res.ok).length;
+                                      const failCount = results.length - successCount;
+                                      
+                                      if (successCount > 0) {
+                                        // Remove successfully deleted jobs from state
+                                        setPostedJobs(prev => prev.filter(job => !selectedJobs.includes(getId(job))));
+                                        setSelectedJobs([]);
+                                        
+                                        // Dispatch event for dashboard sync
+                                        selectedJobs.forEach(jobId => {
+                                          window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
+                                        });
+                                        
+                                        if (failCount === 0) {
+                                          showNotification(`Successfully deleted ${successCount} job${successCount > 1 ? 's' : ''}!`);
+                                        } else {
+                                          showNotification(`Deleted ${successCount} job${successCount > 1 ? 's' : ''}, ${failCount} failed.`, 'error');
+                                        }
+                                      } else {
+                                        showNotification('Failed to delete selected jobs. Please try again.', 'error');
+                                      }
+                                    } catch (error) {
+                                      console.error('Error deleting jobs:', error);
+                                      showNotification('Error deleting jobs. Please try again.', 'error');
+                                    }
+                                  }
+                                });
                               }}
                               disabled={selectedJobs.length === 0}
                               className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
@@ -1037,6 +1088,18 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
           )}
         </div>
       </div>
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Delete"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };
