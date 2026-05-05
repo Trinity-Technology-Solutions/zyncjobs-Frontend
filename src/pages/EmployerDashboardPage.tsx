@@ -882,7 +882,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                         if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
-                      headers: { Authorization: `Bearer ${token}` },
                     });
                     if (res.ok) {
                       localStorage.clear();

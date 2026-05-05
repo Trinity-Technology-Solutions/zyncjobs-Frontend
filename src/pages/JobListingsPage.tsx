@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 import RecommendedJobs from '../components/RecommendedJobs';
 import { aiSuggestions } from '../utils/aiSuggestions';
 import { searchAccuracy } from '../utils/searchAccuracy';
@@ -131,15 +132,14 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const loadSavedJobsFromBackend = async () => {
     try {
-            if (!token) {
+      const token = tokenStorage.getAccess();
+      if (!token) {
         const userKey = `savedJobs_${user?.name}`;
         const saved = localStorage.getItem(userKey);
         if (saved) setSavedJobs(JSON.parse(saved));
         return;
       }
-      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`);
       if (res.ok) {
         const data = await res.json();
         setSavedJobs(data.jobIds || []);
@@ -151,7 +151,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const loadResumeSkillsFromBackend = async () => {
     try {
-            if (!token) throw new Error('no token');
+      const token = tokenStorage.getAccess();
+      if (!token) throw new Error('no token');
       localStorageMigration.setToken(token);
       const skills = await localStorageMigration.getResumeSkills();
       if (skills.length > 0) { setResumeSkills(skills); return; }
@@ -800,16 +801,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
 
     try {
-            if (token) {
+      const token = tokenStorage.getAccess();
+      if (token) {
         if (isAlreadySaved) {
           await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
           });
         } else {
           await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               jobId,
               jobTitle: job.jobTitle || job.title,
