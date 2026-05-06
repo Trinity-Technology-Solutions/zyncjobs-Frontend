@@ -450,6 +450,96 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default', showCheckbox: boolean = false) => {
     const jobKey = getId(job) || `job-${Math.random()}`;
     const jobId = getId(job);
+
+    // Saved jobs use the same card layout as the job search page
+    if (actionType === 'saved') {
+      return (
+        <div key={jobKey} className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+          <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-start mb-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
+                      <img
+                        src={companyLogos[(job.company || job.companyName || '').toLowerCase()] || getSafeCompanyLogo(job)}
+                        alt={`${job.company || job.companyName} logo`}
+                        className="w-8 h-8 object-contain"
+                        onError={(e) => {
+                          const img = e.target as HTMLImageElement;
+                          const name = job.company || job.companyName || '';
+                          if (name.toLowerCase().includes('nambikkai')) {
+                            img.src = '/images/company-logos/nambikkai-logo.png';
+                          } else if (name.toLowerCase().includes('trinity')) {
+                            img.src = '/images/trinity-logo.webp';
+                          } else {
+                            const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
+                            img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
+                          }
+                        }}
+                      />
+                    </div>
+                    <span className="text-blue-600 font-semibold text-base">{job.company || job.companyName}</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 hover:text-blue-600 cursor-pointer mb-1">
+                    {job.jobTitle || job.title}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                    {job.location && (
+                      <div className="flex items-center gap-1 bg-gray-100 px-3 py-1.5 rounded-lg">
+                        <MapPin className="w-4 h-4 text-gray-600" />
+                        <span className="text-sm font-medium text-gray-700">{job.location}</span>
+                      </div>
+                    )}
+                    {formatSalary(job.salary) && (
+                      <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
+                        <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                      </div>
+                    )}
+                    {job.type && (
+                      <div className="flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
+                        <Briefcase className="w-4 h-4 text-blue-600" />
+                        <span className="text-sm font-medium text-blue-700">{job.type}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1 bg-purple-50 px-2 py-1 rounded-lg">
+                      <span className="text-xs font-medium text-purple-600">{formatDate(job.createdAt)}</span>
+                    </div>
+                  </div>
+                  {(job.jobDescription || job.description) && (
+                    <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
+                      <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">
+                        {(() => { const desc = job.jobDescription || job.description || ''; const plain = formatJobDescription(desc); return plain.length > 180 ? `${plain.substring(0, 180)}...` : plain; })()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {showActions && (
+              <div className="flex flex-row sm:flex-col items-stretch gap-2 sm:ml-4 sm:min-w-[130px] w-full sm:w-auto">
+                <button
+                  onClick={() => handleRemoveSavedJob(getId(job))}
+                  className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-600 hover:bg-gray-50 transition-colors text-sm font-medium h-10"
+                >
+                  Remove
+                </button>
+                <button
+                  onClick={() => {
+                    localStorage.setItem('selectedJob', JSON.stringify(job));
+                    onNavigate('job-application');
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center h-10"
+                >
+                  Apply Now
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
     <div key={jobKey} className="group relative bg-white rounded-2xl border border-gray-200 hover:border-blue-300 hover:shadow-xl transition-all duration-300 overflow-hidden">
       {/* Gradient Header */}
@@ -572,25 +662,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                   className="px-4 py-2.5 bg-red-50 border border-red-200 text-red-600 rounded-xl font-semibold hover:bg-red-100 hover:border-red-300 transition-all text-sm"
                 >
                   Delete
-                </button>
-              </>
-            )}
-            {actionType === 'saved' && (
-              <>
-                <button 
-                  onClick={() => handleRemoveSavedJob(getId(job))}
-                  className="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-100 hover:border-gray-300 transition-all text-sm"
-                >
-                  Remove
-                </button>
-                <button 
-                  onClick={() => {
-                    localStorage.setItem('selectedJob', JSON.stringify(job));
-                    onNavigate('job-application');
-                  }}
-                  className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md text-sm"
-                >
-                  Apply Now
                 </button>
               </>
             )}

@@ -6,6 +6,7 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
 import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, Download } from 'lucide-react';
+import CandidateProfileView from './CandidateProfileView';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -128,6 +129,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [showResumeModal, setShowResumeModal] = useState(false);
@@ -316,7 +318,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     const cid = application.candidateEmail || application.candidateId || '';
     if (!cid) { alert('No candidate info found.'); return; }
     sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName, email: application.candidateEmail, phone: application.candidatePhone, skills: application.skills || [] }));
-    onNavigate('candidate-profile-view', { candidateId: cid });
+    setViewingCandidateId(cid);
   };
 
   const onViewResume = (application: any) => {
@@ -341,6 +343,16 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {viewingCandidateId && (
+        <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
+          <CandidateProfileView
+            candidateId={viewingCandidateId}
+            onNavigate={onNavigate}
+            onBack={() => setViewingCandidateId(null)}
+          />
+        </div>
+      )}
+      {!viewingCandidateId && (<>
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <div style={{marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px'}}>
@@ -483,6 +495,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       )}
 
       <Footer onNavigate={onNavigate} />
+      </>)}
     </div>
   );
 };

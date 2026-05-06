@@ -1,3 +1,4 @@
+// Quick filter buttons: Last 48h, This week, Remote Jobs (single-select only) - v2
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Trophy, Flame, Sparkles } from 'lucide-react';
@@ -574,41 +575,21 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     });
   };
 
-  const handleQuickFilterToggle = (key: string, filterType: string, value: string) => {
-    console.log('Quick filter toggle:', { key, filterType, value, currentActive: activeQuickFilter });
-    
-    const isActive = activeQuickFilter === key;
-    setActiveQuickFilter(isActive ? null : key);
-    
-    setFilters(prev => {
-      if (filterType === 'freshness') {
-        const newFilters = { ...prev, freshness: isActive ? [] : [value], workMode: [] };
-        console.log('Setting freshness filters:', newFilters);
-        return newFilters;
-      }
-      if (filterType === 'workMode') {
-        const newFilters = { ...prev, workMode: isActive ? [] : [value], freshness: [] };
-        console.log('Setting workMode filters:', newFilters);
-        return newFilters;
-      }
-      return prev;
-    });
-    
-    // Trigger immediate search with the new filters
-    setTimeout(() => {
-      console.log('Triggering search after filter change');
-      if (!isActive) {
-        // Filter is being activated
-        if (filterType === 'freshness') {
-          fetchJobs(1, false, { term: searchTerm, loc: location, freshness: [value] });
-        } else {
-          fetchJobs(1, false, { term: searchTerm, loc: location, freshness: [] });
-        }
-      } else {
-        // Filter is being deactivated
-        fetchJobs(1, false, { term: searchTerm, loc: location, freshness: [] });
-      }
-    }, 100);
+  // Strictly single-select: clicking active button deselects, clicking another replaces
+  const handleQuickFilter = (key: string, filterType: string, value: string) => {
+    if (activeQuickFilter === key) {
+      // deselect
+      setActiveQuickFilter(null);
+      setFilters(prev => ({ ...prev, freshness: [], workMode: [] }));
+    } else {
+      // select only this one — clear ALL quick-filter related state first
+      setActiveQuickFilter(key);
+      setFilters(prev => ({
+        ...prev,
+        freshness: filterType === 'freshness' ? [value] : [],
+        workMode: filterType === 'workMode' ? [value] : [],
+      }));
+    }
   };
 
   const getJobSuggestions = async (input: string): Promise<{keywords: string[], jobTitles: string[], companies: string[]}> => {
@@ -1190,30 +1171,30 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilterToggle('48h', 'freshness', '48h')}
-              className={`px-3 py-1 rounded-full text-sm border transition-all ${
-                activeQuickFilter === '48h'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm' 
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+              onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
+              className={`px-3 py-1 rounded-full text-sm border ${
+                activeQuickFilter === '24h'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               <Clock className="w-3 h-3 inline mr-1" />
               Last 48 hours
             </button>
             <button
-              onClick={() => handleQuickFilterToggle('7d', 'freshness', '7d')}
-              className={`px-3 py-1 rounded-full text-sm border transition-all ${
+              onClick={() => handleQuickFilter('7d', 'freshness', '7d')}
+              className={`px-3 py-1 rounded-full text-sm border ${
                 activeQuickFilter === '7d'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm' 
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
               }`}
             >
               <Clock className="w-3 h-3 inline mr-1" />
               This week
             </button>
             <button
-              onClick={() => handleQuickFilterToggle('remote', 'workMode', 'Remote')}
-              className={`px-3 py-1 rounded-full text-sm border transition-all ${
+              onClick={() => handleQuickFilter('remote', 'workMode', 'Remote')}
+              className={`px-3 py-1 rounded-full text-sm border ${
                 activeQuickFilter === 'remote'
                   ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm'
                   : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
@@ -1323,7 +1304,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   <div className="flex flex-wrap gap-2">
                     {['Remote','Hybrid','Work from office'].map(mode => (
                       <label key={mode} className="flex items-center gap-1 text-sm">
-                        <input type="checkbox" checked={filters.workMode.includes(mode)} onChange={() => handleFilterChange('workMode', mode)} />
+                        <input 
+                          type="radio" 
+                          name="workModeMobile"
+                          checked={filters.workMode.includes(mode)} 
+                          onChange={() => {
+                            const key = mode === 'Remote' ? 'remote' : mode === 'Hybrid' ? 'hybrid' : 'office';
+                            handleQuickFilter(key, 'workMode', mode);
+                          }} 
+                        />
                         {mode}
                       </label>
                     ))}

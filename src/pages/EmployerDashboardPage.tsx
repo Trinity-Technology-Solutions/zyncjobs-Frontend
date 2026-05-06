@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
+import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -66,7 +67,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
+<<<<<<< HEAD
+  const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
+=======
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+>>>>>>> 617e7261bbd984810def7caf47cb02acd1efcd61
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -706,6 +711,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   ];
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  if (viewingCandidateId) {
+    return (
+      <div className="fixed inset-0 z-[9999] overflow-y-auto bg-white">
+        <CandidateProfileView
+          candidateId={viewingCandidateId}
+          onNavigate={onNavigate}
+          onBack={() => setViewingCandidateId(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 flex flex-col lg:flex-row" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
@@ -1488,18 +1505,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <button 
                             onClick={() => {
                               const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
+                              if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
+                              sessionStorage.setItem('viewCandidateId', String(cid));
                               sessionStorage.setItem('viewCandidateData', JSON.stringify({
                                 name: application.candidateName || '',
                                 email: application.candidateEmail || '',
                                 phone: application.candidatePhone || '',
                                 skills: application.candidateSkills || application.skills || [],
                               }));
-                              if (!cid) {
-                                showToast('Candidate profile not available.', 'info');
-                                return;
-                              }
-                              sessionStorage.setItem('viewCandidateId', String(cid));
-                              onNavigate('candidate-profile-view', { candidateId: String(cid) });
+                              setViewingCandidateId(String(cid));
                             }}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-md"
                           >
