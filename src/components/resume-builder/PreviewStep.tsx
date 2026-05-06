@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import type { Paragraph as DocxParagraphType } from 'docx';
 import { Download, FileText, Target, TrendingUp } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { resumeBuilderAPI } from '../../services/resumeBuilderAPI';
@@ -100,8 +101,13 @@ export default function PreviewStep() {
         
         // Fallback to client-side generation
         const {
-          Document, Packer, DocxParagraph, TextRun, HeadingLevel,
-          AlignmentType, BorderStyle,
+          Document,
+          Packer,
+          Paragraph: DocxParagraph,
+          TextRun,
+          HeadingLevel,
+          AlignmentType,
+          BorderStyle,
         } = await import('docx');
 
         const ACCENT = '2563EB';
@@ -142,7 +148,7 @@ export default function PreviewStep() {
           data.personalInfo.portfolio,
         ].filter(Boolean);
 
-        const experienceParas: DocxParagraph[] = [];
+        const experienceParas: DocxParagraphType[] = [];
         data.experience.forEach((exp) => {
           experienceParas.push(
             new DocxParagraph({
@@ -166,7 +172,7 @@ export default function PreviewStep() {
           exp.bullets.filter((b) => b.trim()).forEach((b) => experienceParas.push(bullet(b)));
         });
 
-        const educationParas: DocxParagraph[] = [];
+        const educationParas: DocxParagraphType[] = [];
         data.education.forEach((edu) => {
           educationParas.push(
             new DocxParagraph({
