@@ -12,6 +12,7 @@ import { apiFetch } from '../api/apiFetch';
 import CandidateCredentialing from '../components/CandidateCredentialing';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -38,6 +39,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [employerName, setEmployerName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
+<<<<<<< HEAD
+=======
+  // Role-based access: Owner = full, Recruiter = post+manage, Viewer = read-only
+  const [teamRole, setTeamRole] = useState<'Owner' | 'Recruiter' | 'Viewer' | null>(null);
+  const canPostJobs = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
+  const canManageApplications = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
+  const canInviteMembers = !teamRole || teamRole === 'Owner';
+  const [companyWebsite, setCompanyWebsite] = useState('');
+  const [companyDomain, setCompanyDomain] = useState('');
+>>>>>>> 5ee482168a4b044eea806cdbe88b1586c8fa482e
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [interviews, setInterviews] = useState<any[]>([]);
@@ -197,6 +208,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       setUser(parsedUser);
       setEmployerName(parsedUser.name || 'Employer');
+      // Set team role for permission enforcement
+      if (parsedUser.teamRole) setTeamRole(parsedUser.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
       // Fix: Use actual company name from registration, not generic 'Company'
       const actualCompanyName = parsedUser.companyName || parsedUser.company || parsedUser.organizationName || 'Company';
       console.log('Dashboard - Actual company name:', actualCompanyName);
@@ -808,12 +821,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <nav className="py-4 flex flex-col px-3 space-y-1">
               {([
                 { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard') },
-                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('job-management'), external: true },
+                ...(canPostJobs ? [{ key: 'job-management', label: 'Job Management', icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('job-management'), external: true }] : []),
                 { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => onNavigate('candidate-ranking'), external: true },
                 { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('ai-recruiter'), external: true },
-                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('applications'), badge: applications.length || null },
+                ...(canManageApplications ? [{ key: 'applications', label: 'Applications', icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('applications'), badge: applications.length || null }] : []),
                 { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('interviews'), badge: interviews.length || null },
-                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('my-jobs'), external: true, badge: jobs.length || null },
+                ...(canPostJobs ? [{ key: 'posted-jobs', label: 'Posted Jobs', icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('my-jobs'), external: true, badge: jobs.length || null }] : []),
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('team') },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('auto-rejection') },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('candidate-search'), external: true },
@@ -856,7 +869,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
-                      headers: { Authorization: `Bearer ${token}` },
                     });
                     if (res.ok) {
                       localStorage.clear();
@@ -943,13 +955,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 )}
               </button>
             </div>
-            <button
-              onClick={() => onNavigate('job-posting-selection')}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 sm:px-5 sm:py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-xs sm:text-sm shadow-lg"
-            >
-              <span className="hidden sm:inline">Post a Job</span>
-              <span className="sm:hidden">Post Job</span>
-            </button>
+            {canPostJobs ? (
+              <button
+                onClick={() => onNavigate('job-posting-selection')}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 sm:px-5 sm:py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-xs sm:text-sm shadow-lg"
+              >
+                <span className="hidden sm:inline">Post a Job</span>
+                <span className="sm:hidden">Post Job</span>
+              </button>
+            ) : (
+              <span className="bg-gray-100 text-gray-400 px-3 py-2 sm:px-5 sm:py-2 rounded-lg text-xs sm:text-sm border border-gray-200 cursor-not-allowed" title="View only access — cannot post jobs">
+                View Only
+              </span>
+            )}
           </div>
         </div>
 
@@ -1910,7 +1928,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </>
           ) : activeMenu === 'team' ? (
-            <TeamSection employerEmail={user?.email} companyName={companyName} showToast={showToast} />
+            <TeamSection employerEmail={user?.email} companyName={companyName} showToast={showToast} canInvite={canInviteMembers} />
           ) : activeMenu === 'auto-rejection' ? (
             <>
               <h1 className="text-3xl font-bold text-gray-900 mb-8">AI Auto-Rejection Settings</h1>
@@ -2087,7 +2105,7 @@ const ROLE_PERMISSIONS: Record<TeamRole, string[]> = {
   Viewer: ['View Analytics'],
 };
 
-const TeamSection: React.FC<{ employerEmail: string; companyName: string; showToast: (message: string, type?: ToastType) => void }> = ({ employerEmail, companyName, showToast }) => {
+const TeamSection: React.FC<{ employerEmail: string; companyName: string; showToast: (message: string, type?: ToastType) => void; canInvite?: boolean }> = ({ employerEmail, companyName, showToast, canInvite = true }) => {
   const API_BASE = import.meta.env.VITE_API_URL || '/api';
   const [members, setMembers] = React.useState<TeamMember[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -2214,10 +2232,16 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
               Refresh
             </button>
           )}
-          <button onClick={() => setShowInvite(true)}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
-            <UserPlus className="w-4 h-4" /> Invite Member
-          </button>
+          {canInvite ? (
+            <button onClick={() => setShowInvite(true)}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+              <UserPlus className="w-4 h-4" /> Invite Member
+            </button>
+          ) : (
+            <span className="flex items-center gap-2 bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-sm border border-gray-200 cursor-not-allowed" title="Only Owners can invite members">
+              <UserPlus className="w-4 h-4" /> Invite Member
+            </span>
+          )}
         </div>
       </div>
 
