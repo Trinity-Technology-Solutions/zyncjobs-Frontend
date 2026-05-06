@@ -109,7 +109,7 @@ export default function PreviewStep() {
         const DARK   = '1A1A2E';
 
         const sectionHeading = (title: string) => [
-          new Paragraph({
+          new DocxParagraph({
             spacing: { before: 200, after: 60 },
             border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E7EB' } },
             children: [
@@ -123,7 +123,7 @@ export default function PreviewStep() {
         ];
 
         const bullet = (text: string) =>
-          new Paragraph({
+          new DocxParagraph({
             spacing: { before: 40, after: 40 },
             indent: { left: 360 },
             children: [
@@ -142,10 +142,10 @@ export default function PreviewStep() {
           data.personalInfo.portfolio,
         ].filter(Boolean);
 
-        const experienceParas: Paragraph[] = [];
+        const experienceParas: DocxParagraph[] = [];
         data.experience.forEach((exp) => {
           experienceParas.push(
-            new Paragraph({
+            new DocxParagraph({
               spacing: { before: 160, after: 40 },
               children: [
                 new TextRun({ text: exp.title || '', bold: true, size: 22, color: DARK }),
@@ -157,7 +157,7 @@ export default function PreviewStep() {
           );
           if (exp.company) {
             experienceParas.push(
-              new Paragraph({
+              new DocxParagraph({
                 spacing: { before: 0, after: 60 },
                 children: [new TextRun({ text: exp.company, italics: true, size: 20, color: ACCENT })],
               }),
@@ -166,10 +166,10 @@ export default function PreviewStep() {
           exp.bullets.filter((b) => b.trim()).forEach((b) => experienceParas.push(bullet(b)));
         });
 
-        const educationParas: Paragraph[] = [];
+        const educationParas: DocxParagraph[] = [];
         data.education.forEach((edu) => {
           educationParas.push(
-            new Paragraph({
+            new DocxParagraph({
               spacing: { before: 160, after: 40 },
               children: [
                 new TextRun({ text: edu.degree || '', bold: true, size: 22, color: DARK }),
@@ -181,7 +181,7 @@ export default function PreviewStep() {
           );
           if (edu.institution) {
             educationParas.push(
-              new Paragraph({
+              new DocxParagraph({
                 spacing: { before: 0, after: 40 },
                 children: [new TextRun({ text: edu.institution, italics: true, size: 20, color: ACCENT })],
               }),
@@ -189,7 +189,7 @@ export default function PreviewStep() {
           }
           if (edu.grade) {
             educationParas.push(
-              new Paragraph({
+              new DocxParagraph({
                 spacing: { before: 0, after: 60 },
                 children: [new TextRun({ text: `Grade: ${edu.grade}`, size: 18, color: MUTED })],
               }),
@@ -212,7 +212,7 @@ export default function PreviewStep() {
               },
             },
             children: [
-              new Paragraph({
+              new DocxParagraph({
                 spacing: { after: 80 },
                 children: [
                   new TextRun({
@@ -221,35 +221,35 @@ export default function PreviewStep() {
                   }),
                 ],
               }),
-              ...(contactParts.length ? [new Paragraph({
+              ...(contactParts.length ? [new DocxParagraph({
                 spacing: { after: 40 },
                 children: contactParts.map((p, i) => new TextRun({
                   text: i === 0 ? p! : `  •  ${p}`,
                   size: 18, color: '374151',
                 })),
               })] : []),
-              ...(linkParts.length ? [new Paragraph({
+              ...(linkParts.length ? [new DocxParagraph({
                 spacing: { after: 120 },
                 children: linkParts.map((p, i) => new TextRun({
                   text: i === 0 ? p! : `  •  ${p}`,
                   size: 18, color: ACCENT,
                 })),
               })] : []),
-              new Paragraph({
+              new DocxParagraph({
                 spacing: { before: 0, after: 200 },
                 border: { top: { style: BorderStyle.SINGLE, size: 12, color: ACCENT } },
                 children: [],
               }),
               ...(data.summary ? [
                 ...sectionHeading('Summary'),
-                new Paragraph({
+                new DocxParagraph({
                   spacing: { before: 80, after: 120 },
                   children: [new TextRun({ text: data.summary, size: 20, color: '374151' })],
                 }),
               ] : []),
               ...(data.skills.length ? [
                 ...sectionHeading('Skills'),
-                new Paragraph({
+                new DocxParagraph({
                   spacing: { before: 80, after: 120 },
                   children: [new TextRun({ text: data.skills.join('  •  '), size: 20, color: '374151' })],
                 }),
