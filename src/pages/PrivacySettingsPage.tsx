@@ -122,70 +122,114 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
     try {
       const storedProfile = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
       const baseProfile = propUser || storedProfile;
-      const API = import.meta.env.VITE_API_URL || '/api';
-      const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
-      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-
-      // ── Fetch fresh full profile from backend ──
-      let profile = { ...baseProfile };
+      const userId = baseProfile.id || baseProfile._id;
+      
+      if (!userId) {
+        flash('Could not identify user for data export.', false);
+        return;
+      }
+      
+      // Try to get data from backend first
+      let backendData = null;
       try {
-        const userId = baseProfile.id || baseProfile._id;
-        const email = baseProfile.email || '';
-        if (userId || email) {
-          // Fetch both user record and profile record in parallel
-          const [userRes, profileRes] = await Promise.all([
-            userId ? fetch(`${API}/users/${userId}`, { headers: authHeaders }) : Promise.resolve(null),
-            fetch(`${API}/profile/${encodeURIComponent(userId || email)}`, { headers: authHeaders }),
-          ]);
-          if (userRes && userRes.ok) {
-            const userData = await userRes.json();
-            // User table has: companyName, company, phone, location, companyWebsite
-            profile = { ...profile, ...userData };
+        backendData = await accountAPI.exportUserData(userId);
+        console.log('Backend data export successful:', backendData);
+      } catch (error) {
+        console.warn('Backend data export failed, using local data:', error);
+      }
+      
+      // Use backend data if available, otherwise fall back to local data
+      let profile, jobs, applications, savedJobs;
+      
+      if (backendData && backendData.data) {
+        const data = backendData.data;
+        profile = data.profile;
+        jobs = data.jobs || [];
+        applications = data.applications || [];
+        savedJobs = []; // Backend doesn't store saved jobs, get from localStorage
+        
+        // Still get saved jobs from localStorage as fallback
+        const userKey = profile.email || profile.name || 'user';
+        const savedJobsKey = `savedJobDetails_${userKey}`;
+        const savedJobsData = localStorage.getItem(savedJobsKey);
+        if (savedJobsData) {
+          try {
+            savedJobs = JSON.parse(savedJobsData) || [];
+          } catch { /* ignore */ }
+        }
+      } else {
+        // Fallback to original local data method
+        const API = import.meta.env.VITE_API_URL || '/api';
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+        const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        profile = { ...baseProfile };
+        jobs = [];
+        applications = [];
+        savedJobs = [];
+        
+        // Fetch profile data
+        try {
+          const email = baseProfile.email || '';
+          if (userId || email) {
+            const [userRes, profileRes] = await Promise.all([
+              userId ? fetch(`${API}/users/${userId}`, { headers: authHeaders }) : Promise.resolve(null),
+              fetch(`${API}/profile/${encodeURIComponent(userId || email)}`, { headers: authHeaders }),
+            ]);
+            if (userRes && userRes.ok) {
+              const userData = await userRes.json();
+              profile = { ...profile, ...userData };
+            }
+            if (profileRes && profileRes.ok) {
+              const profileData = await profileRes.json();
+              profile = { ...profile, ...profileData };
+            }
           }
-          if (profileRes && profileRes.ok) {
-            const profileData = await profileRes.json();
-            // Profile table may have more up-to-date companyName, phone, location
-            profile = {
-              ...profile,
-              companyName: profileData.companyName || profile.companyName || profile.company || '',
-              phone: profileData.phone || profile.phone || '',
-              location: profileData.location || profile.location || '',
-              industry: profileData.industry || profile.industry || '',
-              companySize: profileData.companySize || profile.companySize || '',
-              companyWebsite: profileData.companyWebsite || profile.companyWebsite || '',
-            };
-          }
+        } catch { /* use stored profile */ }
+        
+        // Fetch jobs & applications based on user type
+        if (isEmployer) {
+          try {
+            const email = profile.email || '';
+            const [jobsRes, appsRes] = await Promise.all([
+              fetch(`${API}/jobs?employerEmail=${encodeURIComponent(email)}&limit=100`, { headers: authHeaders }),
+              fetch(`${API}/applications?employerEmail=${encodeURIComponent(email)}&limit=200`, { headers: authHeaders }),
+            ]);
+            if (jobsRes.ok) {
+              const allJobs = await jobsRes.json();
+              const arr: any[] = Array.isArray(allJobs) ? allJobs : (allJobs.jobs || []);
+              jobs = arr.filter((j: any) =>
+                j.employerEmail?.toLowerCase() === email.toLowerCase() ||
+                j.postedBy?.toLowerCase() === email.toLowerCase()
+              );
+            }
+            if (appsRes.ok) {
+              const appsData = await appsRes.json();
+              const allApps: any[] = appsData.applications || (Array.isArray(appsData) ? appsData : []);
+              applications = allApps.filter((a: any) =>
+                a.employerEmail?.toLowerCase() === email.toLowerCase()
+              );
+            }
+          } catch { /* use empty arrays */ }
+        } else {
+          try {
+            const email = profile.email || '';
+            const appsRes = await fetch(`${API}/applications/candidate/${encodeURIComponent(email)}`, { headers: authHeaders });
+            if (appsRes.ok) {
+              applications = await appsRes.json();
+            }
+            
+            const userKey = profile.email || profile.name || 'user';
+            const savedJobsKey = `savedJobDetails_${userKey}`;
+            const savedJobsData = localStorage.getItem(savedJobsKey);
+            if (savedJobsData) {
+              try {
+                savedJobs = JSON.parse(savedJobsData) || [];
+              } catch { /* ignore */ }
+            }
+          } catch { /* use empty arrays */ }
         }
-      } catch { /* use stored profile */ }
-
-      // ── Fetch real-time jobs & applications ──
-      let jobs: any[] = [];
-      let applications: any[] = [];
-      try {
-        const email = profile.email || '';
-        const employerId = profile.employerId || '';
-        const [jobsRes, appsRes] = await Promise.all([
-          fetch(`${API}/jobs?employerEmail=${encodeURIComponent(email)}&limit=100`, { headers: authHeaders }),
-          fetch(`${API}/applications?employerEmail=${encodeURIComponent(email)}&limit=200`, { headers: authHeaders }),
-        ]);
-        if (jobsRes.ok) {
-          const allJobs = await jobsRes.json();
-          const arr: any[] = Array.isArray(allJobs) ? allJobs : (allJobs.jobs || []);
-          jobs = arr.filter((j: any) =>
-            j.employerEmail?.toLowerCase() === email.toLowerCase() ||
-            j.postedBy?.toLowerCase() === email.toLowerCase() ||
-            (employerId && j.employerId === employerId)
-          );
-        }
-        if (appsRes.ok) {
-          const appsData = await appsRes.json();
-          const allApps: any[] = appsData.applications || (Array.isArray(appsData) ? appsData : []);
-          applications = allApps.filter((a: any) =>
-            a.employerEmail?.toLowerCase() === email.toLowerCase() ||
-            (employerId && a.employerId === employerId)
-          );
-        }
-      } catch { /* use empty arrays */ }
+      }
 
       // Build job title lookup map: jobId -> jobTitle
       const jobTitleMap: Record<string, string> = {};
@@ -193,13 +237,18 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
         const id = j.id || j._id;
         if (id) jobTitleMap[id] = j.jobTitle || j.title || '';
       });
+      
       // Also fetch individual job titles for applications whose jobId isn't in our jobs list
       const missingJobIds = [...new Set(
         applications
           .filter((a: any) => a.jobId && !jobTitleMap[a.jobId])
           .map((a: any) => a.jobId)
       )];
-      if (missingJobIds.length > 0) {
+      if (missingJobIds.length > 0 && !backendData) {
+        const API = import.meta.env.VITE_API_URL || '/api';
+        const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+        const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+        
         await Promise.all(missingJobIds.map(async (jobId: string) => {
           try {
             const jRes = await fetch(`${API}/jobs/${jobId}`, { headers: authHeaders });
@@ -308,23 +357,44 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
       doc.text(`Generated: ${new Date().toLocaleString()}`, pageW - margin, 22, { align: 'right' });
       y = 40;
 
-      // ── COMPANY PROFILE ──
-      sectionTitle('COMPANY PROFILE');
-      const companyName = profile.companyName || profile.company || profile.organizationName || '';
-      const phone = profile.phone || profile.phoneNumber || profile.contactPhone || '';
-      const location = profile.location || profile.city || profile.address || '';
-      const website = profile.companyWebsite || profile.website || profile.websiteUrl || '';
-      const industry = profile.industry || profile.sector || '';
-      const companySize = profile.companySize || profile.employeeCount || profile.size || '';
-      row('Company Name', companyName);
-      row('Contact Name', profile.name || profile.fullName || '');
-      row('Email', profile.email || '');
-      row('Phone', phone);
-      row('Location', location);
-      row('Website', website);
-      row('Industry', industry);
-      row('Company Size', companySize);
-      row('Account Role', (profile.role || profile.userType || 'Employer').charAt(0).toUpperCase() + (profile.role || profile.userType || 'employer').slice(1));
+      // ── PROFILE SECTION ──
+      if (isEmployer) {
+        sectionTitle('COMPANY PROFILE');
+        const companyName = profile.companyName || profile.company || profile.organizationName || '';
+        const phone = profile.phone || profile.phoneNumber || profile.contactPhone || '';
+        const location = profile.location || profile.city || profile.address || '';
+        const website = profile.companyWebsite || profile.website || profile.websiteUrl || '';
+        const industry = profile.industry || profile.sector || '';
+        const companySize = profile.companySize || profile.employeeCount || profile.size || '';
+        row('Company Name', companyName);
+        row('Contact Name', profile.name || profile.fullName || '');
+        row('Email', profile.email || '');
+        row('Phone', phone);
+        row('Location', location);
+        row('Website', website);
+        row('Industry', industry);
+        row('Company Size', companySize);
+        row('Account Role', (profile.role || profile.userType || 'Employer').charAt(0).toUpperCase() + (profile.role || profile.userType || 'employer').slice(1));
+      } else {
+        sectionTitle('CANDIDATE PROFILE');
+        const phone = profile.phone || profile.phoneNumber || profile.contactPhone || '';
+        const location = profile.location || profile.city || profile.address || '';
+        row('Full Name', profile.name || profile.fullName || '');
+        row('Email', profile.email || '');
+        row('Phone', phone);
+        row('Location', location);
+        row('Job Title', profile.title || profile.jobTitle || '');
+        row('Account Role', 'Candidate');
+        
+        // Additional candidate fields if available
+        if (profile.profileSummary) row('Profile Summary', profile.profileSummary);
+        if (profile.skills) {
+          const skillsText = Array.isArray(profile.skills) ? profile.skills.join(', ') : profile.skills;
+          row('Skills', skillsText);
+        }
+        if (profile.education) row('Education', profile.education);
+        if (profile.experience || profile.employment) row('Experience', profile.experience || profile.employment);
+      }
       y += 4;
 
       // ── PRIVACY SETTINGS ──
@@ -362,106 +432,164 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
       });
       y += 4;
 
-      // ── JOB POSTINGS ──
-      sectionTitle(`JOB POSTINGS  (${jobs.length} total)`);
-      if (jobs.length === 0) {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
-        doc.text('No job postings found.', margin + 4, y); y += 8;
-      } else {
-        jobs.slice(0, 30).forEach((job: any, i: number) => {
-          checkY(35);
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
-          doc.text(`${i + 1}. ${job.jobTitle || job.title || 'Untitled'}`, margin + 4, y);
-          y += 7;
-          row('Status',   (job.status || 'active').charAt(0).toUpperCase() + (job.status || 'active').slice(1), 4);
-          row('Location', job.location || job.jobLocation || '', 4);
-          row('Type',     job.jobType || job.employmentType || '', 4);
-          row('Posted',   job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '', 4);
+      if (isEmployer) {
+        // ── JOB POSTINGS ──
+        sectionTitle(`JOB POSTINGS  (${jobs.length} total)`);
+        if (jobs.length === 0) {
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+          doc.text('No job postings found.', margin + 4, y); y += 8;
+        } else {
+          jobs.slice(0, 30).forEach((job: any, i: number) => {
+            checkY(35);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
+            doc.text(`${i + 1}. ${job.jobTitle || job.title || 'Untitled'}`, margin + 4, y);
+            y += 7;
+            row('Status',   (job.status || 'active').charAt(0).toUpperCase() + (job.status || 'active').slice(1), 4);
+            row('Location', job.location || job.jobLocation || '', 4);
+            row('Type',     job.jobType || job.employmentType || '', 4);
+            row('Posted',   job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '', 4);
 
-          // Per-job hiring summary
-          const jobApps = applications.filter((a: any) => a.jobId === (job.id || job._id));
-          if (jobApps.length > 0) {
-            checkY(12);
-            y += 2;
-            doc.setFillColor(239, 246, 255);
-            doc.rect(margin + 4, y - 1, contentW - 4, 8, 'F');
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 64, 175);
-            doc.text(`HIRING DATA  (${jobApps.length} application${jobApps.length !== 1 ? 's' : ''})`, margin + 8, y + 4.5);
-            y += 11;
-            const sc: Record<string, number> = {};
-            jobApps.forEach((a: any) => { const s = a.status || 'pending'; sc[s] = (sc[s] || 0) + 1; });
-            const hiredInJob = sc['hired'] || 0;
-            doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(55, 65, 81);
-            doc.text('Summary:', margin + 8, y); y += 5;
-            Object.entries(sc).forEach(([st, cnt]) => {
-              checkY(5);
-              doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
-              const isHired = st === 'hired';
-              doc.setTextColor(isHired ? 22 : 55, isHired ? 163 : 65, isHired ? 74 : 81);
-              doc.text(`${st.charAt(0).toUpperCase() + st.slice(1)}: ${cnt}${isHired ? ' ✓' : ''}`, margin + 14, y); y += 5;
-            });
-            if (hiredInJob > 0) {
-              doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(22, 163, 74);
-              doc.text(`Total Hired: ${hiredInJob}`, margin + 14, y); y += 5;
+            // Per-job hiring summary
+            const jobApps = applications.filter((a: any) => a.jobId === (job.id || job._id));
+            if (jobApps.length > 0) {
+              checkY(12);
+              y += 2;
+              doc.setFillColor(239, 246, 255);
+              doc.rect(margin + 4, y - 1, contentW - 4, 8, 'F');
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 64, 175);
+              doc.text(`HIRING DATA  (${jobApps.length} application${jobApps.length !== 1 ? 's' : ''})`, margin + 8, y + 4.5);
+              y += 11;
+              const sc: Record<string, number> = {};
+              jobApps.forEach((a: any) => { const s = a.status || 'pending'; sc[s] = (sc[s] || 0) + 1; });
+              const hiredInJob = sc['hired'] || 0;
+              doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(55, 65, 81);
+              doc.text('Summary:', margin + 8, y); y += 5;
+              Object.entries(sc).forEach(([st, cnt]) => {
+                checkY(5);
+                doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+                const isHired = st === 'hired';
+                doc.setTextColor(isHired ? 22 : 55, isHired ? 163 : 65, isHired ? 74 : 81);
+                doc.text(`${st.charAt(0).toUpperCase() + st.slice(1)}: ${cnt}${isHired ? ' ✓' : ''}`, margin + 14, y); y += 5;
+              });
+              if (hiredInJob > 0) {
+                doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(22, 163, 74);
+                doc.text(`Total Hired: ${hiredInJob}`, margin + 14, y); y += 5;
+              }
             }
-          }
-          divider();
-        });
-      }
-      y += 2;
-
-      // ── CANDIDATE APPLICATIONS ──
-      const hiredCount = applications.filter((a: any) => a.status === 'hired').length;
-      sectionTitle(`CANDIDATE APPLICATIONS  (${applications.length} total${hiredCount > 0 ? `  ·  ${hiredCount} Hired` : ''})`);
-      if (applications.length === 0) {
-        doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
-        doc.text('No applications found.', margin + 4, y); y += 8;
+            divider();
+          });
+        }
+        y += 2;
       } else {
-        applications.slice(0, 100).forEach((app: any, i: number) => {
-          checkY(40);
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
-          doc.text(`${i + 1}. ${app.candidateName || app.candidateEmail || 'Candidate'}`, margin + 4, y);
-          y += 7;
+        // ── SAVED JOBS ──
+        sectionTitle(`SAVED JOBS  (${savedJobs.length} total)`);
+        if (savedJobs.length === 0) {
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+          doc.text('No saved jobs found.', margin + 4, y); y += 8;
+        } else {
+          savedJobs.slice(0, 20).forEach((job: any, i: number) => {
+            checkY(25);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
+            doc.text(`${i + 1}. ${job.jobTitle || job.title || 'Untitled'}`, margin + 4, y);
+            y += 7;
+            row('Company',  job.company || job.companyName || '', 4);
+            row('Location', job.location || job.jobLocation || '', 4);
+            row('Type',     job.jobType || job.type || job.employmentType || '', 4);
+            row('Salary',   job.salary || '', 4);
+            row('Saved On', job.savedAt ? new Date(job.savedAt).toLocaleDateString() : '', 4);
+            divider();
+          });
+          if (savedJobs.length > 20) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+            doc.text(`... and ${savedJobs.length - 20} more saved jobs.`, margin + 4, y); y += 6;
+          }
+        }
+        y += 2;
+      }
 
-          // Applied Role — look up from jobTitleMap
-          const appliedRole = jobTitleMap[app.jobId] || app.jobTitle || app.appliedJobTitle || app.jobName || '';
-          checkY(8);
-          const arY = y;
-          doc.setFillColor(248, 250, 252); doc.rect(margin + 4, arY - 2, contentW - 4, 7, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(55, 65, 81);
-          doc.text('Applied Role', margin + 7, arY + 3);
-          doc.setFont('helvetica', 'bold'); doc.setTextColor(appliedRole ? 30 : 156, appliedRole ? 64 : 163, appliedRole ? 175 : 175);
-          doc.text(appliedRole || 'N/A', VAL_X + 4, arY + 3);
-          y += 8;
+      // ── APPLICATIONS SECTION ──
+      if (isEmployer) {
+        const hiredCount = applications.filter((a: any) => a.status === 'hired').length;
+        sectionTitle(`CANDIDATE APPLICATIONS  (${applications.length} total${hiredCount > 0 ? `  ·  ${hiredCount} Hired` : ''})`);
+        if (applications.length === 0) {
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+          doc.text('No applications found.', margin + 4, y); y += 8;
+        } else {
+          applications.slice(0, 100).forEach((app: any, i: number) => {
+            checkY(40);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
+            doc.text(`${i + 1}. ${app.candidateName || app.candidateEmail || 'Candidate'}`, margin + 4, y);
+            y += 7;
 
-          // Status badge — right-aligned
-          checkY(8);
-          const stY = y;
-          doc.setFillColor(248, 250, 252); doc.rect(margin + 4, stY - 2, contentW - 4, 7, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(55, 65, 81);
-          doc.text('Status', margin + 7, stY + 3);
-          const status = (app.status || 'pending').toLowerCase();
-          const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
-          const badgeColors: Record<string, [number,number,number]> = {
-            hired:[22,163,74], shortlisted:[37,99,235], interviewed:[124,58,237],
-            reviewed:[8,145,178], rejected:[220,38,38], pending:[217,119,6], applied:[5,150,105]
-          };
-          const [br,bg,bb] = badgeColors[status] || [107,114,128];
-          const bw = doc.getTextWidth(statusLabel) + 8;
-          doc.setFillColor(br, bg, bb);
-          doc.roundedRect(VAL_X + 4, stY - 1, bw, 6, 1.5, 1.5, 'F');
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255);
-          doc.text(statusLabel, VAL_X + 4 + bw / 2, stY + 3, { align: 'center' });
-          y += 8;
+            // Applied Role — look up from jobTitleMap
+            const appliedRole = jobTitleMap[app.jobId] || app.jobTitle || app.appliedJobTitle || app.jobName || '';
+            checkY(8);
+            const arY = y;
+            doc.setFillColor(248, 250, 252); doc.rect(margin + 4, arY - 2, contentW - 4, 7, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(55, 65, 81);
+            doc.text('Applied Role', margin + 7, arY + 3);
+            doc.setFont('helvetica', 'bold'); doc.setTextColor(appliedRole ? 30 : 156, appliedRole ? 64 : 163, appliedRole ? 175 : 175);
+            doc.text(appliedRole || 'N/A', VAL_X + 4, arY + 3);
+            y += 8;
 
-          row('Email',      app.candidateEmail || '', 4);
-          row('Phone',      app.candidatePhone || '', 4);
-          row('Applied On', app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '', 4);
-          divider();
-        });
-        if (applications.length > 100) {
-          doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
-          doc.text(`... and ${applications.length - 100} more applications.`, margin + 4, y); y += 6;
+            // Status badge — right-aligned
+            checkY(8);
+            const stY = y;
+            doc.setFillColor(248, 250, 252); doc.rect(margin + 4, stY - 2, contentW - 4, 7, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(55, 65, 81);
+            doc.text('Status', margin + 7, stY + 3);
+            const status = (app.status || 'pending').toLowerCase();
+            const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+            const badgeColors: Record<string, [number,number,number]> = {
+              hired:[22,163,74], shortlisted:[37,99,235], interviewed:[124,58,237],
+              reviewed:[8,145,178], rejected:[220,38,38], pending:[217,119,6], applied:[5,150,105]
+            };
+            const [br,bg,bb] = badgeColors[status] || [107,114,128];
+            const bw = doc.getTextWidth(statusLabel) + 8;
+            doc.setFillColor(br, bg, bb);
+            doc.roundedRect(VAL_X + 4, stY - 1, bw, 6, 1.5, 1.5, 'F');
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(255, 255, 255);
+            doc.text(statusLabel, VAL_X + 4 + bw / 2, stY + 3, { align: 'center' });
+            y += 8;
+
+            row('Email',      app.candidateEmail || '', 4);
+            row('Phone',      app.candidatePhone || '', 4);
+            row('Applied On', app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '', 4);
+            divider();
+          });
+          if (applications.length > 100) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+            doc.text(`... and ${applications.length - 100} more applications.`, margin + 4, y); y += 6;
+          }
+        }
+      } else {
+        // ── MY APPLICATIONS ──
+        sectionTitle(`MY APPLICATIONS  (${applications.length} total)`);
+        if (applications.length === 0) {
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(150, 150, 150);
+          doc.text('No applications found.', margin + 4, y); y += 8;
+        } else {
+          applications.slice(0, 50).forEach((app: any, i: number) => {
+            checkY(35);
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
+            const jobTitle = app.jobTitle || app.jobId?.jobTitle || app.jobId?.title || 'Job Application';
+            doc.text(`${i + 1}. ${jobTitle}`, margin + 4, y);
+            y += 7;
+            
+            row('Company',    app.jobId?.company || app.jobId?.companyName || '', 4);
+            row('Location',   app.jobId?.location || '', 4);
+            row('Status',     (app.status || 'pending').charAt(0).toUpperCase() + (app.status || 'pending').slice(1), 4);
+            row('Applied On', app.createdAt ? new Date(app.createdAt).toLocaleDateString() : '', 4);
+            if (app.coverLetter && app.coverLetter !== 'No cover letter') {
+              const shortCover = app.coverLetter.length > 100 ? `${app.coverLetter.substring(0, 100)}...` : app.coverLetter;
+              row('Cover Letter', shortCover, 4);
+            }
+            divider();
+          });
+          if (applications.length > 50) {
+            doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(120, 120, 120);
+            doc.text(`... and ${applications.length - 50} more applications.`, margin + 4, y); y += 6;
+          }
         }
       }
 
@@ -497,20 +625,51 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
         : 'This will permanently delete your account, resume, and all data. This cannot be undone. Continue?'
     );
     if (!confirmed) return;
+    
     setDeleting(true);
     try {
       const storedUser2 = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
       const userId = propUser?.id || propUser?._id || storedUser2?.id || storedUser2?._id || '';
-      const result = await accountAPI.deleteAccount(userId);
-      if (result.success) {
-        accountAPI.clearUserData();
-        localStorage.removeItem(CANDIDATE_STORAGE_KEY);
-        localStorage.removeItem(EMPLOYER_STORAGE_KEY);
+      
+      if (!userId) {
+        flash('Could not identify user for deletion. Clearing local data only.', false);
+        // Use comprehensive clearing
+        accountAPI.clearAllUserData();
+        
         if (onLogout) onLogout();
-        setTimeout(() => onNavigate('home'), 1500);
-      } else {
-        flash(result.message, false);
+        setTimeout(() => onNavigate('home'), 1000);
+        return;
       }
+      
+      // Try to delete from server
+      const result = await accountAPI.deleteAccount(userId);
+      
+      if (result.success) {
+        flash('Account deleted successfully. You will be redirected to the home page.', true);
+      } else {
+        flash(`Server deletion failed: ${result.message}. Local data will be cleared.`, false);
+      }
+      
+      // Always use comprehensive clearing regardless of server response
+      accountAPI.clearAllUserData();
+      
+      // Call logout to clear any remaining session state
+      if (onLogout) onLogout();
+      
+      // Navigate to home after a short delay
+      setTimeout(() => {
+        onNavigate('home');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error during account deletion:', error);
+      flash('An error occurred during deletion. Local data will be cleared.', false);
+      
+      // Even on error, use comprehensive clearing
+      accountAPI.clearAllUserData();
+      
+      if (onLogout) onLogout();
+      setTimeout(() => onNavigate('home'), 1000);
     } finally {
       setDeleting(false);
     }

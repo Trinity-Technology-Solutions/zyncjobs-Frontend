@@ -182,7 +182,7 @@ export function computeMatchScore(
   }
 
   return {
-    overall: Math.min(98, Math.max(overall, matchedSkills.length > 0 ? 35 : 20)),
+    overall: Math.min(98, Math.max(overall, matchedSkills.length > 0 ? 25 : 15)), // Lowered minimum from 35/20 to 25/15
     skillScore,
     titleScore: Math.min(100, titleScore + (titleInDesc ? 10 : 0)),
     locationScore,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
-import { Zap, Check } from 'lucide-react';
+import { Zap, Check, Upload } from 'lucide-react';
+import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 
 interface QuickApplyButtonProps {
   jobId: string;
@@ -22,10 +23,27 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
 }) => {
   const [isApplying, setIsApplying] = useState(false);
   const [hasApplied, setHasApplied] = useState(false);
+  const [hasResume, setHasResume] = useState<boolean | null>(null);
 
   useEffect(() => {
     checkIfAlreadyApplied();
+    checkResumeStatus();
   }, [jobId, user]);
+
+  const checkResumeStatus = async () => {
+    if (!user?.email) {
+      setHasResume(false);
+      return;
+    }
+    
+    try {
+      const validation = await validateUserResume(user.email);
+      setHasResume(validation.hasResume);
+    } catch (error) {
+      console.error('Error checking resume status:', error);
+      setHasResume(false);
+    }
+  };
 
   const checkIfAlreadyApplied = async () => {
     if (!user?.email || !jobId) return;
@@ -58,21 +76,13 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
     }
 
     setIsApplying(true);
+    
     try {
-      let profileData: any = currentUser;
-      try {
-        const profileRes = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(currentUser.email)}`);
-        if (profileRes.ok) profileData = { ...currentUser, ...(await profileRes.json()) };
-      } catch { /* use localStorage data */ }
-
-      const resume = profileData.resume;
-      const resumeUrl = profileData.resumeUrl
-        || (resume?.url || resume?.fileUrl || resume?.path
-          ? (resume.url || resume.fileUrl || resume.path)
-          : null);
-
-      if (!resumeUrl) {
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "📄 Resume not found! Please upload your resume in your profile before applying." } }));
+      // Validate resume using the new utility
+      const resumeValidation = await validateUserResume(currentUser.email);
+      
+      if (!resumeValidation.hasResume) {
+        handleResumeValidationAlert(resumeValidation, true);
         setIsApplying(false);
         return;
       }
@@ -81,8 +91,8 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
         jobId,
         candidateEmail: currentUser.email,
         candidateName: currentUser.name || currentUser.fullName,
-        candidatePhone: profileData.phone || currentUser.phone || '',
-        resumeUrl,
+        candidatePhone: currentUser.phone || '',
+        resumeUrl: resumeValidation.resumeUrl,
         isQuickApply: true,
         coverLetter: 'Applied using Quick Apply'
       };
@@ -110,6 +120,7 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
     }
   };
 
+  // Show different states based on resume status
   if (hasApplied) {
     return (
       <button
@@ -118,6 +129,37 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       >
         <Check className="w-4 h-4" />
         <span>Applied</span>
+      </button>
+    );
+  }
+
+  // Show upload resume button if no resume
+  if (hasResume === false) {
+    return (
+      <button
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent("zync:alert", { 
+            detail: { message: "📄 Please upload your resume in your profile before applying for jobs." } 
+          }));
+          setTimeout(() => window.location.href = '/dashboard', 2000);
+        }}
+        className={`flex items-center space-x-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors ${className}`}
+      >
+        <Upload className="w-4 h-4" />
+        <span>Upload Resume</span>
+      </button>
+    );
+  }
+
+  // Show loading state while checking resume
+  if (hasResume === null) {
+    return (
+      <button
+        disabled
+        className={`flex items-center space-x-2 bg-gray-400 text-white px-4 py-2 rounded-lg font-medium ${className}`}
+      >
+        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+        <span>Checking...</span>
       </button>
     );
   }

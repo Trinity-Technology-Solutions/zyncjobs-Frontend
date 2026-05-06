@@ -236,7 +236,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
                 className="max-w-full max-h-40 rounded-lg cursor-pointer hover:opacity-90 block mb-1"
                 onClick={() => window.open(parsed.data, '_blank')} />
               <a href={parsed.data} download={parsed.name}
-                className={`text-xs flex items-center gap-1 underline ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}>
+                className={`text-xs flex items-center gap-1 underline hover:no-underline mt-1 ${isOwn ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}>
                 📎 {parsed.name}
               </a>
             </div>
@@ -244,13 +244,13 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
         }
         return (
           <a href={parsed.data} download={parsed.name}
-            className={`flex items-center gap-2 text-sm underline font-medium ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}>
+            className={`flex items-center gap-2 text-sm underline font-medium hover:no-underline ${isOwn ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}>
             📎 {parsed.name}
           </a>
         );
       }
     } catch { /* not JSON */ }
-    return <p className="break-words">{message}</p>;
+    return <p className="break-words leading-relaxed">{message}</p>;
   };
 
   return (
@@ -274,7 +274,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-50">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-lg text-sm flex items-center justify-between">
               <span>{error}</span>
@@ -287,24 +287,27 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
             </div>
           )}
           {fetchLoading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-              <MessageCircle className="w-12 h-12 mb-2 text-gray-200" />
-              <p className="text-sm">Start a conversation</p>
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <MessageCircle className="w-16 h-16 mb-3 text-gray-300" />
+              <p className="text-sm font-medium">Start a conversation</p>
+              <p className="text-xs mt-1 text-gray-400">Send your first message to {candidateName}</p>
             </div>
           ) : (
             messages.map((msg, i) => {
               const isOwn = msg.senderId === employerId;
               return (
-                <div key={msg.id || msg._id || i} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm shadow-sm ${
-                    isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm'
+                <div key={msg.id || msg._id || i} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}>
+                  <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-sm ${
+                    isOwn ? 'bg-blue-600 text-white rounded-br-md' : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
                   }`}>
-                    {renderContent(msg.message, isOwn)}
-                    <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
+                    <div className="text-sm leading-relaxed">
+                      {renderContent(msg.message, isOwn)}
+                    </div>
+                    <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500'} text-right`}>
                       {msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
                     </p>
                   </div>

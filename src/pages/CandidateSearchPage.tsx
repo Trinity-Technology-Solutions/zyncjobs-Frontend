@@ -76,6 +76,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   }, [openContactMenu]);
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const token = tokenStorage.getAccess() || tokenStorage.getAdmin();
   useEffect(() => {
     if (!user?.email) return;
     fetch(`${API_ENDPOINTS.JOBS}`)
@@ -234,13 +235,38 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       setCandidates(filtered);
       setTotalCandidates(filtered.length);
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
+      
+      // Track search appearances for all candidates that appear in results
+      if (filtered.length > 0 && (searchTerm || selectedSkill || selectedLocation)) {
+        const searchQuery = [searchTerm, selectedSkill, selectedLocation].filter(Boolean).join(' ');
+        
+        // Track search appearance for each candidate
+        filtered.forEach(async (candidate: any) => {
+          if (candidate.email) {
+            try {
+              await apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/search-appearance`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  userId: candidate._id || candidate.id,
+                  email: candidate.email,
+                  searchQuery: searchQuery,
+                  keyword: searchQuery
+                })
+              });
+            } catch (error) {
+              console.log('Search appearance tracking failed:', error);
+            }
+          }
+        });
+      }
     } catch (error) {
       console.error('Error fetching candidates:', error);
       setCandidates([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchTerm, selectedSkill, selectedLocation]);
 
   useEffect(() => { fetchCandidates(); }, [fetchCandidates]);
 
@@ -269,6 +295,20 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const handleViewProfile = (candidate: Candidate) => {
     const cid = candidate.email || candidate._id || '';
     if (!cid) return;
+    
+    // Track profile view
+    if (candidate.email) {
+      apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/profile-view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: candidate._id,
+          email: candidate.email,
+          viewedBy: user?.email || 'employer'
+        })
+      }).catch(error => console.log('Profile view tracking failed:', error));
+    }
+    
     sessionStorage.setItem('viewCandidateId', cid);
     sessionStorage.setItem('viewCandidateData', JSON.stringify({
       name: getCandidateName(candidate),
@@ -646,7 +686,7 @@ return (
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';
-                            target.nextElementSibling!.style.display = 'flex';
+                            (target.nextElementSibling as HTMLElement).style.display = 'flex';
                           }}
                         />
                       ) : null}

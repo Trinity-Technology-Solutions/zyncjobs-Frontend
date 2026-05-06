@@ -187,7 +187,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
     // Handle old text-format attachments like [📎 filename]
     if (message.startsWith('[') && message.includes('📎') && message.endsWith(']')) {
       const name = message.replace(/^\[📎\s*/, '').replace(/\]$/, '');
-      return <span className="text-sm italic opacity-80">📎 {name} (legacy)</span>;
+      return <span className="text-sm italic opacity-75">📎 {name}</span>;
     }
     try {
       const parsed = JSON.parse(message);
@@ -205,7 +205,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
               <a
                 href={parsed.data}
                 download={parsed.name}
-                className={`text-xs mt-1 flex items-center gap-1 underline ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}
+                className={`text-xs mt-2 flex items-center gap-1 underline hover:no-underline ${isOwn ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
               >
                 📎 {parsed.name}
               </a>
@@ -216,14 +216,14 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
           <a
             href={parsed.data}
             download={parsed.name}
-            className={`flex items-center gap-2 text-sm underline font-medium ${isOwn ? 'text-blue-100' : 'text-blue-600'}`}
+            className={`flex items-center gap-2 text-sm underline font-medium hover:no-underline ${isOwn ? 'text-blue-100 hover:text-white' : 'text-blue-600 hover:text-blue-800'}`}
           >
             📎 {parsed.name}
           </a>
         );
       }
     } catch {}
-    return <p className="text-sm break-words">{message}</p>;
+    return <p className="break-words leading-relaxed">{message}</p>;
   };
 
   const handleSendMessage = async () => {
@@ -387,11 +387,11 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-0.5 sm:mb-1 gap-2">
-                      <h3 className="font-semibold text-gray-900 truncate text-xs sm:text-sm">{conv.employerName}</h3>
+                    <div className="flex justify-between items-baseline mb-1 gap-2">
+                      <h3 className="font-semibold text-gray-900 truncate text-sm">{conv.employerName}</h3>
                       <span className="text-xs text-gray-500 flex-shrink-0">{formatTime(conv.lastMessageTime)}</span>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-500 truncate">{conv.lastMessage || 'No messages yet'}</p>
+                    <p className="text-xs sm:text-sm text-gray-600 truncate leading-relaxed">{conv.lastMessage || 'No messages yet'}</p>
                   </div>
 
                   {/* Unread Badge */}
@@ -467,20 +467,22 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                   </div>
                 </div>
               ) : (
-                <div className="space-y-2 sm:space-y-3">
+                <div className="space-y-3 sm:space-y-4">
                   {messages.map((msg, idx) => {
                     const isOwn = msg.senderId === candidateId;
                     return (
-                      <div key={msg._id || idx} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-xs sm:max-w-sm px-3 py-2 rounded-2xl text-xs sm:text-sm ${
-                          isOwn ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                      <div key={msg._id || idx} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-1`}>
+                        <div className={`max-w-xs sm:max-w-sm lg:max-w-md px-3 sm:px-4 py-2 sm:py-3 rounded-2xl ${
+                          isOwn ? 'bg-blue-600 text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'
                         }`}>
-                          {renderMessageContent(msg.message, isOwn)}
-                          <div className={`flex items-center justify-end gap-1 mt-0.5 ${
-                            isOwn ? 'text-blue-100' : 'text-gray-400'
+                          <div className="text-sm sm:text-base leading-relaxed">
+                            {renderMessageContent(msg.message, isOwn)}
+                          </div>
+                          <div className={`flex items-center justify-end gap-1 mt-1 sm:mt-2 ${
+                            isOwn ? 'text-blue-100' : 'text-gray-500'
                           } text-xs`}>
                             <span>{formatMessageTime(msg.createdAt)}</span>
-                            {isOwn && <CheckCheck className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                            {isOwn && <CheckCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />}
                           </div>
                         </div>
                       </div>

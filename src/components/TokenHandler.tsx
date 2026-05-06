@@ -13,6 +13,7 @@ type MismatchInfo = {
   correctPortal: string;
   correctRoute: string;
   isNewUser?: boolean;
+  alreadyExists?: boolean;
 };
 
 const isEmployerRole = (role: string) =>
@@ -29,6 +30,9 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
     // accountRole is now sent directly from backend — the actual DB role of the user
     const accountRoleFromUrl = urlParams.get('accountRole') || '';
     const isNewUserFromUrl = urlParams.get('isNewUser') === 'true';
+    // Detect if user came from a register page (stored before OAuth redirect)
+    const cameFromRegister = sessionStorage.getItem('oauthIntent') === 'register';
+    sessionStorage.removeItem('oauthIntent');
 
     if (!token) return;
     if (isLinkedinImport && !token) return;
@@ -73,6 +77,21 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
               correctPortal: accountIsEmployer ? 'Employer Login' : 'Candidate Login',
               correctRoute: accountIsEmployer ? 'employer-login' : 'login',
               isNewUser,
+            });
+            return;
+          }
+
+          // If user came from register page but account already exists — warn them
+          if (cameFromRegister && !isNewUser) {
+            tokenStorage.clear();
+            window.history.replaceState({}, document.title, window.location.pathname);
+            setMismatch({
+              actualRole: accountIsEmployer ? 'Employer' : 'Candidate',
+              intendedPortal: portalIsEmployer ? 'Employer' : 'Candidate',
+              correctPortal: accountIsEmployer ? 'Employer Login' : 'Candidate Login',
+              correctRoute: accountIsEmployer ? 'employer-login' : 'login',
+              isNewUser: false,
+              alreadyExists: true,
             });
             return;
           }
@@ -133,8 +152,8 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
                   <span className="text-yellow-900 text-[10px] font-black">!</span>
                 </span>
               </div>
-              <h2 className="text-xl font-bold text-white mb-0.5">Wrong Login Portal</h2>
-              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-[0.15em]">Account Mismatch Detected</p>
+              <h2 className="text-xl font-bold text-white mb-0.5">{mismatch.alreadyExists ? 'Account Already Exists' : 'Wrong Login Portal'}</h2>
+              <p className="text-orange-100 text-[10px] font-semibold uppercase tracking-[0.15em]">{mismatch.alreadyExists ? 'Email Already Registered' : 'Account Mismatch Detected'}</p>
             </div>
 
             {/* Body */}
@@ -167,7 +186,9 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
               {/* Info message — compact */}
               <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-5">
                 <p className="text-gray-500 text-xs leading-relaxed text-center">
-                  {mismatch.isNewUser
+                  {mismatch.alreadyExists
+                    ? <>An account with this email already exists as a <span className="font-semibold text-blue-600">{mismatch.actualRole}</span>. Please sign in instead.</>
+                    : mismatch.isNewUser
                     ? <>Account doesn't match the <span className="font-semibold text-gray-700">{mismatch.intendedPortal}</span> portal. Use the correct portal below.</>
                     : <>Registered as <span className="font-semibold text-blue-600">{mismatch.actualRole}</span>. Please use <span className="font-semibold text-green-600">{mismatch.correctPortal}</span> to continue.</>
                   }

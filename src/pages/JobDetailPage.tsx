@@ -5,6 +5,7 @@ import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils
 import { API_ENDPOINTS } from '../config/constants';
 import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { decodeHtmlEntities, htmlToFormattedText } from '../utils/htmlUtils';
+import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
 
 const fmtNum = (n: number): string => {
@@ -130,6 +131,26 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 jobResult = data;
               }
             }
+          }
+        }
+
+        if (!jobResult) {
+          // Fallback: Check if job data was stored in sessionStorage (from SkillGapAnalysisPage)
+          try {
+            const storedJobData = sessionStorage.getItem('selectedJobData');
+            if (storedJobData) {
+              const parsedJobData = JSON.parse(storedJobData);
+              // Verify this is the job we're looking for
+              const storedJobId = parsedJobData._id || parsedJobData.id;
+              if (storedJobId && storedJobId === resolvedJobId) {
+                jobResult = parsedJobData;
+                console.log('Using job data from sessionStorage:', jobResult);
+                // Clear the stored data after use
+                sessionStorage.removeItem('selectedJobData');
+              }
+            }
+          } catch (error) {
+            console.error('Error parsing stored job data:', error);
           }
         }
 
@@ -508,19 +529,20 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         onClick={async () => {
                           const jid = job.id || job._id || String(jobId || '');
                           if (user && (user.name || user.fullName)) {
-                            // Check resume before navigating
+                            // Validate resume before navigating
                             try {
-                              const { API_ENDPOINTS: EP } = await import('../config/env');
-                              const profileRes = await fetch(`${EP.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
-                              const profileData = profileRes.ok ? await profileRes.json() : {};
-                              const resume = profileData.resume;
-                              const hasResume = profileData.resumeUrl || resume?.url || resume?.fileUrl || resume?.path;
-                              if (!hasResume) {
-                                window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
-                                onNavigate('dashboard');
+                              const resumeValidation = await validateUserResume(user.email);
+                              if (!resumeValidation.hasResume) {
+                                handleResumeValidationAlert(resumeValidation, true);
                                 return;
                               }
-                            } catch { /* allow through on error */ }
+                            } catch (error) {
+                              console.error('Resume validation error:', error);
+                              window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
+                              onNavigate('dashboard');
+                              return;
+                            }
+                            
                             sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: jid, id: jid,
                               jobTitle: job.jobTitle || job.title,
@@ -894,19 +916,20 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         onClick={async () => {
                           const jid2 = job.id || job._id || String(jobId || '');
                           if (user && user.name) {
-                            // Check resume before navigating
+                            // Validate resume before navigating
                             try {
-                              const { API_ENDPOINTS: EP } = await import('../config/env');
-                              const profileRes = await fetch(`${EP.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
-                              const profileData = profileRes.ok ? await profileRes.json() : {};
-                              const resume = profileData.resume;
-                              const hasResume = profileData.resumeUrl || resume?.url || resume?.fileUrl || resume?.path;
-                              if (!hasResume) {
-                                window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
-                                onNavigate('dashboard');
+                              const resumeValidation = await validateUserResume(user.email);
+                              if (!resumeValidation.hasResume) {
+                                handleResumeValidationAlert(resumeValidation, true);
                                 return;
                               }
-                            } catch { /* allow through on error */ }
+                            } catch (error) {
+                              console.error('Resume validation error:', error);
+                              window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '📄 Please upload your resume in your profile before applying.' } }));
+                              onNavigate('dashboard');
+                              return;
+                            }
+                            
                             sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: jid2, id: jid2,
                               jobTitle: job.jobTitle || job.title,

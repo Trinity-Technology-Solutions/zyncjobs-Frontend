@@ -230,9 +230,13 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
       const res = await fetch(`${API_ENDPOINTS.JOBS}`);
       if (!res.ok) return;
       const allJobs = await res.json();
+      console.log('📊 Resume Parser: Fetched', allJobs.length, 'total jobs for matching');
       const ranked = rankJobs(allJobs, skillNames, experience, location);
-      const relevant = ranked.filter(j => j.matchBreakdown.overall >= 25);
-      setRankedJobs(relevant.length > 0 ? relevant : ranked.slice(0, 5));
+      console.log('📊 Resume Parser: Top 5 match scores:', ranked.slice(0, 5).map(j => ({ title: j.jobTitle, score: j.matchBreakdown.overall })));
+      // ✅ FIXED: Lower threshold and ensure we show jobs
+      const relevant = ranked.filter(j => j.matchBreakdown.overall >= 15); // Lowered from 25% to 15%
+      console.log('📊 Resume Parser: Found', relevant.length, 'jobs above 15% threshold');
+      setRankedJobs(relevant.length > 0 ? relevant : ranked.slice(0, 8)); // Show top 8 if no good matches
     } catch (e) {
       console.error('Job matching error:', e);
     } finally {
