@@ -16,6 +16,7 @@ import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
+import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
@@ -333,18 +334,48 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       });
     }
     if (filters.workMode.length > 0) {
+      console.log('Applying workMode filter:', filters.workMode);
       filtered = filtered.filter(job => {
         const lt = (job.locationType || '').toLowerCase();
         const loc = (job.location || '').toLowerCase();
         const desc = (job.description || '').toLowerCase();
         const title = (job.title || job.jobTitle || '').toLowerCase();
-        return filters.workMode.some(mode => {
-          if (mode === 'Remote') return lt === 'remote' || loc === 'remote' || loc.includes('remote') || desc.includes('remote') || title.includes('remote') || lt === 'work from home' || loc.includes('work from home');
-          if (mode === 'Hybrid') return lt === 'hybrid' || loc === 'hybrid' || loc.includes('hybrid') || desc.includes('hybrid');
-          if (mode === 'Work from office') return lt === 'in person' || lt === 'onsite' || (lt !== 'remote' && lt !== 'hybrid' && !loc.includes('remote') && !loc.includes('hybrid'));
+        
+        console.log(`Job: ${job.title}, Location: ${job.location}, LocationType: ${job.locationType}`);
+        
+        const matches = filters.workMode.some(mode => {
+          if (mode === 'Remote') {
+            const isRemote = lt.includes('remote') || 
+                           loc.includes('remote') || 
+                           desc.includes('remote') || 
+                           title.includes('remote') || 
+                           lt.includes('work from home') || 
+                           loc.includes('work from home') ||
+                           loc === 'remote' ||
+                           lt === 'remote';
+            console.log(`Remote check: ${isRemote}`);
+            return isRemote;
+          }
+          if (mode === 'Hybrid') {
+            const isHybrid = lt.includes('hybrid') || loc.includes('hybrid') || desc.includes('hybrid');
+            console.log(`Hybrid check: ${isHybrid}`);
+            return isHybrid;
+          }
+          if (mode === 'Work from office') {
+            const isOffice = (lt === 'in person' || lt === 'onsite') || 
+                           (!lt.includes('remote') && !lt.includes('hybrid') && 
+                            !loc.includes('remote') && !loc.includes('hybrid') &&
+                            !desc.includes('remote') && !desc.includes('hybrid'));
+            console.log(`Office check: ${isOffice}`);
+            return isOffice;
+          }
           return false;
         });
+        
+        console.log(`Job matches workMode filter: ${matches}`);
+        return matches;
       });
+      console.log('Jobs after workMode filter:', filtered.length);
     }
     if (filters.location.length > 0) {
       filtered = filtered.filter(job =>
@@ -366,16 +397,38 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
     if (filters.freshness.length > 0) {
       const now = Date.now();
+      console.log('Applying freshness filter:', filters.freshness);
       filtered = filtered.filter(job => {
         const raw = job.createdAt || job.postedAt || job.datePosted;
-        if (!raw) return false;
-        const t = new Date(raw).getTime();
-        if (isNaN(t) || t <= 0) return false;
+        if (!raw) {
+          console.log('Job has no date:', job.title);
+          return false;
+        }
+        const jobDate = new Date(raw);
+        const t = jobDate.getTime();
+        if (isNaN(t) || t <= 0) {
+          console.log('Invalid job date:', raw, job.title);
+          return false;
+        }
+        
+        const daysDiff = (now - t) / (1000 * 60 * 60 * 24);
+        console.log(`Job: ${job.title}, Date: ${jobDate.toLocaleDateString()}, Days ago: ${daysDiff.toFixed(1)}`);
+        
         return filters.freshness.some(freshness => {
-          const cutoff = freshness === '48h' ? now - 172800000 : now - 604800000;
-          return t >= cutoff;
+          if (freshness === '48h') {
+            const match = daysDiff <= 2;
+            console.log(`48h filter: ${match} (${daysDiff.toFixed(1)} days)`);
+            return match;
+          }
+          if (freshness === '7d') {
+            const match = daysDiff <= 7;
+            console.log(`7d filter: ${match} (${daysDiff.toFixed(1)} days)`);
+            return match;
+          }
+          return false;
         });
       });
+      console.log('Jobs after freshness filter:', filtered.length);
     }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     console.log('✅ Final filtered results:', filtered.length);
@@ -522,17 +575,40 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   const handleQuickFilterToggle = (key: string, filterType: string, value: string) => {
+    console.log('Quick filter toggle:', { key, filterType, value, currentActive: activeQuickFilter });
+    
     const isActive = activeQuickFilter === key;
     setActiveQuickFilter(isActive ? null : key);
+    
     setFilters(prev => {
       if (filterType === 'freshness') {
-        return { ...prev, freshness: isActive ? [] : [value], workMode: [] };
+        const newFilters = { ...prev, freshness: isActive ? [] : [value], workMode: [] };
+        console.log('Setting freshness filters:', newFilters);
+        return newFilters;
       }
       if (filterType === 'workMode') {
-        return { ...prev, workMode: isActive ? [] : [value], freshness: [] };
+        const newFilters = { ...prev, workMode: isActive ? [] : [value], freshness: [] };
+        console.log('Setting workMode filters:', newFilters);
+        return newFilters;
       }
       return prev;
     });
+    
+    // Trigger immediate search with the new filters
+    setTimeout(() => {
+      console.log('Triggering search after filter change');
+      if (!isActive) {
+        // Filter is being activated
+        if (filterType === 'freshness') {
+          fetchJobs(1, false, { term: searchTerm, loc: location, freshness: [value] });
+        } else {
+          fetchJobs(1, false, { term: searchTerm, loc: location, freshness: [] });
+        }
+      } else {
+        // Filter is being deactivated
+        fetchJobs(1, false, { term: searchTerm, loc: location, freshness: [] });
+      }
+    }, 100);
   };
 
   const getJobSuggestions = async (input: string): Promise<{keywords: string[], jobTitles: string[], companies: string[]}> => {
@@ -1114,33 +1190,36 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilterToggle('24h', 'freshness', '48h')}
-              className={`px-3 py-1 rounded-full text-sm border ${
-                activeQuickFilter === '24h'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+              onClick={() => handleQuickFilterToggle('48h', 'freshness', '48h')}
+              className={`px-3 py-1 rounded-full text-sm border transition-all ${
+                activeQuickFilter === '48h'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
               }`}
             >
+              <Clock className="w-3 h-3 inline mr-1" />
               Last 48 hours
             </button>
             <button
               onClick={() => handleQuickFilterToggle('7d', 'freshness', '7d')}
-              className={`px-3 py-1 rounded-full text-sm border ${
+              className={`px-3 py-1 rounded-full text-sm border transition-all ${
                 activeQuickFilter === '7d'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700' 
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm' 
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
               }`}
             >
+              <Clock className="w-3 h-3 inline mr-1" />
               This week
             </button>
             <button
               onClick={() => handleQuickFilterToggle('remote', 'workMode', 'Remote')}
-              className={`px-3 py-1 rounded-full text-sm border ${
+              className={`px-3 py-1 rounded-full text-sm border transition-all ${
                 activeQuickFilter === 'remote'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm'
+                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
               }`}
             >
+              <MapPin className="w-3 h-3 inline mr-1" />
               Remote Jobs
             </button>
           </div>
@@ -1179,6 +1258,24 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <button onClick={() => setAlertDismissed(true)} className="text-gray-400 hover:text-gray-600 flex items-center gap-1 text-sm">
                 Dismiss <X className="w-3.5 h-3.5" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Resume Status Indicator for logged-in candidates */}
+        {user?.type === 'candidate' && activeTab === 'search' && (
+          <div className="bg-white border border-gray-200 rounded-xl px-5 py-4 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <ResumeStatusIndicator 
+                  user={user} 
+                  onUploadClick={() => onNavigate && onNavigate('dashboard')}
+                  showText={true}
+                />
+              </div>
+              <div className="text-sm text-gray-500">
+                Resume status affects your ability to apply for jobs
+              </div>
             </div>
           </div>
         )}
@@ -1461,6 +1558,18 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   (filteredJobs.length > 0 ? ` (${Math.floor(filteredJobs.length * 0.6)} new)` : '')
                 )}
               </p>
+              
+              {/* Debug Panel for Filters */}
+              {(filters.freshness.length > 0 || filters.workMode.length > 0) && (
+                <div className="text-xs bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
+                  <div className="text-yellow-700">
+                    Active Filters: 
+                    {filters.freshness.length > 0 && <span className="ml-1 bg-yellow-200 px-1 rounded">Freshness: {filters.freshness.join(', ')}</span>}
+                    {filters.workMode.length > 0 && <span className="ml-1 bg-yellow-200 px-1 rounded">Work: {filters.workMode.join(', ')}</span>}
+                  </div>
+                  <div className="text-yellow-600">Quick Filter: {activeQuickFilter || 'None'}</div>
+                </div>
+              )}
               {isFiltered ? (
                 <button
                   onClick={() => {

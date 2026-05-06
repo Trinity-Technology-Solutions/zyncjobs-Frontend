@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
@@ -41,7 +42,8 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
         const u = JSON.parse(saved);
         const identifier = u.id || u.email;
         if (!identifier) return;
-                const res = await apiFetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
+        const token = tokenStorage.getAccess();
+        const res = await apiFetch(`${API_BASE}/profile/${encodeURIComponent(identifier)}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.ok) {
@@ -64,7 +66,14 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
   useEffect(() => {
     fetch(API_ENDPOINTS.JOBS)
       .then(r => r.ok ? r.json() : [])
-      .then(data => setJobs(Array.isArray(data) ? data : []))
+      .then(data => {
+        const jobsArray = Array.isArray(data) ? data : [];
+        console.log('📋 SkillGapAnalysis: Loaded jobs:', jobsArray.length);
+        if (jobsArray.length > 0) {
+          console.log('📋 Sample job structure:', jobsArray[0]);
+        }
+        setJobs(jobsArray);
+      })
       .catch(() => setJobs([]));
   }, []);
 
@@ -126,7 +135,8 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
       const u = JSON.parse(saved);
       const email = u.email;
       if (!email) return;
-            await apiFetch(`${API_BASE}/profile/save`, {
+      const token = tokenStorage.getAccess();
+      await apiFetch(`${API_BASE}/profile/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ email, userId: u.id || undefined, skills })
@@ -235,7 +245,11 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                   filteredJobs.slice(0, 20).map((job, idx) => (
                     <div
                       key={job._id || job.id || idx}
-                      onClick={() => setSelectedJob(job)}
+                      onClick={() => {
+                        console.log('🎯 Selected job:', job);
+                        console.log('🎯 Job ID:', job._id || job.id);
+                        setSelectedJob(job);
+                      }}
                       className={`p-3 rounded-xl border cursor-pointer transition-all ${
                         selectedJob?._id === job._id
                           ? 'border-purple-400 bg-purple-50 shadow-sm'
@@ -453,7 +467,18 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                   Take Skill Assessment
                 </button>
                 <button
-                  onClick={() => onNavigate('job-detail', { jobId: selectedJob._id, jobData: selectedJob })}
+                  onClick={() => {
+                    // Store job data in sessionStorage for JobDetailPage to access
+                    const jobId = selectedJob._id || selectedJob.id;
+                    if (jobId) {
+                      sessionStorage.setItem('selectedJobData', JSON.stringify(selectedJob));
+                      onNavigate('job-detail', { jobId: jobId });
+                    } else {
+                      // If no ID, try to find the job by title and company
+                      console.warn('No job ID found, job data:', selectedJob);
+                      alert('Unable to view job details - job ID not found');
+                    }
+                  }}
                   className="border border-blue-600 text-blue-600 px-5 py-2 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium"
                 >
                   View Job Details

@@ -55,202 +55,237 @@ export default function PreviewStep() {
     setDocxLoading(true);
     const fileName = `${data.personalInfo.name || 'Resume'}_Resume.docx`;
     try {
-      const {
-        Document, Packer, Paragraph, TextRun, HeadingLevel,
-        AlignmentType, BorderStyle, Table, TableRow, TableCell,
-        WidthType, ShadingType,
-      } = await import('docx');
+      // Validate required data
+      if (!data.personalInfo.name || data.personalInfo.name.trim() === '') {
+        throw new Error('Name is required for document generation');
+      }
 
-      const ACCENT = '2563EB';
-      const MUTED  = '6B7280';
-      const DARK   = '1A1A2E';
-
-      // ── helpers ──────────────────────────────────────────────────────────
-      const sectionHeading = (title: string) => [
-        new Paragraph({
-          spacing: { before: 200, after: 60 },
-          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E7EB' } },
-          children: [
-            new TextRun({
-              text: title.toUpperCase(),
-              bold: true, size: 18, color: MUTED,
-              characterSpacing: 60,
-            }),
-          ],
-        }),
-      ];
-
-      const bullet = (text: string) =>
-        new Paragraph({
-          spacing: { before: 40, after: 40 },
-          indent: { left: 360 },
-          children: [
-            new TextRun({ text: `• ${text}`, size: 20, color: '374151' }),
-          ],
+      const API_BASE = import.meta.env.VITE_API_URL || '/api';
+      
+      // Try backend DOCX generation first
+      try {
+        const response = await fetch(`${API_BASE}/pdf/generate-docx`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resumeData: data }),
         });
 
-      // ── contact line ─────────────────────────────────────────────────────
-      const contactParts = [
-        data.personalInfo.email,
-        data.personalInfo.phone,
-        data.personalInfo.location,
-      ].filter(Boolean);
+        if (response.ok) {
+          const blob = await response.blob();
+          
+          // Validate blob
+          if (!blob || blob.size === 0) {
+            throw new Error('Generated document is empty');
+          }
+          
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          
+          console.log('✅ DOCX downloaded successfully from backend');
+          return; // Success - exit function
+        } else {
+          const errorText = await response.text();
+          console.warn('Backend DOCX generation failed:', errorText);
+          throw new Error('Backend generation failed');
+        }
+      } catch (backendError) {
+        console.warn('Backend DOCX unavailable, using client fallback:', backendError);
+        
+        // Fallback to client-side generation
+        const {
+          Document, Packer, DocxParagraph, TextRun, HeadingLevel,
+          AlignmentType, BorderStyle,
+        } = await import('docx');
 
-      const linkParts = [
-        data.personalInfo.linkedin,
-        data.personalInfo.portfolio,
-      ].filter(Boolean);
+        const ACCENT = '2563EB';
+        const MUTED  = '6B7280';
+        const DARK   = '1A1A2E';
 
-      // ── experience rows ──────────────────────────────────────────────────
-      const experienceParas: Paragraph[] = [];
-      data.experience.forEach((exp) => {
-        // Title | Duration row using a 2-col table
-        experienceParas.push(
+        const sectionHeading = (title: string) => [
           new Paragraph({
-            spacing: { before: 160, after: 40 },
+            spacing: { before: 200, after: 60 },
+            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E7EB' } },
             children: [
-              new TextRun({ text: exp.title || '', bold: true, size: 22, color: DARK }),
-              exp.duration
-                ? new TextRun({ text: `  —  ${exp.duration}`, size: 18, color: MUTED })
-                : new TextRun(''),
+              new TextRun({
+                text: title.toUpperCase(),
+                bold: true, size: 18, color: MUTED,
+                characterSpacing: 60,
+              }),
             ],
           }),
-        );
-        if (exp.company) {
+        ];
+
+        const bullet = (text: string) =>
+          new Paragraph({
+            spacing: { before: 40, after: 40 },
+            indent: { left: 360 },
+            children: [
+              new TextRun({ text: `• ${text}`, size: 20, color: '374151' }),
+            ],
+          });
+
+        const contactParts = [
+          data.personalInfo.email,
+          data.personalInfo.phone,
+          data.personalInfo.location,
+        ].filter(Boolean);
+
+        const linkParts = [
+          data.personalInfo.linkedin,
+          data.personalInfo.portfolio,
+        ].filter(Boolean);
+
+        const experienceParas: Paragraph[] = [];
+        data.experience.forEach((exp) => {
           experienceParas.push(
             new Paragraph({
-              spacing: { before: 0, after: 60 },
-              children: [new TextRun({ text: exp.company, italics: true, size: 20, color: ACCENT })],
-            }),
-          );
-        }
-        exp.bullets.filter((b) => b.trim()).forEach((b) => experienceParas.push(bullet(b)));
-      });
-
-      // ── education rows ───────────────────────────────────────────────────
-      const educationParas: Paragraph[] = [];
-      data.education.forEach((edu) => {
-        educationParas.push(
-          new Paragraph({
-            spacing: { before: 160, after: 40 },
-            children: [
-              new TextRun({ text: edu.degree || '', bold: true, size: 22, color: DARK }),
-              edu.duration
-                ? new TextRun({ text: `  —  ${edu.duration}`, size: 18, color: MUTED })
-                : new TextRun(''),
-            ],
-          }),
-        );
-        if (edu.institution) {
-          educationParas.push(
-            new Paragraph({
-              spacing: { before: 0, after: 40 },
-              children: [new TextRun({ text: edu.institution, italics: true, size: 20, color: ACCENT })],
-            }),
-          );
-        }
-        if (edu.grade) {
-          educationParas.push(
-            new Paragraph({
-              spacing: { before: 0, after: 60 },
-              children: [new TextRun({ text: `Grade: ${edu.grade}`, size: 18, color: MUTED })],
-            }),
-          );
-        }
-      });
-
-      // ── build document ───────────────────────────────────────────────────
-      const doc = new Document({
-        styles: {
-          default: {
-            document: {
-              run: { font: 'Calibri', size: 20, color: '374151' },
-            },
-          },
-        },
-        sections: [{
-          properties: {
-            page: {
-              margin: { top: 720, bottom: 720, left: 900, right: 900 },
-            },
-          },
-          children: [
-            // Name
-            new Paragraph({
-              spacing: { after: 80 },
+              spacing: { before: 160, after: 40 },
               children: [
-                new TextRun({
-                  text: data.personalInfo.name || 'Candidate',
-                  bold: true, size: 44, color: DARK,
-                }),
+                new TextRun({ text: exp.title || '', bold: true, size: 22, color: DARK }),
+                exp.duration
+                  ? new TextRun({ text: `  —  ${exp.duration}`, size: 18, color: MUTED })
+                  : new TextRun(''),
               ],
             }),
+          );
+          if (exp.company) {
+            experienceParas.push(
+              new Paragraph({
+                spacing: { before: 0, after: 60 },
+                children: [new TextRun({ text: exp.company, italics: true, size: 20, color: ACCENT })],
+              }),
+            );
+          }
+          exp.bullets.filter((b) => b.trim()).forEach((b) => experienceParas.push(bullet(b)));
+        });
 
-            // Contact
-            ...(contactParts.length ? [new Paragraph({
-              spacing: { after: 40 },
-              children: contactParts.map((p, i) => new TextRun({
-                text: i === 0 ? p! : `  •  ${p}`,
-                size: 18, color: '374151',
-              })),
-            })] : []),
-
-            // Links
-            ...(linkParts.length ? [new Paragraph({
-              spacing: { after: 120 },
-              children: linkParts.map((p, i) => new TextRun({
-                text: i === 0 ? p! : `  •  ${p}`,
-                size: 18, color: ACCENT,
-              })),
-            })] : []),
-
-            // Divider paragraph (top border)
+        const educationParas: Paragraph[] = [];
+        data.education.forEach((edu) => {
+          educationParas.push(
             new Paragraph({
-              spacing: { before: 0, after: 200 },
-              border: { top: { style: BorderStyle.SINGLE, size: 12, color: ACCENT } },
-              children: [],
+              spacing: { before: 160, after: 40 },
+              children: [
+                new TextRun({ text: edu.degree || '', bold: true, size: 22, color: DARK }),
+                edu.duration
+                  ? new TextRun({ text: `  —  ${edu.duration}`, size: 18, color: MUTED })
+                  : new TextRun(''),
+              ],
             }),
-
-            // Summary
-            ...(data.summary ? [
-              ...sectionHeading('Summary'),
+          );
+          if (edu.institution) {
+            educationParas.push(
               new Paragraph({
-                spacing: { before: 80, after: 120 },
-                children: [new TextRun({ text: data.summary, size: 20, color: '374151' })],
+                spacing: { before: 0, after: 40 },
+                children: [new TextRun({ text: edu.institution, italics: true, size: 20, color: ACCENT })],
               }),
-            ] : []),
-
-            // Skills
-            ...(data.skills.length ? [
-              ...sectionHeading('Skills'),
+            );
+          }
+          if (edu.grade) {
+            educationParas.push(
               new Paragraph({
-                spacing: { before: 80, after: 120 },
-                children: [new TextRun({ text: data.skills.join('  •  '), size: 20, color: '374151' })],
+                spacing: { before: 0, after: 60 },
+                children: [new TextRun({ text: `Grade: ${edu.grade}`, size: 18, color: MUTED })],
               }),
-            ] : []),
+            );
+          }
+        });
 
-            // Experience
-            ...(data.experience.length ? [
-              ...sectionHeading('Experience'),
-              ...experienceParas,
-            ] : []),
+        const doc = new Document({
+          styles: {
+            default: {
+              document: {
+                run: { font: 'Calibri', size: 20, color: '374151' },
+              },
+            },
+          },
+          sections: [{
+            properties: {
+              page: {
+                margin: { top: 720, bottom: 720, left: 900, right: 900 },
+              },
+            },
+            children: [
+              new Paragraph({
+                spacing: { after: 80 },
+                children: [
+                  new TextRun({
+                    text: data.personalInfo.name || 'Candidate',
+                    bold: true, size: 44, color: DARK,
+                  }),
+                ],
+              }),
+              ...(contactParts.length ? [new Paragraph({
+                spacing: { after: 40 },
+                children: contactParts.map((p, i) => new TextRun({
+                  text: i === 0 ? p! : `  •  ${p}`,
+                  size: 18, color: '374151',
+                })),
+              })] : []),
+              ...(linkParts.length ? [new Paragraph({
+                spacing: { after: 120 },
+                children: linkParts.map((p, i) => new TextRun({
+                  text: i === 0 ? p! : `  •  ${p}`,
+                  size: 18, color: ACCENT,
+                })),
+              })] : []),
+              new Paragraph({
+                spacing: { before: 0, after: 200 },
+                border: { top: { style: BorderStyle.SINGLE, size: 12, color: ACCENT } },
+                children: [],
+              }),
+              ...(data.summary ? [
+                ...sectionHeading('Summary'),
+                new Paragraph({
+                  spacing: { before: 80, after: 120 },
+                  children: [new TextRun({ text: data.summary, size: 20, color: '374151' })],
+                }),
+              ] : []),
+              ...(data.skills.length ? [
+                ...sectionHeading('Skills'),
+                new Paragraph({
+                  spacing: { before: 80, after: 120 },
+                  children: [new TextRun({ text: data.skills.join('  •  '), size: 20, color: '374151' })],
+                }),
+              ] : []),
+              ...(data.experience.length ? [
+                ...sectionHeading('Experience'),
+                ...experienceParas,
+              ] : []),
+              ...(data.education.length ? [
+                ...sectionHeading('Education'),
+                ...educationParas,
+              ] : []),
+            ],
+          }],
+        });
 
-            // Education
-            ...(data.education.length ? [
-              ...sectionHeading('Education'),
-              ...educationParas,
-            ] : []),
-          ],
-        }],
-      });
-
-      const buffer = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(buffer);
-      const a = document.createElement('a');
-      a.href = url; a.download = fileName; a.click();
-      URL.revokeObjectURL(url);
+        const buffer = await Packer.toBlob(doc);
+        
+        if (!buffer || buffer.size === 0) {
+          throw new Error('Generated document is empty');
+        }
+        
+        const url = URL.createObjectURL(buffer);
+        const a = document.createElement('a');
+        a.href = url; 
+        a.download = fileName; 
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        console.log('✅ DOCX downloaded successfully from client fallback');
+      }
     } catch (err) {
-      console.error('DOCX export failed:', err);
+      console.error('❌ DOCX export failed:', err);
       downloadTxt();
     } finally {
       setDocxLoading(false);

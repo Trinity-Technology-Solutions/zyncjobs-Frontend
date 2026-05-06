@@ -26,6 +26,43 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     setNotification({ type, message, show: true });
     setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
   };
+  
+  // Add a function to check localStorage contents
+  const debugLocalStorage = () => {
+    const userKey = user?.email || user?.name || 'user';
+    const detailsKey = `savedJobDetails_${userKey}`;
+    const idsKey = `savedJobs_${userKey}`;
+    
+    console.log('=== LocalStorage Debug ===');
+    console.log('User Key:', userKey);
+    console.log('Details Key:', detailsKey);
+    console.log('IDs Key:', idsKey);
+    
+    const details = localStorage.getItem(detailsKey);
+    const ids = localStorage.getItem(idsKey);
+    
+    console.log('Details Value:', details);
+    console.log('IDs Value:', ids);
+    
+    // Check all localStorage keys that might be related
+    const allKeys = Object.keys(localStorage).filter(key => 
+      key.includes('savedJob') || key.includes(userKey)
+    );
+    console.log('Related localStorage keys:', allKeys);
+    
+    allKeys.forEach(key => {
+      console.log(`${key}:`, localStorage.getItem(key));
+    });
+    
+    console.log('=== End Debug ===');
+  };
+  // Add this to the useEffect
+  useEffect(() => {
+    if (user?.type === 'candidate' && activeTab === 'Saved') {
+      debugLocalStorage();
+    }
+  }, [activeTab, user]);
+
   const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
   const [postedJobs, setPostedJobs] = useState<any[]>([]);
@@ -74,25 +111,110 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       fetchEmployerApplications();
     }
     setLoading(false);
+    
+    // Listen for saved jobs updates from other components
+    const handleSavedJobsUpdate = () => {
+      console.log('Received saved jobs update event');
+      if (user?.type === 'candidate') {
+        loadSavedJobs();
+      }
+    };
+    
+    window.addEventListener('zync:savedJobsUpdated', handleSavedJobsUpdate);
+    
+    return () => {
+      window.removeEventListener('zync:savedJobsUpdated', handleSavedJobsUpdate);
+    };
   }, [user]);
 
   const loadSavedJobs = () => {
-    const key = `savedJobDetails_${user?.email || user?.name || 'user'}`;
+    const userKey = user?.email || user?.name || 'user';
+    const detailsKey = `savedJobDetails_${userKey}`;
+    const idsKey = `savedJobs_${userKey}`;
+    
+    console.log('Loading saved jobs for user:', userKey);
+    console.log('Details key:', detailsKey);
+    console.log('IDs key:', idsKey);
+    
     try {
-      const jobs = JSON.parse(localStorage.getItem(key) || '[]');
-      // Deduplicate by job id
-      const seen = new Set<string>();
-      const unique = jobs.filter((j: any) => {
-        const id = j._id || j.id;
-        if (!id || seen.has(id)) return false;
-        seen.add(id);
-        return true;
-      });
-      if (unique.length > 0) {
-        setSavedJobs(unique);
-        fetchCompanyLogos(unique);
+      // First try to load from the details key (preferred)
+      const savedDetails = localStorage.getItem(detailsKey);
+      console.log('Saved details from localStorage:', savedDetails);
+      
+      if (savedDetails) {
+        const jobs = JSON.parse(savedDetails);
+        console.log('Parsed saved jobs:', jobs);
+        
+        if (Array.isArray(jobs) && jobs.length > 0) {
+          // Deduplicate by job id
+          const seen = new Set<string>();
+          const unique = jobs.filter((j: any) => {
+            const id = j._id || j.id;
+            if (!id || seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
+          
+          console.log('Unique saved jobs:', unique.length);
+          setSavedJobs(unique);
+          
+          if (unique.length > 0) {
+            fetchCompanyLogos(unique);
+          }
+          return;
+        }
       }
-    } catch { /* ignore */ }
+      
+      // Fallback: try to load from IDs key and fetch job details
+      const savedIds = localStorage.getItem(idsKey);
+      console.log('Saved IDs from localStorage:', savedIds);
+      
+      if (savedIds) {
+        const ids = JSON.parse(savedIds);
+        console.log('Parsed saved IDs:', ids);
+        
+        if (Array.isArray(ids) && ids.length > 0) {
+          // Try to fetch job details for these IDs
+          fetchJobDetailsByIds(ids);
+        }
+      }
+      
+      console.log('No saved jobs found in localStorage');
+    } catch (error) {
+      console.error('Error loading saved jobs:', error);
+    }
+  };
+
+  const fetchJobDetailsByIds = async (jobIds: string[]) => {
+    console.log('Fetching job details for IDs:', jobIds);
+    try {
+      const jobPromises = jobIds.map(async (id) => {
+        try {
+          const response = await fetch(`${API_ENDPOINTS.JOBS}/${id}`);
+          if (response.ok) {
+            return await response.json();
+          }
+        } catch (error) {
+          console.error(`Error fetching job ${id}:`, error);
+        }
+        return null;
+      });
+      
+      const jobs = (await Promise.all(jobPromises)).filter(Boolean);
+      console.log('Fetched job details:', jobs.length);
+      
+      if (jobs.length > 0) {
+        setSavedJobs(jobs);
+        fetchCompanyLogos(jobs);
+        
+        // Update localStorage with full job details
+        const userKey = user?.email || user?.name || 'user';
+        const detailsKey = `savedJobDetails_${userKey}`;
+        localStorage.setItem(detailsKey, JSON.stringify(jobs));
+      }
+    } catch (error) {
+      console.error('Error fetching job details:', error);
+    }
   };
 
   useEffect(() => {
@@ -239,24 +361,43 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const deleteJob = async (jobId: string) => {
+    if (!jobId) { showNotification('Invalid job ID.', 'error'); return; }
     const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
     if (!ok) return;
     
     try {
-      const response = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
       });
       
       if (response.ok) {
-        setPostedJobs(prev => prev.filter(job => (job._id || job.id) !== jobId));
+        setPostedJobs(prev => prev.filter(job => getId(job) !== jobId));
         showNotification('Job deleted successfully!');
         window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
       } else {
-        showNotification('Failed to delete job. Please try again.', 'error');
+        const errorData = await response.json().catch(() => ({}));
+        showNotification(errorData.message || `Failed to delete job (${response.status}). Please try again.`, 'error');
       }
     } catch (error) {
       console.error('Error deleting job:', error);
       showNotification('Error deleting job. Please try again.', 'error');
+    }
+  };
+
+  const bulkDeleteJobs = async () => {
+    if (selectedJobs.length === 0) { showNotification('Please select jobs to delete', 'error'); return; }
+    const ok = await (window as any).confirmAsync(`Delete ${selectedJobs.length} selected job(s)?`);
+    if (!ok) return;
+    try {
+      await Promise.all(selectedJobs.map(jobId =>
+        apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+      ));
+      setPostedJobs(prev => prev.filter(job => !selectedJobs.includes(getId(job))));
+      setSelectedJobs([]);
+      showNotification(`${selectedJobs.length} job(s) deleted successfully!`);
+    } catch (error) {
+      showNotification('Error deleting jobs. Please try again.', 'error');
     }
   };
 
@@ -589,8 +730,21 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-3">
             <h2 className="text-xl sm:text-2xl font-semibold text-gray-900">
-              {activeTab} {activeTab === 'Applications' ? '' : ''}
+              {activeTab}
             </h2>
+            
+            {/* Debug Panel for Saved Jobs */}
+            {activeTab === 'Saved' && user?.type === 'candidate' && (
+              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border">
+                <div>User: {user?.email || user?.name || 'unknown'}</div>
+                <div>Saved Jobs Count: {savedJobs.length}</div>
+                <div>LocalStorage Keys:</div>
+                <div className="ml-2">
+                  <div>Details: savedJobDetails_{user?.email || user?.name || 'user'}</div>
+                  <div>IDs: savedJobs_{user?.email || user?.name || 'user'}</div>
+                </div>
+              </div>
+            )}
               
             {activeTab === 'Applied' && (
               <button
@@ -608,24 +762,36 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               </button>
             )}
             
-            {activeTab === 'Saved' && (
-              <div className="flex items-center space-x-3">
-                <span className="text-sm text-gray-600">Show expired jobs</span>
-                <button
-                  onClick={() => setShowExpiredJobs(!showExpiredJobs)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    showExpiredJobs ? 'bg-blue-600' : 'bg-gray-300'
-                  }`}
-                  aria-label="Toggle show expired jobs"
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      showExpiredJobs ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  ></span>
-                </button>
-              </div>
-            )}
+              {user?.type === 'candidate' && activeTab === 'Saved' && (
+                <>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        console.log('Manual refresh of saved jobs');
+                        loadSavedJobs();
+                      }}
+                      className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                      title="Refresh saved jobs"
+                    >
+                      <RefreshCw className="w-5 h-5" />
+                    </button>
+                    <span className="text-sm text-gray-600">Show expired jobs</span>
+                    <button
+                      onClick={() => setShowExpiredJobs(!showExpiredJobs)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        showExpiredJobs ? 'bg-blue-600' : 'bg-gray-300'
+                      }`}
+                      aria-label="Toggle show expired jobs"
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          showExpiredJobs ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      ></span>
+                    </button>
+                  </div>
+                </>
+              )}
           </div>
 
           {loading ? (
@@ -679,14 +845,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                             />
                             
                             <button
-                              onClick={() => {
-                                if (selectedJobs.length === 0) {
-                                  showNotification('Please select jobs to delete', 'error');
-                                  return;
-                                }
-                                // Bulk delete logic here
-                                console.log('Bulk delete:', selectedJobs);
-                              }}
+                              onClick={bulkDeleteJobs}
                               disabled={selectedJobs.length === 0}
                               className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                             >
@@ -817,22 +976,38 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               )}
 
               {user?.type === 'candidate' && activeTab === 'Saved' && (
-                savedJobs.length > 0 ? (
-                <div className="space-y-4">
-                  {savedJobs.map((job) => {
-                    const k = getId(job) || `saved-${Math.random()}`;
-                    return <React.Fragment key={k}>{renderJobCard(job, true, 'saved', false)}</React.Fragment>;
-                  })}
-                  </div>
-                ) : (
-                  <EmptyState
-                    title="Jobs saved by you"
-                    description="No saved jobs! Tap on save icon against a job to save it"
-                    buttonText="Search jobs"
-                    onButtonClick={() => onNavigate('job-listings')}
-                    icon="jobs"
-                  />
-                )
+                <>
+                  {savedJobs.length > 0 ? (
+                    <>
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-700">
+                          <strong>{savedJobs.length}</strong> job{savedJobs.length !== 1 ? 's' : ''} saved
+                        </p>
+                      </div>
+                      <div className="space-y-4">
+                        {savedJobs.map((job) => {
+                          const k = getId(job) || `saved-${Math.random()}`;
+                          return <React.Fragment key={k}>{renderJobCard(job, true, 'saved', false)}</React.Fragment>;
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <p className="text-sm text-yellow-700">
+                          No saved jobs found. Jobs you save will appear here.
+                        </p>
+                      </div>
+                      <EmptyState
+                        title="Jobs saved by you"
+                        description="No saved jobs! Tap on save icon against a job to save it"
+                        buttonText="Search jobs"
+                        onButtonClick={() => onNavigate('job-listings')}
+                        icon="jobs"
+                      />
+                    </>
+                  )}
+                </>
               )}
 
               {user?.type === 'candidate' && activeTab === 'Applied' && (

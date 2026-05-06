@@ -43,7 +43,18 @@ const SEOHead = () => {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    const seo = SEO_MAP[pathname] || SEO_MAP['/'];
+    let seo = SEO_MAP[pathname] || SEO_MAP['/'];
+
+    // Fix /dashboard title based on actual user type
+    if (pathname === '/dashboard') {
+      try {
+        const stored = localStorage.getItem('user');
+        const userType = stored ? (JSON.parse(stored).userType || JSON.parse(stored).role || JSON.parse(stored).type) : '';
+        if (userType === 'candidate' || userType === 'jobseeker') {
+          seo = { title: 'Candidate Dashboard | Manage Your Profile on ZyncJobs', description: 'View and manage your profile, applications, interviews, and job recommendations from your ZyncJobs candidate dashboard.' };
+        }
+      } catch { /* use default */ }
+    }
     const canonical = `${BASE}${pathname === '/' ? '' : pathname}` || BASE;
 
     // Title

@@ -31,6 +31,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
   const [locations, setLocations] = useState<string[]>([]);
   const [industries, setIndustries] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtersLoading, setFiltersLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
@@ -42,23 +43,107 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load all data in parallel
-      const [companiesRes, jobsRes, locationsRes, industriesRes] = await Promise.all([
+      // Load companies and jobs first
+      const [companiesRes, jobsRes] = await Promise.all([
         fetch(API_ENDPOINTS.COMPANIES),
-        fetch(API_ENDPOINTS.JOBS),
-        fetch(`${API_ENDPOINTS.BASE_URL}/locations`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/industries`)
+        fetch(API_ENDPOINTS.JOBS)
       ]);
       
       const companiesData = await companiesRes.json();
       const jobsData = await jobsRes.json();
-      const locationsData = await locationsRes.json();
-      const industriesData = await industriesRes.json();
       
       const companiesList = Array.isArray(companiesData) ? companiesData : (companiesData.companies || companiesData.data || []);
       const jobsList = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || jobsData.data || []);
-      const locationsList = Array.isArray(locationsData) ? locationsData : (locationsData.locations || locationsData.data || []);
-      const industriesList = Array.isArray(industriesData) ? industriesData : (industriesData.industries || industriesData.data || []);
+      
+      // Try to load locations and industries from API, with fallbacks
+      let locationsList: string[] = [];
+      let industriesList: string[] = [];
+      
+      try {
+        const locationsRes = await fetch(`${API_ENDPOINTS.BASE_URL}/locations`);
+        if (locationsRes.ok) {
+          const locationsData = await locationsRes.json();
+          locationsList = Array.isArray(locationsData) ? locationsData : (locationsData.locations || locationsData.data || []);
+        }
+      } catch (error) {
+        console.log('Locations API not available, extracting from companies');
+      }
+      
+      try {
+        const industriesRes = await fetch(`${API_ENDPOINTS.BASE_URL}/industries`);
+        if (industriesRes.ok) {
+          const industriesData = await industriesRes.json();
+          industriesList = Array.isArray(industriesData) ? industriesData : (industriesData.industries || industriesData.data || []);
+        }
+      } catch (error) {
+        console.log('Industries API not available, extracting from companies');
+      }
+      
+      // Fallback: Extract unique industries and locations from companies if API data is empty
+      if (industriesList.length === 0) {
+        industriesList = [...new Set(companiesList.map((c: any) => c.industry).filter(Boolean))].sort();
+        console.log('📋 Industries extracted from companies:', industriesList);
+        
+        // If still no industries found, add some common ones as fallback
+        if (industriesList.length === 0) {
+          industriesList = [
+            'Technology',
+            'Healthcare',
+            'Finance',
+            'Education',
+            'Manufacturing',
+            'Retail',
+            'Consulting',
+            'Media & Entertainment',
+            'Real Estate',
+            'Transportation'
+          ];
+          console.log('📋 Using default industries as fallback');
+        }
+      }
+      
+      if (locationsList.length === 0) {
+        // Extract and normalize locations from companies
+        const rawLocations = companiesList.map((c: any) => c.location).filter(Boolean);
+        const normalizedLocations = new Set<string>();
+        
+        rawLocations.forEach((location: string) => {
+          // Add the original location
+          normalizedLocations.add(location.trim());
+          
+          // Also add city name if it's in "City, Country" format
+          const parts = location.split(',');
+          if (parts.length >= 2) {
+            const city = parts[0].trim();
+            if (city && city.length > 2) {
+              normalizedLocations.add(city);
+            }
+          }
+        });
+        
+        locationsList = Array.from(normalizedLocations).sort();
+        console.log('📍 Locations extracted from companies:', locationsList);
+        
+        // If still no locations found, add some common ones as fallback
+        if (locationsList.length === 0) {
+          locationsList = [
+            'Bangalore',
+            'Chennai', 
+            'Mumbai',
+            'Delhi',
+            'Hyderabad',
+            'Pune',
+            'Bangalore, India',
+            'Chennai, India',
+            'Mumbai, India',
+            'Delhi, India',
+            'Hyderabad, India',
+            'Pune, India',
+            'Remote'
+          ];
+          console.log('📍 Using default locations as fallback');
+        }
+      }
       
       // Add job counts to companies
       const companiesWithJobCounts = companiesList.map((company: any) => {
@@ -91,9 +176,35 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       setJobs(jobsList);
       setLocations(locationsList);
       setIndustries(industriesList);
+      setFiltersLoading(false);
       
     } catch (error) {
       console.error('Error loading data:', error);
+      // Set default data even on error
+      setIndustries([
+        'Technology',
+        'Healthcare', 
+        'Finance',
+        'Education',
+        'Manufacturing',
+        'Retail'
+      ]);
+      setLocations([
+        'Bangalore',
+        'Chennai',
+        'Mumbai', 
+        'Delhi',
+        'Hyderabad',
+        'Pune',
+        'Bangalore, India',
+        'Chennai, India',
+        'Mumbai, India',
+        'Delhi, India',
+        'Hyderabad, India', 
+        'Pune, India',
+        'Remote'
+      ]);
+      setFiltersLoading(false);
     } finally {
       setLoading(false);
     }
@@ -103,6 +214,29 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
   // Now using backend data instead of extracting from companies
   // const industries = [...new Set(companies.map(c => c.industry).filter(Boolean))];
   // const locations = [...new Set(companies.map(c => c.location).filter(Boolean))];
+
+  // Normalize location for flexible matching
+  const normalizeLocation = (location: string): string => {
+    if (!location) return '';
+    return location
+      .toLowerCase()
+      .replace(/[,\s-_.]+/g, ' ') // Replace punctuation with spaces
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim();
+  };
+
+  // Check if a company location matches the selected location filter
+  const locationMatches = (companyLocation: string, selectedLocation: string): boolean => {
+    if (!selectedLocation || !companyLocation) return true;
+    
+    const normalizedCompanyLocation = normalizeLocation(companyLocation);
+    const normalizedSelectedLocation = normalizeLocation(selectedLocation);
+    
+    // Check if the selected location is contained in the company location
+    // This handles cases like "Chennai" matching "Chennai, India" or "Chennai, Tamil Nadu"
+    return normalizedCompanyLocation.includes(normalizedSelectedLocation) ||
+           normalizedSelectedLocation.includes(normalizedCompanyLocation);
+  };
 
   // Normalize company name for comparison
   const normalizeCompanyName = (name: string): string => {
@@ -130,7 +264,15 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
         (company.description || '').toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesIndustry = !selectedIndustry || company.industry === selectedIndustry;
-      const matchesLocation = !selectedLocation || company.location === selectedLocation;
+      const matchesLocation = !selectedLocation || locationMatches(company.location || '', selectedLocation);
+      
+      // Debug logging for Chennai companies when Chennai filter is selected
+      if (selectedLocation && selectedLocation.toLowerCase().includes('chennai')) {
+        const isMatch = locationMatches(company.location || '', selectedLocation);
+        if (company.location && company.location.toLowerCase().includes('chennai')) {
+          console.log(`🏢 ${company.name}: Location="${company.location}" | Selected="${selectedLocation}" | Match=${isMatch}`);
+        }
+      }
       
       return matchesSearch && matchesIndustry && matchesLocation;
     });
@@ -225,10 +367,11 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
             <select
               value={selectedIndustry}
               onChange={(e) => setSelectedIndustry(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={filtersLoading}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="" disabled>Select Industry</option>
-              {industries.map(industry => (
+              <option value="">{filtersLoading ? 'Loading industries...' : 'All Industries'}</option>
+              {!filtersLoading && industries.map(industry => (
                 <option key={industry} value={industry}>{industry}</option>
               ))}
             </select>
@@ -237,10 +380,11 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
             <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={filtersLoading}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
             >
-              <option value="" disabled>Select Location</option>
-              {locations.map(location => (
+              <option value="">{filtersLoading ? 'Loading locations...' : 'All Locations'}</option>
+              {!filtersLoading && locations.map(location => (
                 <option key={location} value={location}>{location}</option>
               ))}
             </select>
@@ -260,6 +404,16 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
           
           <div className="mt-4 text-sm text-gray-600">
             Showing {filteredCompanies.length} of {companies.length} companies
+            {selectedLocation && (
+              <span className="ml-2 text-blue-600">
+                (Filtered by location: "{selectedLocation}")
+              </span>
+            )}
+            {selectedIndustry && (
+              <span className="ml-2 text-green-600">
+                (Filtered by industry: "{selectedIndustry}")
+              </span>
+            )}
           </div>
         </div>
 
