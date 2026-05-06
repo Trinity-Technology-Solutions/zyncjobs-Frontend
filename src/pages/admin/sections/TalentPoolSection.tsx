@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch } from '../../../api/apiFetch';
 import { Upload, Users, UserX, Mail, ChevronRight } from 'lucide-react';
+import { API_ENDPOINTS } from '../../../config/env';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
   sessionStorage.getItem('accessToken') ||
   localStorage.getItem('accessToken') || '';
+
+// Helper function for API calls
+const apiFetch = async (url: string, options: RequestInit = {}) => {
+  return fetch(url, options);
+};
 
 type SubPage = 'upload' | 'extracted' | 'internal' | 'email';
 
@@ -100,6 +105,7 @@ function UploadPage() {
     if (folderRef.current) {
       folderRef.current.setAttribute('webkitdirectory', '');
       folderRef.current.setAttribute('directory', '');
+      folderRef.current.setAttribute('multiple', '');
     }
   }, []);
 
@@ -125,7 +131,7 @@ function UploadPage() {
       const fd = new FormData();
       chunkList[i].forEach(f => fd.append('resumes', f));
       try {
-        const res = await apiFetch('/api/admin/talent/upload', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
         const data = await res.json();
         if (res.ok) {
           allResults.push(...(data.results || []));
@@ -194,7 +200,19 @@ function UploadPage() {
           </button>
           <button
             type="button"
-            onClick={e => { e.stopPropagation(); folderRef.current?.click(); }}
+            onClick={e => { 
+              e.stopPropagation(); 
+              // Create a new input element for folder selection
+              const folderInput = document.createElement('input');
+              folderInput.type = 'file';
+              folderInput.webkitdirectory = true;
+              folderInput.multiple = true;
+              folderInput.onchange = (event) => {
+                const target = event.target as HTMLInputElement;
+                addFiles(target.files);
+              };
+              folderInput.click();
+            }}
             className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
           >
             📂 Select Folder
@@ -203,8 +221,6 @@ function UploadPage() {
         <input
           ref={folderRef}
           type="file"
-          multiple
-          accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           className="hidden"
           onChange={e => { addFiles(e.target.files); if (e.target) e.target.value = ''; }}
         />
@@ -293,7 +309,7 @@ function ExtractedPage() {
   useEffect(() => {
     setLoading(true);
     const token = getToken();
-    fetch('/api/admin/talent/candidates', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setCandidates(d.candidates || []))
       .catch(() => setCandidates([]))
@@ -463,7 +479,7 @@ function InternalPage() {
   useEffect(() => {
     setLoading(true);
     const token = getToken();
-    fetch('/api/admin/talent/candidates', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setCandidates(d.candidates || []))
       .catch(() => setCandidates([]))
@@ -485,7 +501,7 @@ function InternalPage() {
 
   const deleteCandidate = async (id: string) => {
     const token = getToken();
-    await apiFetch(`/api/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
   };
 
@@ -782,7 +798,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
   useEffect(() => {
     const token = getToken();
     const queuedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('talentPool_emailQueue') || '[]'); } catch { return []; } })();
-    fetch('/api/admin/talent/candidates', { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
         const all = (d.candidates || []).map((c: any) => ({
@@ -824,7 +840,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
       setCurrentBatch(i + 1);
       const batch = selectedList.slice(i * batchSize, (i + 1) * batchSize);
       try {
-        const res = await apiFetch('/api/admin/talent/email', {
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ candidateIds: batch.map((c:any) => c.id), template, batchSize: batch.length })

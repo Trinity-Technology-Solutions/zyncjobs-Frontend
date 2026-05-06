@@ -227,16 +227,68 @@ function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    // Get user type from multiple sources to ensure we have it
+    let userType = localStorage.getItem('lastUserType') || user?.type;
+    
+    // Fallback: try to get from localStorage user object if lastUserType is not available
+    if (!userType) {
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+        userType = storedUser.userType || storedUser.role || storedUser.type;
+      } catch {
+        // ignore parsing errors
+      }
+    }
+    
+    // Fallback: try to get from token payload
+    if (!userType) {
+      try {
+        const token = tokenStorage.getAccess();
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          userType = payload.userType || payload.role;
+        }
+      } catch {
+        // ignore token parsing errors
+      }
+    }
+    
+    console.log('🚪 Logout - User type detected:', userType);
+    
+    // Clear user state immediately
     setUser(null);
+    
+    // Clear all storage
     tokenStorage.clear();
     sessionStorage.clear();
     localStorage.removeItem('user');
-    navigate('/', { replace: true });
-  }, [navigate]);
+    localStorage.removeItem('lastUserType');
+    
+    // Small delay to ensure state is cleared before navigation
+    setTimeout(() => {
+      // Navigate based on user type
+      if (userType === 'employer') {
+        console.log('🚪 Redirecting employer to /employer-login');
+        window.location.href = '/employer-login'; // Force full page navigation
+      } else if (userType === 'admin' || userType === 'super_admin') {
+        console.log('🚪 Redirecting admin to /admin/login');
+        window.location.href = '/admin/login'; // Force full page navigation
+      } else {
+        // Candidate or unknown user type
+        console.log('🚪 Redirecting candidate to /login');
+        window.location.href = '/login'; // Force full page navigation
+      }
+    }, 50); // Small delay to ensure state update
+  }, [navigate, user?.type]);
 
   const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {
     setUser(userData);
     closeModals();
+    
+    // Store user type separately for reliable logout redirection
+    const userType = userData.type || userData.userType || userData.role || 'candidate';
+    localStorage.setItem('lastUserType', userType);
+    
     // Persist user to localStorage for fast restore on refresh
     localStorage.setItem('user', JSON.stringify({
       ...userData,
@@ -258,10 +310,57 @@ function App() {
   useEffect(() => {
     initializeEmployerIdCounter();
     const handleForceLogout = () => {
+      // Get user type from multiple sources to ensure we have it
+      let userType = localStorage.getItem('lastUserType') || user?.type;
+      
+      // Fallback: try to get from localStorage user object if lastUserType is not available
+      if (!userType) {
+        try {
+          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+          userType = storedUser.userType || storedUser.role || storedUser.type;
+        } catch {
+          // ignore parsing errors
+        }
+      }
+      
+      // Fallback: try to get from token payload
+      if (!userType) {
+        try {
+          const token = tokenStorage.getAccess();
+          if (token) {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            userType = payload.userType || payload.role;
+          }
+        } catch {
+          // ignore token parsing errors
+        }
+      }
+      
+      console.log('🚪 Force logout - User type detected:', userType);
+      
+      // Clear user state immediately
       setUser(null);
+      
+      // Clear all storage
       tokenStorage.clear();
       sessionStorage.clear();
-      navigate('/', { replace: true });
+      localStorage.removeItem('lastUserType');
+      
+      // Small delay to ensure state is cleared before navigation
+      setTimeout(() => {
+        // Navigate based on user type
+        if (userType === 'employer') {
+          console.log('🚪 Force redirecting employer to /employer-login');
+          window.location.href = '/employer-login'; // Force full page navigation
+        } else if (userType === 'admin' || userType === 'super_admin') {
+          console.log('🚪 Force redirecting admin to /admin/login');
+          window.location.href = '/admin/login'; // Force full page navigation
+        } else {
+          // Candidate or unknown user type
+          console.log('🚪 Force redirecting candidate to /login');
+          window.location.href = '/login'; // Force full page navigation
+        }
+      }, 50); // Small delay to ensure state update
     };
     window.addEventListener('zync:logout', handleForceLogout);
 
@@ -435,12 +534,12 @@ function App() {
 
           {/* -- Auth -- */}
           <Route path="/login" element={
-            user
+            (user && !userLoading)
               ? <Navigate to="/dashboard" replace />
               : <LoginPage onNavigate={handleNavigation} onLogin={handleLogin} />
           } />
           <Route path="/employer-login" element={
-            user
+            (user && !userLoading)
               ? <Navigate to="/dashboard" replace />
               : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
                   onShowNotification={n => showNotification(n.message, n.type)} />

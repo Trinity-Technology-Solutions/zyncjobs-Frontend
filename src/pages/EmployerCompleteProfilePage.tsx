@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Check, Shield, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Building2, Check, AlertTriangle } from 'lucide-react';
 import Header from '../components/Header';
 import { API_ENDPOINTS } from '../config/env';
+import { apiFetch } from '../api/apiFetch';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -22,22 +23,15 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
   const [domainStatus, setDomainStatus] = useState<'idle' | 'verified' | 'corporate' | 'pending' | 'blocked'>('idle');
   const [blockedCompany, setBlockedCompany] = useState('');
 
-  // Pre-fill companyName from user email domain if corporate
+  // Pre-fill companyName from stored user data only
   useEffect(() => {
     const stored = localStorage.getItem('user');
     if (!stored) return;
     const user = JSON.parse(stored);
-    const domain = user.email?.split('@')[1];
-    const generic = ['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','live.com'];
-    if (domain && !generic.includes(domain)) {
-      // Pre-fill company name from domain
-      const guessed = domain.split('.')[0];
-      setFormData(prev => ({
-        ...prev,
-        companyName: prev.companyName || (guessed.charAt(0).toUpperCase() + guessed.slice(1))
-      }));
-      // Auto verify domain
-      verifyDomain(user.email, guessed);
+    // Use actual company name from registration, never guess from domain
+    const savedCompanyName = user.companyName || user.company || '';
+    if (savedCompanyName) {
+      setFormData(prev => ({ ...prev, companyName: prev.companyName || savedCompanyName }));
     }
   }, []);
 
@@ -117,7 +111,6 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
       if (!stored) { onNavigate('employer-login'); return; }
       const user = JSON.parse(stored);
       const API = import.meta.env.VITE_API_URL || '/api';
-      const token = localStorage.getItem('accessToken') || '';
       const domain = user.email?.split('@')[1] || '';
 
       // 1. Save to Companies table (visible on Companies page)
@@ -132,17 +125,16 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
           location: formData.headquarters,
           website: formData.companyWebsite,
           description: formData.description,
-          employerEmail: user.email,
-          verified: domainStatus === 'verified'
+          employerEmail: user.email
         })
       });
 
       // 2. Update User record with company details (dashboard uses this)
       const userId = user.id || user._id;
       if (userId) {
-        await fetch(`${API}/users/${userId}`, {
+        await apiFetch(`${API}/users/${userId}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             email: user.email,
             companyName: formData.companyName,
@@ -181,21 +173,6 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
       <div className="flex items-center gap-2 text-blue-600 text-xs mt-1.5">
         <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
         Verifying domain...
-      </div>
-    );
-    if (domainStatus === 'verified') return (
-      <div className="flex items-center gap-1.5 text-green-600 text-xs mt-1.5">
-        <CheckCircle className="w-3.5 h-3.5" /> Company verified in database
-      </div>
-    );
-    if (domainStatus === 'corporate') return (
-      <div className="flex items-center gap-1.5 text-blue-600 text-xs mt-1.5">
-        <Shield className="w-3.5 h-3.5" /> Corporate email detected — will be verified
-      </div>
-    );
-    if (domainStatus === 'pending') return (
-      <div className="flex items-center gap-1.5 text-yellow-600 text-xs mt-1.5">
-        <Clock className="w-3.5 h-3.5" /> Pending admin verification
       </div>
     );
     if (domainStatus === 'blocked') return (

@@ -6,6 +6,7 @@ import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 
 
 interface HeaderProps {
@@ -143,10 +144,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         if (!userEmail) return;
 
         if (user.type === 'employer') {
-                    const headers: any = token ? { 'Authorization': `Bearer ${token}` } : {};
           const [jobsRes, appsRes] = await Promise.all([
-            fetch(`${API_ENDPOINTS.JOBS}?limit=1000`, { headers }),
-            fetch(`${API_ENDPOINTS.APPLICATIONS}`, { headers }),
+            apiFetch(`${API_ENDPOINTS.JOBS}?limit=1000`),
+            apiFetch(`${API_ENDPOINTS.APPLICATIONS}`),
           ]);
           let jobsPosted = 0;
           let applicationsReceived = 0;

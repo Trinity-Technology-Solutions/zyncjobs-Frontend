@@ -220,18 +220,47 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
         {/* Best Practices */}
         <div className="max-w-4xl mx-auto mt-8 anim-fade-4">
-          <h2 className="text-sm font-semibold text-slate-500 mb-4 text-center uppercase tracking-widest">📋 Job Posting Best Practices</h2>
+          <div className="flex items-center justify-center gap-2 mb-4">
+            <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-widest">Job Posting Best Practices</h2>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
-              { icon: '🎯', title: 'Clear Job Title', desc: 'Standard titles get 3x more views.' },
-              { icon: '💰', title: 'Include Salary Range', desc: '30% more applications with salary info.' },
-              { icon: '📍', title: 'Specify Location', desc: 'Remote jobs get 200% more reach.' },
-              { icon: '🛠️', title: 'List Key Skills', desc: 'Limit to 5–8 must-have skills.' },
-              { icon: '📝', title: 'Optimal Description', desc: '300–600 words performs best.' },
-              { icon: '⚡', title: 'Post Quickly', desc: 'Jobs posted fast fill 2x faster.' },
+              { 
+                icon: <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>, 
+                title: 'Clear Job Title', 
+                desc: 'Standard titles get 3x more views.' 
+              },
+              { 
+                icon: <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, 
+                title: 'Include Salary Range', 
+                desc: '30% more applications with salary info.' 
+              },
+              { 
+                icon: <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>, 
+                title: 'Specify Location', 
+                desc: 'Remote jobs get 200% more reach.' 
+              },
+              { 
+                icon: <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>, 
+                title: 'List Key Skills', 
+                desc: 'Limit to 5–8 must-have skills.' 
+              },
+              { 
+                icon: <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>, 
+                title: 'Optimal Description', 
+                desc: '300–600 words performs best.' 
+              },
+              { 
+                icon: <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>, 
+                title: 'Post Quickly', 
+                desc: 'Jobs posted fast fill 2x faster.' 
+              },
             ].map(({ icon, title, desc }) => (
               <div key={title} className="tip-card rounded-xl p-4">
-                <div className="text-xl mb-2">{icon}</div>
+                <div className="mb-2">{icon}</div>
                 <h4 className="font-semibold text-slate-800 text-sm mb-1">{title}</h4>
                 <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
               </div>

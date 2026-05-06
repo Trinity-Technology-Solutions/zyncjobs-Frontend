@@ -86,7 +86,7 @@ function authHeaders() {
 }
 
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
-  const res = await apiFetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
+  const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
   if (res.status === 401) {
     tokenStorage.clear();
     onUnauthorized?.();
@@ -98,7 +98,7 @@ async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?
 
 export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props) {
   const [activeNav, setActiveNav] = useState('overview');
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open on desktop
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [growth, setGrowth] = useState<GrowthPoint[]>([]);
   const [loading, setLoading] = useState(true);
@@ -297,12 +297,22 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
         </div>
       )}
 
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} transition-all duration-300 bg-gray-900 border-r border-orange-500/20 flex flex-col shrink-0`}>
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden" 
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside className={`${sidebarOpen ? 'w-64' : 'w-16'} lg:relative fixed lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} z-50 lg:z-auto transition-all duration-300 bg-gray-900 border-r border-orange-500/20 flex flex-col shrink-0 h-full`}>
         <div className="flex items-center gap-3 px-4 py-5 border-b border-orange-500/20">
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-lg flex items-center justify-center shrink-0">
             <LayoutDashboard className="w-4 h-4" />
           </div>
-          {sidebarOpen && <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 object-contain" />}
+          {sidebarOpen && (
+            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 object-contain" />
+          )}
         </div>
 
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto admin-sidebar-scroll">
@@ -324,7 +334,10 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                     </p>
                   )}
                   <button
-                    onClick={() => setActiveNav(id)}
+                    onClick={() => {
+                      setActiveNav(id);
+                      if (window.innerWidth < 1024) setSidebarOpen(false);
+                    }}
                     title={!sidebarOpen ? label : undefined}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150
                       ${activeNav === id
@@ -360,17 +373,20 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-gray-900 border-b border-orange-500/20 px-6 py-4 flex items-center justify-between shrink-0">
+        <header className="bg-gray-900 border-b border-orange-500/20 px-4 lg:px-6 py-4 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-4">
-            <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white">
+            <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white lg:hidden">
+              <Menu className="w-5 h-5" />
+            </button>
+            <button onClick={() => setSidebarOpen(o => !o)} className="text-gray-400 hover:text-white hidden lg:block">
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
-            <h1 className="text-lg font-semibold capitalize">
+            <h1 className="text-base lg:text-lg font-semibold capitalize truncate">
               {activeNav === 'talent' ? 'Talent Pool' : activeNav}
             </h1>
-            {lastUpdated && <span className="text-xs text-gray-500 ml-4">Updated {formatLastUpdated()}</span>}
+            {lastUpdated && <span className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</span>}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 lg:gap-3">
             <button onClick={loadOverview} disabled={loading}
               className="text-gray-400 hover:text-white disabled:opacity-40 transition-colors" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -387,7 +403,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                 )}
               </button>
               {showBell && (
-                <div className="absolute right-0 top-8 w-72 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
+                <div className="absolute right-0 top-8 w-72 max-w-[90vw] bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
                   <div className="px-4 py-3 border-b border-gray-800 text-sm font-semibold text-gray-200">Notifications</div>
                   {notifications.length === 0 ? (
                     <p className="text-center text-gray-500 text-sm py-6">No new notifications</p>
@@ -407,8 +423,8 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                 <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-orange-500 rounded-full flex items-center justify-center text-sm font-bold">
                   {user.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="text-sm text-gray-300 hidden sm:block">{user.name}</span>
-                <ChevronDown className="w-3 h-3 text-gray-400" />
+                <span className="text-sm text-gray-300 hidden sm:block truncate max-w-[100px]">{user.name}</span>
+                <ChevronDown className="w-3 h-3 text-gray-400 hidden sm:block" />
               </button>
               {showUserMenu && (
                 <div className="absolute right-0 top-10 w-44 bg-gray-900 border border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
@@ -431,7 +447,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 space-y-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 lg:space-y-6">
           {error && (
             <div className="flex items-center gap-2 bg-red-900/30 border border-red-700/50 text-red-300 rounded-xl px-4 py-3 text-sm">
               <AlertCircle className="w-4 h-4 shrink-0" />{error}
@@ -490,11 +506,11 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div className="space-y-4 lg:space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
         {(loading || !stats)
           ? Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="bg-gray-900 rounded-xl p-5 border border-gray-800 animate-pulse">
+              <div key={i} className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800 animate-pulse">
                 <div className="h-4 bg-gray-700 rounded w-24 mb-3" />
                 <div className="h-8 bg-gray-700 rounded w-20 mb-3" />
                 <div className="grid grid-cols-2 gap-1">
@@ -503,18 +519,18 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
               </div>
             ))
           : cards.map(({ label, value, icon: Icon, color, breakdown }) => (
-              <div key={label} className="bg-gray-900 rounded-xl p-5 border border-gray-800">
+              <div key={label} className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800">
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm text-gray-400">{label}</span>
-                  <div className={`${color} w-9 h-9 rounded-lg flex items-center justify-center`}>
+                  <div className={`${color} w-8 h-8 lg:w-9 lg:h-9 rounded-lg flex items-center justify-center`}>
                     <Icon className="w-4 h-4 text-white" />
                   </div>
                 </div>
-                <p className="text-2xl font-bold mb-3">{value}</p>
+                <p className="text-xl lg:text-2xl font-bold mb-3">{value}</p>
                 <div className="grid grid-cols-2 gap-1">
                   {breakdown.map(({ label: bl, val }) => (
                     <div key={bl} className="flex justify-between text-xs">
-                      <span className="text-gray-500">{bl}</span>
+                      <span className="text-gray-500 truncate">{bl}</span>
                       <span className="text-gray-300 font-medium">{val.toLocaleString()}</span>
                     </div>
                   ))}
@@ -525,11 +541,11 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="bg-gray-900 rounded-xl p-5 border border-gray-800">
+        <div className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800">
           <h2 className="text-sm font-semibold text-gray-300 mb-1">Jobs & Applications Trend</h2>
           <p className="text-xs text-gray-500 mb-4">Blue = Jobs &nbsp;|&nbsp; Orange = Applications</p>
-          {loading ? <div className="h-52 bg-gray-800 rounded-lg animate-pulse" /> : (
-            <ResponsiveContainer width="100%" height={220}>
+          {loading ? <div className="h-40 lg:h-52 bg-gray-800 rounded-lg animate-pulse" /> : (
+            <ResponsiveContainer width="100%" height={window.innerWidth < 1024 ? 180 : 220}>
               <AreaChart data={growth}>
                 <defs>
                   <linearGradient id="gJobs" x1="0" y1="0" x2="0" y2="1">
@@ -553,11 +569,11 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
           )}
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-4">
+        <div className="bg-gray-900 rounded-xl p-4 lg:p-5 border border-gray-800 space-y-4">
           <div>
             <h2 className="text-sm font-semibold text-gray-300 mb-4">User Growth</h2>
-            {loading ? <div className="h-36 bg-gray-800 rounded-lg animate-pulse" /> : (
-              <ResponsiveContainer width="100%" height={150}>
+            {loading ? <div className="h-32 lg:h-36 bg-gray-800 rounded-lg animate-pulse" /> : (
+              <ResponsiveContainer width="100%" height={window.innerWidth < 1024 ? 120 : 150}>
                 <BarChart data={growth} barGap={4}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                   <XAxis dataKey="date" tickFormatter={d => String(d).slice(5)} tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -579,7 +595,7 @@ function OverviewSection({ loading, stats, growth, quickStats }: { loading: bool
             ].map(({ label, val }) => (
               <div key={label} className="flex items-center justify-between">
                 <span className="text-xs text-gray-500">{label}</span>
-                <span className="text-xs font-medium text-gray-200 truncate max-w-[140px] text-right">{val}</span>
+                <span className="text-xs font-medium text-gray-200 truncate max-w-[100px] lg:max-w-[140px] text-right">{val}</span>
               </div>
             ))}
           </div>
