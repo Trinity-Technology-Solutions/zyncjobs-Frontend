@@ -4,6 +4,9 @@ import * as Sentry from '@sentry/react';
 import './alertOverride'; // Override window.alert before React mounts
 import App from './App.tsx';
 import ErrorBoundary from './components/ErrorBoundary.tsx';
+import { GlobalErrorBoundary, GlobalErrorListener } from './components/GlobalErrorBoundary';
+import { setupGlobalErrorHandler } from './utils/enhancedErrorHandler';
+import { backendMonitor } from './utils/backendMonitor';
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,
@@ -11,6 +14,12 @@ Sentry.init({
   tracesSampleRate: 0.2,
   replaysOnErrorSampleRate: 1.0,
 });
+
+// Setup global error handling
+setupGlobalErrorHandler();
+
+// Start backend monitoring
+backendMonitor.startMonitoring();
 
 
 // Suppress browser extension errors
@@ -38,9 +47,12 @@ window.addEventListener('unhandledrejection', (e) => {
 
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <GlobalErrorBoundary>
+      <ErrorBoundary>
+        <GlobalErrorListener />
+        <App />
+      </ErrorBoundary>
+    </GlobalErrorBoundary>
   </BrowserRouter>
 );
 

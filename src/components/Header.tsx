@@ -245,10 +245,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             // Connect to backend Socket.io server
             const backendUrl = config.SOCKET_URL;
             socket = io(backendUrl, { 
-              transports: ['websocket', 'polling'],
+              transports: ['polling', 'websocket'],
               reconnection: true,
-              reconnectionDelay: 1000,
-              reconnectionAttempts: 3
+              reconnectionDelay: 2000,
+              reconnectionAttempts: 2
             });
             socket.on('connect', () => {
               console.log('✅ Socket.io connected');

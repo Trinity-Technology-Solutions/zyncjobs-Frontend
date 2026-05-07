@@ -7,6 +7,7 @@ import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CandidateProfileView from './CandidateProfileView';
+import { apiFetch } from '../api/apiFetch';
 
 interface Candidate {
   _id: string;

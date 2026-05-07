@@ -11,11 +11,10 @@ import { tokenStorage } from '../utils/tokenStorage';
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 function assertSafeUrl(url: string): void {
-  // Allow relative paths (e.g. /api/jobs)
   if (url.startsWith('/')) return;
-  // Allow only URLs that target the configured API base
-  const base = API_BASE.startsWith('http') ? API_BASE : window.location.origin + API_BASE;
-  if (!url.startsWith(base)) {
+  const base = (API_BASE.startsWith('http') ? API_BASE : window.location.origin + API_BASE).replace(/\/$/, '');
+  const normalizedUrl = url.replace(/\/$/, '');
+  if (!normalizedUrl.startsWith(base)) {
     throw new Error(`Blocked request to disallowed URL: ${url}`);
   }
 }

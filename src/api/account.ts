@@ -31,20 +31,20 @@ export const accountAPI = {
       const token = tokenStorage.getAccess();
       if (!token) return null;
 
-      // Decode user info from JWT payload (avoids /users/me UUID issue)
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (!payload || payload.exp * 1000 < Date.now()) return null;
 
-      // JWT uses 'userId' field (not 'id' or 'sub')
+      // Try API first, fall back to JWT payload on any error
       const userId = payload.userId || payload.id || payload._id || payload.sub;
       if (userId) {
-        const res = await apiFetch(`${API}/users/${userId}`);
-        if (res.ok) return res.json();
+        try {
+          const res = await apiFetch(`${API}/users/${userId}`);
+          if (res.ok) return res.json();
+        } catch { /* fall through to payload */ }
       }
 
-      // Fallback: return what we have from token payload
       return {
-        id: payload.userId || payload.id || payload._id || payload.sub,
+        id: userId,
         email: payload.email,
         name: payload.name,
         userType: payload.userType || payload.role || 'candidate',

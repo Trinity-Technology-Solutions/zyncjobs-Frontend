@@ -2,16 +2,50 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Send, RefreshCw, AlertCircle, Bell, Trash2, Users, User } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
+import { apiFetch } from '../../../api/apiFetch';
 
 function authHeaders() {
-  const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  // Try admin token first, then access token
+  const adminToken = tokenStorage.getAdmin();
+  const accessToken = tokenStorage.getAccess();
+  const token = adminToken || accessToken;
+  
+  console.log('🔔 Notifications auth - Admin token exists:', !!adminToken);
+  console.log('🔔 Notifications auth - Access token exists:', !!accessToken);
+  
+  return { 
+    'Content-Type': 'application/json', 
+    ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+  };
 }
 
-async function authFetch(url: string, options: RequestInit = {}) {
-  const res = await apiFetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers as any || {}) } });
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json();
+async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
+  try {
+    console.log('🔔 Fetching notifications from:', url);
+    const res = await apiFetch(url, { 
+      ...options, 
+      headers: { ...authHeaders(), ...(options.headers as any || {}) } 
+    });
+    
+    console.log('🔔 Notifications response status:', res.status);
+    
+    if (res.status === 401) {
+      console.log('🔔 Unauthorized access to notifications');
+      onUnauthorized?.();
+      throw new Error('UNAUTHORIZED');
+    }
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error('🔔 Notifications API error:', errorText);
+      throw new Error(`HTTP ${res.status}: ${errorText}`);
+    }
+    
+    return res.json();
+  } catch (error) {
+    console.error('🔔 Notifications fetch error:', error);
+    throw error;
+  }
 }
 
 export default function NotificationsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
@@ -21,16 +55,53 @@ export default function NotificationsSection({ onUnauthorized }: { onUnauthorize
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [form, setForm] = useState({ title: '', message: '', target: 'all', userId: '' });
+  const [endpointAvailable, setEndpointAvailable] = useState(true);
 
   const loadQueue = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
-      const res = await authFetch(API_ENDPOINTS.ADMIN_NOTIFICATIONS_QUEUE);
-      setQueue(res.notifications ?? res.data ?? res ?? []);
+      console.log('🔔 Loading notification queue from:', API_ENDPOINTS.ADMIN_NOTIFICATIONS_QUEUE);
+      
+      // Check if the endpoint exists
+      if (!API_ENDPOINTS.ADMIN_NOTIFICATIONS_QUEUE) {
+        console.warn('🔔 ADMIN_NOTIFICATIONS_QUEUE endpoint not configured');
+        setError('Notification queue endpoint not configured.');
+        setQueue([]);
+        setEndpointAvailable(false);
+        return;
+      }
+      
+      const res = await authFetch(API_ENDPOINTS.ADMIN_NOTIFICATIONS_QUEUE, {}, onUnauthorized);
+      console.log('🔔 Notification queue response:', res);
+      
+      const notifications = res.notifications ?? res.data ?? res ?? [];
+      console.log('🔔 Parsed notifications:', notifications);
+      
+      setQueue(Array.isArray(notifications) ? notifications : []);
+      setEndpointAvailable(true);
     } catch (e: any) {
-      if (e.message === '401') { onUnauthorized(); return; }
-      setError('Failed to load notification queue.');
-    } finally { setLoading(false); }
+      console.error('🔔 Failed to load notification queue:', e);
+      
+      if (e.message === 'UNAUTHORIZED') { 
+        onUnauthorized(); 
+        return; 
+      }
+      
+      // Handle different types of errors
+      if (e.message.includes('404')) {
+        setError('Notification queue feature not available. The backend may not support this feature yet.');
+        setEndpointAvailable(false);
+      } else if (e.message.includes('500')) {
+        setError('Server error loading notifications. Please try again later.');
+      } else {
+        setError('Failed to load notification queue. Please check your connection.');
+      }
+      
+      setQueue([]); // Set empty array on error
+    } finally { 
+      setLoading(false); 
+    }
   }, [onUnauthorized]);
 
   useEffect(() => { loadQueue(); }, [loadQueue]);
@@ -123,6 +194,22 @@ export default function NotificationsSection({ onUnauthorized }: { onUnauthorize
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
+        
+        {error && (
+          <div className="px-6 py-4 bg-yellow-900/20 border-b border-yellow-700/30">
+            <div className="flex items-center gap-2 text-yellow-300 text-sm">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+            {!endpointAvailable && (
+              <p className="text-xs text-yellow-400/70 mt-2">
+                The notification queue feature may not be implemented in your backend yet. 
+                You can still send notifications using the form above.
+              </p>
+            )}
+          </div>
+        )}
+        
         <div className="divide-y divide-gray-800">
           {loading ? (
             Array.from({ length: 3 }).map((_, i) => (
@@ -131,6 +218,14 @@ export default function NotificationsSection({ onUnauthorized }: { onUnauthorize
                 <div className="h-3 bg-gray-800 rounded w-72" />
               </div>
             ))
+          ) : !endpointAvailable ? (
+            <div className="px-6 py-8 text-center">
+              <Bell className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-500 text-sm mb-2">Notification Queue Not Available</p>
+              <p className="text-gray-600 text-xs">
+                This feature requires backend support. You can still send notifications above.
+              </p>
+            </div>
           ) : queue.length === 0 ? (
             <p className="text-center text-gray-500 py-8 text-sm">No notifications sent yet.</p>
           ) : queue.map(n => {

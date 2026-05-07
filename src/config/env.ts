@@ -6,7 +6,7 @@ export const config = {
   // For local dev: uses /api (proxied by Vite to qaapi backend)
   // For builds: set VITE_API_URL environment variable if needed
   API_URL: import.meta.env.VITE_API_URL || '/api',
-  SOCKET_URL: import.meta.env.VITE_SOCKET_URL || (import.meta.env.VITE_API_URL || '').replace('/api', '') || 'http://localhost:5000',
+  SOCKET_URL: import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000',
   
   // App Configuration
   APP_NAME: import.meta.env.VITE_APP_NAME || 'ZyncJobs',
@@ -85,6 +85,10 @@ export const API_ENDPOINTS = {
 
   // Saved Candidates
   SAVED_CANDIDATES: `${config.API_URL}/saved-candidates`,
+
+  // Admin Invite
+  ADMIN_INVITE: `${config.API_URL}/admin/users/invite-admin`,
+  ADMIN_ACCEPT_INVITE: `${config.API_URL}/admin/users/accept-invite`,
 
   // Candidate Credentialing
   CREDENTIALING: `${config.API_URL}/credentialing`,
