@@ -86,6 +86,7 @@ const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
+const AdminAcceptInvitePage = lazy(() => import('./pages/admin/AdminAcceptInvitePage'));
 const RecommendedJobs = lazy(() => import('./components/RecommendedJobs'));
 const JobRecommendationsPage = lazy(() => import('./pages/JobRecommendationsPage'));
 const CareerRoadmapPage = lazy(() => import('./pages/CareerRoadmapPage'));
@@ -472,6 +473,24 @@ function App() {
   }, []);
 
   // Early returns AFTER all hooks
+  // Check if this is an admin invite activation - bypass all other logic
+  if (location.pathname === '/admin/accept-invite') {
+    console.log('🔑 Admin invite activation detected, bypassing user checks');
+    return (
+      <>
+        <GlobalAlert />
+        <SEOHead />
+        <OfflineIndicator />
+        <Suspense fallback={<LoadingFallback />}>
+          <AdminAcceptInvitePage
+            onNavigate={handleNavigation}
+            onLogin={handleLogin}
+          />
+        </Suspense>
+      </>
+    );
+  }
+  
   // Always show loader for protected routes until session is fully restored
   if (userLoading) {
     const protectedPaths = ['/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
@@ -481,7 +500,7 @@ function App() {
       '/application-management', '/candidate-profile-view', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
       '/recruiter-actions', '/search-appearances',
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
-      '/admin'];
+      '/admin/dashboard', '/admin/login'];
     if (protectedPaths.some(p => location.pathname.startsWith(p))) {
       return <LoadingFallback />;
     }
@@ -591,13 +610,13 @@ function App() {
           <Route path="/dashboard" element={
             <AuthGuard user={user} userLoading={userLoading}>
               <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
-              {userLoading ? null : user?.type === 'employer' ? (
+              {userLoading ? null : user?.type === 'admin' || user?.type === 'super_admin' ? (
+                <Navigate to="/admin/dashboard" replace />
+              ) : user?.type === 'employer' ? (
                 <>
                   <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
                   <EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} />
                 </>
-              ) : user?.type === 'admin' || user?.type === 'super_admin' ? (
-                <Navigate to="/admin/dashboard" replace />
               ) : (
                 <WithLayout {...nav}><CandidateDashboardPage onNavigate={handleNavigation} /></WithLayout>
               )}
@@ -826,7 +845,20 @@ function App() {
 
           <Route path="/employer-profile" element={<Navigate to="/dashboard" replace />} />
 
-          {/* -- Admin -- */}
+          {/* -- Admin Accept Invite (Public Route) -- */}
+          <Route path="/admin/accept-invite" element={
+            (() => {
+              console.log('🔑 Admin accept invite route accessed');
+              return (
+                <AdminAcceptInvitePage
+                  onNavigate={handleNavigation}
+                  onLogin={handleLogin}
+                />
+              );
+            })()
+          } />
+
+          {/* -- Admin Routes -- */}
           <Route path="/admin/login" element={
             user && (user.type === 'admin' || user.type === 'super_admin')
               ? <Navigate to="/admin/dashboard" replace />

@@ -7,10 +7,22 @@ import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
 import { isSuperAdmin, getRoleDisplayName } from '../../../utils/rolePermissions';
+import { debugAdminFlow, debugInviteEmail } from '../../../utils/adminDebug';
 
 function authHeaders() {
-  const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+  // Try admin token first, then access token
+  const adminToken = tokenStorage.getAdmin();
+  const accessToken = tokenStorage.getAccess();
+  const token = adminToken || accessToken;
+  
+  console.log('🔑 Auth headers - Admin token exists:', !!adminToken);
+  console.log('🔑 Auth headers - Access token exists:', !!accessToken);
+  console.log('🔑 Auth headers - Using token:', !!token);
+  
+  return { 
+    'Content-Type': 'application/json', 
+    ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+  };
 }
 
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
@@ -38,7 +50,6 @@ interface Admin {
 interface AddAdminForm {
   name: string;
   email: string;
-  password: string;
   role: 'admin' | 'super_admin';
 }
 
@@ -47,7 +58,7 @@ export default function AdminManagementSection({
   currentUser 
 }: { 
   onUnauthorized: () => void;
-  currentUser: { email: string; name: string };
+  currentUser: { email: string; name: string; role?: string };
 }) {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,19 +67,40 @@ export default function AdminManagementSection({
   const [success, setSuccess] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<AddAdminForm>({
-    name: '', email: '', password: '', role: 'admin'
+    name: '', email: '', role: 'admin'
   });
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
 
-  const isCurrentUserSuperAdmin = isSuperAdmin(currentUser.email);
+  const isCurrentUserSuperAdmin = isSuperAdmin(currentUser.email) || 
+                                   isSuperAdmin((currentUser as any).role || '') ||
+                                   (currentUser as any).type === 'super_admin' ||
+                                   currentUser.role === 'super_admin';
+
+  console.log('🔍 Admin Management Access Check:');
+  console.log('- currentUser:', currentUser);
+  console.log('- currentUser.email:', currentUser.email);
+  console.log('- currentUser.role:', (currentUser as any).role);
+  console.log('- currentUser.type:', (currentUser as any).type);
+  console.log('- isCurrentUserSuperAdmin:', isCurrentUserSuperAdmin);
 
   const loadAdmins = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await authFetch(`${API_ENDPOINTS.ADMIN_USERS}?role=admin,super_admin`, {}, onUnauthorized);
-      const adminList: Admin[] = res.users ?? res.data ?? res ?? [];
-      setAdmins(adminList);
+      const [adminRes, superRes] = await Promise.allSettled([
+        authFetch(`${API_ENDPOINTS.ADMIN_USERS}?role=admin`, {}, onUnauthorized),
+        authFetch(`${API_ENDPOINTS.ADMIN_USERS}?role=super_admin`, {}, onUnauthorized),
+      ]);
+      const admins: Admin[] = adminRes.status === 'fulfilled' ? (adminRes.value.users ?? adminRes.value.data ?? adminRes.value ?? []) : [];
+      const superAdmins: Admin[] = superRes.status === 'fulfilled' ? (superRes.value.users ?? superRes.value.data ?? superRes.value ?? []) : [];
+      const seen = new Set<string>();
+      const merged = [...admins, ...superAdmins].filter(u => {
+        const id = u._id || u.id;
+        if (seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      });
+      setAdmins(merged);
     } catch (e: any) {
       if (e.message !== 'UNAUTHORIZED') {
         setError('Failed to load admin users.');
@@ -84,32 +116,75 @@ export default function AdminManagementSection({
 
   const addAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addForm.name.trim() || !addForm.email.trim() || !addForm.password.trim()) {
-      setError('All fields are required.');
+    if (!addForm.name.trim() || !addForm.email.trim()) {
+      setError('Name and email are required.');
       return;
     }
-
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(addForm.email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+    
+    // Check if email already exists in current admin list
+    const emailExists = admins.some(admin => 
+      admin.email.toLowerCase() === addForm.email.trim().toLowerCase()
+    );
+    if (emailExists) {
+      setError('An admin with this email already exists in the system.');
+      return;
+    }
+    
     setActionLoading('add');
     setError('');
     setSuccess('');
-
+    
+    console.log('📧 Sending admin invite:', {
+      name: addForm.name.trim(),
+      email: addForm.email.trim().toLowerCase(),
+      role: addForm.role,
+      endpoint: API_ENDPOINTS.ADMIN_INVITE
+    });
+    
     try {
-      const response = await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/create-admin`, {
+      const response = await apiFetch(`${API_ENDPOINTS.ADMIN_INVITE}`, {
         method: 'POST',
+        headers: authHeaders(),
         body: JSON.stringify({
           name: addForm.name.trim(),
           email: addForm.email.trim().toLowerCase(),
-          password: addForm.password,
           role: addForm.role
         })
-      }, onUnauthorized);
-
-      setSuccess(`Admin ${addForm.name} created successfully!`);
-      setAddForm({ name: '', email: '', password: '', role: 'admin' });
+      });
+      
+      console.log('📧 Invite response status:', response.status);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('📧 Invite error:', errorData);
+        
+        if (response.status === 409) {
+          throw new Error('An admin with this email already exists. Please use a different email address.');
+        } else if (response.status === 400) {
+          throw new Error(errorData.message || 'Invalid request. Please check the form data.');
+        } else if (response.status === 403) {
+          throw new Error('You do not have permission to invite administrators.');
+        } else {
+          throw new Error(errorData.message || `Server error (${response.status}). Please try again.`);
+        }
+      }
+      
+      console.log('🎉 Invite sent successfully!');
+      setSuccess(`Invitation sent to ${addForm.email}! They'll receive an email to set their password.`);
+      setAddForm({ name: '', email: '', role: 'admin' });
       setShowAddForm(false);
+      // Refresh the admin list to show any updates
       loadAdmins();
-    } catch (error) {
-      setError('Failed to create admin. Email might already exist.');
+    } catch (error: any) {
+      console.error('🚨 Invite error:', error);
+      setError(error.message || 'Failed to send invite. Please try again.');
     } finally {
       setActionLoading(null);
     }
@@ -284,38 +359,26 @@ export default function AdminManagementSection({
                 />
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-                <input
-                  type="password"
-                  value={addForm.password}
-                  onChange={(e) => setAddForm(prev => ({ ...prev, password: e.target.value }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Minimum 6 characters"
-                  minLength={6}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
-                <select
-                  value={addForm.role}
-                  onChange={(e) => setAddForm(prev => ({ ...prev, role: e.target.value as 'admin' | 'super_admin' }))}
-                  className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="admin">Administrator</option>
-                  <option value="super_admin">Super Administrator</option>
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
+              <select
+                value={addForm.role}
+                onChange={(e) => setAddForm(prev => ({ ...prev, role: e.target.value as 'admin' | 'super_admin' }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="admin">Administrator</option>
+                <option value="super_admin">Super Administrator</option>
+              </select>
             </div>
+            <p className="text-xs text-gray-400">An invitation email will be sent. They'll set their own password via the link.</p>
             <div className="flex gap-3">
               <button
                 type="submit"
                 disabled={actionLoading === 'add'}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2"
               >
-                {actionLoading === 'add' ? 'Creating...' : 'Create Admin'}
+                <Mail className="w-4 h-4" />
+                {actionLoading === 'add' ? 'Sending...' : 'Send Invite'}
               </button>
               <button
                 type="button"

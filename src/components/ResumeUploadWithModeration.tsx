@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 
 interface ResumeUploadProps {
   userId: string;
@@ -45,8 +46,10 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
       formData.append('resume', file);
       formData.append('userId', userId);
 
+      const token = tokenStorage.getAccess();
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData
       });
 

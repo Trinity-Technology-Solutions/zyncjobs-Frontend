@@ -9,6 +9,8 @@ import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import CandidateNotificationBell from '../components/CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { tokenStorage } from '../utils/tokenStorage';
+
+const token = tokenStorage.getAccess();
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 import ProfileVisibilityToggle from '../components/ProfileVisibilityToggle';
 import CoverPhotoCropModal from '../components/CoverPhotoCropModal';

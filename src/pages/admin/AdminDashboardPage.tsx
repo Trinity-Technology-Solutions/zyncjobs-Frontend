@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Building2, BarChart2,
   Settings, LogOut, Menu, X, TrendingUp, UserCheck, FileText,
   Bell, RefreshCw, AlertCircle, CheckCircle, XCircle, Shield, ShieldOff,
-  Mail, Activity, ChevronDown, User, Crown
+  Mail, Activity, ChevronDown, User, Crown, Trash2
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -11,6 +11,9 @@ import {
 } from 'recharts';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
+import { apiRequest } from '../../api/enhancedApiFetch';
+import { handleApiError } from '../../utils/enhancedErrorHandler';
+import { BackendStatusIndicator } from '../../utils/backendMonitor';
 import { isSuperAdmin, hasPermission, PERMISSIONS } from '../../utils/rolePermissions';
 import UserDetailsModal from './sections/UserDetailsModal';
 import VerificationsSection from './sections/VerificationsSection';
@@ -80,7 +83,14 @@ const sectionLabels: Record<string, string> = {
 };
 
 function authHeaders() {
-  const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
+  // Try admin token first, then access token
+  const adminToken = tokenStorage.getAdmin();
+  const accessToken = tokenStorage.getAccess();
+  const token = adminToken || accessToken;
+  
+  console.log('🔑 Dashboard auth - Admin token exists:', !!adminToken);
+  console.log('🔑 Dashboard auth - Access token exists:', !!accessToken);
+  
   return {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -88,14 +98,33 @@ function authHeaders() {
 }
 
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
-  const res = await fetch(url, { ...options, headers: { ...authHeaders(), ...(options.headers || {}) } });
-  if (res.status === 401) {
-    tokenStorage.clear();
-    onUnauthorized?.();
-    throw new Error('UNAUTHORIZED');
+  try {
+    const response = await apiRequest(url, {
+      ...options,
+      headers: { ...authHeaders(), ...(options.headers || {}) }
+    }, { maxRetries: 2, retryOn5xx: true });
+
+    if (!response.success) {
+      if (response.error?.includes('401') || response.error?.includes('Authentication')) {
+        tokenStorage.clear();
+        onUnauthorized?.();
+        throw new Error('UNAUTHORIZED');
+      }
+      throw new Error(response.error || 'API request failed');
+    }
+
+    return response.data;
+  } catch (error) {
+    const errorInfo = handleApiError(error, 'admin-api');
+    
+    if (errorInfo.isServerError || errorInfo.isNetworkError) {
+      console.warn('Admin API error:', errorInfo.message);
+      // Don't throw for server errors, return empty data instead
+      return {};
+    }
+    
+    throw error;
   }
-  if (!res.ok) throw new Error(`${res.status}`);
-  return res.json();
 }
 
 export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props) {
@@ -118,8 +147,8 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 
   // Check user permissions
   const userRole = user.role || (isSuperAdmin(user.email || '') ? 'super_admin' : 'admin');
-  const canManageAdmins = hasPermission(userRole as any, PERMISSIONS.MANAGE_ADMINS);
-  const canAccessSystemSettings = hasPermission(userRole as any, PERMISSIONS.SYSTEM_SETTINGS);
+  const canManageAdmins = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.MANAGE_ADMINS);
+  const canAccessSystemSettings = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.SYSTEM_SETTINGS);
 
   const handleUnauthorized = useCallback(() => {
     setError('Session expired. Logging out...');
@@ -131,10 +160,13 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
     setError('');
     try {
       const [overviewRes, growthRes, jobStatsRes, appStatsRes] = await Promise.allSettled([
-        authFetch(API_ENDPOINTS.ADMIN_OVERVIEW, {}, handleUnauthorized),
-        authFetch(API_ENDPOINTS.ADMIN_USER_GROWTH + '?days=30', {}, handleUnauthorized),
-        authFetch(`${API_ENDPOINTS.BASE_URL}/admin/analytics/job-stats?days=30`, {}, handleUnauthorized),
-        authFetch(`${API_ENDPOINTS.BASE_URL}/admin/analytics/application-stats?days=30`, {}, handleUnauthorized),
+        authFetch(API_ENDPOINTS.ADMIN_OVERVIEW, {}, handleUnauthorized).catch(e => {
+          console.warn('Overview API failed:', e.message);
+          return { users: { total: 0, totalCandidates: 0, totalEmployers: 0, newToday: 0, newThisWeek: 0, newThisMonth: 0 }, jobs: { total: 0, active: 0, pending: 0, newToday: 0, newThisWeek: 0, newThisMonth: 0 }, applications: { total: 0, newToday: 0, newThisWeek: 0, newThisMonth: 0 } };
+        }),
+        authFetch(API_ENDPOINTS.ADMIN_USER_GROWTH + '?days=30', {}, handleUnauthorized).catch(() => []),
+        authFetch(`${API_ENDPOINTS.BASE_URL}/admin/analytics/job-stats?days=30`, {}, handleUnauthorized).catch(() => []),
+        authFetch(`${API_ENDPOINTS.BASE_URL}/admin/analytics/application-stats?days=30`, {}, handleUnauthorized).catch(() => []),
       ]);
 
       if (overviewRes.status === 'fulfilled') {
@@ -197,7 +229,20 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
         });
       }
     } catch (e: any) {
-      if (e.message !== 'UNAUTHORIZED') setError('Failed to load dashboard data.');
+      if (e.message !== 'UNAUTHORIZED') {
+        const errorInfo = handleApiError(e, 'dashboard-load');
+        setError(errorInfo.isServerError ? 
+          'Server temporarily unavailable. Retrying...' : 
+          'Failed to load dashboard data.');
+        
+        // Auto-retry for server errors
+        if (errorInfo.shouldRetry && errorInfo.retryAfter) {
+          setTimeout(() => {
+            console.log('Auto-retrying dashboard load...');
+            loadOverview();
+          }, errorInfo.retryAfter);
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -330,6 +375,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                 // Filter navigation items based on permissions
                 if (id === 'admins') return canManageAdmins;
                 if (id === 'settings') return canAccessSystemSettings;
+                // if (id === 'verifications') return false; // Hide verifications section
                 return true; // Show all other items
               })
               .map(({ id, label, icon: Icon, section }) => {
@@ -398,6 +444,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
             <h1 className="text-base lg:text-lg font-semibold capitalize truncate">
               {activeNav === 'talent' ? 'Talent Pool' : activeNav}
             </h1>
+            <BackendStatusIndicator className="hidden sm:flex" showDetails={false} />
             {lastUpdated && <span className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</span>}
           </div>
           <div className="flex items-center gap-2 lg:gap-3">
@@ -686,6 +733,23 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     }
   };
 
+  const deleteUser = async (userId: string, userName: string) => {
+    const confirmed = confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    
+    setActionLoading(userId + 'delete');
+    try {
+      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, {
+        method: 'DELETE',
+      }, onUnauthorized);
+      setUsers(prev => prev.filter(u => (u.id || u._id) !== userId));
+    } catch {
+      setError('Failed to delete user.');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   const handleUserDeleted = (deletedId: string) => {
     setUsers(prev => prev.filter(u => (u._id || u.id || u.userId) !== deletedId));
     setSelectedUserId(null);
@@ -776,18 +840,30 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                         </span>
                       </td>
                       <td className="px-6 py-3" onClick={e => e.stopPropagation()}>
-                        {userRole !== 'super_admin' && (
-                          <button
-                            onClick={() => banUser(id, !u.isActive)}
-                            disabled={actionLoading === id}
-                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50
-                              ${!u.isActive
-                                ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/60'
-                                : 'bg-red-900/30 text-red-400 hover:bg-red-900/60'}`}
-                          >
-                            {!u.isActive ? <><Shield className="w-3 h-3" />Unban</> : <><ShieldOff className="w-3 h-3" />Ban</>}
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {userRole !== 'super_admin' && (
+                            <>
+                              <button
+                                onClick={() => banUser(id, !u.isActive)}
+                                disabled={actionLoading === id}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50
+                                  ${!u.isActive
+                                    ? 'bg-emerald-900/30 text-emerald-400 hover:bg-emerald-900/60'
+                                    : 'bg-red-900/30 text-red-400 hover:bg-red-900/60'}`}
+                              >
+                                {!u.isActive ? <><Shield className="w-3 h-3" />Unban</> : <><ShieldOff className="w-3 h-3" />Ban</>}
+                              </button>
+                              
+                              <button
+                                onClick={() => deleteUser(id, u.name || u.fullName || u.email)}
+                                disabled={actionLoading === id + 'delete'}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors disabled:opacity-50"
+                              >
+                                <Trash2 className="w-3 h-3" />Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

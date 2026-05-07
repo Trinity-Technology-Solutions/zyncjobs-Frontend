@@ -891,18 +891,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {activeTab}
             </h2>
             
-            {/* Debug Panel for Saved Jobs */}
-            {activeTab === 'Saved' && user?.type === 'candidate' && (
-              <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded border">
-                <div>User: {user?.email || user?.name || 'unknown'}</div>
-                <div>Saved Jobs Count: {savedJobs.length}</div>
-                <div>LocalStorage Keys:</div>
-                <div className="ml-2">
-                  <div>Details: savedJobDetails_{user?.email || user?.name || 'user'}</div>
-                  <div>IDs: savedJobs_{user?.email || user?.name || 'user'}</div>
-                </div>
-              </div>
-            )}
+
               
             {activeTab === 'Applied' && (
               <button

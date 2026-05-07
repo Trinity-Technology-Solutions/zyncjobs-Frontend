@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { CheckCircle, XCircle, RefreshCw, AlertCircle, Building2, ExternalLink } from 'lucide-react';
+import { CheckCircle, XCircle, RefreshCw, AlertCircle, Building2, ExternalLink, Trash2 } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
+import { apiFetch } from '../../../api/apiFetch';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
@@ -50,6 +51,20 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
       });
       setVerifications(prev => prev.filter(v => (v._id || v.id) !== id));
     } catch { setError(`Failed to ${action}.`); }
+    finally { setActionLoading(''); }
+  };
+
+  const deleteVerification = async (id: string, companyName: string) => {
+    const confirmed = confirm(`Are you sure you want to delete verification for "${companyName}"? This action cannot be undone.`);
+    if (!confirmed) return;
+    
+    setActionLoading(id + 'delete');
+    try {
+      await authFetch(`${API_ENDPOINTS.BASE_URL}/admin/verifications/${id}`, {
+        method: 'DELETE',
+      });
+      setVerifications(prev => prev.filter(v => (v._id || v.id) !== id));
+    } catch { setError('Failed to delete verification.'); }
     finally { setActionLoading(''); }
   };
 
@@ -135,14 +150,24 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/30 text-red-400 hover:bg-red-900/60 transition-colors disabled:opacity-50">
                       <XCircle className="w-3.5 h-3.5" />Reject
                     </button>
+                    <button onClick={() => deleteVerification(id, v.companyName || v.company || 'Unknown Company')} disabled={actionLoading === id + 'delete'}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors disabled:opacity-50">
+                      <Trash2 className="w-3.5 h-3.5" />Delete
+                    </button>
                   </div>
                 )}
 
                 {filter !== 'pending' && (
-                  <span className={`text-xs px-2 py-1 rounded-full capitalize shrink-0
-                    ${filter === 'approved' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>
-                    {filter}
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs px-2 py-1 rounded-full capitalize
+                      ${filter === 'approved' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-red-900/40 text-red-400'}`}>
+                      {filter}
+                    </span>
+                    <button onClick={() => deleteVerification(id, v.companyName || v.company || 'Unknown Company')} disabled={actionLoading === id + 'delete'}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-800 text-gray-400 hover:bg-red-900/40 hover:text-red-400 transition-colors disabled:opacity-50">
+                      <Trash2 className="w-3.5 h-3.5" />Delete
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
