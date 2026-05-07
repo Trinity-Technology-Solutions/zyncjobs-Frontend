@@ -239,12 +239,22 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     try {
       if (!append) setLoading(true);
       const email = encodeURIComponent(user?.email || '');
+      console.log('Fetching posted jobs for email:', email);
+      
       const response = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${email}`);
+      console.log('Posted jobs response status:', response.status);
+      
       if (response.ok) {
         const jobs: any[] = await response.json();
+        console.log('Fetched posted jobs count:', jobs.length);
+        
         const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPostedJobs(sorted);
         setHasMoreJobs(false); // all jobs loaded at once
+        
+        console.log('Posted jobs updated in state:', sorted.length);
+      } else {
+        console.error('Failed to fetch posted jobs:', response.status);
       }
     } catch (error) {
       console.error('Error fetching posted jobs:', error);
@@ -361,23 +371,70 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const deleteJob = async (jobId: string) => {
-    if (!jobId) { showNotification('Invalid job ID.', 'error'); return; }
+    if (!jobId) { 
+      console.error('Delete job called with invalid ID:', jobId);
+      showNotification('Invalid job ID.', 'error'); 
+      return; 
+    }
+    
+    console.log('Attempting to delete job with ID:', jobId);
+    
     const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
     if (!ok) return;
     
     try {
-      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {
+      // Check if user is authenticated
+      const { tokenStorage } = await import('../utils/tokenStorage');
+      const accessToken = tokenStorage.getAccess();
+      
+      if (!accessToken) {
+        showNotification('Please log in again to delete jobs.', 'error');
+        if (onLogout) onLogout();
+        return;
+      }
+      
+      console.log('Making DELETE request to:', `${API_ENDPOINTS.JOBS}/${jobId}`);
+      
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}/permanent`, {
         method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
       });
       
+      console.log('Delete response status:', response.status);
+      
       if (response.ok) {
-        setPostedJobs(prev => prev.filter(job => getId(job) !== jobId));
+        console.log('Job deleted successfully, updating state');
+        setPostedJobs(prev => {
+          const updated = prev.filter(job => getId(job) !== jobId);
+          console.log('Updated posted jobs count:', updated.length);
+          return updated;
+        });
         showNotification('Job deleted successfully!');
+        
+        setTimeout(() => {
+          console.log('Refreshing jobs list after delete');
+          fetchPostedJobs();
+        }, 1000);
+        
         window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
+      } else if (response.status === 401) {
+        showNotification('Session expired. Please log in again.', 'error');
+        if (onLogout) onLogout();
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        showNotification(errorData.message || `Failed to delete job (${response.status}). Please try again.`, 'error');
+        const errorText = await response.text();
+        console.error('Delete failed with response:', errorText);
+        
+        let errorData: any = {};
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        
+        showNotification(errorData.message || errorData.error || `Failed to delete job (${response.status}). Please try again.`, 'error');
       }
     } catch (error) {
       console.error('Error deleting job:', error);
@@ -386,17 +443,40 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   };
 
   const bulkDeleteJobs = async () => {
-    if (selectedJobs.length === 0) { showNotification('Please select jobs to delete', 'error'); return; }
+    if (selectedJobs.length === 0) { 
+      showNotification('Please select jobs to delete', 'error'); 
+      return; 
+    }
+    
     const ok = await (window as any).confirmAsync(`Delete ${selectedJobs.length} selected job(s)?`);
     if (!ok) return;
+    
     try {
+      // Check authentication
+      const { tokenStorage } = await import('../utils/tokenStorage');
+      const accessToken = tokenStorage.getAccess();
+      
+      if (!accessToken) {
+        showNotification('Please log in again to delete jobs.', 'error');
+        if (onLogout) onLogout();
+        return;
+      }
+      
       await Promise.all(selectedJobs.map(jobId =>
-        apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } })
+        apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { 
+          method: 'DELETE', 
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`
+          } 
+        })
       ));
+      
       setPostedJobs(prev => prev.filter(job => !selectedJobs.includes(getId(job))));
       setSelectedJobs([]);
       showNotification(`${selectedJobs.length} job(s) deleted successfully!`);
     } catch (error) {
+      console.error('Bulk delete error:', error);
       showNotification('Error deleting jobs. Please try again.', 'error');
     }
   };

@@ -1,8 +1,12 @@
 // Frontend role and permission utilities
-export type UserRole = 'admin' | 'employer' | 'candidate' | 'moderator';
+export type UserRole = 'super_admin' | 'admin' | 'employer' | 'candidate' | 'moderator';
 export type AccountStatus = 'active' | 'suspended' | 'deleted';
 
 export const PERMISSIONS = {
+  // Super Admin permissions
+  MANAGE_ADMINS: 'manage_admins',
+  SYSTEM_SETTINGS: 'system_settings',
+  
   // Admin permissions
   MANAGE_USERS: 'manage_users',
   MANAGE_JOBS: 'manage_jobs', 
@@ -27,6 +31,25 @@ export const PERMISSIONS = {
 } as const;
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  super_admin: [
+    PERMISSIONS.MANAGE_ADMINS,
+    PERMISSIONS.SYSTEM_SETTINGS,
+    PERMISSIONS.MANAGE_USERS,
+    PERMISSIONS.MANAGE_JOBS,
+    PERMISSIONS.MANAGE_COMPANIES,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.MODERATE_CONTENT,
+    PERMISSIONS.MANAGE_USER_STATUS,
+    PERMISSIONS.POST_JOBS,
+    PERMISSIONS.VIEW_APPLICANTS,
+    PERMISSIONS.APPLY_JOBS,
+    PERMISSIONS.VIEW_JOBS,
+    PERMISSIONS.MANAGE_PROFILE,
+    PERMISSIONS.USE_RESUME_BUILDER,
+    PERMISSIONS.TAKE_SKILL_ASSESSMENT,
+    PERMISSIONS.USE_RESUME_PARSER,
+    PERMISSIONS.ACCESS_CAREER_COACH
+  ],
   admin: [
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.MANAGE_JOBS,
@@ -78,6 +101,7 @@ export const hasPermission = (userRole: UserRole, permission: string): boolean =
 export const canAccess = (userRole: UserRole, feature: string): boolean => {
   const accessMap: Record<string, string[]> = {
     'admin-panel': [PERMISSIONS.MANAGE_USERS, PERMISSIONS.VIEW_ANALYTICS],
+    'admin-management': [PERMISSIONS.MANAGE_ADMINS],
     'job-posting': [PERMISSIONS.POST_JOBS],
     'applicant-management': [PERMISSIONS.VIEW_APPLICANTS],
     'job-application': [PERMISSIONS.APPLY_JOBS],
@@ -87,7 +111,7 @@ export const canAccess = (userRole: UserRole, feature: string): boolean => {
     'company-management': [PERMISSIONS.MANAGE_COMPANIES],
     'analytics': [PERMISSIONS.VIEW_ANALYTICS],
     'ai-scoring-demo': [PERMISSIONS.VIEW_ANALYTICS],
-    'settings': [PERMISSIONS.MANAGE_USERS],
+    'settings': [PERMISSIONS.SYSTEM_SETTINGS],
     'resume-builder': [PERMISSIONS.USE_RESUME_BUILDER],
     'skill-assessment': [PERMISSIONS.TAKE_SKILL_ASSESSMENT],
     'resume-parser': [PERMISSIONS.USE_RESUME_PARSER],
@@ -101,6 +125,7 @@ export const canAccess = (userRole: UserRole, feature: string): boolean => {
 // Get user role display name
 export const getRoleDisplayName = (role: UserRole): string => {
   const roleNames: Record<UserRole, string> = {
+    super_admin: 'Super Administrator',
     admin: 'Administrator',
     employer: 'Employer',
     candidate: 'Job Seeker',
@@ -108,6 +133,11 @@ export const getRoleDisplayName = (role: UserRole): string => {
   };
   
   return roleNames[role] || role;
+};
+
+// Check if user is super admin
+export const isSuperAdmin = (userEmail: string): boolean => {
+  return userEmail === 'admin@zyncjobs.com';
 };
 
 // Get account status display info
@@ -125,6 +155,7 @@ export const getAvailableActions = (userRole: UserRole) => {
   const permissions = ROLE_PERMISSIONS[userRole] || [];
   
   return {
+    canManageAdmins: permissions.includes(PERMISSIONS.MANAGE_ADMINS),
     canManageUsers: permissions.includes(PERMISSIONS.MANAGE_USERS),
     canPostJobs: permissions.includes(PERMISSIONS.POST_JOBS),
     canViewApplicants: permissions.includes(PERMISSIONS.VIEW_APPLICANTS),
@@ -135,6 +166,7 @@ export const getAvailableActions = (userRole: UserRole) => {
     canUseResumeBuilder: permissions.includes(PERMISSIONS.USE_RESUME_BUILDER),
     canTakeSkillAssessment: permissions.includes(PERMISSIONS.TAKE_SKILL_ASSESSMENT),
     canUseResumeParser: permissions.includes(PERMISSIONS.USE_RESUME_PARSER),
-    canAccessCareerCoach: permissions.includes(PERMISSIONS.ACCESS_CAREER_COACH)
+    canAccessCareerCoach: permissions.includes(PERMISSIONS.ACCESS_CAREER_COACH),
+    canAccessSystemSettings: permissions.includes(PERMISSIONS.SYSTEM_SETTINGS)
   };
 };

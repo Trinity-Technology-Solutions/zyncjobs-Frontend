@@ -547,7 +547,11 @@ function App() {
           } />
           <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
           <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
-          <Route path="/employer-complete-profile" element={<EmployerCompleteProfilePage onNavigate={handleNavigation} />} />
+          <Route path="/employer-complete-profile" element={
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
+              <EmployerCompleteProfilePage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+            </AuthGuard>
+          } />
           <Route path="/role-selection" element={<RoleSelectionPage {...nav} />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage onNavigate={handleNavigation} />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage onNavigate={handleNavigation} />} />
