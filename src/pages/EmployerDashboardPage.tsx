@@ -12,7 +12,6 @@ import { apiFetch } from '../api/apiFetch';
 import CandidateCredentialing from '../components/CandidateCredentialing';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
-import { apiFetch } from '../api/apiFetch';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -39,8 +38,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [employerName, setEmployerName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
-<<<<<<< HEAD
-=======
   // Role-based access: Owner = full, Recruiter = post+manage, Viewer = read-only
   const [teamRole, setTeamRole] = useState<'Owner' | 'Recruiter' | 'Viewer' | null>(null);
   const canPostJobs = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
@@ -48,7 +45,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const canInviteMembers = !teamRole || teamRole === 'Owner';
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [companyDomain, setCompanyDomain] = useState('');
->>>>>>> 5ee482168a4b044eea806cdbe88b1586c8fa482e
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [interviews, setInterviews] = useState<any[]>([]);
@@ -924,7 +920,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs sm:text-sm shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
-              <span className="hidden sm:inline">Complete Profile</span>
+              <span className="hidden sm:inline">Edit Profile</span>
               <span className="sm:hidden">Profile</span>
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
