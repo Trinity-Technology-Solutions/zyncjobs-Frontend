@@ -11,7 +11,8 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
 
   const handleEmployerLink = (page: string) => {
     if (!onNavigate) return;
-    if (isCandidate) {
+    // If no user is logged in or user is a candidate, redirect to employer login
+    if (!user || isCandidate) {
       onNavigate('employer-login');
     } else {
       onNavigate(page);
@@ -85,7 +86,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
             </ul>
           </div>
           
-          {!isCandidate && (
+          {/* Always show employer section, but redirect to login if not logged in as employer */}
           <div>
             <h4 className="text-lg font-semibold mb-6">For Employers</h4>
             <ul className="space-y-3">
@@ -101,7 +102,6 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
               ))}
             </ul>
           </div>
-          )}
           
           {resourceLinks.length > 0 && (
           <div>

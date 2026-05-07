@@ -8,10 +8,10 @@ import {
 import { API_ENDPOINTS } from '../config/constants';
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
+import { apiFetch } from '../api/apiFetch';
 import CandidateCredentialing from '../components/CandidateCredentialing';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
-import { apiFetch } from '../api/apiFetch';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -67,11 +67,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
-<<<<<<< HEAD
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
-=======
-  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
->>>>>>> 617e7261bbd984810def7caf47cb02acd1efcd61
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -215,10 +211,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       console.log('Dashboard - Actual company name:', actualCompanyName);
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
-      setCompanyWebsite(parsedUser.companyWebsite || '');
-      
-      // Fetch company domain from companies.json
-      fetchCompanyDomain(actualCompanyName);
       
       fetchDashboardData(parsedUser);
     }
@@ -243,40 +235,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       window.removeEventListener('showApplications', handleShowApplications);
     };
   }, []);
-
-  const fetchCompanyDomain = async (companyName: string) => {
-    try {
-      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/companies`);
-      if (response.ok) {
-        const companies = await response.json();
-        console.log('Companies loaded:', companies.length);
-        
-        // Try exact match first
-        let company = companies.find((c: any) => 
-          c.name.toLowerCase() === companyName.toLowerCase()
-        );
-        
-        // If no exact match, try partial match
-        if (!company) {
-          company = companies.find((c: any) => 
-            c.name.toLowerCase().includes(companyName.toLowerCase()) ||
-            companyName.toLowerCase().includes(c.name.toLowerCase())
-          );
-        }
-        
-        if (company) {
-          console.log('Found company:', company.name, 'domain:', company.domain);
-          setCompanyDomain(company.domain);
-        } else {
-          console.log('Company not found in database:', companyName);
-        }
-      } else {
-        console.warn('Companies API returned error:', response.status);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-    }
-  };
 
   // Add effect to refresh data when component becomes visible
   useEffect(() => {
@@ -340,7 +298,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           console.log('Dashboard - All jobs:', allJobs.length);
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           const myEmployerId = storedUser.employerId;
-          const myTeamEmployerId = storedUser.teamRole ? storedUser.employerId : null;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
             const email = userEmail?.toLowerCase().trim();
             // Match own jobs
@@ -905,6 +862,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     const userData = stored ? JSON.parse(stored) : {};
                     const userId = userData.id || userData._id;
                                         if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
+                    const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
                       method: 'DELETE',
                     });
@@ -962,7 +920,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs sm:text-sm shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
-              <span className="hidden sm:inline">Complete Profile</span>
+              <span className="hidden sm:inline">Edit Profile</span>
               <span className="sm:hidden">Profile</span>
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />

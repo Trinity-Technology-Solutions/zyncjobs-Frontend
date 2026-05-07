@@ -32,7 +32,7 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = tokenStorage.getRefresh();
   if (!refreshToken) return null;
 
-  const res = await fetch(`${API_BASE}/users/refresh`, {
+  const res = await fetch(`${API_BASE}/token/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
