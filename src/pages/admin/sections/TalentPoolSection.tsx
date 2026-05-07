@@ -366,14 +366,40 @@ function ExtractedPage() {
           onChange={e => setSearch(e.target.value)}
           className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
+        <button
+          onClick={toggleAll}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          {selected.size === filtered.length && filtered.length > 0 ? '☑️ Deselect All' : '☐ Select All'}
+        </button>
         {selected.size > 0 && (
-          <button
-            onClick={moveToInternal}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
-          >
-            <UserX className="w-4 h-4" />
-            Move {selected.size} to Internal Pool
-          </button>
+          <>
+            <button
+              onClick={moveToInternal}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              <UserX className="w-4 h-4" />
+              Move {selected.size} to Internal Pool
+            </button>
+            <button
+              onClick={async () => {
+                if (!confirm(`Delete ${selected.size} selected candidate(s)? This cannot be undone.`)) return;
+                const token = getToken();
+                const ids = Array.from(selected);
+                await Promise.all(ids.map(id => 
+                  apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates/${id}`, { 
+                    method: 'DELETE', 
+                    headers: { Authorization: `Bearer ${token}` } 
+                  })
+                ));
+                setCandidates(prev => prev.filter(c => !selected.has(c.id)));
+                setSelected(new Set());
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              🗑️ Delete {selected.size} Selected
+            </button>
+          </>
         )}
       </div>
 

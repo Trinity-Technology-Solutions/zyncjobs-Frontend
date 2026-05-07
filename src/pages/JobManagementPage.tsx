@@ -7,6 +7,7 @@ import BackButton from '../components/BackButton';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
+import { getId } from '../utils/getId';
 
 interface Job {
   jobTitle: string;
@@ -130,10 +131,15 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           method: 'DELETE'
         });
         if (response.ok) {
-          setJobs(jobs.filter(job => job._id !== jobId));
+          setJobs(jobs.filter(job => getId(job) !== jobId));
+          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Job deleted successfully!' } }));
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: errorData.message || 'Failed to delete job' } }));
         }
       } catch (error) {
         console.error('Error deleting job:', error);
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Error deleting job. Please try again.' } }));
       }
     }
   };

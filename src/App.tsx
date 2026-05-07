@@ -190,7 +190,7 @@ function App() {
   const handleNavigation = useCallback((page: string, params?: any) => {
     const currentPath = window.location.pathname;
     if (page === 'home') { if (currentPath !== '/') navigate('/'); return; }
-    if (page === 'job-listings' && params?.tab) { navigate(`/job-listings?tab=${params.tab}`); return; }
+    if (page === 'job-listings' && params?.tab) { navigate(`/job-listings?tab=${params.tab}`); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'job-listings') {
       const qp = new URLSearchParams();
       if (params?.searchTerm) qp.set('q', params.searchTerm);
@@ -198,6 +198,7 @@ function App() {
       if (params?.category) qp.set('category', params.category);
       const qs = qp.toString();
       navigate(`/job-listings${qs ? `?${qs}` : ''}`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     if (page === 'job-posting' && params?.parsedData) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { TrendingUp, Star, Edit, FileText, Search, X } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
+import { apiFetch } from '../api/apiFetch';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
@@ -60,6 +61,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [jobTitles, setJobTitles] = useState<any[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [prefLocInput, setPrefLocInput] = useState('');
+  const [careerPrefLocInput, setCareerPrefLocInput] = useState('');
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
@@ -2693,54 +2695,54 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   onClick={async () => {
                     const updatedUser = { 
                       ...user, 
-                      name: modalData.name || user?.name,
-                      gender: modalData.gender || user?.gender,
-                      birthday: modalData.birthday || user?.birthday,
-                      location: modalData.location || user?.location,
-                      phone: modalData.phone || user?.phone,
-                      jobTitle: modalData.jobTitle || user?.jobTitle,
-                      education: modalData.education || user?.education
+                      name: modalData.name !== undefined ? modalData.name : user?.name,
+                      gender: modalData.gender !== undefined ? modalData.gender : user?.gender,
+                      birthday: modalData.birthday !== undefined ? modalData.birthday : user?.birthday,
+                      location: modalData.location !== undefined ? modalData.location : user?.location,
+                      phone: modalData.phone !== undefined ? modalData.phone : user?.phone,
+                      jobTitle: modalData.jobTitle !== undefined ? modalData.jobTitle : user?.jobTitle,
+                      education: modalData.education !== undefined ? modalData.education : user?.education
                     };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
+                    
                     try {
                       const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                           email: user?.email,
-                          name: modalData.name || user?.name,
-                          gender: modalData.gender || user?.gender,
-                          birthday: modalData.birthday || user?.birthday,
-                          location: modalData.location || user?.location,
-                          phone: modalData.phone || user?.phone,
-                          jobTitle: modalData.jobTitle || user?.jobTitle,
-                          education: modalData.education || user?.education
+                          name: modalData.name !== undefined ? modalData.name : user?.name,
+                          gender: modalData.gender !== undefined ? modalData.gender : user?.gender,
+                          birthday: modalData.birthday !== undefined ? modalData.birthday : user?.birthday,
+                          location: modalData.location !== undefined ? modalData.location : user?.location,
+                          phone: modalData.phone !== undefined ? modalData.phone : user?.phone,
+                          jobTitle: modalData.jobTitle !== undefined ? modalData.jobTitle : user?.jobTitle,
+                          education: modalData.education !== undefined ? modalData.education : user?.education
                         })
                       });
-                      if (response.ok) {
-                        setNotification({
-                          type: 'success',
-                          message: 'Profile updated successfully!',
-                          isVisible: true
-                        });
-                      } else {
-                        setNotification({
-                          type: 'error',
-                          message: 'Failed to save profile',
-                          isVisible: true
-                        });
+                      
+                      if (!response.ok) {
+                        throw new Error('Failed to save to server');
                       }
+                      
+                      // Only update local state after successful backend save
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      
+                      setNotification({
+                        type: 'success',
+                        message: 'Profile updated successfully!',
+                        isVisible: true
+                      });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
                       setNotification({
                         type: 'error',
-                        message: 'Failed to save profile',
+                        message: 'Failed to save profile. Please try again.',
                         isVisible: true
                       });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -2802,7 +2804,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   <label className="block font-medium mb-3">Preferred locations</label>
                   {(() => {
                     const selectedLocs: string[] = modalData.locations || (modalData.location ? [modalData.location] : []);
-                    const [locInput, setLocInput] = React.useState('');
+                    const locInput = careerPrefLocInput;
+                    const setLocInput = setCareerPrefLocInput;
                     return (
                       <div>
                         <div className="flex flex-wrap gap-2 mb-3">
@@ -2866,20 +2869,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">I'll add this later</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, careerPreferences: modalData };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
-                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, careerPreferences: modalData })
                       });
+                      if (!res.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, careerPreferences: modalData };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Career preferences saved!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save. Please try again.', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -2935,32 +2941,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button
                   onClick={async () => {
                     const skillsArray = Array.isArray(modalData) ? modalData : [];
-                    const updatedUser = { ...user, skills: skillsArray };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
                       const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, skills: skillsArray })
                       });
-                      if (response.ok) {
-                        setNotification({
-                          type: 'success',
-                          message: 'Skills saved successfully!',
-                          isVisible: true
-                        });
-                      }
+                      if (!response.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, skills: skillsArray };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Skills saved successfully!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
-                      setNotification({
-                        type: 'error',
-                        message: 'Failed to save skills',
-                        isVisible: true
-                      });
+                      setNotification({ type: 'error', message: 'Failed to save skills', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -3025,20 +3022,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, languages: modalData };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
-                      await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, languages: modalData })
                       });
+                      if (!res.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, languages: modalData };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Languages saved!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
+                      setNotification({ type: 'error', message: 'Failed to save languages', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -3130,26 +3130,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 <button onClick={() => setActiveModal(null)} className="text-blue-600 px-6 py-2">Cancel</button>
                 <button
                   onClick={async () => {
-                    const updatedUser = { ...user, profileSummary: modalData };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, profileSummary: modalData })
                       });
-                      if (res.ok) {
-                        setNotification({ type: 'success', message: 'Profile summary saved successfully!', isVisible: true });
-                      } else {
-                        setNotification({ type: 'error', message: 'Failed to save profile summary', isVisible: true });
-                      }
+                      if (!res.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, profileSummary: modalData };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Profile summary saved successfully!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
                       setNotification({ type: 'error', message: 'Failed to save profile summary', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -3290,26 +3287,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updated = editIdx !== undefined
                       ? existing.map((e, i) => i === editIdx ? cleanData : e)
                       : [...existing, cleanData];
-                    const updatedUser = { ...user, employment: updated };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, employment: updated })
                       });
-                      if (res.ok) {
-                        setNotification({ type: 'success', message: 'Employment details saved successfully!', isVisible: true });
-                      } else {
-                        setNotification({ type: 'error', message: 'Failed to save employment details', isVisible: true });
-                      }
+                      if (!res.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, employment: updated };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Employment details saved successfully!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
                       setNotification({ type: 'error', message: 'Failed to save employment details', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -3392,26 +3386,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updated = editIdx !== undefined
                       ? existing.map((e, i) => i === editIdx ? cleanData : e)
                       : [...existing, cleanData];
-                    const updatedUser = { ...user, projects: updated };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, projects: updated })
                       });
-                      if (res.ok) {
-                        setNotification({ type: 'success', message: 'Project details saved successfully!', isVisible: true });
-                      } else {
-                        setNotification({ type: 'error', message: 'Failed to save project details', isVisible: true });
-                      }
+                      if (!res.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, projects: updated };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Project details saved successfully!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
                       setNotification({ type: 'error', message: 'Failed to save project details', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >
@@ -3522,26 +3513,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const updated = editIdx !== undefined
                       ? existing.map((e, i) => i === editIdx ? cleanData : e)
                       : [...existing, cleanData];
-                    const updatedUser = { ...user, internships: updated };
-                    setUser(updatedUser);
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
-                    calculateProfileCompletion(updatedUser);
                     try {
                       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email: user?.email, internships: updated })
                       });
-                      if (res.ok) {
-                        setNotification({ type: 'success', message: 'Internship details saved successfully!', isVisible: true });
-                      } else {
-                        setNotification({ type: 'error', message: 'Failed to save internship details', isVisible: true });
-                      }
+                      if (!res.ok) throw new Error('Save failed');
+                      const updatedUser = { ...user, internships: updated };
+                      setUser(updatedUser);
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      calculateProfileCompletion(updatedUser);
+                      setNotification({ type: 'success', message: 'Internship details saved successfully!', isVisible: true });
+                      setActiveModal(null);
                     } catch (error) {
                       console.error('Error saving:', error);
                       setNotification({ type: 'error', message: 'Failed to save internship details', isVisible: true });
                     }
-                    setActiveModal(null);
                   }}
                   className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
                 >

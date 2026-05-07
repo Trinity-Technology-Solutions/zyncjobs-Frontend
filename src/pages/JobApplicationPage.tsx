@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, FileText, Send, CheckCircle, Upload, Briefcase, MapPin, Building2 } from 'lucide-react';
+import { User, FileText, Send, CheckCircle, Upload, Briefcase, MapPin, Building2, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
+import { tokenStorage } from '../utils/tokenStorage';
+import { validateUserResume } from '../utils/resumeValidation';
 import Header from '../components/Header';
 
 interface JobApplicationPageProps {
@@ -33,18 +35,28 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   useEffect(() => {
     const token = tokenStorage.getAccess();
     if (!token || !userData.email) { onNavigate('login'); return; }
-    apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(userData.email)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        const merged = { ...userData, ...(data || {}) };
+    
+    // Load profile and validate resume
+    const loadProfileAndValidateResume = async () => {
+      try {
+        const profileRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(userData.email)}`);
+        const profileData = profileRes.ok ? await profileRes.json() : {};
+        const merged = { ...userData, ...profileData };
         setProfile(merged);
-        const resume = merged.resume;
-        const url = merged.resumeUrl || resume?.url || resume?.fileUrl || resume?.path || '';
-        const name = resume?.name || resume?.filename || (url ? url.split('/').pop() : '');
-        setResumeUrl(url);
-        setResumeFileName(name || '');
-      })
-      .catch(() => setProfile(userData));
+        
+        // Validate resume using the utility
+        const resumeValidation = await validateUserResume(userData.email);
+        if (resumeValidation.hasResume) {
+          setResumeUrl(resumeValidation.resumeUrl || '');
+          setResumeFileName(resumeValidation.resumeFileName || '');
+        }
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        setProfile(userData);
+      }
+    };
+    
+    loadProfileAndValidateResume();
   }, []);
 
   const handleResumeUpload = async (file: File) => {
@@ -141,6 +153,25 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
 
             {/* Back button — same style as reference */}
             <BackButton onClick={() => onNavigate('job-detail')} className="mb-6" />
+
+            {/* Resume Requirement Notice */}
+            {!resumeUrl && (
+              <div className="bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 mb-6 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-orange-800 mb-1">Resume Required</p>
+                  <p className="text-sm text-orange-700">
+                    You need to upload your resume before you can apply for this job. 
+                    <button 
+                      onClick={() => onNavigate('dashboard')} 
+                      className="text-orange-600 hover:text-orange-800 font-medium underline ml-1"
+                    >
+                      Upload resume in your profile
+                    </button>
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Job info header card */}
             <div

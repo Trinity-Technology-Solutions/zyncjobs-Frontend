@@ -455,6 +455,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 onClick={() => {
                   // Track Google OAuth attempt
                   analytics.trackEvent('oauth_attempt', 'registration', 'google_candidate');
+                  sessionStorage.setItem('oauthIntent', 'register');
                   window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/candidate`;
                 }}
                 className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"

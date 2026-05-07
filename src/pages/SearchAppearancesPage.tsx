@@ -66,8 +66,14 @@ const SearchAppearancesPage: React.FC<Props> = ({ onNavigate, user, onLogout }) 
 
       if (summaryRes.ok) {
         const s = await summaryRes.json();
-        if (s.searchAppearances > 0) setTotal(s.searchAppearances);
+        // Use the detailed count if it's higher than summary count
+        const detailedCount = allAppearances.length;
+        const summaryCount = s.searchAppearances || 0;
+        setTotal(Math.max(detailedCount, summaryCount));
         setProfileViews(s.profileViews || 0);
+      } else {
+        // Fallback to detailed count if summary fails
+        setTotal(allAppearances.length);
       }
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
