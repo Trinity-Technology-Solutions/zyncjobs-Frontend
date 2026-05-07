@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import type { Paragraph as DocxParagraphType } from 'docx';
-import { Download, FileText, Target, TrendingUp } from 'lucide-react';
+import { Download, Target, TrendingUp } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { resumeBuilderAPI } from '../../services/resumeBuilderAPI';
 import ResumeTemplate from './ResumeTemplate';
@@ -10,25 +9,17 @@ export default function PreviewStep() {
   const previewRef = useRef<HTMLDivElement>(null);
   const [atsScore, setAtsScore] = useState<any>(null);
   const [loadingScore, setLoadingScore] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const [docxLoading, setDocxLoading] = useState(false);
 
-  // Calculate ATS score on mount
-  useEffect(() => {
-    calculateScore();
-  }, []);
+  useEffect(() => { calculateScore(); }, []);
 
   const calculateScore = async () => {
     setLoadingScore(true);
     try {
-      const bullets = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim()));
+      const bullets = data.experience.flatMap(e => e.bullets.filter(b => b.trim()));
       const result = await resumeBuilderAPI.calculateATSScore({
-        resumeData: {
-          personalInfo: data.personalInfo,
-          summary: data.summary,
-          skills: data.skills,
-          bullets,
-          experience: data.experience,
-          education: data.education,
-        },
+        resumeData: { personalInfo: data.personalInfo, summary: data.summary, skills: data.skills, bullets, experience: data.experience, education: data.education },
       });
       setAtsScore(result);
     } catch (err) {
@@ -38,9 +29,35 @@ export default function PreviewStep() {
     }
   };
 
+  const generateResumeText = () => {
+    let text = `${data.personalInfo.name}\n`;
+    if (data.personalInfo.email) text += `${data.personalInfo.email} | `;
+    if (data.personalInfo.phone) text += `${data.personalInfo.phone} | `;
+    if (data.personalInfo.location) text += `${data.personalInfo.location}\n`;
+    text += '\n';
+    if (data.summary) text += `SUMMARY\n${data.summary}\n\n`;
+    if (data.skills.length) text += `SKILLS\n${data.skills.join(', ')}\n\n`;
+    if (data.experience.length) {
+      text += 'EXPERIENCE\n';
+      data.experience.forEach(exp => {
+        text += `${exp.title} - ${exp.company}\n${exp.duration}\n`;
+        exp.bullets.forEach(b => { if (b.trim()) text += `• ${b}\n`; });
+        text += '\n';
+      });
+    }
+    if (data.education.length) {
+      text += 'EDUCATION\n';
+      data.education.forEach(edu => {
+        text += `${edu.degree} - ${edu.institution}\n${edu.duration}`;
+        if (edu.grade) text += ` | ${edu.grade}`;
+        text += '\n\n';
+      });
+    }
+    return text;
+  };
+
   const downloadTxt = () => {
-    const content = generateResumeText();
-    const blob = new Blob([content], { type: 'text/plain' });
+    const blob = new Blob([generateResumeText()], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -49,377 +66,233 @@ export default function PreviewStep() {
     URL.revokeObjectURL(url);
   };
 
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [docxLoading, setDocxLoading] = useState(false);
-
+  // ── DOCX ──────────────────────────────────────────────────────────────────
   const downloadDocx = async () => {
     setDocxLoading(true);
     const fileName = `${data.personalInfo.name || 'Resume'}_Resume.docx`;
     try {
-      // Validate required data
-      if (!data.personalInfo.name || data.personalInfo.name.trim() === '') {
-        throw new Error('Name is required for document generation');
-      }
+      // Only import what's guaranteed to exist in the browser docx package
+      const { Document, Packer, Paragraph: P, TextRun: T, BorderStyle, AlignmentType } = await import('docx');
 
-      const API_BASE = import.meta.env.VITE_API_URL || '/api';
-      
-      // Try backend DOCX generation first
-      try {
-        const response = await fetch(`${API_BASE}/pdf/generate-docx`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeData: data }),
-        });
+      const NAME  = 52; // 26pt
+      const HEAD  = 24; // 12pt
+      const BODY  = 22; // 11pt
+      const SMALL = 20; // 10pt
+      const BLACK = '111827';
+      const BLUE  = '1D4ED8';
+      const GRAY  = '6B7280';
 
-        if (response.ok) {
-          const blob = await response.blob();
-          
-          // Validate blob
-          if (!blob || blob.size === 0) {
-            throw new Error('Generated document is empty');
-          }
-          
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          a.style.display = 'none';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          
-          console.log('✅ DOCX downloaded successfully from backend');
-          return; // Success - exit function
-        } else {
-          const errorText = await response.text();
-          console.warn('Backend DOCX generation failed:', errorText);
-          throw new Error('Backend generation failed');
-        }
-      } catch (backendError) {
-        console.warn('Backend DOCX unavailable, using client fallback:', backendError);
-        
-        // Fallback to client-side generation
-        const {
-          Document,
-          Packer,
-          Paragraph: DocxParagraph,
-          TextRun,
-          HeadingLevel,
-          AlignmentType,
-          BorderStyle,
-        } = await import('docx');
+      const divider = () => new P({
+        spacing: { before: 0, after: 80 },
+        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: '374151' } },
+        children: [],
+      });
 
-        const ACCENT = '2563EB';
-        const MUTED  = '6B7280';
-        const DARK   = '1A1A2E';
+      const secHead = (title: string): any[] => [
+        new P({ spacing: { before: 280, after: 0 }, children: [] }),
+        new P({
+          spacing: { before: 0, after: 60 },
+          children: [new T({ text: title.toUpperCase(), bold: true, size: HEAD, color: BLACK, characterSpacing: 80 })],
+        }),
+        divider(),
+        new P({ spacing: { before: 80, after: 0 }, children: [] }),
+      ];
 
-        const sectionHeading = (title: string) => [
-          new DocxParagraph({
-            spacing: { before: 200, after: 60 },
-            border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'E5E7EB' } },
-            children: [
-              new TextRun({
-                text: title.toUpperCase(),
-                bold: true, size: 18, color: MUTED,
-                characterSpacing: 60,
-              }),
-            ],
-          }),
-        ];
+      const bul = (text: string) => new P({
+        spacing: { before: 40, after: 40 },
+        indent: { left: 400, hanging: 200 },
+        children: [new T({ text: `\u2022  ${text}`, size: BODY, color: BLACK })],
+      });
 
-        const bullet = (text: string) =>
-          new DocxParagraph({
-            spacing: { before: 40, after: 40 },
-            indent: { left: 360 },
-            children: [
-              new TextRun({ text: `• ${text}`, size: 20, color: '374151' }),
-            ],
-          });
+      const contacts = [
+        data.personalInfo.email, data.personalInfo.phone,
+        data.personalInfo.location, data.personalInfo.linkedin, data.personalInfo.portfolio,
+      ].filter(Boolean) as string[];
 
-        const contactParts = [
-          data.personalInfo.email,
-          data.personalInfo.phone,
-          data.personalInfo.location,
-        ].filter(Boolean);
+      const summaryText = Array.isArray(data.summary) ? data.summary.join(' ') : (data.summary || '');
 
-        const linkParts = [
-          data.personalInfo.linkedin,
-          data.personalInfo.portfolio,
-        ].filter(Boolean);
+      const expParas: any[] = [];
+      data.experience.forEach(exp => {
+        expParas.push(new P({
+          spacing: { before: 160, after: 20 },
+          children: [
+            new T({ text: exp.title || '', bold: true, size: BODY + 2, color: BLACK }),
+            exp.duration ? new T({ text: `    ${exp.duration}`, size: SMALL, color: GRAY }) : new T(''),
+          ],
+        }));
+        if (exp.company) expParas.push(new P({
+          spacing: { before: 0, after: 60 },
+          children: [new T({ text: exp.company, italics: true, size: BODY, color: BLUE })],
+        }));
+        exp.bullets.filter(b => b.trim()).forEach(b => expParas.push(bul(b)));
+      });
 
-        const experienceParas: DocxParagraphType[] = [];
-        data.experience.forEach((exp) => {
-          experienceParas.push(
-            new DocxParagraph({
-              spacing: { before: 160, after: 40 },
-              children: [
-                new TextRun({ text: exp.title || '', bold: true, size: 22, color: DARK }),
-                exp.duration
-                  ? new TextRun({ text: `  —  ${exp.duration}`, size: 18, color: MUTED })
-                  : new TextRun(''),
-              ],
+      const eduParas: any[] = [];
+      data.education.forEach(edu => {
+        eduParas.push(new P({
+          spacing: { before: 120, after: 20 },
+          children: [
+            new T({ text: edu.degree || '', bold: true, size: BODY + 2, color: BLACK }),
+            edu.duration ? new T({ text: `    ${edu.duration}`, size: SMALL, color: GRAY }) : new T(''),
+          ],
+        }));
+        if (edu.institution) eduParas.push(new P({
+          spacing: { before: 0, after: 40 },
+          children: [new T({ text: edu.institution, size: BODY, color: GRAY })],
+        }));
+        if (edu.grade) eduParas.push(new P({
+          spacing: { before: 0, after: 60 },
+          children: [new T({ text: `Grade: ${edu.grade}`, size: SMALL, color: GRAY })],
+        }));
+      });
+
+      const doc = new Document({
+        styles: { default: { document: { run: { font: 'Calibri', size: BODY, color: BLACK } } } },
+        sections: [{
+          properties: { page: { margin: { top: 720, bottom: 720, left: 1080, right: 1080 } } },
+          children: [
+            new P({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 60 },
+              children: [new T({ text: data.personalInfo.name || 'Candidate', bold: true, size: NAME, color: BLACK })],
             }),
-          );
-          if (exp.company) {
-            experienceParas.push(
-              new DocxParagraph({
-                spacing: { before: 0, after: 60 },
-                children: [new TextRun({ text: exp.company, italics: true, size: 20, color: ACCENT })],
-              }),
-            );
-          }
-          exp.bullets.filter((b) => b.trim()).forEach((b) => experienceParas.push(bullet(b)));
-        });
-
-        const educationParas: DocxParagraphType[] = [];
-        data.education.forEach((edu) => {
-          educationParas.push(
-            new DocxParagraph({
-              spacing: { before: 160, after: 40 },
-              children: [
-                new TextRun({ text: edu.degree || '', bold: true, size: 22, color: DARK }),
-                edu.duration
-                  ? new TextRun({ text: `  —  ${edu.duration}`, size: 18, color: MUTED })
-                  : new TextRun(''),
-              ],
+            ...(contacts.length ? [new P({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 0 },
+              children: contacts.map((c, i) => new T({ text: i === 0 ? c : `  |  ${c}`, size: SMALL, color: GRAY })),
+            })] : []),
+            new P({
+              spacing: { before: 120, after: 0 },
+              border: { bottom: { style: BorderStyle.SINGLE, size: 8, color: BLUE } },
+              children: [],
             }),
-          );
-          if (edu.institution) {
-            educationParas.push(
-              new DocxParagraph({
-                spacing: { before: 0, after: 40 },
-                children: [new TextRun({ text: edu.institution, italics: true, size: 20, color: ACCENT })],
-              }),
-            );
-          }
-          if (edu.grade) {
-            educationParas.push(
-              new DocxParagraph({
-                spacing: { before: 0, after: 60 },
-                children: [new TextRun({ text: `Grade: ${edu.grade}`, size: 18, color: MUTED })],
-              }),
-            );
-          }
-        });
-
-        const doc = new Document({
-          styles: {
-            default: {
-              document: {
-                run: { font: 'Calibri', size: 20, color: '374151' },
-              },
-            },
-          },
-          sections: [{
-            properties: {
-              page: {
-                margin: { top: 720, bottom: 720, left: 900, right: 900 },
-              },
-            },
-            children: [
-              new DocxParagraph({
-                spacing: { after: 80 },
+            ...(summaryText ? [
+              ...secHead('Professional Summary'),
+              new P({ spacing: { before: 0, after: 120 }, children: [new T({ text: summaryText, size: BODY, color: BLACK })] }),
+            ] : []),
+            ...(data.skills.length ? [
+              ...secHead('Core Competencies'),
+              new P({ spacing: { before: 0, after: 120 }, children: [new T({ text: data.skills.join('  \u2022  '), size: BODY, color: BLACK })] }),
+            ] : []),
+            ...(data.experience.length ? [...secHead('Professional Experience'), ...expParas] : []),
+            ...(data.education.length ? [...secHead('Education'), ...eduParas] : []),
+            ...(data.certifications?.length ? [
+              ...secHead('Certifications'),
+              ...data.certifications.map(c => new P({
+                spacing: { before: 60, after: 60 },
                 children: [
-                  new TextRun({
-                    text: data.personalInfo.name || 'Candidate',
-                    bold: true, size: 44, color: DARK,
-                  }),
+                  new T({ text: c.name || '', bold: true, size: BODY, color: BLACK }),
+                  c.issuer ? new T({ text: `  \u2014  ${c.issuer}`, size: BODY, color: GRAY }) : new T(''),
+                  c.year ? new T({ text: `    ${c.year}`, size: SMALL, color: GRAY }) : new T(''),
                 ],
-              }),
-              ...(contactParts.length ? [new DocxParagraph({
-                spacing: { after: 40 },
-                children: contactParts.map((p, i) => new TextRun({
-                  text: i === 0 ? p! : `  •  ${p}`,
-                  size: 18, color: '374151',
-                })),
-              })] : []),
-              ...(linkParts.length ? [new DocxParagraph({
-                spacing: { after: 120 },
-                children: linkParts.map((p, i) => new TextRun({
-                  text: i === 0 ? p! : `  •  ${p}`,
-                  size: 18, color: ACCENT,
-                })),
-              })] : []),
-              new DocxParagraph({
-                spacing: { before: 0, after: 200 },
-                border: { top: { style: BorderStyle.SINGLE, size: 12, color: ACCENT } },
-                children: [],
-              }),
-              ...(data.summary ? [
-                ...sectionHeading('Summary'),
-                new DocxParagraph({
-                  spacing: { before: 80, after: 120 },
-                  children: [new TextRun({ text: data.summary, size: 20, color: '374151' })],
-                }),
-              ] : []),
-              ...(data.skills.length ? [
-                ...sectionHeading('Skills'),
-                new DocxParagraph({
-                  spacing: { before: 80, after: 120 },
-                  children: [new TextRun({ text: data.skills.join('  •  '), size: 20, color: '374151' })],
-                }),
-              ] : []),
-              ...(data.experience.length ? [
-                ...sectionHeading('Experience'),
-                ...experienceParas,
-              ] : []),
-              ...(data.education.length ? [
-                ...sectionHeading('Education'),
-                ...educationParas,
-              ] : []),
-            ],
-          }],
-        });
+              })),
+            ] : []),
+            ...(data.awards?.length ? [
+              ...secHead('Awards & Achievements'),
+              ...data.awards.map(a => new P({
+                spacing: { before: 60, after: 60 },
+                children: [
+                  new T({ text: a.title || '', bold: true, size: BODY, color: BLACK }),
+                  a.issuer ? new T({ text: `  \u2014  ${a.issuer}`, size: BODY, color: GRAY }) : new T(''),
+                  a.year ? new T({ text: `    ${a.year}`, size: SMALL, color: GRAY }) : new T(''),
+                ],
+              })),
+            ] : []),
+          ],
+        }],
+      });
 
-        const buffer = await Packer.toBlob(doc);
-        
-        if (!buffer || buffer.size === 0) {
-          throw new Error('Generated document is empty');
-        }
-        
-        const url = URL.createObjectURL(buffer);
-        const a = document.createElement('a');
-        a.href = url; 
-        a.download = fileName; 
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        console.log('✅ DOCX downloaded successfully from client fallback');
-      }
+      // Packer.toBlob is browser-safe; wrap with explicit MIME type
+      const rawBlob = await Packer.toBlob(doc);
+      const blob = new Blob([rawBlob], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
     } catch (err) {
-      console.error('❌ DOCX export failed:', err);
-      downloadTxt();
+      console.error('DOCX export failed:', err);
+      alert('DOCX generation failed. Please try PDF instead.');
     } finally {
       setDocxLoading(false);
     }
   };
 
+  // ── PDF ───────────────────────────────────────────────────────────────────
   const downloadPdf = async () => {
     setPdfLoading(true);
     const fileName = `${data.personalInfo.name || 'Resume'}_Resume.pdf`;
     try {
-      const { default: html2canvas } = await import('html2canvas');
-      const API_BASE = import.meta.env.VITE_API_URL || '/api';
-      let backendOk = false;
-      try {
-        const res = await fetch(`${API_BASE}/pdf/generate-resume`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeData: data }),
-        });
-        if (res.ok) {
-          const blob = await res.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-          backendOk = true;
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+
+      const element = previewRef.current;
+      if (!element) throw new Error('Preview element not found');
+
+      // Temporarily expand element to full A4 width for proper rendering
+      const originalStyle = element.style.cssText;
+      element.style.width = '794px';
+      element.style.maxWidth = '794px';
+      element.style.overflow = 'visible';
+
+      await new Promise(r => setTimeout(r, 150));
+
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: 794,
+        windowWidth: 794,
+      });
+
+      // Restore original style
+      element.style.cssText = originalStyle;
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pdfW = pdf.internal.pageSize.getWidth();   // 210mm
+      const pdfH = pdf.internal.pageSize.getHeight();  // 297mm
+      const imgW = canvas.width;
+      const imgH = canvas.height;
+      const ratio = pdfW / imgW;
+      const scaledH = imgH * ratio;
+
+      if (scaledH <= pdfH) {
+        pdf.addImage(imgData, 'PNG', 0, 0, pdfW, scaledH);
+      } else {
+        const pageHeightPx = pdfH / ratio;
+        let yPos = 0;
+        while (yPos < imgH) {
+          const sliceH = Math.min(pageHeightPx, imgH - yPos);
+          const sliceCanvas = document.createElement('canvas');
+          sliceCanvas.width = imgW;
+          sliceCanvas.height = Math.ceil(sliceH);
+          const ctx = sliceCanvas.getContext('2d')!;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, imgW, sliceH);
+          ctx.drawImage(canvas, 0, yPos, imgW, sliceH, 0, 0, imgW, sliceH);
+          if (yPos > 0) pdf.addPage();
+          pdf.addImage(sliceCanvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, sliceH * ratio);
+          yPos += sliceH;
         }
-      } catch (e) {
-        console.warn('Backend PDF unavailable, using client fallback:', e);
       }
-
-      if (!backendOk) {
-        const { default: jsPDF } = await import('jspdf');
-        const element = previewRef.current;
-        if (!element) throw new Error('Preview not found');
-
-        const canvas = await html2canvas(element, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: data.template === 'tech' ? '#030712' : '#ffffff',
-          logging: false,
-        });
-
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        const pdfW = pdf.internal.pageSize.getWidth();
-        const pdfH = pdf.internal.pageSize.getHeight();
-        const imgW = canvas.width;
-        const imgH = canvas.height;
-        const ratio = Math.min(pdfW / imgW, pdfH / imgH);
-        const scaledW = imgW * ratio;
-        const scaledH = imgH * ratio;
-        const offsetX = (pdfW - scaledW) / 2;
-
-        if (scaledH <= pdfH) {
-          pdf.addImage(imgData, 'PNG', offsetX, 0, scaledW, scaledH);
-        } else {
-          let yPos = 0;
-          while (yPos < imgH) {
-            const sliceH = Math.min(pdfH / ratio, imgH - yPos);
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = imgW;
-            sliceCanvas.height = sliceH;
-            const ctx = sliceCanvas.getContext('2d')!;
-            ctx.drawImage(canvas, 0, yPos, imgW, sliceH, 0, 0, imgW, sliceH);
-            const sliceData = sliceCanvas.toDataURL('image/png');
-            if (yPos > 0) pdf.addPage();
-            pdf.addImage(sliceData, 'PNG', offsetX, 0, scaledW, sliceH * ratio);
-            yPos += sliceH;
-          }
-        }
-        pdf.save(fileName);
-      }
+      pdf.save(fileName);
     } catch (err) {
-      console.error('PDF export failed, falling back to text:', err);
-      downloadTxt();
+      console.error('PDF export failed:', err);
+      alert('PDF generation failed. Please try again.');
     } finally {
       setPdfLoading(false);
     }
-  };
-
-  const generateResumeText = () => {
-    let text = `${data.personalInfo.name}\n`;
-    if (data.personalInfo.email) text += `${data.personalInfo.email} | `;
-    if (data.personalInfo.phone) text += `${data.personalInfo.phone} | `;
-    if (data.personalInfo.location) text += `${data.personalInfo.location}\n`;
-    if (data.personalInfo.linkedin) text += `LinkedIn: ${data.personalInfo.linkedin}\n`;
-    if (data.personalInfo.portfolio) text += `Portfolio: ${data.personalInfo.portfolio}\n`;
-    text += '\n';
-
-    if (data.summary) {
-      text += 'SUMMARY\n';
-      text += `${data.summary}\n\n`;
-    }
-
-    if (data.skills.length > 0) {
-      text += 'SKILLS\n';
-      text += `${data.skills.join(', ')}\n\n`;
-    }
-
-    if (data.experience.length > 0) {
-      text += 'EXPERIENCE\n';
-      data.experience.forEach((exp) => {
-        text += `${exp.title} - ${exp.company}\n`;
-        text += `${exp.duration}\n`;
-        exp.bullets.forEach((b) => {
-          if (b.trim()) text += `• ${b}\n`;
-        });
-        text += '\n';
-      });
-    }
-
-    if (data.education.length > 0) {
-      text += 'EDUCATION\n';
-      data.education.forEach((edu) => {
-        text += `${edu.degree} - ${edu.institution}\n`;
-        text += `${edu.duration}`;
-        if (edu.grade) text += ` | ${edu.grade}`;
-        text += '\n\n';
-      });
-    }
-
-    return text;
   };
 
   return (
@@ -429,34 +302,13 @@ export default function PreviewStep() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Preview & Download</h2>
           <p className="text-gray-600">Review your resume and download</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-          <button
-            onClick={downloadTxt}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
+        <button onClick={downloadPdf} disabled={pdfLoading}
+            className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors font-medium shadow-sm">
             <Download className="w-4 h-4" />
-            TXT
+            {pdfLoading ? 'Generating PDF...' : 'Download PDF'}
           </button>
-          <button
-            onClick={downloadDocx}
-            disabled={docxLoading}
-            className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 border border-indigo-500 text-indigo-600 rounded-lg hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            {docxLoading ? 'Generating...' : 'DOCX'}
-          </button>
-          <button
-            onClick={downloadPdf}
-            disabled={pdfLoading}
-            className="flex w-full sm:w-auto items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
-          >
-            <Download className="w-4 h-4" />
-            {pdfLoading ? 'Generating...' : 'PDF'}
-          </button>
-        </div>
       </div>
 
-      {/* ATS Score Card */}
       {atsScore && (
         <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-6 border border-green-200">
           <div className="flex items-start gap-4">
@@ -471,39 +323,27 @@ export default function PreviewStep() {
                   <span className="text-gray-500">/100</span>
                 </div>
               </div>
-
-              {/* Score Breakdown */}
               <div className="space-y-2 mb-4">
                 {atsScore.breakdown.map((item: any, i: number) => (
                   <div key={i}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-gray-700">{item.label}</span>
-                      <span className="text-gray-600">
-                        {item.score}/{item.max}
-                      </span>
+                      <span className="text-gray-600">{item.score}/{item.max}</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-600 h-2 rounded-full transition-all"
-                        style={{ width: `${(item.score / item.max) * 100}%` }}
-                      />
+                      <div className="bg-green-600 h-2 rounded-full transition-all" style={{ width: `${(item.score / item.max) * 100}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* Suggestions */}
               {atsScore.suggestions.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Suggestions to Improve:
+                    <TrendingUp className="w-4 h-4" /> Suggestions to Improve:
                   </h4>
                   <ul className="space-y-1">
                     {atsScore.suggestions.map((sug: string, i: number) => (
-                      <li key={i} className="text-sm text-gray-600">
-                        • {sug}
-                      </li>
+                      <li key={i} className="text-sm text-gray-600">• {sug}</li>
                     ))}
                   </ul>
                 </div>

@@ -2483,10 +2483,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
           try {
             let photoUrl = photo;
 
-            // If photo is base64, upload it to backend first
+            // If photo is base64 data URL, convert to blob and upload
             if (photo && photo.startsWith('data:')) {
-              const res = await apiFetch(photo);
-              const blob = await res.blob();
+              // Convert base64 data URL to blob directly
+              const response = await fetch(photo);
+              const blob = await response.blob();
               const ext = blob.type.split('/')[1] || 'jpg';
               const formData = new FormData();
               formData.append('photo', blob, `profile.${ext}`);
@@ -2494,15 +2495,15 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 method: 'POST',
                 body: formData
               });
-              if (uploadRes.ok) {
-                const data = await uploadRes.json();
-                const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
-                photoUrl = data.photoUrl?.startsWith('http')
-                  ? data.photoUrl
-                  : `${backendBase}${data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`}`;
-              } else {
-                throw new Error('Photo upload failed. Please try again.');
+              if (!uploadRes.ok) {
+                const errData = await uploadRes.json().catch(() => ({}));
+                throw new Error(errData.error || 'Photo upload failed. Please try again.');
               }
+              const data = await uploadRes.json();
+              const backendBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+              photoUrl = data.photoUrl?.startsWith('http')
+                ? data.photoUrl
+                : `${backendBase}${data.photoUrl?.startsWith('/') ? data.photoUrl : `/${data.photoUrl}`}`;
             }
 
             const updatedUser = { ...user, profilePhoto: photoUrl, profileFrame: frame || 'none' };
@@ -2520,9 +2521,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
             });
 
             setNotification({ type: 'success', message: 'Profile photo updated successfully!', isVisible: true });
-          } catch (error) {
+          } catch (error: any) {
             console.error('Error saving profile photo:', error);
-            setNotification({ type: 'error', message: 'Failed to save profile photo', isVisible: true });
+            setNotification({ type: 'error', message: error.message || 'Failed to save profile photo', isVisible: true });
           }
         }}
         currentPhoto={user?.profilePhoto}

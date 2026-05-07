@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
-import BackButton from '../components/BackButton';
 import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
@@ -190,7 +189,16 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3 sm:gap-4">
-              <BackButton onClick={() => onNavigate?.('employer-dashboard')} className="border-white/60 text-white hover:bg-white/10" />
+              <button
+                onClick={() => onNavigate?.('dashboard')}
+                aria-label="Go back"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/15 hover:bg-white/25 text-white shadow-sm hover:shadow-md transition-all backdrop-blur-sm flex-shrink-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg>
+              </button>
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-blue-400 to-violet-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
                 <Sparkles className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
               </div>
