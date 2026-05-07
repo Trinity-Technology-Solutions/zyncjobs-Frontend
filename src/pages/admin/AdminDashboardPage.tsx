@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Building2, BarChart2,
   Settings, LogOut, Menu, X, TrendingUp, UserCheck, FileText,
   Bell, RefreshCw, AlertCircle, CheckCircle, XCircle, Shield, ShieldOff,
-  Mail, Activity, ChevronDown, User
+  Mail, Activity, ChevronDown, User, Crown
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
+import { isSuperAdmin, hasPermission, PERMISSIONS } from '../../utils/rolePermissions';
 import UserDetailsModal from './sections/UserDetailsModal';
 import VerificationsSection from './sections/VerificationsSection';
 import NotificationsSection from './sections/NotificationsSection';
@@ -18,9 +19,10 @@ import EmailControlSection from './sections/EmailControlSection';
 import ActivityLogsSection from './sections/ActivityLogsSection';
 import AdminSettingsSection from './sections/AdminSettingsSection';
 import TalentPoolSection from './sections/TalentPoolSection';
+import AdminManagementSection from './sections/AdminManagementSection';
 
 interface Props {
-  user: { name: string; email?: string };
+  user: { name: string; email?: string; role?: string };
   onNavigate: (page: string) => void;
   onLogout: () => void;
 }
@@ -54,7 +56,7 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'overview',      label: 'Overview',       icon: LayoutDashboard, section: 'main' },
-  { id: 'admins',        label: 'Admins',          icon: Shield,          section: 'users' },
+  { id: 'admins',        label: 'Admin Management', icon: Crown,         section: 'users' },
   { id: 'candidates',    label: 'Candidates',      icon: Users,           section: 'users' },
   { id: 'employers',     label: 'Employers',       icon: Building2,       section: 'users' },
   { id: 'verifications', label: 'Verifications',   icon: UserCheck,       section: 'users' },
@@ -113,6 +115,11 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
   const bellRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [ticker, setTicker] = useState(0);
+
+  // Check user permissions
+  const userRole = user.role || (isSuperAdmin(user.email || '') ? 'super_admin' : 'admin');
+  const canManageAdmins = hasPermission(userRole as any, PERMISSIONS.MANAGE_ADMINS);
+  const canAccessSystemSettings = hasPermission(userRole as any, PERMISSIONS.SYSTEM_SETTINGS);
 
   const handleUnauthorized = useCallback(() => {
     setError('Session expired. Logging out...');
@@ -258,7 +265,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 
   const renderSection = () => {
     switch (activeNav) {
-      case 'admins':        return <UsersSection role="admin" onUnauthorized={handleUnauthorized} />;
+      case 'admins':        return canManageAdmins ? <AdminManagementSection onUnauthorized={handleUnauthorized} currentUser={user} /> : <AccessDeniedSection />;
       case 'candidates':    return <UsersSection role="candidate" onUnauthorized={handleUnauthorized} />;
       case 'employers':     return <UsersSection role="employer" onUnauthorized={handleUnauthorized} />;
       case 'jobs':          return <JobsSection onUnauthorized={handleUnauthorized} />;
@@ -270,7 +277,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
-      case 'settings':      return <AdminSettingsSection onUnauthorized={handleUnauthorized} />;
+      case 'settings':      return canAccessSystemSettings ? <AdminSettingsSection onUnauthorized={handleUnauthorized} /> : <AccessDeniedSection />;
       default:              return <OverviewSection loading={loading} stats={stats} growth={growth} quickStats={quickStats} />;
     }
   };
@@ -318,46 +325,53 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
         <nav className="flex-1 py-4 space-y-1 px-2 overflow-y-auto admin-sidebar-scroll">
           {(() => {
             let lastSection = '';
-            return navItems.map(({ id, label, icon: Icon, section }) => {
-              const showDivider = sidebarOpen && section !== 'main' && section !== lastSection;
-              lastSection = section;
-              const badge = id === 'candidates' ? badgeCounts.candidates
-                : id === 'employers' ? badgeCounts.employers
-                : id === 'verifications' ? badgeCounts.verifications
-                : id === 'notifications' ? notifications.length
-                : 0;
-              return (
-                <React.Fragment key={id}>
-                  {showDivider && (
-                    <p className="px-3 pt-4 pb-1 text-xs font-semibold text-blue-400/70 uppercase tracking-wider">
-                      {sectionLabels[section]}
-                    </p>
-                  )}
-                  <button
-                    onClick={() => {
-                      setActiveNav(id);
-                      if (window.innerWidth < 1024) setSidebarOpen(false);
-                    }}
-                    title={!sidebarOpen ? label : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150
-                      ${activeNav === id
-                        ? 'bg-gradient-to-r from-blue-600 to-orange-500 text-white shadow-lg shadow-blue-900/40'
-                        : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    {sidebarOpen && (
-                      <span className="flex-1 text-left">{label}</span>
+            return navItems
+              .filter(({ id }) => {
+                // Filter navigation items based on permissions
+                if (id === 'admins') return canManageAdmins;
+                if (id === 'settings') return canAccessSystemSettings;
+                return true; // Show all other items
+              })
+              .map(({ id, label, icon: Icon, section }) => {
+                const showDivider = sidebarOpen && section !== 'main' && section !== lastSection;
+                lastSection = section;
+                const badge = id === 'candidates' ? badgeCounts.candidates
+                  : id === 'employers' ? badgeCounts.employers
+                  : id === 'verifications' ? badgeCounts.verifications
+                  : id === 'notifications' ? notifications.length
+                  : 0;
+                return (
+                  <React.Fragment key={id}>
+                    {showDivider && (
+                      <p className="px-3 pt-4 pb-1 text-xs font-semibold text-blue-400/70 uppercase tracking-wider">
+                        {sectionLabels[section]}
+                      </p>
                     )}
-                    {sidebarOpen && badge > 0 && (
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center
-                        ${id === 'notifications' ? 'bg-red-500 text-white' : 'bg-blue-500/80 text-white'}`}>
-                        {badge > 99 ? '99+' : badge}
-                      </span>
-                    )}
-                  </button>
-                </React.Fragment>
-              );
-            });
+                    <button
+                      onClick={() => {
+                        setActiveNav(id);
+                        if (window.innerWidth < 1024) setSidebarOpen(false);
+                      }}
+                      title={!sidebarOpen ? label : undefined}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150
+                        ${activeNav === id
+                          ? 'bg-gradient-to-r from-blue-600 to-orange-500 text-white shadow-lg shadow-blue-900/40'
+                          : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      {sidebarOpen && (
+                        <span className="flex-1 text-left">{label}</span>
+                      )}
+                      {sidebarOpen && badge > 0 && (
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center
+                          ${id === 'notifications' ? 'bg-red-500 text-white' : 'bg-blue-500/80 text-white'}`}>
+                          {badge > 99 ? '99+' : badge}
+                        </span>
+                      )}
+                    </button>
+                  </React.Fragment>
+                );
+              });
           })()}
         </nav>
 
@@ -1196,6 +1210,16 @@ function ReportsSection({ stats }: { stats: OverviewStats | null }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function AccessDeniedSection() {
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+      <Shield className="w-16 h-16 text-red-400 mx-auto mb-4" />
+      <h2 className="text-xl font-semibold text-gray-200 mb-2">Access Denied</h2>
+      <p className="text-gray-400">You don't have permission to access this section.</p>
     </div>
   );
 }

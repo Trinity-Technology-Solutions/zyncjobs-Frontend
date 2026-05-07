@@ -61,40 +61,58 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
   }
 
   assertSafeUrl(url);
-  const response = await fetch(url, { ...options, headers });
-
-  // Not expired — return as-is
-  if (response.status !== 401) return response;
-
-  // Check if it's a TOKEN_EXPIRED error
-  const cloned = response.clone();
-  let body: any = {};
-  try { body = await cloned.json(); } catch { /* ignore */ }
-
-  if (body?.code !== 'TOKEN_EXPIRED') return response;
-
-  // Only one refresh at a time
-  if (isRefreshing) {
-    return new Promise(resolve => {
-      refreshQueue.push(async (newToken: string) => {
-        headers.set('Authorization', `Bearer ${newToken}`);
-        resolve(fetch(url, { ...options, headers })); // url already validated above
+  
+  try {
+    const response = await fetch(url, { ...options, headers });
+    
+    // Handle 502 errors gracefully
+    if (response.status === 502) {
+      console.warn(`Backend unavailable: ${url}`);
+      return new Response(JSON.stringify({ error: 'Service temporarily unavailable' }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
       });
+    }
+
+    // Not expired — return as-is
+    if (response.status !== 401) return response;
+
+    // Check if it's a TOKEN_EXPIRED error
+    const cloned = response.clone();
+    let body: any = {};
+    try { body = await cloned.json(); } catch { /* ignore */ }
+
+    if (body?.code !== 'TOKEN_EXPIRED') return response;
+
+    // Only one refresh at a time
+    if (isRefreshing) {
+      return new Promise(resolve => {
+        refreshQueue.push(async (newToken: string) => {
+          headers.set('Authorization', `Bearer ${newToken}`);
+          resolve(fetch(url, { ...options, headers })); // url already validated above
+        });
+      });
+    }
+
+    isRefreshing = true;
+    const newToken = await refreshAccessToken();
+    isRefreshing = false;
+
+    if (!newToken) {
+      // Return original 401 — caller handles logout
+      return response;
+    }
+
+    onRefreshed(newToken);
+
+    // Retry original request with new token
+    headers.set('Authorization', `Bearer ${newToken}`);
+    return fetch(url, { ...options, headers }); // url already validated above
+  } catch (error) {
+    console.warn(`Network error for ${url}:`, error);
+    return new Response(JSON.stringify({ error: 'Network error' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' }
     });
   }
-
-  isRefreshing = true;
-  const newToken = await refreshAccessToken();
-  isRefreshing = false;
-
-  if (!newToken) {
-    // Return original 401 — caller handles logout
-    return response;
-  }
-
-  onRefreshed(newToken);
-
-  // Retry original request with new token
-  headers.set('Authorization', `Bearer ${newToken}`);
-  return fetch(url, { ...options, headers }); // url already validated above
 }

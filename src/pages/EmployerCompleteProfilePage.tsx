@@ -5,9 +5,11 @@ import { apiFetch } from '../api/apiFetch';
 
 interface Props {
   onNavigate: (page: string) => void;
+  user?: any;
+  onLogout?: () => void;
 }
 
-const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
+const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
   const [formData, setFormData] = useState({
     companyName: '',
     industry: '',
@@ -22,15 +24,14 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
   const [domainStatus, setDomainStatus] = useState<'idle' | 'verified' | 'corporate' | 'pending' | 'blocked'>('idle');
   const [blockedCompany, setBlockedCompany] = useState('');
 
+  // Pre-fill companyName from user prop or stored user data
   useEffect(() => {
-    const stored = localStorage.getItem('user');
-    if (!stored) return;
-    const user = JSON.parse(stored);
-    const savedCompanyName = user.companyName || user.company || '';
+    const currentUser = user || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const savedCompanyName = currentUser?.companyName || currentUser?.company || '';
     if (savedCompanyName) {
       setFormData(prev => ({ ...prev, companyName: prev.companyName || savedCompanyName }));
     }
-  }, []);
+  }, [user]);
 
   const verifyDomain = async (email: string, companyName: string) => {
     if (!email || !companyName) return;
@@ -39,8 +40,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
     setError('');
     try {
       const API = import.meta.env.VITE_API_URL || '/api';
-      const stored = localStorage.getItem('user');
-      const user = stored ? JSON.parse(stored) : {};
+      const currentUser = user || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
       const emailDomain = email.split('@')[1]?.toLowerCase();
       const generic = ['gmail.com','yahoo.com','outlook.com','hotmail.com','icloud.com','live.com'];
       if (emailDomain && !generic.includes(emailDomain)) {
@@ -51,7 +51,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
             const domainCheckRes = await fetch(`${API}/users/check-domain?domain=${encodeURIComponent(emailDomain)}`);
             if (domainCheckRes.ok) {
               const domainData = await domainCheckRes.json();
-              if (domainData.exists && domainData.email !== user.email) {
+              if (domainData.exists && domainData.email !== currentUser.email) {
                 setBlockedCompany(domainData.companyName || emailDomain);
                 setDomainStatus('blocked');
                 setVerifying(false);
@@ -77,10 +77,10 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
   };
 
   const handleCompanyNameBlur = () => {
-    const stored = localStorage.getItem('user');
-    if (!stored) return;
-    const user = JSON.parse(stored);
-    if (formData.companyName.trim()) verifyDomain(user.email, formData.companyName);
+    const email = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+    if (email && formData.companyName.trim()) {
+      verifyDomain(email, formData.companyName);
+    }
   };
 
   const handleSubmit = async () => {
@@ -92,38 +92,54 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
     setError('');
     try {
       const stored = localStorage.getItem('user');
-      if (!stored) { onNavigate('employer-login'); return; }
-      const user = JSON.parse(stored);
-      const API = import.meta.env.VITE_API_URL || '/api';
-      const domain = user.email?.split('@')[1] || '';
-      await fetch(`${API}/companies`, {
+      const localUser = stored ? JSON.parse(stored) : {};
+      const currentUser = user || localUser;
+      if (!currentUser?.id && !currentUser?.email) { onNavigate('employer-login'); return; }
+      const domain = currentUser.email?.split('@')[1] || '';
+
+      // 1. Save to Companies table (visible on Companies page)
+      await apiFetch(`${API}/companies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: formData.companyName, domain, industry: formData.industry,
           size: formData.companySize, location: formData.headquarters,
           website: formData.companyWebsite, description: formData.description,
-          employerEmail: user.email
+          employerEmail: currentUser.email
         })
       });
-      const userId = user.id || user._id;
+
+      // 2. Update User record with company details (dashboard uses this)
+      const userId = currentUser.id || currentUser._id;
       if (userId) {
         await apiFetch(`${API}/users/${userId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: user.email, companyName: formData.companyName, company: formData.companyName,
-            industry: formData.industry, companySize: formData.companySize,
-            headquarters: formData.headquarters, companyWebsite: formData.companyWebsite,
+            email: currentUser.email,
+            companyName: formData.companyName,
+            company: formData.companyName,
+            industry: formData.industry,
+            companySize: formData.companySize,
+            headquarters: formData.headquarters,
+            companyWebsite: formData.companyWebsite,
             companyDescription: formData.description
           })
         });
       }
-      localStorage.setItem('user', JSON.stringify({
-        ...user, companyName: formData.companyName, company: formData.companyName,
-        industry: formData.industry, companySize: formData.companySize,
-        headquarters: formData.headquarters, companyWebsite: formData.companyWebsite
-      }));
+
+      // 3. Update localStorage so dashboard reflects immediately
+      const updatedUser = {
+        ...currentUser,
+        companyName: formData.companyName,
+        company: formData.companyName,
+        industry: formData.industry,
+        companySize: formData.companySize,
+        headquarters: formData.headquarters,
+        companyWebsite: formData.companyWebsite
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+
       onNavigate('dashboard');
     } catch { setError('Failed to save profile. Please try again.'); }
     finally { setLoading(false); }
@@ -163,7 +179,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-white relative overflow-hidden">
-      <Header onNavigate={onNavigate} />
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       {/* Corner decorative circles — like login page */}
       <div className="fixed top-16 right-0 w-80 h-80 rounded-full bg-orange-100 opacity-60 -translate-y-1/4 translate-x-1/4 pointer-events-none" />
