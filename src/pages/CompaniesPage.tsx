@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -35,6 +35,33 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+  const [industryDropdownOpen, setIndustryDropdownOpen] = useState(false);
+  const locationDropdownRef = useRef<HTMLDivElement>(null);
+  const industryDropdownRef = useRef<HTMLDivElement>(null);
+
+  const ALL_INDUSTRIES = [
+    'Information Technology', 'Software & SaaS', 'Healthcare & Pharmaceuticals',
+    'Finance & Banking', 'Insurance', 'Education & E-Learning', 'Manufacturing',
+    'Retail & E-Commerce', 'Marketing & Advertising', 'Human Resources & Staffing',
+    'Consulting & Professional Services', 'Media & Entertainment',
+    'Real Estate & Construction', 'Transportation & Logistics', 'Telecommunications',
+    'Automotive', 'Food & Beverages', 'Energy & Utilities', 'Legal Services',
+    'Non-Profit & NGO', 'Government & Public Sector', 'Hospitality & Tourism',
+    'Agriculture', 'Aerospace & Defence', 'Biotechnology', 'Other'
+  ];
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (locationDropdownRef.current && !locationDropdownRef.current.contains(e.target as Node))
+        setLocationDropdownOpen(false);
+      if (industryDropdownRef.current && !industryDropdownRef.current.contains(e.target as Node))
+        setIndustryDropdownOpen(false);
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     loadData();
@@ -87,16 +114,32 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
         // If still no industries found, add some common ones as fallback
         if (industriesList.length === 0) {
           industriesList = [
-            'Technology',
-            'Healthcare',
-            'Finance',
-            'Education',
+            'Information Technology',
+            'Software & SaaS',
+            'Healthcare & Pharmaceuticals',
+            'Finance & Banking',
+            'Insurance',
+            'Education & E-Learning',
             'Manufacturing',
-            'Retail',
-            'Consulting',
+            'Retail & E-Commerce',
+            'Marketing & Advertising',
+            'Human Resources & Staffing',
+            'Consulting & Professional Services',
             'Media & Entertainment',
-            'Real Estate',
-            'Transportation'
+            'Real Estate & Construction',
+            'Transportation & Logistics',
+            'Telecommunications',
+            'Automotive',
+            'Food & Beverages',
+            'Energy & Utilities',
+            'Legal Services',
+            'Non-Profit & NGO',
+            'Government & Public Sector',
+            'Hospitality & Tourism',
+            'Agriculture',
+            'Aerospace & Defence',
+            'Biotechnology',
+            'Other'
           ];
           console.log('📋 Using default industries as fallback');
         }
@@ -182,12 +225,32 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       console.error('Error loading data:', error);
       // Set default data even on error
       setIndustries([
-        'Technology',
-        'Healthcare', 
-        'Finance',
-        'Education',
+        'Information Technology',
+        'Software & SaaS',
+        'Healthcare & Pharmaceuticals',
+        'Finance & Banking',
+        'Insurance',
+        'Education & E-Learning',
         'Manufacturing',
-        'Retail'
+        'Retail & E-Commerce',
+        'Marketing & Advertising',
+        'Human Resources & Staffing',
+        'Consulting & Professional Services',
+        'Media & Entertainment',
+        'Real Estate & Construction',
+        'Transportation & Logistics',
+        'Telecommunications',
+        'Automotive',
+        'Food & Beverages',
+        'Energy & Utilities',
+        'Legal Services',
+        'Non-Profit & NGO',
+        'Government & Public Sector',
+        'Hospitality & Tourism',
+        'Agriculture',
+        'Aerospace & Defence',
+        'Biotechnology',
+        'Other'
       ]);
       setLocations([
         'Bangalore',
@@ -350,73 +413,92 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search companies..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full h-12 pl-9 pr-3 border border-gray-300 rounded-lg text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
               />
             </div>
-            
+
             {/* Industry Filter */}
-            <select
-              value={selectedIndustry}
-              onChange={(e) => setSelectedIndustry(e.target.value)}
-              disabled={filtersLoading}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              <option value="">{filtersLoading ? 'Loading industries...' : 'All Industries'}</option>
-              {!filtersLoading && industries.map(industry => (
-                <option key={industry} value={industry}>{industry}</option>
-              ))}
-            </select>
-            
+            <div className="relative" ref={industryDropdownRef}>
+              <button
+                type="button"
+                onClick={() => { setIndustryDropdownOpen(o => !o); setLocationDropdownOpen(false); }}
+                className="w-full h-12 px-3 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between text-base text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+              >
+                <span className="truncate">{selectedIndustry || 'All Industries'}</span>
+                <svg className={`w-4 h-4 text-gray-500 flex-shrink-0 ml-1 transition-transform ${industryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {industryDropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                  <button type="button" onClick={() => { setSelectedIndustry(''); setIndustryDropdownOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      !selectedIndustry ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
+                    }`}>All Industries</button>
+                  {ALL_INDUSTRIES.map(industry => (
+                    <button key={industry} type="button" onClick={() => { setSelectedIndustry(industry); setIndustryDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm border-t border-gray-100 transition-colors ${
+                        selectedIndustry === industry ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
+                      }`}>{industry}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Location Filter */}
-            <select
-              value={selectedLocation}
-              onChange={(e) => setSelectedLocation(e.target.value)}
-              disabled={filtersLoading}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-            >
-              <option value="">{filtersLoading ? 'Loading locations...' : 'All Locations'}</option>
-              {!filtersLoading && locations.map(location => (
-                <option key={location} value={location}>{location}</option>
-              ))}
-            </select>
-            
+            <div className="relative" ref={locationDropdownRef}>
+              <button
+                type="button"
+                onClick={() => { !filtersLoading && setLocationDropdownOpen(o => !o); setIndustryDropdownOpen(false); }}
+                disabled={filtersLoading}
+                className="w-full h-12 px-3 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between text-base text-gray-800 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
+              >
+                <span className="truncate">{filtersLoading ? 'Loading...' : (selectedLocation || 'All Locations')}</span>
+                <svg className={`w-4 h-4 text-gray-500 flex-shrink-0 ml-1 transition-transform ${locationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {locationDropdownOpen && !filtersLoading && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
+                  <button type="button" onClick={() => { setSelectedLocation(''); setLocationDropdownOpen(false); }}
+                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                      !selectedLocation ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
+                    }`}>All Locations</button>
+                  {locations.map(location => (
+                    <button key={location} type="button" onClick={() => { setSelectedLocation(location); setLocationDropdownOpen(false); }}
+                      className={`w-full text-left px-4 py-2.5 text-sm border-t border-gray-100 transition-colors ${
+                        selectedLocation === location ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
+                      }`}>{location}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Clear Filters */}
             <button
-              onClick={() => {
-                setSearchTerm('');
-                setSelectedIndustry('');
-                setSelectedLocation('');
-              }}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              onClick={() => { setSearchTerm(''); setSelectedIndustry(''); setSelectedLocation(''); setLocationDropdownOpen(false); setIndustryDropdownOpen(false); }}
+              className="h-12 px-4 bg-gray-100 text-gray-800 text-base rounded-lg hover:bg-gray-200 transition-colors border border-gray-200 w-full"
             >
               Clear Filters
             </button>
           </div>
-          
-          <div className="mt-4 text-sm text-gray-600">
+
+          <div className="mt-3 text-sm text-gray-500">
             Showing {filteredCompanies.length} of {companies.length} companies
-            {selectedLocation && (
-              <span className="ml-2 text-blue-600">
-                (Filtered by location: "{selectedLocation}")
-              </span>
-            )}
-            {selectedIndustry && (
-              <span className="ml-2 text-green-600">
-                (Filtered by industry: "{selectedIndustry}")
-              </span>
-            )}
+            {selectedLocation && <span className="ml-2 text-blue-600">(Location: "{selectedLocation}")</span>}
+            {selectedIndustry && <span className="ml-2 text-green-600">(Industry: "{selectedIndustry}")</span>}
           </div>
         </div>
-
         {/* Companies Grid */}
         <div id="companies-grid">
           {filteredCompanies.length === 0 ? (
