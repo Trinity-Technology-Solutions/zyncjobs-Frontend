@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle } from 'lucide-react';
 import BackButton from './BackButton';
 import { API_ENDPOINTS } from '../config/env';
-import { tokenStorage } from '../utils/tokenStorage';
+import { getAuthHeaders, getApiHeaders } from '../utils/authUtils';
+import { apiFetch } from '../api/apiFetch';
 
 const InterviewScheduling = () => {
   const [interviews, setInterviews] = useState<any[]>([]);
@@ -24,8 +25,8 @@ const InterviewScheduling = () => {
 
   const fetchInterviews = async () => {
     try {
-            const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/my-interviews`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/my-interviews`, {
+        headers: getAuthHeaders()
       });
       
       if (response.ok) {
@@ -43,8 +44,8 @@ const InterviewScheduling = () => {
 
   const fetchAvailableSlots = async (date: string) => {
     try {
-            const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/available-slots?date=${date}`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/available-slots?date=${date}`, {
+        headers: getAuthHeaders()
       });
       
       if (response.ok) {
@@ -62,12 +63,9 @@ const InterviewScheduling = () => {
 
   const scheduleInterview = async () => {
     try {
-            const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/schedule`, {
+      const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/schedule`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           ...formData,
           jobId: selectedApplication?.jobId,
@@ -123,9 +121,9 @@ const InterviewScheduling = () => {
 
   const confirmInterview = async (interviewId: string) => {
     try {
-            await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/${interviewId}/confirm`, {
+      await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/${interviewId}/confirm`, {
         method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` }
+        headers: getAuthHeaders()
       });
       fetchInterviews();
     } catch (error) {
@@ -135,12 +133,9 @@ const InterviewScheduling = () => {
 
   const rescheduleInterview = async (interviewId: string, newDate: Date) => {
     try {
-            await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/${interviewId}/reschedule`, {
+      await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/${interviewId}/reschedule`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({ scheduledDate: newDate.toISOString() })
       });
       fetchInterviews();

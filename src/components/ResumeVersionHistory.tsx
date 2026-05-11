@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Clock, RotateCcw, Eye, Download, Loader2, CheckCircle } from 'lucide-react';
-import { tokenStorage } from '../utils/tokenStorage';
+import { getAuthHeaders } from '../utils/authUtils';
+import { apiFetch } from '../api/apiFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -29,8 +30,8 @@ export default function ResumeVersionHistory({ resumeId, onRestore }: ResumeVers
   const loadVersions = async () => {
     setLoading(true);
     try {
-            const res = await apiFetch(`${API_BASE}/resume-versions/${resumeId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await apiFetch(`${API_BASE}/resume-versions/${resumeId}`, {
+        headers: getAuthHeaders(),
       });
       const data = await res.json();
       if (data.success) {
@@ -48,9 +49,9 @@ export default function ResumeVersionHistory({ resumeId, onRestore }: ResumeVers
 
     setRestoring(version);
     try {
-            const res = await apiFetch(`${API_BASE}/resume-versions/${resumeId}/${version}/restore`, {
+      const res = await apiFetch(`${API_BASE}/resume-versions/${resumeId}/${version}/restore`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: getAuthHeaders(),
       });
       const data = await res.json();
       if (data.success) {
