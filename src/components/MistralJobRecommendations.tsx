@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { rankJobs, computeMatchScore, type MatchBreakdown } from '../services/jobMatchEngine';
 
@@ -39,7 +39,6 @@ const MatchCard: React.FC<{
 
   return (
     <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all bg-white">
-      {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1 min-w-0">
           <h5 className="font-semibold text-gray-900 text-sm leading-tight">{job.jobTitle || job.title}</h5>
@@ -54,14 +53,12 @@ const MatchCard: React.FC<{
         </div>
       </div>
 
-      {/* Score breakdown bars */}
       <div className="space-y-1.5 mb-3">
         <ScoreBar label="Skills" value={breakdown.skillScore} color={barColor} />
         <ScoreBar label="Title" value={breakdown.titleScore} color={barColor} />
         <ScoreBar label="Location" value={breakdown.locationScore} color={barColor} />
       </div>
 
-      {/* Matched skills */}
       {breakdown.matchedSkills.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {breakdown.matchedSkills.slice(0, 4).map((s, i) => (
@@ -73,7 +70,6 @@ const MatchCard: React.FC<{
         </div>
       )}
 
-      {/* Explanation toggle */}
       <button
         onClick={() => setExpanded(!expanded)}
         className="text-xs text-blue-600 hover:text-blue-800 font-medium mb-2"
@@ -99,7 +95,6 @@ const MatchCard: React.FC<{
         </div>
       )}
 
-      {/* Salary */}
       {job.salary && (
         <p className="text-xs text-green-600 font-medium mb-2">
           {typeof job.salary === 'object' && job.salary.min
@@ -108,17 +103,12 @@ const MatchCard: React.FC<{
         </p>
       )}
 
-      {/* Actions */}
       <div className="flex gap-2 pt-2 border-t border-gray-100">
         <button
           onClick={() => {
             const jobId = job._id || job.id;
             localStorage.setItem('selectedJob', JSON.stringify(job));
-            if (jobId) {
-              window.location.href = `/job-detail?id=${jobId}`;
-            } else {
-              window.location.href = '/job-listings';
-            }
+            window.location.href = jobId ? `/job-detail?id=${jobId}` : '/job-listings';
           }}
           className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 transition-colors"
         >
@@ -154,49 +144,45 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
   const [rankedJobs, setRankedJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const prevSkillsKey = useRef('');
+
+  const skillsKey = resumeSkills.map(s => s.skill).join(',');
 
   useEffect(() => {
-    if (!resumeSkills.length) return;
+    if (!skillsKey) return; // no skills yet
+    if (skillsKey === prevSkillsKey.current) return; // skills unchanged
+    prevSkillsKey.current = skillsKey;
+
+    const skillNames = skillsKey.split(',').filter(Boolean);
     setLoading(true);
-    fetchAndRank();
-  }, [resumeSkills, location, experience]);
+    setRankedJobs([]);
+    setError(null);
+    runMatching(skillNames, experience, location);
+  }, [skillsKey, experience, location]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const fetchAndRank = async () => {
+  const runMatching = async (skillNames: string[], exp: string, loc: string) => {
     try {
-      const skillNames = resumeSkills.map(s => s.skill);
-
-      // 1. Try backend vector semantic match
+      // Step 1: Try backend user-specific recommendations
       const storedUser = localStorage.getItem('user');
       const userId = storedUser ? JSON.parse(storedUser)?.id : null;
 
       if (userId) {
-        const res = await fetch(`${API_BASE}/match/recommendations/${userId}?limit=10`);
-        if (res.ok) {
-          const data = await res.json();
-          const matched = Array.isArray(data.jobs) ? data.jobs : [];
-          if (matched.length > 0) {
-            setRankedJobs(matched.map((j: any) => {
-              const local = computeMatchScore(skillNames, experience, location, j);
-              const backendOverall = j.matchScore ?? j.matchPercentage ?? 0;
-              const breakdown: MatchBreakdown = {
-                overall: backendOverall > 0 ? backendOverall : local.overall,
-                skillScore: j.skillScore > 0 ? j.skillScore : local.skillScore,
-                titleScore: j.titleScore > 0 ? j.titleScore : local.titleScore,
-                locationScore: j.locationScore > 0 ? j.locationScore : local.locationScore,
-                matchedSkills: j.matchingSkills?.length ? j.matchingSkills : local.matchedSkills,
-                missingSkills: j.missingSkills?.length ? j.missingSkills : local.missingSkills,
-                bonusSkills: local.bonusSkills,
-                explanation: j.explanation?.length ? j.explanation : local.explanation,
-              };
-              return { ...j, matchBreakdown: breakdown };
-            }));
-            return;
+        try {
+          const res = await fetch(`${API_BASE}/match/recommendations/${userId}?limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            const matched = Array.isArray(data.jobs) ? data.jobs : [];
+            if (matched.length > 0) {
+              setRankedJobs(buildBreakdowns(matched, skillNames, exp, loc));
+              return;
+            }
           }
-        }
+        } catch (_) {}
       }
 
-      // 2. Try backend text-based semantic match
-      if (skillNames.length > 0) {
+      // Step 2: Try backend semantic match
+      try {
         const res = await fetch(`${API_BASE}/match/jobs`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -206,42 +192,135 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const data = await res.json();
           const matches = Array.isArray(data.matches) ? data.matches : [];
           if (matches.length > 0) {
-            setRankedJobs(matches.map((j: any) => {
-              const local = computeMatchScore(skillNames, experience, location, j);
-              const backendOverall = j.matchScore ?? j.matchPercentage ?? 0;
-              const breakdown: MatchBreakdown = {
-                overall: backendOverall > 0 ? backendOverall : local.overall,
-                skillScore: j.skillScore > 0 ? j.skillScore : local.skillScore,
-                titleScore: j.titleScore > 0 ? j.titleScore : local.titleScore,
-                locationScore: j.locationScore > 0 ? j.locationScore : local.locationScore,
-                matchedSkills: j.matchingSkills?.length ? j.matchingSkills : local.matchedSkills,
-                missingSkills: j.missingSkills?.length ? j.missingSkills : local.missingSkills,
-                bonusSkills: local.bonusSkills,
-                explanation: j.explanation?.length ? j.explanation : local.explanation,
-              };
-              return { ...j, matchBreakdown: breakdown };
-            }));
+            setRankedJobs(buildBreakdowns(matches, skillNames, exp, loc));
             return;
           }
         }
+      } catch (_) {}
+
+      // Step 3: Fetch all jobs and rank locally — ALWAYS show results
+      const res = await fetch(`${API_ENDPOINTS.JOBS}`);
+      if (!res.ok) throw new Error(`Jobs API returned ${res.status}`);
+
+      const allJobs: any[] = await res.json();
+      if (!allJobs.length) {
+        setError('No jobs available in the database yet.');
+        return;
       }
 
-      // 3. Fallback: fetch all jobs + local TF-IDF ranking
-      const res = await fetch(`${API_ENDPOINTS.JOBS}`);
-      if (!res.ok) return;
-      const allJobs = await res.json();
-      console.log('📊 Resume Parser: Fetched', allJobs.length, 'total jobs for matching');
-      const ranked = rankJobs(allJobs, skillNames, experience, location);
-      console.log('📊 Resume Parser: Top 5 match scores:', ranked.slice(0, 5).map(j => ({ title: j.jobTitle, score: j.matchBreakdown.overall })));
-      // ✅ FIXED: Lower threshold and ensure we show jobs
-      const relevant = ranked.filter(j => j.matchBreakdown.overall >= 15); // Lowered from 25% to 15%
-      console.log('📊 Resume Parser: Found', relevant.length, 'jobs above 15% threshold');
-      setRankedJobs(relevant.length > 0 ? relevant : ranked.slice(0, 8)); // Show top 8 if no good matches
-    } catch (e) {
+      // Rank all jobs by skill match against job skills + description
+      const ranked = rankJobsLocally(allJobs, skillNames, exp, loc);
+
+      // Always show top 8 regardless of score — never show empty
+      setRankedJobs(ranked.slice(0, 8));
+    } catch (e: any) {
       console.error('Job matching error:', e);
+      setError('Could not load job recommendations. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Build match breakdowns merging backend scores with local computation
+  const buildBreakdowns = (jobs: any[], skillNames: string[], exp: string, loc: string) =>
+    jobs.map((j: any) => {
+      const local = computeMatchScore(skillNames, exp, loc, j);
+      const backendOverall = j.matchScore ?? j.matchPercentage ?? 0;
+      const breakdown: MatchBreakdown = {
+        overall: backendOverall > 0 ? backendOverall : local.overall,
+        skillScore: j.skillScore > 0 ? j.skillScore : local.skillScore,
+        titleScore: j.titleScore > 0 ? j.titleScore : local.titleScore,
+        locationScore: j.locationScore > 0 ? j.locationScore : local.locationScore,
+        matchedSkills: j.matchingSkills?.length ? j.matchingSkills : local.matchedSkills,
+        missingSkills: j.missingSkills?.length ? j.missingSkills : local.missingSkills,
+        bonusSkills: local.bonusSkills,
+        explanation: j.explanation?.length ? j.explanation : local.explanation,
+      };
+      return { ...j, matchBreakdown: breakdown };
+    });
+
+  // Local ranking: match candidate skills against job.skills array AND job description text
+  const rankJobsLocally = (jobs: any[], skillNames: string[], exp: string, loc: string) => {
+    const candSkillsLower = skillNames.map(s => s.toLowerCase().trim());
+
+    const scored = jobs.map(job => {
+      const jobSkills: string[] = (job.skills || []).map((s: string) => s.toLowerCase().trim());
+      const jobDesc = (job.description || '').toLowerCase();
+      const jobTitle = (job.jobTitle || job.title || '').toLowerCase();
+
+      // Count how many candidate skills appear in job skills list OR description
+      let matchCount = 0;
+      const matchedSkills: string[] = [];
+      const missingSkills: string[] = [];
+
+      for (const cs of candSkillsLower) {
+        const inJobSkills = jobSkills.some(js => js.includes(cs) || cs.includes(js));
+        const inDesc = jobDesc.includes(cs);
+        const inTitle = jobTitle.includes(cs);
+        if (inJobSkills || inDesc || inTitle) {
+          matchCount++;
+          matchedSkills.push(cs);
+        }
+      }
+
+      for (const js of jobSkills) {
+        if (!candSkillsLower.some(cs => cs.includes(js) || js.includes(cs))) {
+          missingSkills.push(js);
+        }
+      }
+
+      // Skill score: % of candidate skills found in job
+      const skillScore = candSkillsLower.length > 0
+        ? Math.round((matchCount / candSkillsLower.length) * 100)
+        : 0;
+
+      // Title score
+      const expWords = exp.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+      const titleWords = jobTitle.split(/\s+/);
+      const titleMatches = expWords.filter(w => titleWords.some(tw => tw.includes(w) || w.includes(tw))).length;
+      const titleScore = expWords.length > 0 ? Math.min(100, Math.round((titleMatches / expWords.length) * 100)) : 30;
+
+      // Location score
+      let locationScore = 60;
+      if (!loc || jobTitle.includes('remote') || jobDesc.includes('remote')) {
+        locationScore = 85;
+      } else {
+        const locWords = loc.toLowerCase().split(/[\s,]+/).filter(w => w.length > 2);
+        const jobLoc = (job.location || '').toLowerCase();
+        if (locWords.some(w => jobLoc.includes(w))) locationScore = 90;
+      }
+
+      // Weighted overall — give more weight to skill match
+      const overall = Math.round(skillScore * 0.60 + titleScore * 0.20 + locationScore * 0.20);
+
+      const explanation: string[] = [];
+      if (matchedSkills.length > 0)
+        explanation.push(`✅ ${matchedSkills.length} of your skills match this job: ${matchedSkills.slice(0, 3).join(', ')}`);
+      if (missingSkills.length > 0)
+        explanation.push(`⚠️ Skills gap: ${missingSkills.slice(0, 3).join(', ')}`);
+      if (titleScore > 40)
+        explanation.push(`🎯 Your experience as "${exp}" aligns with this role`);
+      if (overall >= 60)
+        explanation.push(`👍 Good match — worth applying`);
+      else
+        explanation.push(`📝 Partial match — consider applying anyway`);
+
+      const breakdown: MatchBreakdown = {
+        overall: Math.max(overall, matchedSkills.length > 0 ? 20 : 10),
+        skillScore,
+        titleScore,
+        locationScore,
+        matchedSkills,
+        missingSkills,
+        bonusSkills: candSkillsLower.filter(cs => !jobSkills.some(js => js.includes(cs) || cs.includes(js))).slice(0, 3),
+        explanation,
+      };
+
+      return { ...job, matchBreakdown: breakdown };
+    });
+
+    // Sort by overall score descending
+    return scored.sort((a, b) => b.matchBreakdown.overall - a.matchBreakdown.overall);
   };
 
   if (loading) {
@@ -264,8 +343,16 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
     );
   }
 
+  if (error) {
+    return <p className="text-sm text-red-500 text-center py-4">{error}</p>;
+  }
+
   if (!rankedJobs.length) {
-    return <p className="text-sm text-gray-500 text-center py-4">No jobs found to match against.</p>;
+    return (
+      <div className="text-center py-6">
+        <p className="text-sm text-gray-500">Upload your resume to see AI-matched job recommendations.</p>
+      </div>
+    );
   }
 
   const displayed = showAll ? rankedJobs : rankedJobs.slice(0, 3);
@@ -273,7 +360,6 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Summary banner */}
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3">
         <p className="text-sm font-semibold text-blue-900">
           🎯 Found {rankedJobs.length} matching jobs
@@ -283,7 +369,6 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
         </p>
       </div>
 
-      {/* Job cards */}
       <div className="space-y-3">
         {displayed.map((job, i) => (
           <MatchCard

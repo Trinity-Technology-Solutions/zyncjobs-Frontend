@@ -2552,7 +2552,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         
         {/* Key Responsibilities Section */}
         <div>
-          <label className="block text-gray-900 font-bold text-base mb-1 pl-3 border-l-4 border-blue-600">Key Responsibilities</label>
+          <label className="block text-gray-900 font-bold text-base mb-1">Key Responsibilities</label>
           <p className="text-gray-500 text-sm mb-4">List the main responsibilities for this role (one per line)</p>
           
           <div className="space-y-2">
@@ -2595,7 +2595,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         
         {/* Requirements Section */}
         <div>
-          <label className="block text-gray-900 font-bold text-base mb-1 pl-3 border-l-4 border-blue-600">Requirements</label>
+          <label className="block text-gray-900 font-bold text-base mb-1">Requirements</label>
           <p className="text-gray-500 text-sm mb-4">List the key requirements for this role (one per line)</p>
           
           <div className="space-y-2">
@@ -2848,36 +2848,49 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       return [];
     };
 
+    // Build comprehensive job description
+    const buildJobDescription = (): string => {
+      const base = jobData.jobDescription || '';
+      const respItems = (Array.isArray(jobData.responsibilities) ? jobData.responsibilities : []).filter(Boolean);
+      const reqItems = (Array.isArray(jobData.requirements) ? jobData.requirements : []).filter(Boolean);
+      
+      // If description already contains bullet points or section headings, use as-is
+      if (base.includes('\u2022') || base.includes('Key Responsibilities') || base.includes('Requirements')) {
+        return base;
+      }
+      
+      // If we have a base description, use it as the primary content
+      if (base && base.trim()) {
+        return base;
+      }
+      
+      // Build a structured description from the parts if no base description
+      let full = '';
+      if (respItems.length > 0) {
+        full += 'Key Responsibilities\n' + respItems.map(r => '\u2022 ' + r).join('\n') + '\n\n';
+      }
+      if (reqItems.length > 0) {
+        full += 'Requirements\n' + reqItems.map(r => '\u2022 ' + r).join('\n');
+      }
+      return full.trim();
+    };
+
     const jobPostData = {
       jobTitle: jobData.jobTitle,
       company: user?.companyName || jobData.companyName || 'Your Company',
+      companyName: user?.companyName || jobData.companyName || 'Your Company',
       companyLogo: logoUrl,
       location: jobData.jobLocation,
+      jobLocation: jobData.jobLocation,
       jobType: formatArrayField(jobData.jobType),
       type: formatArrayField(jobData.jobType)[0] || 'Full-time',
-      description: (() => {
-        const base = jobData.jobDescription || '';
-        const respItems = (Array.isArray(jobData.responsibilities) ? jobData.responsibilities : []).filter(Boolean);
-        const reqItems = (Array.isArray(jobData.requirements) ? jobData.requirements : []).filter(Boolean);
-        // If description already contains bullet points or section headings, use as-is
-        if (base.includes('\u2022') || base.includes('Key Responsibilities') || base.includes('Requirements')) {
-          return base;
-        }
-        // Build a structured description from the parts
-        let full = base ? base + '\n\n' : '';
-        if (respItems.length > 0) {
-          full += 'Key Responsibilities\n' + respItems.map(r => '\u2022 ' + r).join('\n') + '\n\n';
-        }
-        if (reqItems.length > 0) {
-          full += 'Requirements\n' + reqItems.map(r => '\u2022 ' + r).join('\n');
-        }
-        return full.trim();
-      })(),
-      responsibilities: Array.isArray(jobData.responsibilities) ? jobData.responsibilities.join('\n') : jobData.responsibilities,
-      requirements: Array.isArray(jobData.requirements) ? jobData.requirements.join('\n') : jobData.requirements,
-      skills: formatArrayField(jobData.skills), // JSON array
+      description: buildJobDescription(),
+      jobDescription: buildJobDescription(),
+      responsibilities: (Array.isArray(jobData.responsibilities) ? jobData.responsibilities.filter(Boolean) : []).join('\n'),
+      requirements: (Array.isArray(jobData.requirements) ? jobData.requirements.filter(Boolean) : []).join('\n'),
+      skills: formatArrayField(jobData.skills),
       experienceLevel: mapExperienceLevel(jobData.experienceRange),
-      // Only include salary if user actually set custom values
+      experienceRange: jobData.experienceRange || '',
       ...(shouldIncludeSalary && {
         salary: {
           min: parseInt(jobData.minSalary.replace(/,/g, '')) || 0,
@@ -2886,22 +2899,18 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
         }
       }),
-      benefits: formatArrayField(jobData.benefits), // JSON array
-      // Use the currently logged-in user's email
+      benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
       employerEmail: user.email,
       employerName: user.name,
       employerCompany: user?.companyName || jobData.companyName || 'Your Company',
-      // Include employer ID from user data
-      employerId: user.employerId || 'EID0001', // Fallback to 'EID0001' if not set
-      // Generate a sequential position ID
+      employerId: user.employerId || 'EID0001',
       positionId: generatePositionId(jobData.companyName || user?.companyName),
       jobCategory: jobData.jobCategory || '',
       locationType: jobData.locationType || '',
       language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
       languages: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
-      country: jobData.country || '',
-      experienceRange: jobData.experienceRange || ''
+      country: jobData.country || ''
     };
     
     console.log('Posting job for user:', user.email);
