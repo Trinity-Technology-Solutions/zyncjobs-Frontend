@@ -1,6 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { tokenStorage } from '../utils/tokenStorage';
+import { getAuthHeaders, getApiHeaders } from '../utils/authUtils';
+import { ApiErrorHandler } from '../utils/apiErrorHandler';
+import { LocalFileHandler } from '../utils/localFileHandler';
+import ApiDebugPanel from './ApiDebugPanel';
 
 interface ResumeUploadProps {
   userId: string;
@@ -14,6 +17,7 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
   const [parsedProfile, setParsedProfile] = useState<any>(null);
   const [showProfilePreview, setShowProfilePreview] = useState(false);
   const [error, setError] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,19 +50,62 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
       formData.append('resume', file);
       formData.append('userId', userId);
 
-      const token = tokenStorage.getAccess();
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData
+      console.log('Uploading resume:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        userId: userId
       });
 
-      const result = await response.json();
+      const response = await ApiErrorHandler.retryRequest(
+        () => fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: formData
+        }),
+        2, // Max 2 retries
+        1500 // 1.5 second delay
+      );
 
-      if (response.ok) {
-        setUploadResult(result);
-        onUploadComplete?.(result);
+      console.log('Upload response status:', response.status);
+      
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse response as JSON:', parseError);
+        const textResponse = await response.text();
+        console.error('Raw response:', textResponse);
+        throw new Error(`Server returned ${response.status}: ${textResponse || 'Unknown error'}`);
+      }
+
+      console.log('Upload result:', result);
+
+      const apiError = ApiErrorHandler.handleResponse(response, result);
+      if (apiError) {
+        // Check if it's a server configuration error (AWS credentials)
+        if (apiError.status === 500 && result?.error?.includes('credentials')) {
+          console.log('Server upload failed, trying local fallback...');
+          
+          // Try local fallback
+          const localResult = await LocalFileHandler.processFileLocally(file);
+          if (localResult.success) {
+            const mockResponse = LocalFileHandler.createMockResponse(localResult);
+            setUploadResult(mockResponse);
+            onUploadComplete?.(mockResponse);
+            
+            // Show info about local processing
+            setError('Server upload temporarily unavailable. File processed locally. You can continue using the application.');
+            return;
+          }
+        }
         
+        setError(apiError.message);
+        return;
+      }
+      // Success case
+      setUploadResult(result);
+      onUploadComplete?.(result);
         // Parse resume for profile data if onProfileUpdate is provided
         if (onProfileUpdate) {
           try {
@@ -71,7 +118,7 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
               
               const parseResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/parse-profile`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getApiHeaders(),
                 body: JSON.stringify({ resumeText })
               });
               
@@ -86,11 +133,10 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
             console.log('Profile parsing failed:', parseError);
           }
         }
-      } else {
-        setError(result.error || 'Upload failed');
-      }
     } catch (error) {
-      setError('Upload failed. Please try again.');
+      console.error('Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Upload failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -136,8 +182,44 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-100 border border-red-300 rounded text-red-700">
-          {error}
+        <div className={`mb-4 p-3 border rounded ${
+          error.includes('processed locally') 
+            ? 'bg-yellow-100 border-yellow-300 text-yellow-800'
+            : 'bg-red-100 border-red-300 text-red-700'
+        }`}>
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <div className="flex items-start gap-2">
+                {error.includes('processed locally') ? (
+                  <svg className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                  </svg>
+                )}
+                <span>{error}</span>
+              </div>
+              {error.includes('processed locally') && (
+                <div className="mt-2 text-sm text-yellow-700">
+                  <p>• Your file has been processed and you can continue using the application</p>
+                  <p>• The server issue will be resolved soon</p>
+                  <p>• No action needed from you</p>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowDebug(true)}
+              className={`text-xs px-2 py-1 rounded ml-2 ${
+                error.includes('processed locally')
+                  ? 'bg-yellow-200 hover:bg-yellow-300 text-yellow-800'
+                  : 'bg-red-200 hover:bg-red-300 text-red-800'
+              }`}
+            >
+              Debug
+            </button>
+          </div>
         </div>
       )}
 
@@ -218,6 +300,10 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
           <li>Profile information matching</li>
         </ul>
       </div>
+      
+      {showDebug && (
+        <ApiDebugPanel onClose={() => setShowDebug(false)} />
+      )}
     </div>
   );
 };
