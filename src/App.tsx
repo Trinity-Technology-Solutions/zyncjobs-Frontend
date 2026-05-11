@@ -24,6 +24,7 @@ import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
 import { useAnalytics } from './hooks/useAnalytics';
+import './utils/extensionErrorHandler'; // Initialize extension error handling
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
