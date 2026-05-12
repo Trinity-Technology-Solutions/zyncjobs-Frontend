@@ -512,7 +512,7 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
               </button>
             </div>
             
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[60vh]">
               {modalData.candidates.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -521,64 +521,34 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
               ) : (
                 <div className="space-y-4">
                   {modalData.candidates.map((candidate: any) => (
-                    <div key={candidate.id} className="bg-gray-50 rounded-lg p-4 border">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold">
-                                {candidate.name.charAt(0)}
-                              </span>
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900">{candidate.name}</h4>
-                              <p className="text-sm text-blue-700 font-semibold">📋 {candidate.jobTitle || 'Unknown Position'}</p>
-                              <p className="text-sm text-gray-500">{candidate.email}</p>
-                              <p className="text-xs text-gray-400">
-                                Applied: {new Date(candidate.appliedAt).toLocaleDateString()}
-                              </p>
-                            </div>
+                    <div key={candidate.id} className="bg-gray-50 rounded-lg p-3 sm:p-4 border">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-blue-600 font-semibold">{candidate.name.charAt(0)}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <h4 className="font-medium text-gray-900 text-sm">{candidate.name}</h4>
+                            <p className="text-xs text-blue-700 font-semibold truncate">📋 {candidate.jobTitle || 'Unknown Position'}</p>
+                            <p className="text-xs text-gray-500 truncate">{candidate.email}</p>
+                            <p className="text-xs text-gray-400">Applied: {new Date(candidate.appliedAt).toLocaleDateString()}</p>
                           </div>
                         </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <div className="text-sm text-gray-500">Skills Match</div>
-                            <div className={`font-semibold ${
-                              candidate.skillsMatch >= 60 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {candidate.skillsMatch}%
-                            </div>
+                        <div className="flex flex-wrap gap-3 sm:gap-4">
+                          <div>
+                            <div className="text-xs text-gray-500">Skills Match</div>
+                            <div className={`font-semibold text-sm ${candidate.skillsMatch >= 60 ? 'text-green-600' : 'text-red-600'}`}>{candidate.skillsMatch}%</div>
                           </div>
-                          
-                          <div className="text-right">
-                            <div className="text-sm text-gray-500">Experience</div>
-                            <div className={`font-semibold ${
-                              candidate.experienceMatch >= 80 ? 'text-green-600' : 'text-red-600'
-                            }`}>
-                              {candidate.experienceMatch}%
-                            </div>
+                          <div>
+                            <div className="text-xs text-gray-500">Experience</div>
+                            <div className={`font-semibold text-sm ${candidate.experienceMatch >= 80 ? 'text-green-600' : 'text-red-600'}`}>{candidate.experienceMatch}%</div>
                           </div>
-                          
-                          <div className="text-right">
-                            <div className="text-sm text-gray-500">Preview Status</div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              candidate.status === 'auto-rejected'
-                                ? 'bg-orange-100 text-orange-800'
-                                : 'bg-green-100 text-green-800'
-                            }`}>
+                          <div>
+                            <div className="text-xs text-gray-500">Preview Status</div>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${candidate.status === 'auto-rejected' ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
                               {candidate.status === 'auto-rejected' ? '⚠️ Would be flagged' : '✅ Passes threshold'}
                             </span>
                           </div>
-                          
-                          {candidate.reason && (
-                            <div className="text-right">
-                              <div className="text-sm text-gray-500">Reason</div>
-                              <div className="text-xs text-red-600 font-medium">
-                                {candidate.reason === 'skillsMismatch' ? 'Skills' : 'Experience'}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     </div>

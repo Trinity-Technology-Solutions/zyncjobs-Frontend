@@ -303,7 +303,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-6 space-y-4">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
 
         {/* ── Hero card ── */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -311,17 +311,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           <div className="h-32 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-500" />
 
           {/* Avatar + name row */}
-          <div className="px-8 pb-6">
-            <div className="flex items-end justify-between -mt-12 mb-4">
-              {/* Avatar */}
-              <div className="relative">
+          <div className="px-4 sm:px-8 pb-6">
+            {/* Avatar */}
+            <div className="-mt-12 mb-4">
+              <div className="relative inline-block">
                 {candidate.profilePhoto ? (
                   <img src={candidate.profilePhoto} alt={candidate.name}
-                    className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-4 border-white shadow-lg"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 ) : (
-                  <div className="w-24 h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-3xl font-bold text-white border-4 border-white shadow-lg">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center text-2xl sm:text-3xl font-bold text-white border-4 border-white shadow-lg">
                     {initials}
                   </div>
                 )}
@@ -331,27 +331,28 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                   </span>
                 )}
               </div>
-              {/* Action buttons top-right */}
-              <div className="flex gap-2 mb-1">
-                {candidate.email && (
-                  <button onClick={() => setShowMessage(true)}
-                    className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm">
-                    <MessageCircle className="w-4 h-4" />Send Message
-                  </button>
-                )}
-                {candidate.resumeUrl && (
-                  <a href={candidate.resumeUrl} download={`${candidate.name.replace(/\s+/g, '_')}_Resume.pdf`}
-                    className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
-                    <Download className="w-4 h-4" />Resume
-                  </a>
-                )}
-                {candidate.email && (
-                  <a href={`mailto:${candidate.email}`}
-                    className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors">
-                    <Mail className="w-4 h-4" />Email
-                  </a>
-                )}
-              </div>
+            </div>
+
+            {/* Action buttons — full width row below avatar on mobile */}
+            <div className="flex flex-wrap gap-2 mb-4">
+              {candidate.email && (
+                <button onClick={() => setShowMessage(true)}
+                  className="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm flex-1 min-w-[120px] min-h-[40px]">
+                  <MessageCircle className="w-4 h-4 flex-shrink-0" />Send Message
+                </button>
+              )}
+              {candidate.resumeUrl && (
+                <a href={candidate.resumeUrl} download={`${candidate.name.replace(/\s+/g, '_')}_Resume.pdf`}
+                  className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[100px] min-h-[40px]">
+                  <Download className="w-4 h-4 flex-shrink-0" />Resume
+                </a>
+              )}
+              {candidate.email && (
+                <a href={`mailto:${candidate.email}`}
+                  className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[80px] min-h-[40px]">
+                  <Mail className="w-4 h-4 flex-shrink-0" />Email
+                </a>
+              )}
             </div>
 
             {/* Name + status */}

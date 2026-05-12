@@ -290,8 +290,8 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     <div>
       {/* Filters */}
       <div className="bg-white rounded-lg border border-gray-200 p-3 mb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex-1 min-w-[120px]">
             <select
               value={filters.salaryRange}
               onChange={(e) => setFilters(prev => ({ ...prev, salaryRange: e.target.value }))}
@@ -304,7 +304,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               <option value="150k+">₹150k+</option>
             </select>
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-[120px]">
             <select
               value={filters.jobType}
               onChange={(e) => setFilters(prev => ({ ...prev, jobType: e.target.value }))}
@@ -318,7 +318,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               <option value="Remote">Remote</option>
             </select>
           </div>
-          <span className="text-xs text-gray-500 whitespace-nowrap">Showing {filteredJobs.length} of {jobs.length} jobs</span>
+          <span className="text-xs text-gray-500 w-full sm:w-auto text-right">Showing {filteredJobs.length} of {jobs.length} jobs</span>
         </div>
       </div>
 
