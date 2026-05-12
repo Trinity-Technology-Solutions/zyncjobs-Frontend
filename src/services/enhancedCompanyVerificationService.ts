@@ -370,3 +370,104 @@ export class EnhancedCompanyVerificationService {
     );
   }
 }
+  /**
+   * Check if domain is valid corporate domain (for new companies not in DB)
+   */
+  private static async isValidCorporateDomain(domain: string): Promise<boolean> {
+    try {
+      // Check corporate TLD patterns
+      const corporateTLDs = [
+        '.com', '.co.in', '.in', '.org', '.net', '.co.uk', '.de', '.fr', 
+        '.au', '.ca', '.co', '.io', '.tech', '.ai', '.inc'
+      ];
+      
+      const hasCorpTLD = corporateTLDs.some(tld => domain.endsWith(tld));
+      const isNotSubdomain = domain.split('.').length <= 2;
+      const hasReasonableLength = domain.length >= 4 && domain.length <= 50;
+      
+      // Basic domain validation
+      if (!hasCorpTLD || !isNotSubdomain || !hasReasonableLength) {
+        return false;
+      }
+      
+      // Try to check if domain has website (optional)
+      try {
+        const response = await fetch(`https://${domain}`, { 
+          method: 'HEAD',
+          mode: 'no-cors',
+          signal: AbortSignal.timeout(5000)
+        });
+        return true; // If no error, domain likely exists
+      } catch {
+        // Even if website check fails, allow corporate domains
+        return true;
+      }
+      
+    } catch (error) {
+      console.error('Corporate domain validation error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Enhanced search that checks both name and domain matches
+   */
+  private static async searchInternalDatabase(companyName: string, domain: string): Promise<CompanyProfile | null> {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.COMPANIES}?search=${encodeURIComponent(companyName)}`);
+      
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
+
+      // Priority 1: Exact domain match
+      const domainMatch = companies.find((company: any) => 
+        company.domain?.toLowerCase() === domain
+      );
+      
+      if (domainMatch) {
+        return {
+          id: domainMatch.id || domainMatch._id,
+          name: domainMatch.name,
+          domain: domainMatch.domain,
+          logo: domainMatch.logo,
+          website: domainMatch.website,
+          industry: domainMatch.industry,
+          size: domainMatch.size,
+          verified: true,
+          gstNumber: domainMatch.gstNumber,
+          registrationNumber: domainMatch.registrationNumber,
+          dataSource: 'database'
+        };
+      }
+
+      // Priority 2: Exact company name match
+      const nameMatch = companies.find((company: any) => 
+        company.name?.toLowerCase().trim() === companyName.toLowerCase().trim()
+      );
+
+      if (nameMatch) {
+        return {
+          id: nameMatch.id || nameMatch._id,
+          name: nameMatch.name,
+          domain: nameMatch.domain,
+          logo: nameMatch.logo,
+          website: nameMatch.website,
+          industry: nameMatch.industry,
+          size: nameMatch.size,
+          verified: true,
+          gstNumber: nameMatch.gstNumber,
+          registrationNumber: nameMatch.registrationNumber,
+          dataSource: 'database'
+        };
+      }
+
+      // No match found - company not in database
+      return null;
+      
+    } catch (error) {
+      console.error('Database search error:', error);
+      return null;
+    }
+  }
