@@ -108,60 +108,65 @@ const JobCategories: React.FC<JobCategoriesProps> = ({ onNavigate }) => {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
+    <section className="py-12 sm:py-16 lg:py-20 bg-gradient-to-b from-gray-50 to-white overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         {/* Heading */}
-        <div className="text-center mb-16">
-          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-widest border border-blue-100 mb-4">
+        <div className="text-center mb-12 sm:mb-16">
+          <span className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-blue-50 text-blue-600 text-xs font-bold uppercase tracking-widest border border-blue-100 mb-4">
             Job Categories
           </span>
-          <h2 className="text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 leading-tight px-4">
             Explore Opportunities by <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-violet-600">Category</span>
           </h2>
-          <p className="text-gray-500 max-w-2xl mx-auto text-base leading-relaxed">
+          <p className="text-gray-500 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed px-4">
             Discover roles across top domains powered by AI-driven recommendations.
           </p>
         </div>
 
-        {/* Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {categories.map((cat, i) => {
-            const Icon = cat.icon;
+        {/* Grid - Responsive with explicit mobile handling */}
+        <div className="w-full">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 auto-rows-fr">
+            {categories.map((cat, i) => {
+              const Icon = cat.icon;
 
-            return (
-              <div
-                key={cat.name}
-                ref={el => { cardRefs.current[i] = el; }}
-                onClick={() => handleCategoryClick(cat)}
-                className={`relative group cursor-pointer rounded-2xl bg-white/70 backdrop-blur-xl border border-gray-200 p-6 shadow-md hover:shadow-2xl ${cat.glow} transition-all duration-500 ${
-                  visible[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
-                }`}
-                style={{ transitionDelay: `${i * 60}ms` }}
-              >
-                {/* Glow effect */}
-                <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500 bg-gradient-to-r ${cat.gradient}`} />
+              return (
+                <div
+                  key={cat.name}
+                  ref={el => { cardRefs.current[i] = el; }}
+                  onClick={() => handleCategoryClick(cat)}
+                  className={`relative group cursor-pointer rounded-2xl bg-white/70 backdrop-blur-xl border border-gray-200 p-6 shadow-md hover:shadow-2xl ${cat.glow} transition-all duration-500 flex flex-col items-center text-center min-h-[160px] sm:min-h-[180px] ${
+                    visible[i] ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+                  }`}
+                  style={{ transitionDelay: `${i * 60}ms` }}
+                >
+                  {/* Glow effect */}
+                  <div className={`absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-20 blur-2xl transition-opacity duration-500 bg-gradient-to-r ${cat.gradient}`} />
 
-                {/* Icon */}
-                <div className={`relative w-14 h-14 flex items-center justify-center rounded-xl text-white bg-gradient-to-r ${cat.gradient} mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-                  <Icon size={26} />
+                  {/* Icon */}
+                  <div className={`relative w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center rounded-2xl text-white bg-gradient-to-r ${cat.gradient} mb-4 shadow-lg group-hover:scale-105 transition-transform duration-300 flex-shrink-0 mx-auto`}>
+                    <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 flex flex-col justify-between text-center">
+                    {/* Title */}
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-3 group-hover:text-blue-700 transition-colors leading-tight">
+                      {cat.name}
+                    </h3>
+
+                    {/* Explore */}
+                    <div className="flex items-center justify-center mt-auto">
+                      <span className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors font-medium">
+                        Explore
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </span>
+                    </div>
+                  </div>
                 </div>
-
-                {/* Title */}
-                <h3 className="text-lg font-bold text-gray-900 mb-4 group-hover:text-blue-700 transition-colors">
-                  {cat.name}
-                </h3>
-
-                {/* Explore */}
-                <div className="flex items-center justify-start">
-                  <span className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors font-medium">
-                    Explore
-                    <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
 
       </div>

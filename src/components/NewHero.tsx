@@ -52,19 +52,7 @@ const CompanyMarquee: React.FC = () => {
                   src={c.logo}
                   alt={c.name}
                   className="w-16 h-16 object-contain"
-                  onError={e => {
-                    const img = e.currentTarget;
-                    img.style.display = 'none';
-                    const span = img.nextElementSibling as HTMLElement;
-                    if (span) span.style.display = 'flex';
-                  }}
                 />
-                <span
-                  className="w-16 h-16 rounded-lg bg-blue-600 text-white font-bold text-xl items-center justify-center"
-                  style={{ display: 'none' }}
-                >
-                  {c.name[0]}
-                </span>
               </div>
 
             </div>
@@ -283,34 +271,35 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-end">
             
             {/* Left Content */}
-            <div className="space-y-8 pb-16">
+            <div className="space-y-8 pb-16 w-full overflow-hidden">
               <div className="space-y-6">
                 <h5 className="font-semibold text-lg" style={{color: '#a78bfa'}}>
                   {subtitle}
                 </h5>
-                <h1 className="text-4xl lg:text-6xl font-bold text-white leading-tight">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-tight break-words max-w-full">
                   <style>{`
-                    @keyframes letter-pop {
+                    @keyframes word-pop {
                       0% { opacity: 0; transform: translateY(20px); }
                       100% { opacity: 1; transform: translateY(0); }
                     }
-                    .anim-letter {
-                      display: inline-block;
+                    .anim-word {
+                      display: inline;
                       opacity: 0;
-                      animation: letter-pop 0.04s ease forwards;
+                      animation: word-pop 0.6s ease forwards;
+                      white-space: pre-wrap;
                     }
                   `}</style>
-                  {title.split('').map((char, i) => {
-                    const dreamStart = title.indexOf('Dream');
-                    const dreamEnd = dreamStart + 5;
-                    const isBlue = i >= dreamStart && i < dreamEnd;
+                  {title.split(' ').map((word, i) => {
+                    const isDreamWord = word.toLowerCase().includes('dream');
                     return (
-                      <span
-                        key={`${animationKey}-${i}`}
-                        className={`anim-letter`}
-                        style={isBlue ? {color: '#f97316', animationDelay: `${i * 0.06}s`} : {animationDelay: `${i * 0.06}s`}}
-                      >
-                        {char === ' ' ? '\u00A0' : char}
+                      <span key={`${animationKey}-${i}`}>
+                        <span
+                          className="anim-word"
+                          style={isDreamWord ? {color: '#f97316', animationDelay: `${i * 0.2}s`} : {animationDelay: `${i * 0.2}s`}}
+                        >
+                          {word}
+                        </span>
+                        {i < title.split(' ').length - 1 && ' '}
                       </span>
                     );
                   })}
@@ -324,7 +313,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     .anim-desc-text {
                       opacity: 0;
                       animation: desc-fade-in 0.8s ease forwards;
-                      animation-delay: 2s;
+                      animation-delay: 1.5s;
                     }
                   `}</style>
                   <span className="anim-desc-text">

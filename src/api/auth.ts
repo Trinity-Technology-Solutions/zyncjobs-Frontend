@@ -19,6 +19,7 @@ export interface RegisterData {
   companyWebsite?: string;
   location?: string;
   employerId?: string;
+  isTeamMember?: boolean;
   // New company verification fields
   domainVerification?: {
     isValid: boolean;
