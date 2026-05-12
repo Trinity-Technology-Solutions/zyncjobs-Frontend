@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { accountAPI } from '../api/account';
+import { tokenStorage } from '../utils/tokenStorage';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -84,7 +85,10 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
     const hasLocalSettings = !!localStorage.getItem(STORAGE_KEY);
     if (hasLocalSettings) { setLoading(false); return; }
     const API = import.meta.env.VITE_API_URL || '/api';
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+    const token = tokenStorage.getAccess()
+      || localStorage.getItem('accessToken')
+      || sessionStorage.getItem('accessToken')
+      || '';
     fetch(`${API}/gdpr/privacy-settings`, {
       headers: token ? { Authorization: `Bearer ${token}` } : {}
     })
@@ -681,13 +685,20 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
   useEffect(() => {
     if (tab !== 'history') return;
     const API = import.meta.env.VITE_API_URL || '/api';
-    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
+    // Try all token sources for cross-device compatibility
+    const token = tokenStorage.getAccess()
+      || localStorage.getItem('accessToken')
+      || sessionStorage.getItem('accessToken')
+      || localStorage.getItem('token')
+      || sessionStorage.getItem('token')
+      || '';
     const storedUser2 = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-    const userId = (propUser?.id || propUser?._id || storedUser2?.id || storedUser2?._id || '');
-    if (!userId || !token) return;
-    fetch(`${API}/gdpr/consent-history/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
+    const userId = propUser?.id || propUser?._id || storedUser2?.id || storedUser2?._id || '';
+    // Fetch even without token — backend may allow it with userId
+    if (!userId) return;
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    fetch(`${API}/gdpr/consent-history/${userId}`, { headers })
       .then(r => r.ok ? r.json() : [])
       .then(data => setConsentHistory(Array.isArray(data) ? data : []))
       .catch(() => {});
@@ -834,49 +845,51 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
                 <p className="text-sm">No consent records found.</p>
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Consent Types</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Privacy Settings</th>
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Date</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {consentHistory.map((record: any, i: number) => (
-                    <tr key={i} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {(record.consentTypes || []).map((t: string) => (
-                            <span key={t} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex flex-wrap gap-1 text-xs text-gray-600">
-                          {[
-                            ['Resume', record.storeResume],
-                            ['Employer View', record.allowEmployerView],
-                            ['Job Alerts', record.receiveJobAlerts],
-                            ['AI', record.allowAIRecommendations],
-                          ].map(([label, val]) => (
-                            <span key={String(label)} className={`px-2 py-0.5 rounded-full border text-xs ${
-                              val ? 'bg-green-50 text-green-700 border-green-100' : 'bg-gray-100 text-gray-400 border-gray-200'
-                            }`}>
-                              {String(label)}: {val ? 'On' : 'Off'}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
-                        {new Date(record.consentDate).toLocaleString()}
-                      </td>
+              <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+                <table className="w-full text-sm min-w-[500px]">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Consent Types</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Privacy Settings</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Date</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {consentHistory.map((record: any, i: number) => (
+                      <tr key={i} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {(record.consentTypes || []).map((t: string) => (
+                              <span key={t} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full border border-blue-100">
+                                {t}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1 text-xs text-gray-600">
+                            {[
+                              ['Resume', record.storeResume],
+                              ['Employer View', record.allowEmployerView],
+                              ['Job Alerts', record.receiveJobAlerts],
+                              ['AI', record.allowAIRecommendations],
+                            ].map(([label, val]) => (
+                              <span key={String(label)} className={`px-2 py-0.5 rounded-full border text-xs ${
+                                val ? 'bg-green-50 text-green-700 border-green-100' : 'bg-gray-100 text-gray-400 border-gray-200'
+                              }`}>
+                                {String(label)}: {val ? 'On' : 'Off'}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 text-xs">
+                          {new Date(record.consentDate).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         )}

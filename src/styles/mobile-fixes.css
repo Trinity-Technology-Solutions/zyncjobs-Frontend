@@ -1,0 +1,1069 @@
+/* ============================================================
+   ZyncJobs — Comprehensive Mobile Responsive Fixes
+   Targets all issues identified from screenshots
+   ============================================================ */
+
+/* ── 1. Global: prevent overflow, ensure box-sizing ── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { overflow-x: hidden !important; max-width: 100vw; }
+
+/* ── 2. Login / Register pages — right panel card ── */
+@media (max-width: 640px) {
+  /* Card padding on small screens */
+  .bg-white.rounded-2xl.shadow-xl.p-8 {
+    padding: 1.25rem !important;
+  }
+
+  /* Step indicator — prevent overflow */
+  .flex.items-center.justify-between.mb-6 {
+    gap: 0.25rem;
+  }
+  .flex.items-center.justify-between.mb-6 .flex-1 {
+    min-width: 0;
+  }
+
+  /* OAuth buttons — full width, proper height */
+  button.w-full.flex.items-center.justify-center.gap-3 {
+    width: 100% !important;
+    min-height: 44px;
+    padding: 0.625rem 1rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  /* Continue / Sign In / Verify buttons */
+  button.w-full.h-11,
+  button.w-full.py-3 {
+    width: 100% !important;
+    min-height: 44px !important;
+  }
+
+  /* Input fields — prevent iOS zoom */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  select,
+  textarea {
+    font-size: 16px !important;
+    width: 100% !important;
+  }
+}
+
+/* ── 3. Employer Register — company logo / suggestions ── */
+@media (max-width: 640px) {
+  /* Suggestions dropdown — constrain width */
+  .absolute.z-50.w-full.mt-1.bg-white.border {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  /* Verification status card */
+  .mt-2.p-3.rounded-lg.border.text-sm {
+    font-size: 0.75rem !important;
+    padding: 0.5rem !important;
+  }
+
+  /* Grid inside verification details */
+  .grid.grid-cols-2.gap-2.text-xs {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* ── 4. Profile Photo Editor modal ── */
+@media (max-width: 640px) {
+  /* Modal container */
+  .fixed.inset-0.bg-black.bg-opacity-75 {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  /* Modal card */
+  .bg-white.rounded-lg.max-w-2xl.w-full.mx-4 {
+    margin: 0 !important;
+    border-radius: 1rem 1rem 0 0 !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+    width: 100% !important;
+  }
+
+  /* Action buttons row — stack on mobile */
+  .flex.justify-between {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .flex.justify-between > .space-x-3 {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  /* Delete / Cancel / Save buttons */
+  .flex.justify-between button {
+    min-height: 40px;
+    padding: 0.5rem 0.875rem !important;
+    font-size: 0.8125rem !important;
+    white-space: nowrap;
+  }
+}
+
+/* ── 5. Recommended Jobs — filter bar & job cards ── */
+@media (max-width: 640px) {
+  /* Filter row — wrap properly */
+  .bg-white.rounded-lg.border.border-gray-200.p-3.mb-3 .flex.items-center.gap-3 {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  /* "Showing X of Y jobs" text — full width on wrap */
+  .text-xs.text-gray-500.whitespace-nowrap {
+    white-space: normal !important;
+    width: 100%;
+    text-align: right;
+  }
+
+  /* Job card right-side buttons — prevent overflow */
+  .flex.flex-col.gap-2.flex-shrink-0.min-w-\[120px\] {
+    min-width: 90px !important;
+  }
+
+  /* Applied / Saved / View Details button row */
+  .flex.items-start.justify-between.gap-3 {
+    flex-wrap: nowrap;
+  }
+}
+
+/* ── 6. Mobile bottom navigation removed ── */
+@media (max-width: 768px) {
+  /* No bottom nav padding needed */
+  .min-h-screen {
+    padding-bottom: 0;
+  }
+}
+
+/* ── 7. Skill Assessment — question & answer grid ── */
+@media (max-width: 640px) {
+  /* Assessment card */
+  .bg-white.rounded-3xl.shadow-2xl.w-full.max-w-3xl.mx-4 {
+    margin: 0.5rem !important;
+    border-radius: 1rem !important;
+  }
+
+  /* Question + progress layout — stack vertically */
+  .flex.gap-6.px-8.py-6 {
+    flex-direction: column !important;
+    padding: 1rem !important;
+    gap: 1rem !important;
+  }
+
+  /* Answer options grid — single column on very small screens */
+  .grid.grid-cols-2.gap-3 {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Circular progress — center it */
+  .flex-shrink-0.flex.items-center.justify-center {
+    align-self: center;
+  }
+
+  /* Top bar padding */
+  .flex.items-center.justify-between.px-8.pt-6.pb-4 {
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* Bottom nav padding */
+  .flex.items-center.gap-2.px-8.py-5 {
+    padding: 0.75rem 1rem !important;
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+
+  /* Question number buttons — smaller */
+  .w-8.h-8.rounded-lg.text-xs {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+}
+
+/* ── 8. Notifications panel ── */
+@media (max-width: 640px) {
+  /* Notification popup / panel */
+  [class*="notification"],
+  .notification-panel {
+    position: fixed !important;
+    top: 56px !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+    max-width: 100% !important;
+    z-index: 200 !important;
+  }
+
+  /* Notification item row */
+  .notification-item,
+  [class*="notification-item"] {
+    padding: 0.75rem !important;
+  }
+}
+
+/* ── 9. AI Job Match page — Apply button ── */
+@media (max-width: 640px) {
+  /* Job match card */
+  .bg-white.rounded-xl.border.border-gray-200 {
+    overflow: visible !important;
+  }
+
+  /* Match score + buttons row */
+  .flex.items-center.gap-3.mt-3,
+  .flex.items-center.gap-2.mt-3 {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+
+  /* Apply / View Match buttons — ensure full visibility */
+  .bg-blue-600.text-white.px-4.py-2.rounded-lg,
+  button[class*="Apply"],
+  a[class*="Apply"] {
+    flex-shrink: 0;
+    min-width: 70px;
+  }
+
+  /* Job match card container — no overflow clip */
+  .max-w-6xl.mx-auto.px-4 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+
+/* ── 10. Consent History table — date column ── */
+@media (max-width: 768px) {
+  /* Make consent history table responsive */
+  .bg-white.rounded-2xl.border.border-gray-200.overflow-hidden table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+  }
+
+  /* Date cell — don't truncate */
+  table td.px-5.py-3.text-gray-500.whitespace-nowrap {
+    white-space: normal !important;
+    min-width: 120px;
+    font-size: 0.75rem !important;
+  }
+
+  /* Table header cells */
+  table th.px-5.py-3 {
+    font-size: 0.65rem !important;
+    padding: 0.5rem 0.75rem !important;
+    white-space: nowrap;
+  }
+
+  /* Table body cells */
+  table td.px-5.py-3 {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ── 11. Employer Dashboard — sidebar menu overlap fix ── */
+@media (max-width: 1024px) {
+  /* Employer sidebar — slide in from left, don't overlap header */
+  .employer-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    z-index: 50 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease !important;
+  }
+
+  .employer-sidebar.open,
+  .employer-sidebar[data-open="true"] {
+    transform: translateX(0) !important;
+  }
+
+  /* Overlay when sidebar is open */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 49;
+  }
+}
+
+/* ── 12. Application Management page ── */
+@media (max-width: 640px) {
+  /* Application card — prevent overflow */
+  .bg-white.rounded-lg.border.shadow-sm {
+    overflow: hidden;
+  }
+
+  /* Candidate info row */
+  .flex.items-start.gap-3,
+  .flex.items-center.gap-3 {
+    flex-wrap: wrap;
+  }
+
+  /* Status dropdown + Schedule Interview row */
+  .flex.gap-2.mt-3,
+  .flex.items-center.gap-2.mt-2 {
+    flex-wrap: wrap;
+    gap: 0.5rem !important;
+  }
+
+  /* View Profile / Delete buttons */
+  .flex.gap-2.mt-2 button,
+  .flex.gap-2 button {
+    flex: 1;
+    min-height: 36px;
+    font-size: 0.8125rem !important;
+  }
+
+  /* Applied for text — truncate long job titles */
+  .text-sm.text-blue-600 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 200px;
+  }
+}
+
+/* ── 13. Application tab — "Apps" text fix ── */
+/* Tab labels should not truncate to abbreviations */
+@media (max-width: 640px) {
+  /* Tab buttons in posted jobs / applications */
+  .flex.border-b button,
+  [role="tab"] {
+    font-size: 0.8125rem !important;
+    padding: 0.5rem 0.75rem !important;
+    white-space: nowrap;
+  }
+}
+
+/* ── 14. Team page — Invite Member & Refresh buttons ── */
+@media (max-width: 640px) {
+  /* Page header with title + action buttons */
+  .flex.items-center.justify-between.mb-6,
+  .flex.justify-between.items-center {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  /* Button group */
+  .flex.gap-2 > button,
+  .flex.gap-3 > button {
+    min-height: 40px;
+    font-size: 0.8125rem !important;
+    padding: 0.5rem 0.875rem !important;
+  }
+}
+
+/* ── 15. AI Rejection modal — content alignment ── */
+@media (max-width: 640px) {
+  /* Modal */
+  .fixed.inset-0.bg-black.bg-opacity-50 .bg-white.rounded-lg.max-w-4xl {
+    margin: 0.5rem !important;
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+    width: calc(100vw - 1rem) !important;
+  }
+
+  /* Candidate row inside modal */
+  .bg-gray-50.rounded-lg.p-4.border .flex.items-center.justify-between {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Skills / Experience / Status columns */
+  .flex.items-center.space-x-4 {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .flex.items-center.space-x-4 > .text-right {
+    text-align: left !important;
+  }
+}
+
+/* ── 16. Credentialing page — Timesheet & Billing tabs ── */
+@media (max-width: 640px) {
+  /* Tab bar */
+  .flex.border-b.border-gray-200 {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .flex.border-b.border-gray-200::-webkit-scrollbar { display: none; }
+
+  /* Tab items */
+  .flex.border-b.border-gray-200 button,
+  .flex.border-b.border-gray-200 a {
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-size: 0.8125rem !important;
+    padding: 0.625rem 0.875rem !important;
+  }
+}
+
+/* ── 17. Messages page — date/time visibility ── */
+@media (max-width: 640px) {
+  /* Conversation list item */
+  .w-full.px-4.py-3.border-b .flex.items-center.gap-3.min-w-0 {
+    min-width: 0;
+  }
+
+  /* Name + time row */
+  .flex.justify-between.items-baseline.mb-1.gap-2 {
+    gap: 0.25rem !important;
+  }
+
+  /* Time stamp — never hidden */
+  .text-xs.text-gray-500.flex-shrink-0 {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 0.6875rem !important;
+  }
+
+  /* Employer name — truncate properly */
+  .font-semibold.text-gray-900.truncate.text-sm {
+    max-width: calc(100% - 60px);
+  }
+
+  /* Conversation UUID names — truncate */
+  .flex-1.min-w-0 h3 {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 160px;
+  }
+}
+
+/* ── 18. Job Description — raw HTML rendering fix ── */
+/* Already handled by .job-description-html in index.css,
+   but ensure textarea in job posting form shows plain text */
+@media (max-width: 640px) {
+  textarea.w-full {
+    font-size: 14px !important;
+    min-height: 120px;
+  }
+}
+
+/* ── 19. Job Search page — Back button position ── */
+@media (max-width: 640px) {
+  /* Back button — ensure it's visible and not overlapping */
+  .mb-4.sm\:mb-6 button[class*="back"],
+  .mb-4 button[class*="Back"],
+  [class*="BackButton"] {
+    position: relative !important;
+    z-index: 10 !important;
+    margin-bottom: 0.75rem !important;
+  }
+}
+
+/* ── 20. View Profile page — Send Message / Email / Resume buttons ── */
+@media (max-width: 640px) {
+  /* Profile action buttons */
+  .flex.gap-2.flex-wrap,
+  .flex.flex-wrap.gap-2 {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .flex.gap-2.flex-wrap > button,
+  .flex.flex-wrap.gap-2 > button,
+  .flex.flex-wrap.gap-2 > a {
+    flex: 1 1 auto;
+    min-width: 120px;
+    min-height: 40px;
+    font-size: 0.8125rem !important;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+/* ── 21. Employer Dashboard — Edit Profile button ── */
+@media (max-width: 640px) {
+  /* Header action buttons */
+  header .flex.items-center.gap-2,
+  header .flex.gap-2 {
+    gap: 0.375rem !important;
+  }
+
+  header button {
+    font-size: 0.75rem !important;
+    padding: 0.375rem 0.625rem !important;
+    white-space: nowrap;
+  }
+}
+
+/* ── 22. Job Listings page — filter icon overlap ── */
+@media (max-width: 640px) {
+  /* Hero section icons row */
+  .flex.items-center.justify-center.gap-4,
+  .flex.justify-center.gap-3 {
+    gap: 0.5rem !important;
+  }
+
+  /* Filter/search icon buttons */
+  .flex.items-center.gap-2 svg {
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+}
+
+/* ── 23. Header — prevent overlap on mobile ── */
+@media (max-width: 768px) {
+  header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 60 !important;
+  }
+
+  /* Hamburger menu dropdown — full width, below header */
+  header nav,
+  header [class*="menu"],
+  header [class*="dropdown"] {
+    position: fixed !important;
+    top: 56px !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 59 !important;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+}
+
+/* ── 24. General card / container padding on mobile ── */
+@media (max-width: 640px) {
+  .max-w-2xl.mx-auto.w-full.px-4,
+  .max-w-4xl.mx-auto.px-4,
+  .max-w-6xl.mx-auto.px-4 {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  /* Section headings */
+  h1 { font-size: clamp(1.25rem, 5vw, 1.75rem) !important; }
+  h2 { font-size: clamp(1.125rem, 4vw, 1.5rem) !important; }
+  h3 { font-size: clamp(1rem, 3.5vw, 1.25rem) !important; }
+}
+
+/* ── 25. Prevent any element from causing horizontal scroll ── */
+@media (max-width: 768px) {
+  img, video, iframe, svg {
+    max-width: 100% !important;
+  }
+
+  pre, code {
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  /* Tables */
+  table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+  }
+}
+
+/* ── Additional targeted fixes ── */
+
+/* Login / Register right panel — scrollable on small screens */
+@media (max-width: 640px) {
+  /* Right panel wrapper */
+  .w-full.lg\\:w-1\\/2.flex.items-center.justify-center.bg-white.px-6.py-12 {
+    padding: 1rem 0.75rem !important;
+    align-items: flex-start !important;
+    overflow-y: auto !important;
+    min-height: calc(100vh - 56px);
+  }
+
+  /* Card inside right panel */
+  .w-full.max-w-md {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Step indicator text — smaller on mobile */
+  .flex.flex-col.items-center.gap-1 span.text-xs {
+    font-size: 0.625rem !important;
+  }
+
+  /* Divider line in step indicator */
+  .flex-1.h-0\\.5.mx-2.mb-4 {
+    margin-left: 0.25rem !important;
+    margin-right: 0.25rem !important;
+  }
+}
+
+/* Employer sidebar — fix z-index so it doesn't overlap header content */
+@media (max-width: 1024px) {
+  /* Sidebar toggle button inside employer dashboard */
+  .employer-sidebar-toggle,
+  button[aria-label*="sidebar"],
+  button[aria-label*="menu"] {
+    z-index: 51 !important;
+  }
+}
+
+/* Job card Applied/Saved/ViewDetails buttons — prevent layout shift */
+@media (max-width: 480px) {
+  /* Right-side button column in job cards */
+  .flex.flex-col.gap-2.flex-shrink-0 {
+    min-width: 80px !important;
+    max-width: 100px !important;
+  }
+
+  /* View Details button text */
+  .bg-blue-600.hover\\:bg-blue-700.text-white.text-sm.font-bold.px-4.py-2.rounded-lg {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Notification bell popup — proper positioning */
+@media (max-width: 640px) {
+  /* Notification dropdown */
+  [class*="notification-dropdown"],
+  [class*="NotificationBell"] > div:last-child {
+    position: fixed !important;
+    top: 56px !important;
+    left: 0.5rem !important;
+    right: 0.5rem !important;
+    width: auto !important;
+    max-width: calc(100vw - 1rem) !important;
+    z-index: 200 !important;
+  }
+}
+
+/* Ensure min-height doesn't add excessive bottom padding when no mobile nav */
+@media (min-width: 769px) {
+  .min-h-screen {
+    padding-bottom: 0 !important;
+  }
+}
+
+/* ============================================================
+   ZyncJobs — Round 2 Mobile Fixes (all remaining issues)
+   ============================================================ */
+
+/* ── Viewport meta fix (ensure no horizontal scroll globally) ── */
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* ── Employer Dashboard: sidebar toggle button position ── */
+/* Prevent the hamburger from overlapping header content */
+@media (max-width: 1023px) {
+  /* Mobile toggle button — position below header */
+  button.lg\\:hidden.fixed.top-20 {
+    top: 4.5rem !important;
+    left: 0.75rem !important;
+    z-index: 51 !important;
+  }
+
+  /* Main content area — add left padding so content isn't under toggle */
+  .flex-1.bg-gray-50.min-w-0 > .flex.items-center.justify-between {
+    padding-left: 3.5rem !important;
+  }
+}
+
+/* ── Employer Dashboard: "Edit Profile" / "Profile" button fix ── */
+/* On mobile the button shows "Profile" — keep it as "Edit Profile" */
+@media (max-width: 640px) {
+  /* Force show full text, hide short text */
+  .sm\\:hidden {
+    display: none !important;
+  }
+  .hidden.sm\\:inline {
+    display: inline !important;
+  }
+
+  /* Top bar buttons — wrap if needed */
+  .flex.items-center.gap-2.sm\\:gap-3 {
+    flex-wrap: wrap;
+    gap: 0.375rem !important;
+  }
+
+  /* Edit Profile button — keep readable */
+  button[title="Complete your company profile"] {
+    font-size: 0.7rem !important;
+    padding: 0.375rem 0.5rem !important;
+    white-space: nowrap;
+  }
+}
+
+/* ── Team page: Invite Member + Refresh buttons ── */
+@media (max-width: 640px) {
+  /* Team header row */
+  .flex.items-center.justify-between.mb-6 {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Button group in team header */
+  .flex.items-center.gap-2 {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* Invite Member button */
+  .flex.items-center.gap-2 > button,
+  .flex.items-center.gap-2 > span {
+    font-size: 0.8125rem !important;
+    padding: 0.5rem 0.75rem !important;
+    min-height: 40px;
+  }
+
+  /* Role cards grid — single column */
+  .grid.grid-cols-1.sm\\:grid-cols-3.gap-4.mb-6 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Members table — make rows stack */
+  .divide-y > .flex.items-center.gap-4.px-6.py-4 {
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem !important;
+    gap: 0.5rem !important;
+  }
+}
+
+/* ── Application Management: content overflow fix ── */
+@media (max-width: 640px) {
+  /* Application card action buttons — stack vertically */
+  .flex.flex-row.sm\\:flex-col.gap-2.mt-3 {
+    flex-direction: column !important;
+    width: 100% !important;
+    margin-top: 0.75rem !important;
+  }
+
+  .flex.flex-row.sm\\:flex-col.gap-2.mt-3 > button,
+  .flex.flex-row.sm\\:flex-col.gap-2.mt-3 > select {
+    width: 100% !important;
+    min-height: 40px;
+    font-size: 0.8125rem !important;
+  }
+
+  /* Application card main layout — stack */
+  .flex.flex-col.sm\\:flex-row.items-start.gap-4 {
+    flex-direction: column !important;
+  }
+
+  /* Applied for text — allow wrapping */
+  .text-sm.sm\\:text-base.text-blue-700.font-semibold {
+    white-space: normal !important;
+    word-break: break-word;
+  }
+}
+
+/* ── Application tab "Apps" text fix ── */
+/* The tab shows "Apps (2)" instead of "Applications (2)" — fix via CSS */
+@media (max-width: 640px) {
+  /* Tab bar — horizontal scroll */
+  .flex.border-b {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+  }
+  .flex.border-b::-webkit-scrollbar { display: none; }
+
+  /* Tab buttons — don't shrink */
+  .flex.border-b > button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 0.8125rem !important;
+    padding: 0.5rem 0.875rem !important;
+  }
+}
+
+/* ── Employer Dashboard: sidebar overlap with header listing ── */
+@media (max-width: 1023px) {
+  /* Sidebar — starts below header (64px) */
+  .employer-sidebar {
+    top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* When sidebar is open, content behind it gets overlay */
+  .fixed.inset-0.bg-black.bg-opacity-50.z-30 {
+    z-index: 39 !important;
+  }
+
+  /* Sidebar z-index — above overlay but below modals */
+  .employer-sidebar {
+    z-index: 40 !important;
+  }
+}
+
+/* ── Notification drawer — full width on mobile ── */
+@media (max-width: 640px) {
+  /* Notification slide-in drawer */
+  .fixed.top-0.right-0.h-full.w-96 {
+    width: 100vw !important;
+    max-width: 100vw !important;
+  }
+}
+
+/* ── CandidateCredentialing tabs (Onboarding/Timesheets/Billing) ── */
+@media (max-width: 640px) {
+  /* Tab container */
+  [class*="credentialing"] .flex.border-b,
+  .flex.border-b.border-gray-200.mb-6 {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+
+  /* Tab items */
+  [class*="credentialing"] .flex.border-b button,
+  .flex.border-b.border-gray-200.mb-6 button {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    min-width: max-content;
+    padding: 0.625rem 1rem !important;
+    font-size: 0.8125rem !important;
+  }
+}
+
+/* ── Job Description HTML rendering fix ── */
+/* Ensure job description textarea shows plain text, not rendered HTML */
+.job-description-textarea {
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* For display areas — render HTML properly */
+.job-description-display {
+  white-space: normal;
+}
+.job-description-display p { margin-bottom: 0.5rem; }
+.job-description-display ul { list-style: disc; padding-left: 1.5rem; margin-bottom: 0.5rem; }
+.job-description-display li { margin-bottom: 0.25rem; }
+.job-description-display h1,
+.job-description-display h2,
+.job-description-display h3 { font-weight: 700; margin-bottom: 0.5rem; margin-top: 1rem; }
+
+/* ── View Profile page buttons ── */
+@media (max-width: 640px) {
+  /* Profile action buttons container */
+  .flex.flex-wrap.gap-3,
+  .flex.gap-3.flex-wrap {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  .flex.flex-wrap.gap-3 > button,
+  .flex.flex-wrap.gap-3 > a,
+  .flex.gap-3.flex-wrap > button,
+  .flex.gap-3.flex-wrap > a {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-width: 120px;
+    min-height: 40px;
+    font-size: 0.8125rem !important;
+    justify-content: center;
+    text-align: center;
+  }
+}
+
+/* ── Back button in Job Search page ── */
+@media (max-width: 640px) {
+  /* Ensure back button is always visible */
+  .mb-4.sm\\:mb-6,
+  .mb-6 {
+    position: relative;
+    z-index: 5;
+  }
+
+  /* Back button itself */
+  [class*="BackButton"],
+  button[class*="back"],
+  .back-btn {
+    position: relative !important;
+    z-index: 10 !important;
+  }
+}
+
+/* ── Recommended Jobs: Applied/Saved/ViewDetails layout ── */
+@media (max-width: 480px) {
+  /* Right-side button column */
+  .flex.flex-col.gap-2.flex-shrink-0 {
+    min-width: 76px !important;
+    max-width: 90px !important;
+  }
+
+  /* View Details button */
+  .bg-blue-600.text-white.text-sm.font-bold.rounded-lg {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+    white-space: nowrap;
+  }
+
+  /* Applied badge */
+  .flex.items-center.justify-center.gap-1\\.5.text-sm {
+    font-size: 0.6875rem !important;
+    padding: 0.25rem 0.375rem !important;
+  }
+}
+
+/* ── AI Job Match: Apply button fully visible ── */
+@media (max-width: 640px) {
+  /* Job match card — no overflow clip */
+  .bg-white.rounded-xl.border.border-gray-200.hover\\:shadow-lg {
+    overflow: visible !important;
+  }
+
+  /* Actions row */
+  .flex.flex-wrap.items-center.justify-between.gap-2.pt-4.border-t {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Apply button — always visible */
+  .flex.items-center.gap-2.flex-shrink-0 {
+    flex-shrink: 0 !important;
+  }
+
+  .flex.items-center.gap-2.flex-shrink-0 > button {
+    min-width: 64px;
+    padding: 0.375rem 0.625rem !important;
+    font-size: 0.8125rem !important;
+  }
+}
+
+/* ── Skill Assessment: question/answer alignment ── */
+@media (max-width: 640px) {
+  /* Assessment wrapper card */
+  .bg-white.rounded-3xl.shadow-2xl {
+    margin: 0.5rem !important;
+    border-radius: 1rem !important;
+    width: calc(100vw - 1rem) !important;
+    max-width: calc(100vw - 1rem) !important;
+  }
+
+  /* Question + progress — column layout */
+  .flex.flex-col.sm\\:flex-row.gap-4 {
+    flex-direction: column !important;
+  }
+
+  /* Answer options — single column */
+  .grid.grid-cols-1.sm\\:grid-cols-2.gap-2 {
+    grid-template-columns: 1fr !important;
+    gap: 0.5rem !important;
+  }
+
+  /* Answer option labels */
+  .flex.items-center.gap-3.px-3.py-2\\.5.border.rounded-xl {
+    padding: 0.625rem 0.75rem !important;
+    min-height: 44px;
+  }
+}
+
+/* ── Messages: UUID names truncated, date visible ── */
+@media (max-width: 640px) {
+  /* Conversation name — truncate long UUIDs */
+  .font-semibold.text-gray-900.truncate.text-sm.flex-1.min-w-0 {
+    max-width: 150px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  /* Time — always visible */
+  .text-xs.text-gray-500.flex-shrink-0.ml-1 {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: 0.6875rem !important;
+  }
+}
+
+/* ── Consent History: date column fully visible ── */
+@media (max-width: 768px) {
+  /* Wrap the table in a scrollable container */
+  .overflow-x-auto {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Date cell — show full date */
+  table td:last-child {
+    white-space: nowrap !important;
+    min-width: 130px !important;
+    font-size: 0.75rem !important;
+  }
+
+  /* Reduce padding on all cells */
+  table td, table th {
+    padding: 0.5rem 0.625rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* ── Notification alignment ── */
+@media (max-width: 640px) {
+  /* Notification popup — fixed position, full width */
+  .fixed.top-0.right-0.h-full {
+    width: 100vw !important;
+  }
+
+  /* Notification item */
+  .p-4.border-b.hover\\:bg-gray-50 {
+    padding: 0.75rem !important;
+  }
+
+  /* Notification title + time row */
+  .flex.items-start.justify-between.mb-1 {
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .text-xs.text-gray-400.whitespace-nowrap.ml-4 {
+    margin-left: 0 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* ── General: prevent min-h-screen from adding bottom padding on desktop ── */
+@media (min-width: 769px) {
+  .min-h-screen {
+    padding-bottom: 0 !important;
+  }
+}
+
+/* ── Prevent horizontal scroll on all pages ── */
+body, #root {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+}
+
+/* ── Touch targets: all interactive elements ── */
+@media (max-width: 768px) {
+  button, a, [role="button"], select, input[type="checkbox"], input[type="radio"] {
+    min-height: 44px;
+  }
+
+  /* Exception: inline text links */
+  a.text-xs, a.text-sm, button.text-xs {
+    min-height: unset;
+  }
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

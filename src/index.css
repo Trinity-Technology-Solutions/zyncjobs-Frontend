@@ -203,7 +203,7 @@ h6 { font-size: 1rem; }
 
 /* Import mobile styles */
 @import './styles/mobile.css';
-@import './styles/responsive-fixes.css';
+@import './styles/mobile-fixes.css';
 
 /* Hide scrollbar for employer dashboard sidebar */
 .employer-sidebar::-webkit-scrollbar {

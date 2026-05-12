@@ -166,28 +166,28 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
           </div>
 
           {/* Score circles */}
-          <div className="bg-white rounded-3xl shadow-lg px-10 py-8 mb-6">
-            <div className="grid grid-cols-3 gap-6">
+          <div className="bg-white rounded-3xl shadow-lg px-4 sm:px-10 py-6 sm:py-8 mb-6">
+            <div className="grid grid-cols-3 gap-3 sm:gap-6">
               {[
                 { label: 'Correct', sublabel: 'Answers', value: correctCount, stroke: '#34d399', track: '#d1fae5', ratio: questions.length ? correctCount / questions.length : 0 },
                 { label: 'Total', sublabel: 'Questions', value: questions.length, stroke: '#374151', track: '#e5e7eb', ratio: 1 },
                 { label: 'Wrong', sublabel: 'Answers', value: wrongCount, stroke: '#f87171', track: '#fce7f3', ratio: questions.length ? wrongCount / questions.length : 0 },
               ].map((item, i) => (
-                <div key={i} className="flex flex-col items-center gap-3">
-                  <div className="relative w-20 h-20">
-                    <svg width="80" height="80" viewBox="0 0 80 80">
+                <div key={i} className="flex flex-col items-center gap-2 sm:gap-3">
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20">
+                    <svg width="100%" height="100%" viewBox="0 0 80 80">
                       <circle cx="40" cy="40" r="34" fill="none" stroke={item.track} strokeWidth="6" />
                       <circle cx="40" cy="40" r="34" fill="none" stroke={item.stroke} strokeWidth="6"
                         strokeDasharray={`${item.ratio * circumference} ${circumference}`}
                         strokeLinecap="round" transform="rotate(-90 40 40)" />
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-xl font-bold" style={{color: item.stroke}}>{item.value}</span>
+                      <span className="text-lg sm:text-xl font-bold" style={{color: item.stroke}}>{item.value}</span>
                     </div>
                   </div>
                   <div className="text-center">
-                    <p className="text-sm font-semibold text-gray-700">{item.label}</p>
-                    <p className="text-sm text-gray-400">{item.sublabel}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-gray-700">{item.label}</p>
+                    <p className="text-xs text-gray-400">{item.sublabel}</p>
                   </div>
                 </div>
               ))}
@@ -207,13 +207,13 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
 
           {/* Q&A Review */}
           {questions.length > 0 && (
-            <div className="bg-white rounded-3xl shadow-lg p-8 mb-6">
+            <div className="bg-white rounded-3xl shadow-lg p-4 sm:p-8 mb-6">
               <h2 className="text-base font-bold text-gray-900 mb-5 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-violet-500" />
                 Question Review
                 <span className="ml-auto text-xs font-medium text-gray-400">{correctCount}/{questions.length} Correct</span>
               </h2>
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 {questions.map((q: any, idx: number) => {
                   const userAns = Number(q.userAnswer);
                   const correctAns = Number(q.correctAnswer);
@@ -221,14 +221,14 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
                   return (
                     <div key={idx} style={{
                       borderRadius: '16px',
-                      padding: '20px',
+                      padding: '16px',
                       border: `1.5px solid ${isCorrect ? '#6ee7b7' : '#fca5a5'}`,
                       backgroundColor: isCorrect ? '#f0fdf4' : '#fff5f5'
                     }}>
                       {/* Question header */}
-                      <div className="flex items-start gap-3 mb-4">
+                      <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
                         <span style={{
-                          flexShrink: 0, width: 24, height: 24, borderRadius: '50%',
+                          flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: '#fff', fontSize: 11, fontWeight: 700,
                           backgroundColor: isCorrect ? '#34d399' : '#f87171'
@@ -239,8 +239,8 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
                           : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />}
                       </div>
 
-                      {/* Options */}
-                      <div className="grid grid-cols-2 gap-2 ml-9">
+                      {/* Options — single column on mobile, 2 cols on sm+ */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {q.options.map((option: string, optIdx: number) => {
                           const isCorrectOpt = optIdx === correctAns;
                           const isWrongUserAns = optIdx === userAns && !isCorrect;
@@ -259,24 +259,26 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
                           return (
                             <div key={optIdx} style={{
                               display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '8px 12px', borderRadius: 12,
+                              padding: '10px 12px', borderRadius: 12,
                               backgroundColor: bg,
                               border: `2px solid ${border}`,
-                              color, fontWeight
+                              color, fontWeight,
+                              minHeight: 44
                             }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, width: 16, flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, width: 18, flexShrink: 0 }}>
                                 {String.fromCharCode(65 + optIdx)}.
                               </span>
-                              <span style={{ flex: 1, fontSize: 13 }}>{option}</span>
+                              <span style={{ flex: 1, fontSize: 13, lineHeight: 1.4, wordBreak: 'break-word' }}>{option}</span>
                               {isCorrectOpt && (
                                 <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
                                   {!isCorrect && (
                                     <span style={{
                                       fontSize: 10, fontWeight: 700, backgroundColor: '#bbf7d0',
-                                      color: '#15803d', padding: '1px 6px', borderRadius: 999
+                                      color: '#15803d', padding: '1px 6px', borderRadius: 999,
+                                      whiteSpace: 'nowrap'
                                     }}>Correct</span>
                                   )}
-                                  <CheckCircle style={{ width: 14, height: 14, color: '#16a34a' }} />
+                                  <CheckCircle style={{ width: 14, height: 14, color: '#16a34a', flexShrink: 0 }} />
                                 </span>
                               )}
                               {isWrongUserAns && (
@@ -303,8 +305,8 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
             </div>
           )}
 
-          {/* Strengths + Improvements side by side */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          {/* Strengths + Improvements side by side on sm+, stacked on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {reviewData?.strengths?.length > 0 && (
               <div className="bg-white rounded-3xl shadow-lg p-6">
                 <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -355,13 +357,13 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
           )}
 
           {/* Action buttons */}
-          <div className="flex gap-4 justify-center pb-4">
+          <div className="flex flex-col sm:flex-row gap-3 justify-center pb-4">
             <button onClick={() => onNavigate('skill-assessment')}
-              className="flex items-center gap-2 bg-gray-900 text-white px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-700 transition-colors shadow-md">
+              className="flex items-center justify-center gap-2 bg-gray-900 text-white px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-700 transition-colors shadow-md w-full sm:w-auto">
               <RotateCcw className="w-4 h-4" /> Take Another
             </button>
             <button onClick={() => { window.scrollTo(0, 0); onNavigate('dashboard'); }}
-              className="flex items-center gap-2 bg-white text-gray-700 px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-50 transition-colors shadow-md border border-gray-200">
+              className="flex items-center justify-center gap-2 bg-white text-gray-700 px-8 py-3 rounded-full font-semibold text-sm hover:bg-gray-50 transition-colors shadow-md border border-gray-200 w-full sm:w-auto">
               Dashboard
             </button>
           </div>

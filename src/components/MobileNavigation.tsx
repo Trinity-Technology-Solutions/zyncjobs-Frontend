@@ -4,15 +4,18 @@ import { Home, Search, Briefcase, User, Calendar } from 'lucide-react';
 interface MobileNavigationProps {
   onNavigate: (page: string) => void;
   currentPage?: string;
+  user?: { type: string } | null;
 }
 
-const MobileNavigation: React.FC<MobileNavigationProps> = ({ onNavigate, currentPage = '' }) => {
+const MobileNavigation: React.FC<MobileNavigationProps> = ({ onNavigate, currentPage = '', user }) => {
+  // Only show for logged-in candidates
+  if (!user || user.type !== 'candidate') return null;
   const navItems = [
     { icon: Home, label: 'Home', path: 'home' },
     { icon: Search, label: 'Jobs', path: 'job-listings' },
     { icon: Briefcase, label: 'Applied', path: 'my-applications' },
     { icon: Calendar, label: 'Interviews', path: 'interviews' },
-    { icon: User, label: 'Profile', path: 'candidate-profile' }
+    { icon: User, label: 'Profile', path: 'dashboard' }
   ];
 
   return (

@@ -206,24 +206,24 @@ const ProfilePhotoEditor: React.FC<ProfilePhotoEditorProps> = ({
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-between">
+          <div className="flex flex-wrap gap-2 justify-between">
             <button
               onClick={handleDelete}
               disabled={!photo}
-              className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-shrink-0 px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
               Delete Photo
             </button>
-            <div className="space-x-3">
+            <div className="flex gap-2 flex-shrink-0">
               <button
                 onClick={onClose}
-                className="px-6 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm"
               >
                 Save Photo
               </button>

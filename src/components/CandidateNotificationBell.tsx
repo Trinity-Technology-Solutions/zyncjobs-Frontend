@@ -60,7 +60,7 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
           <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setOpen(false)} />
 
           {/* Slide-in Panel */}
-          <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+          <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900 text-base">Application Updates</h3>

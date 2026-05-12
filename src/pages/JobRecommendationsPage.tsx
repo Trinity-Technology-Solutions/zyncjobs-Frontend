@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { matchAPI } from '../services/matchAPI';
 import { MatchBreakdownModal } from '../components/match/MatchBreakdownModal';
-import { MatchScoreBadge } from '../components/match/MatchScoreBadge';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -284,8 +283,8 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                   {/* Top accent bar for strong matches */}
                   {isStrong && <div className="h-1 bg-gradient-to-r from-green-400 to-emerald-500" />}
 
-                  <div className="p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                  <div className="p-4 sm:p-6">
+                    <div className="flex flex-col gap-4">
                       {/* Left: Job Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3 mb-3">
@@ -334,25 +333,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                         {/* Description */}
                         {job.description && (
                           <p className="text-gray-600 text-sm line-clamp-2 mb-3">
-                            {(() => {
-                              let desc = job.description;
-                              // Remove HTML tags showing as text and Job Summary headings
-                              desc = desc
-                                .replace(/<h[1-6]>Job Summary<\/h[1-6]>\s*<p>/gi, '') // Remove <h3>Job Summary</h3> <p>
-                                .replace(/<h[1-6]>Job Summary<\/h[1-6]>/gi, '') // Remove <h3>Job Summary</h3>
-                                .replace(/<h[1-6]>Summary<\/h[1-6]>\s*<p>/gi, '') // Remove <h3>Summary</h3> <p>
-                                .replace(/<h[1-6]>Summary<\/h[1-6]>/gi, '') // Remove <h3>Summary</h3>
-                                .replace(/Job\s*Summary[:\s]*/gi, '') // Job Summary with optional colon/spaces
-                                .replace(/Summary[:\s]*/gi, '') // Summary with optional colon/spaces
-                                .replace(/^[\s\n]*Job[\s\n]+Summary[\s\n:]*/gi, '') // Multi-line Job Summary
-                                .replace(/[\s\n]*Job[\s\n]+Summary[\s\n:]*/gi, ' ') // Job Summary anywhere
-                                .replace(/^[\s\n]*Summary[\s\n:]*/gi, '') // Summary at start
-                                .replace(/[\s\n]*Summary[\s\n:]*/gi, ' ') // Summary anywhere
-                                .replace(/\s+/g, ' ') // Clean up multiple spaces
-                                .trim();
-                              return desc;
-                            })()
-                          }
+                            {job.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 150)}
                           </p>
                         )}
 
@@ -380,13 +361,23 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                         )}
                       </div>
 
-                      {/* Right: Score + Actions */}
-                      <div className="flex flex-row sm:flex-col items-center sm:items-end gap-3 sm:gap-4 flex-shrink-0">
-                        <MatchScoreBadge score={job.matchScore || 0} size="lg" />
-                        <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
+                      {/* Bottom: Score + Actions */}
+                      <div className="flex flex-col gap-2">
+                        {/* Score row */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 bg-amber-400 text-white px-3 py-1.5 rounded-lg font-bold text-sm flex-shrink-0">
+                            <span>{job.matchScore || 0}%</span>
+                            <span className="text-base">&#128293;</span>
+                          </div>
+                          <span className="text-sm text-gray-600 font-medium">
+                            {(job.matchScore || 0) >= 80 ? 'Excellent Match' : (job.matchScore || 0) >= 60 ? 'Good Match' : 'Partial Match'}
+                          </span>
+                        </div>
+                        {/* Buttons row */}
+                        <div className="flex gap-2">
                           <button
                             onClick={() => setBreakdownJob(job)}
-                            className="flex-1 sm:flex-none text-sm border-2 border-blue-600 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 font-semibold transition-colors whitespace-nowrap"
+                            className="flex-1 text-sm border-2 border-blue-600 text-blue-600 px-3 py-2 rounded-lg hover:bg-blue-50 font-semibold transition-colors min-h-[40px]"
                           >
                             View Match
                           </button>
@@ -397,7 +388,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                                 onNavigate?.(`job-detail/${job.id}`);
                               }
                             }}
-                            className="flex-1 sm:flex-none text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-semibold transition-colors whitespace-nowrap"
+                            className="flex-1 text-sm bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 font-semibold transition-colors min-h-[40px]"
                           >
                             Apply Now
                           </button>

@@ -12,7 +12,6 @@ import CallToAction from './components/CallToAction';
 import OfflineIndicator from './components/OfflineIndicator';
 import Notification from './components/Notification';
 import ChatWidget from './components/ChatWidget';
-import MobileNavigation from './components/MobileNavigation';
 import JobAlertsManager from './components/JobAlertsManager';
 import AuthGuard from './components/AuthGuard';
 import TokenHandler from './components/TokenHandler';
@@ -547,7 +546,6 @@ function App() {
               <CallToAction onNavigate={handleNavigation} />
               <Footer onNavigate={handleNavigation} user={user as any} />
               <ChatWidget />
-              <MobileNavigation onNavigate={handleNavigation} currentPage="home" />
             </div>
           } />
 

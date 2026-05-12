@@ -316,9 +316,19 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   }
 
   return (
-    <div className="flex h-screen bg-white">
+    <div style={{display: 'flex', flexDirection: 'column', height: '100dvh', maxHeight: '100dvh', overflow: 'hidden', background: '#fff'}}>
       {/* Sidebar - Conversations List */}
-      <div className={`${sidebarOpen ? 'flex' : 'hidden'} lg:flex flex-col bg-white border-r border-gray-200 flex-shrink-0 overflow-hidden w-full lg:w-80 xl:w-96`}>
+      <div style={{
+        display: sidebarOpen ? 'flex' : 'none',
+        flexDirection: 'column',
+        background: '#fff',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        position: 'absolute',
+        top: 0, left: 0, right: 0, bottom: 0,
+        zIndex: 10
+      }} className="lg:relative lg:flex lg:w-80 xl:w-96 lg:border-r lg:border-gray-200">
         {/* Header */}
         <div className="px-4 py-4 border-b border-gray-100 bg-white">
           <div className="flex items-center justify-between mb-3">
@@ -349,7 +359,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
         </div>
 
         {/* Conversations List */}
-        <div className="flex-1 overflow-y-auto">
+        <div style={{flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch'} as React.CSSProperties}>
           {filteredConversations.length === 0 ? (
             <div className="p-4 text-center text-gray-500">
               <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
@@ -366,37 +376,51 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                   setSelectedConversation(conv);
                   setSidebarOpen(false);
                 }}
-                className={`w-full px-4 py-3 border-b border-gray-100 text-left hover:bg-gray-50 transition-colors ${
-                  selectedConversation?._id === conv._id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                }`}
+                style={{
+                  width: '100%',
+                  display: 'block',
+                  padding: '12px 16px',
+                  borderBottom: '1px solid #f3f4f6',
+                  textAlign: 'left',
+                  background: selectedConversation?._id === conv._id ? '#eff6ff' : 'transparent',
+                  cursor: 'pointer',
+                  boxSizing: 'border-box',
+                  overflow: 'hidden'
+                }}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div style={{display: 'flex', alignItems: 'center', gap: '12px', width: '100%', boxSizing: 'border-box', overflow: 'hidden'}}>
                   {/* Avatar */}
-                  <div className="relative flex-shrink-0">
+                  <div style={{position: 'relative', flexShrink: 0, width: 48, height: 48}}>
                     {conv.companyLogo ? (
-                      <img src={conv.companyLogo} alt={conv.employerName} className="w-12 h-12 rounded-full object-cover" />
+                      <img src={conv.companyLogo} alt={conv.employerName} style={{width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', display: 'block'}} />
                     ) : (
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                      <div style={{width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 700, fontSize: 14}}>
                         {getInitials(conv.employerName)}
                       </div>
                     )}
                     {conv.isOnline && (
-                      <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                      <div style={{position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, background: '#22c55e', borderRadius: '50%', border: '2px solid #fff'}}></div>
                     )}
                   </div>
 
                   {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-baseline mb-1 gap-2">
-                      <h3 className="font-semibold text-gray-900 truncate text-sm">{conv.employerName}</h3>
-                      <span className="text-xs text-gray-500 flex-shrink-0">{formatTime(conv.lastMessageTime)}</span>
+                  <div style={{flex: '1 1 0px', minWidth: 0, overflow: 'hidden', width: 0}}>
+                    <div style={{display: 'flex', alignItems: 'baseline', width: '100%', overflow: 'hidden'}}>
+                      <span style={{flex: '1 1 0px', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600, fontSize: 14, color: '#111827'}}>
+                        {conv.employerName}
+                      </span>
+                      <span style={{flexShrink: 0, whiteSpace: 'nowrap', fontSize: 11, color: '#9ca3af', paddingLeft: 8}}>
+                        {formatTime(conv.lastMessageTime)}
+                      </span>
                     </div>
-                    <p className="text-sm text-gray-600 truncate leading-relaxed">{conv.lastMessage || 'No messages yet'}</p>
+                    <p style={{margin: 0, fontSize: 14, color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                      {conv.lastMessage || 'No messages yet'}
+                    </p>
                   </div>
 
                   {/* Unread Badge */}
                   {conv.unreadCount > 0 && (
-                    <div className="bg-blue-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0">
+                    <div style={{flexShrink: 0, background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700, borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
                       {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                     </div>
                   )}
@@ -409,7 +433,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
 
       {/* Main Chat Area */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col min-h-0">
+        <div style={{display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 10, background: '#fff'}} className="lg:relative">
           {/* Chat Header */}
           <div className="px-4 py-4 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
             <div className="flex items-center gap-3 min-w-0">

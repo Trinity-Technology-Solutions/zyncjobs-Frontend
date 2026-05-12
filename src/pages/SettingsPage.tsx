@@ -372,18 +372,19 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
 
               {/* Privacy Settings Link */}
               <div className="border-b">
-                <div className="flex items-center justify-between p-6">
-                  <div className="flex items-center">
-                    <Shield className="w-5 h-5 text-gray-400 mr-3" />
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
+                  <div className="flex items-start gap-3">
+                    <Shield className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h3 className="font-medium text-gray-900">Privacy & Data</h3>
+                      <h3 className="font-medium text-gray-900">Privacy &amp; Data</h3>
                       <p className="text-sm text-gray-500">Manage consent, download or delete your data</p>
                     </div>
                   </div>
                   <button
                     onClick={() => onNavigate('privacy-settings')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors text-sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium transition-colors text-sm self-start sm:self-auto flex-shrink-0 min-h-[44px] flex items-center gap-2"
                   >
+                    <Shield className="w-4 h-4" />
                     Manage
                   </button>
                 </div>
@@ -430,9 +431,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
 
                 {/* Logout Section */}
                 <div>
-                  <div className="flex items-center justify-between p-6">
-                    <div className="flex items-center">
-                      <LogOut className="w-5 h-5 text-gray-400 mr-3" />
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
+                    <div className="flex items-start gap-3">
+                      <LogOut className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
                       <div>
                         <h3 className="font-medium text-gray-900">Logout</h3>
                         <p className="text-sm text-gray-500">Sign out of your account</p>
@@ -443,7 +444,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                         if (onLogout) onLogout();
                         onNavigate('home');
                       }}
-                      className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2"
+                      className="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-md font-medium transition-colors flex items-center gap-2 self-start sm:self-auto flex-shrink-0 min-h-[40px]"
                     >
                       <LogOut className="w-4 h-4" />
                       Logout
