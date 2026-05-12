@@ -702,16 +702,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Mobile toggle */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-20 left-4 z-50 bg-blue-800 text-white p-2 rounded-lg shadow-lg"
-      >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
-      </button>
-
       {/* Sidebar */}
       <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
@@ -774,6 +764,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                      'Company'}
                   </p>
                 </div>
+                {/* Close button — mobile only */}
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="lg:hidden flex-shrink-0 text-white/70 hover:text-white p-1 rounded-lg hover:bg-blue-700/50 transition-colors"
+                  aria-label="Close menu"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -904,9 +904,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       {/* Main Content */}
       <div className="flex-1 bg-gray-50 min-w-0">
         {/* Top bar with Back Button */}
-        <div className="flex items-center justify-between lg:justify-between gap-3 py-3 pl-16 lg:pl-6 pr-4 lg:pr-6">
-          <div className="flex items-center gap-3">
-            <BackButton 
+        <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
+          <div className="flex items-center gap-2">
+            {/* Inline static menu toggle — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="lg:hidden flex-shrink-0 bg-blue-700 text-white p-2 rounded-lg"
+              aria-label="Open menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <BackButton
               onClick={() => onNavigate('home')}
               text="Back to Home"
               className="hidden lg:flex"
@@ -920,8 +930,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs sm:text-sm shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
-              <span className="hidden sm:inline">Edit Profile</span>
-              <span className="sm:hidden">Profile</span>
+              <span>Edit Profile</span>
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -956,8 +965,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 onClick={() => onNavigate('job-posting-selection')}
                 className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 sm:px-5 sm:py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-xs sm:text-sm shadow-lg"
               >
-                <span className="hidden sm:inline">Post a Job</span>
-                <span className="sm:hidden">Post Job</span>
+                Post Job
               </button>
             ) : (
               <span className="bg-gray-100 text-gray-400 px-3 py-2 sm:px-5 sm:py-2 rounded-lg text-xs sm:text-sm border border-gray-200 cursor-not-allowed" title="View only access — cannot post jobs">
@@ -1403,7 +1411,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-row sm:flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 flex-wrap">
+                        <div className="flex flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-auto">
                           <select
                             value={application.status}
                             onChange={async (e) => {
@@ -1495,7 +1503,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 closeConfirm();
                               });
                             }}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md flex items-center gap-2"
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md w-full justify-center flex items-center gap-2"
                           >
                             <Trash2 className="w-4 h-4" />
                             Delete
@@ -1594,7 +1602,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           </div>
                         </div>
 
-                        <div className="flex flex-row sm:flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 flex-wrap">
+                        <div className="flex flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-auto">
                           <select
                             value={interview.status || 'scheduled'}
                             onChange={async (e) => {
@@ -1944,7 +1952,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
             onClick={() => setShowNotifications(false)}
           />
-          <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+          <div className="fixed top-0 right-0 h-full w-full sm:w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
             <div className="p-4 border-b flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
               <div className="flex items-center gap-3">
@@ -2215,22 +2223,22 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   return (
     <>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-start justify-between mb-6 gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Team Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Team Management</h1>
           <p className="text-gray-500 text-sm mt-1">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {members.some(m => m.status === 'pending') && (
             <button onClick={fetchMembers}
-              className="flex items-center gap-1 text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+              className="flex items-center gap-1 text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors min-h-[40px]">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
               Refresh
             </button>
           )}
           {canInvite ? (
             <button onClick={() => setShowInvite(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm min-h-[40px]">
               <UserPlus className="w-4 h-4" /> Invite Member
             </button>
           ) : (

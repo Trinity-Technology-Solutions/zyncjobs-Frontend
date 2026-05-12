@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
+import { apiFetch } from '../api/apiFetch';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -538,7 +539,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mx-4">
 
             {/* Top bar */}
-            <div className="flex items-center justify-between px-8 pt-6 pb-4">
+            <div className="flex items-center justify-between px-4 sm:px-8 pt-4 sm:pt-6 pb-3 sm:pb-4">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-gray-400" />
                 <div>
@@ -561,14 +562,14 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
             <div className="h-px bg-gray-100 mx-8" />
 
             {/* Question + circular progress */}
-            <div className="flex gap-6 px-8 py-6">
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 px-4 sm:px-8 py-4 sm:py-6">
               <div className="flex-1">
                 <p className="text-xs text-gray-400 mb-2 font-medium">Question {currentQuestion + 1} of {assessment.totalQuestions}</p>
-                <p className="text-sm font-medium text-gray-800 mb-5 leading-relaxed">{question.question}</p>
-                <div className="grid grid-cols-2 gap-3">
+                <p className="text-sm font-medium text-gray-800 mb-4 sm:mb-5 leading-relaxed">{question.question}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                   {question.options.map((option: string, index: number) => (
                     <label key={index}
-                      className={`flex items-center gap-3 px-4 py-3 border rounded-xl cursor-pointer transition-all ${
+                      className={`flex items-center gap-3 px-3 sm:px-4 py-2.5 sm:py-3 border rounded-xl cursor-pointer transition-all ${
                         answers[currentQuestion] === index
                           ? 'border-gray-900 bg-gray-900 text-white'
                           : 'border-gray-200 hover:border-gray-400 bg-white text-gray-700'
@@ -587,8 +588,8 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
               </div>
 
               {/* Circular progress */}
-              <div className="flex-shrink-0 flex items-center justify-center">
-                <div className="relative w-28 h-28">
+              <div className="flex-shrink-0 flex items-center justify-center self-center sm:self-auto">
+                <div className="relative w-24 h-24 sm:w-28 sm:h-28">
                   <svg width="112" height="112" viewBox="0 0 112 112">
                     <circle cx="56" cy="56" r={radius} fill="none" stroke="#e5e7eb" strokeWidth="7" />
                     <circle cx="56" cy="56" r={radius} fill="none" stroke="#111827" strokeWidth="7"
@@ -596,7 +597,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
                       strokeLinecap="round" transform="rotate(-90 56 56)" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-lg font-bold text-gray-900">{answeredCount}/{assessment.totalQuestions}</span>
+                    <span className="text-base sm:text-lg font-bold text-gray-900">{answeredCount}/{assessment.totalQuestions}</span>
                   </div>
                 </div>
               </div>
@@ -606,7 +607,7 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
             <div className="h-px bg-gray-100 mx-8" />
 
             {/* Bottom navigation */}
-            <div className="flex items-center gap-2 px-8 py-5">
+            <div className="flex items-center gap-2 px-4 sm:px-8 py-3 sm:py-5 flex-wrap">
               <button
                 onClick={() => setCurrentQuestion(p => Math.max(0, p - 1))}
                 disabled={currentQuestion === 0}

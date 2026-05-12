@@ -1655,8 +1655,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         ) : (
           <div className="space-y-6">
             {Array.isArray(filteredJobs) && filteredJobs.slice((currentPage - 1) * jobsPerPage, currentPage * jobsPerPage).map((job) => (
-            <div key={getId(job) || job.id} className="border border-gray-200 rounded-lg p-4 sm:p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
-              <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+            <div key={getId(job) || job.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md hover:border-gray-300 transition-all bg-white">
+              <div className="flex flex-col gap-3">
                 <div className="flex-1">
                   <div className="flex items-start mb-3">
                     <div className="flex-1">
@@ -1751,28 +1751,28 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                   </div>
                 </div>
 
-                <div className="flex flex-row sm:flex-col items-stretch gap-2 sm:ml-4 sm:min-w-[130px] w-full sm:w-auto">
+                <div className="flex flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 sm:min-w-[130px] w-full sm:w-auto">
                   {user?.type === 'candidate' && appliedJobIds.has(getId(job)) && (
-                    <span className="flex items-center justify-center gap-1 bg-green-50 text-green-700 border border-green-200 px-4 py-2.5 rounded-lg text-sm font-medium h-10">
-                      ✅ Applied
+                    <span className="flex items-center justify-center gap-1.5 bg-green-50 text-green-700 border border-green-200 px-3 py-2 rounded-lg text-sm font-medium min-h-[40px] w-full">
+                      <span className="text-base leading-none">✅</span> Applied
                     </span>
                   )}
                   {user?.type === 'candidate' && (
                     <button
                       onClick={() => handleSaveJob(job)}
-                      className={`flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-lg border transition-colors text-sm font-medium h-10 ${
+                      className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-colors text-sm font-medium min-h-[40px] w-full ${
                         savedJobs.includes(getId(job))
                           ? 'bg-blue-50 border-blue-300 text-blue-700'
                           : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      {savedJobs.includes(getId(job)) ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+                      {savedJobs.includes(getId(job)) ? <BookmarkCheck className="w-4 h-4 flex-shrink-0" /> : <Bookmark className="w-4 h-4 flex-shrink-0" />}
                       {savedJobs.includes(getId(job)) ? 'Saved' : 'Save'}
                     </button>
                   )}
                   <button
                     onClick={() => onNavigate && onNavigate('job-detail', { jobTitle: job.title || job.jobTitle, jobId: getId(job), companyName: job.company, jobData: job })}
-                    className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center h-10"
+                    className="bg-blue-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center min-h-[40px] w-full"
                   >
                     View Details
                   </button>
