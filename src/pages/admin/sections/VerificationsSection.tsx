@@ -31,9 +31,9 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
     try {
       const res = await authFetch(`${API_ENDPOINTS.BASE_URL}/admin/verifications?status=${filter}`);
       const all: any[] = res.verifications ?? res.data ?? res ?? [];
-      // Only show personal/generic email accounts for admin verification
-      // Company domain emails are auto-verified and should not appear here
-      setVerifications(filter === 'pending' ? all.filter(v => isGenericEmail(v.email)) : all);
+      // Show ALL pending verifications - both generic emails AND corporate emails that need manual review
+      // Only filter out already auto-verified companies (those with verified=true status)
+      setVerifications(all);
     } catch (e: any) {
       if (e.message === '401') { onUnauthorized(); return; }
       setError('Failed to load verifications.');
@@ -45,13 +45,44 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
   const decide = async (id: string, action: 'approve' | 'reject', note = '') => {
     setActionLoading(id + action);
     try {
-      await authFetch(`${API_ENDPOINTS.BASE_URL}/admin/verifications/${id}/${action}`, {
+      const response = await authFetch(`${API_ENDPOINTS.BASE_URL}/admin/verifications/${id}/${action}`, {
         method: 'POST',
         body: JSON.stringify({ note }),
       });
+      
+      // If approved, add company to database/JSON
+      if (action === 'approve') {
+        const verification = verifications.find(v => (v._id || v.id) === id);
+        if (verification) {
+          try {
+            // Add approved company to companies database
+            await authFetch(`${API_ENDPOINTS.COMPANIES}`, {
+              method: 'POST',
+              body: JSON.stringify({
+                name: verification.companyName || verification.company,
+                domain: verification.email.split('@')[1],
+                logo: `https://img.logo.dev/${verification.email.split('@')[1]}?size=80`,
+                website: `https://${verification.email.split('@')[1]}`,
+                industry: verification.industry || 'Technology',
+                verified: true,
+                approvedBy: 'admin',
+                approvedAt: new Date().toISOString(),
+                createdAt: new Date().toISOString()
+              })
+            });
+            console.log('✅ Company added to database:', verification.companyName);
+          } catch (dbError) {
+            console.error('❌ Failed to add company to database:', dbError);
+          }
+        }
+      }
+      
       setVerifications(prev => prev.filter(v => (v._id || v.id) !== id));
-    } catch { setError(`Failed to ${action}.`); }
-    finally { setActionLoading(''); }
+    } catch { 
+      setError(`Failed to ${action}.`); 
+    } finally { 
+      setActionLoading(''); 
+    }
   };
 
   const deleteVerification = async (id: string, companyName: string) => {
@@ -114,7 +145,26 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
                     <Building2 className="w-5 h-5 text-gray-400" />
                   </div>
                   <div>
-                    <p className="font-medium text-gray-200">{v.companyName || v.company || '—'}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-gray-200">{v.companyName || v.company || '—'}</p>
+                      
+                      {/* New Company indicator */}
+                      {!isGenericEmail(v.email) && (
+                        <span className="text-xs bg-purple-900/40 text-purple-400 px-2 py-0.5 rounded-full">
+                          🆕 New Company
+                        </span>
+                      )}
+                      
+                      {isGenericEmail(v.email) ? (
+                        <span className="text-xs bg-yellow-900/40 text-yellow-400 px-2 py-0.5 rounded-full">
+                          Personal Email
+                        </span>
+                      ) : (
+                        <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded-full">
+                          Corporate Email
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-gray-400">{v.employerName || v.name} · {v.email}</p>
                     {v.phone && <p className="text-xs text-gray-500 mt-0.5">📞 {v.phone}</p>}
                     {v.location && <p className="text-xs text-gray-500">📍 {v.location}</p>}
