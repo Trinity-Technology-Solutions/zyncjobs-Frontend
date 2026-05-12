@@ -909,6 +909,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       
       {/* Search Section */}
       <div className="relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg overflow-visible">
+        {/* Back Button */}
+        <BackButton
+          onClick={() => onNavigate ? onNavigate('home') : window.history.back()}
+          position="top-left"
+          className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md"
+        />
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute inset-0" style={{
@@ -1795,11 +1801,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       </div>
       
       <Footer onNavigate={onNavigate} />
-
-      {/* Floating Back Button */}
-      <BackButton 
-        onClick={() => onNavigate ? onNavigate('home') : window.history.back()}
-      />
     </div>
   );
 };
