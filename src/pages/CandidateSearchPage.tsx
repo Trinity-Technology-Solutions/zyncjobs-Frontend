@@ -107,13 +107,21 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         return { aiScore: score, matchedSkills: [], missingSkills: [], fitLabel: score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : score >= 30 ? 'Fair' : 'Low' };
       }
 
-      const jobSkills: string[] = (Array.isArray(job.skills) ? job.skills : []).map((s: string) => String(s || '').toLowerCase().trim());
-      const candSkills: string[] = (Array.isArray(candidate.skills) ? candidate.skills : []).map(s => String(s || '').toLowerCase().trim());
+      const rawJobSkills: string[] = Array.isArray(job.skills) ? job.skills : [];
+      const candSkills: string[] = (Array.isArray(candidate.skills) ? candidate.skills : []).map(s => String(s || '').toLowerCase().trim()).filter(Boolean);
 
-      const matched = jobSkills.filter(js => candSkills.some(cs => cs.includes(js) || js.includes(cs)));
-      const missing = jobSkills.filter(js => !candSkills.some(cs => cs.includes(js) || js.includes(cs)));
+      const origMatched: string[] = [];
+      const origMissing: string[] = [];
 
-      const skillScore = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 70 : 35;
+      rawJobSkills.forEach((js: string) => {
+        const jsLower = String(js || '').toLowerCase().trim();
+        if (!jsLower) return;
+        const isMatch = candSkills.some(cs => cs.includes(jsLower) || jsLower.includes(cs));
+        if (isMatch) origMatched.push(js);
+        else origMissing.push(js);
+      });
+
+      const skillScore = rawJobSkills.length > 0 ? (origMatched.length / rawJobSkills.length) * 70 : 35;
       const profileFields = ['experience', 'location', 'profileSummary', 'education'];
       const profileScore = profileFields.filter(f => {
         const v = (candidate as any)[f];
@@ -122,9 +130,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
 
       const total = Math.round(skillScore + profileScore);
       const fitLabel: Candidate['fitLabel'] = total >= 75 ? 'Excellent' : total >= 50 ? 'Good' : total >= 30 ? 'Fair' : 'Low';
-
-      const origMatched = (Array.isArray(job.skills) ? job.skills : []).filter((_: string, i: number) => matched.includes(jobSkills[i]));
-      const origMissing = (Array.isArray(job.skills) ? job.skills : []).filter((_: string, i: number) => missing.includes(jobSkills[i]));
 
       return { aiScore: total, matchedSkills: origMatched, missingSkills: origMissing, fitLabel };
     } catch {
@@ -767,7 +772,10 @@ return (
                         </div>
                         <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs">
                           {(candidate.matchedSkills?.length ?? 0) > 0 && <span className="text-emerald-600 font-medium">✓ {candidate.matchedSkills!.length} matched</span>}
-                          {(candidate.missingSkills?.length ?? 0) > 0 && <span className="text-red-500 font-medium">✗ {candidate.missingSkills!.length} missing</span>}
+                          {(candidate.skills?.length ?? 0) === 0
+                            ? <span className="text-gray-400 font-medium">No skills on profile</span>
+                            : (candidate.missingSkills?.length ?? 0) > 0 && <span className="text-red-500 font-medium">✗ {candidate.missingSkills!.length} missing</span>
+                          }
                         </div>
                       </div>
                     </div>

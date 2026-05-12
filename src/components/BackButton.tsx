@@ -5,9 +5,10 @@ interface BackButtonProps {
   onClick?: () => void;
   text?: string;
   className?: string;
+  position?: 'inline' | 'top-left';
 }
 
-const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '' }) => {
+const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '', position = 'inline' }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
@@ -20,7 +21,10 @@ const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '' }) => {
     }
   };
 
+  const positionClass = position === 'top-left' ? 'absolute top-4 left-4 z-10' : '';
+
   return (
+    <div className={positionClass}>
     <button
       onClick={handleClick}
       aria-label="Go back"
@@ -41,6 +45,7 @@ const BackButton: React.FC<BackButtonProps> = ({ onClick, className = '' }) => {
         <polyline points="12 19 5 12 12 5" />
       </svg>
     </button>
+    </div>
   );
 };
 
