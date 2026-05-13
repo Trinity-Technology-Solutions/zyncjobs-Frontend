@@ -422,3 +422,811 @@ html, body {
     gap: 0.5rem !important;
   }
 }
+/* Mobile Touch and Interaction Fixes */
+@media (max-width: 768px) {
+  /* Ensure all buttons are touch-friendly */
+  button, .btn, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Fix mobile menu interactions */
+  .mobile-menu-button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  
+  /* Improve mobile navigation */
+  .mobile-nav-item {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  /* Fix dropdown menus on mobile */
+  .dropdown-menu {
+    position: fixed !important;
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-height: 50vh !important;
+    overflow-y: auto !important;
+    border-radius: 16px 16px 0 0 !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.15) !important;
+  }
+  
+  /* Prevent zoom on input focus (iOS) */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+    transform: translateZ(0);
+    -webkit-appearance: none;
+  }
+  
+  /* Fix modal positioning on mobile */
+  .modal-overlay {
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 9999 !important;
+  }
+  
+  .modal-content {
+    position: relative !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Improve scroll behavior on mobile */
+  .mobile-scroll {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  
+  /* Fix header on mobile */
+  .mobile-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    background: white !important;
+    border-bottom: 1px solid #e5e7eb !important;
+  }
+  
+  /* Ensure proper spacing for mobile content */
+  .mobile-content {
+    padding-bottom: 80px; /* Account for mobile navigation */
+  }
+  
+  /* Fix login/register forms on mobile */
+  .auth-form {
+    padding: 16px !important;
+    margin: 0 !important;
+  }
+  
+  .auth-form input {
+    padding: 14px 16px !important;
+    border-radius: 8px !important;
+    border: 2px solid #e5e7eb !important;
+  }
+  
+  .auth-form button {
+    padding: 14px 16px !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+  }
+  
+  /* Fix viewport issues */
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+  
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Prevent horizontal scroll */
+  * {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  /* Fix touch delays */
+  a, button, input, select, textarea {
+    -ms-touch-action: manipulation;
+    touch-action: manipulation;
+  }
+}
+
+/* iOS specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .ios-fix {
+    -webkit-appearance: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  input {
+    -webkit-appearance: none;
+    border-radius: 0;
+  }
+  
+  button {
+    -webkit-appearance: none;
+  }
+}
+
+/* Android specific fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .android-fix {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* ===== LOGIN/REGISTER MOBILE FIXES ===== */
+@media (max-width: 768px) {
+  /* Specific fixes for login/register page buttons */
+  form button[type="submit"],
+  form button[type="button"],
+  .bg-blue-600,
+  .bg-orange-500,
+  .border-gray-200 {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    cursor: pointer !important;
+    min-height: 48px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  /* Enhanced touch targets for all interactive elements */
+  button:not(:disabled),
+  [role="button"]:not(:disabled),
+  a[href],
+  input[type="submit"],
+  input[type="button"] {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    cursor: pointer !important;
+    min-height: 44px !important;
+    position: relative !important;
+  }
+  
+  /* Prevent double-tap zoom on buttons */
+  button,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"] {
+    -ms-touch-action: manipulation !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+  
+  /* Fix for OAuth buttons (Google, LinkedIn) */
+  .flex.items-center.justify-center.gap-3 {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+    min-height: 48px !important;
+    padding: 12px 16px !important;
+  }
+  
+  /* Fix for form inputs to prevent zoom */
+  input[type="email"],
+  input[type="password"] {
+    font-size: 16px !important;
+    -webkit-appearance: none !important;
+    -webkit-border-radius: 0 !important;
+    border-radius: 12px !important;
+    padding: 12px 16px !important;
+    min-height: 48px !important;
+  }
+  
+  /* Fix for password toggle button */
+  .absolute.right-3 {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1) !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+  
+  /* Fix for "Forgot Password" and other text links */
+  .text-blue-600,
+  .text-orange-500,
+  .text-blue-500 {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2) !important;
+    min-height: 32px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    padding: 4px 8px !important;
+  }
+  
+  /* Fix for login form container */
+  .bg-white.rounded-2xl.shadow-xl {
+    padding: 24px 16px !important;
+    margin: 8px !important;
+    border-radius: 16px !important;
+  }
+  
+  /* Ensure all clickable elements have proper touch response */
+  * {
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  }
+  
+  button:active,
+  [role="button"]:active {
+    transform: scale(0.98) !important;
+    transition: transform 0.1s ease !important;
+  }
+}
+
+/* ===== HAMBURGER MENU IMPROVEMENTS ===== */
+@media (max-width: 1024px) {
+  /* Hamburger menu slide-out animation */
+  .hamburger-menu {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .hamburger-menu.open {
+    transform: translateX(0);
+  }
+  
+  /* Hamburger button animation */
+  .hamburger-button {
+    position: relative;
+    z-index: 60;
+  }
+  
+  .hamburger-line {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background-color: currentColor;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: center;
+  }
+  
+  .hamburger-line:nth-child(1) {
+    transform: translateY(-6px);
+  }
+  
+  .hamburger-line:nth-child(3) {
+    transform: translateY(6px);
+  }
+  
+  /* Active state */
+  .hamburger-button.active .hamburger-line:nth-child(1) {
+    transform: rotate(45deg) translateY(0);
+  }
+  
+  .hamburger-button.active .hamburger-line:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  
+  .hamburger-button.active .hamburger-line:nth-child(3) {
+    transform: rotate(-45deg) translateY(0);
+  }
+  
+  /* Backdrop blur effect */
+  .menu-backdrop {
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  
+  /* Menu item hover effects */
+  .menu-item {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .menu-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0;
+    height: 100%;
+    background: linear-gradient(90deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+    transition: width 0.3s ease;
+    border-radius: 0.5rem;
+  }
+  
+  .menu-item:hover::before {
+    width: 100%;
+  }
+  
+  /* Smooth scrolling for menu */
+  .menu-scroll {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Touch-friendly menu items */
+  .menu-item-touch {
+    min-height: 48px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.1);
+  }
+  
+  /* User avatar in mobile menu */
+  .mobile-user-avatar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  /* Menu section dividers */
+  .menu-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #e5e7eb, transparent);
+    margin: 1rem 0;
+  }
+  
+  /* Prevent body scroll when menu is open */
+  body.menu-open {
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+  
+  /* Menu shadow */
+  .menu-shadow {
+    box-shadow: 
+      0 10px 25px -5px rgba(0, 0, 0, 0.1),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  /* Responsive menu width */
+  .mobile-menu-width {
+    width: min(320px, 85vw);
+  }
+}
+
+/* ===== ENHANCED TOUCH INTERACTIONS ===== */
+@media (max-width: 768px) {
+  /* Better touch targets for menu items */
+  .mobile-nav-item,
+  .menu-item-touch {
+    min-height: 52px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+  
+  /* Active state feedback */
+  .mobile-nav-item:active,
+  .menu-item-touch:active {
+    transform: scale(0.98);
+    background-color: rgba(59, 130, 246, 0.1);
+  }
+  
+  /* Icon styling in menu */
+  .menu-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+  }
+  
+  .menu-item-touch:hover .menu-icon {
+    opacity: 1;
+  }
+  
+  /* Text styling in menu */
+  .menu-text {
+    font-weight: 500;
+    font-size: 15px;
+    line-height: 1.4;
+  }
+  
+  /* Section headers in menu */
+  .menu-section-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #6b7280;
+    padding: 8px 16px 4px;
+    margin-top: 16px;
+  }
+  
+  /* Menu close button enhancement */
+  .menu-close-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+  }
+  
+  .menu-close-btn:hover {
+    background-color: #f3f4f6;
+    transform: rotate(90deg);
+  }
+  
+  /* Menu header styling */
+  .menu-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-bottom: 1px solid #e2e8f0;
+  }
+  
+  /* User info section in menu */
+  .menu-user-section {
+    background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+    border-bottom: 1px solid #c7d2fe;
+  }
+  
+  /* Logout button special styling */
+  .menu-logout-btn {
+    color: #dc2626;
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+  }
+  
+  .menu-logout-btn:hover {
+    background-color: #fee2e2;
+    border-color: #fca5a5;
+  }
+}
+
+/* ===== ACCESSIBILITY IMPROVEMENTS ===== */
+@media (max-width: 1024px) {
+  /* Focus states for keyboard navigation */
+  .menu-item-touch:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+    background-color: rgba(59, 130, 246, 0.05);
+  }
+  
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .menu-item-touch {
+      border: 1px solid transparent;
+    }
+    
+    .menu-item-touch:hover,
+    .menu-item-touch:focus {
+      border-color: currentColor;
+    }
+  }
+  
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .hamburger-menu,
+    .hamburger-line,
+    .menu-item-touch {
+      transition: none;
+    }
+  }
+  
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .hamburger-menu {
+      background-color: #1f2937;
+      border-color: #374151;
+    }
+    
+    .menu-header {
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      border-color: #374151;
+    }
+    
+    .menu-user-section {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      border-color: #3730a3;
+    }
+  }
+}
+
+/* ===== LATEST JOBS MOBILE ENHANCEMENTS ===== */
+@media (max-width: 768px) {
+  /* Job cards mobile optimization */
+  .latest-jobs-container {
+    padding: 1rem !important;
+  }
+  
+  .job-card-mobile {
+    border-radius: 16px !important;
+    padding: 16px !important;
+    margin-bottom: 16px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    border: 1px solid #f1f5f9 !important;
+    background: white !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .job-card-mobile:active {
+    transform: scale(0.98) !important;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* Company header mobile */
+  .job-company-header {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .job-company-logo {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 12px !important;
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+  }
+  
+  .job-company-info {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  
+  .job-company-name {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+    margin-bottom: 2px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  
+  .job-title-mobile {
+    font-size: 15px !important;
+    font-weight: 500 !important;
+    color: #4b5563 !important;
+    margin-bottom: 4px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  
+  .job-location-mobile {
+    font-size: 13px !important;
+    color: #6b7280 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+  
+  /* Job description mobile */
+  .job-description-mobile {
+    font-size: 14px !important;
+    line-height: 1.5 !important;
+    color: #4b5563 !important;
+    margin-bottom: 16px !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 2 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+  }
+  
+  /* Job actions mobile */
+  .job-actions-mobile {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .job-button-row {
+    display: flex !important;
+    gap: 8px !important;
+  }
+  
+  .job-view-details-btn {
+    flex: 1 !important;
+    background: #3b82f6 !important;
+    color: white !important;
+    padding: 12px 16px !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    min-height: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2) !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .job-view-details-btn:active {
+    background: #2563eb !important;
+    transform: scale(0.98) !important;
+  }
+  
+  .job-delete-btn {
+    background: #dc2626 !important;
+    color: white !important;
+    padding: 12px 16px !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(220, 38, 38, 0.2) !important;
+    transition: all 0.2s ease !important;
+  }
+  
+  .job-delete-btn:active {
+    background: #b91c1c !important;
+    transform: scale(0.98) !important;
+  }
+  
+  /* Salary display mobile */
+  .job-salary-mobile {
+    text-align: left !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    color: #1f2937 !important;
+  }
+  
+  /* Job footer mobile */
+  .job-footer-mobile {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    font-size: 13px !important;
+  }
+  
+  .job-time-ago {
+    color: #6b7280 !important;
+  }
+  
+  .job-type-badge {
+    background: #dbeafe !important;
+    color: #1d4ed8 !important;
+    padding: 4px 12px !important;
+    border-radius: 20px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+  }
+  
+  /* Load more button mobile */
+  .load-more-btn-mobile {
+    width: 100% !important;
+    background: #3b82f6 !important;
+    color: white !important;
+    padding: 14px 24px !important;
+    border-radius: 12px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    border: none !important;
+    min-height: 48px !important;
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: rgba(59, 130, 246, 0.2) !important;
+    transition: all 0.2s ease !important;
+    margin-top: 8px !important;
+  }
+  
+  .load-more-btn-mobile:active {
+    background: #2563eb !important;
+    transform: scale(0.98) !important;
+  }
+  
+  /* Section header mobile */
+  .latest-jobs-header {
+    margin-bottom: 24px !important;
+    padding: 0 4px !important;
+  }
+  
+  .latest-jobs-title {
+    font-size: 24px !important;
+    font-weight: 700 !important;
+    color: #1f2937 !important;
+    margin-bottom: 8px !important;
+  }
+  
+  .latest-jobs-subtitle {
+    font-size: 14px !important;
+    color: #6b7280 !important;
+    line-height: 1.5 !important;
+  }
+  
+  /* Grid layout mobile */
+  .jobs-grid-mobile {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  /* Empty state mobile */
+  .jobs-empty-state {
+    text-align: center !important;
+    padding: 48px 16px !important;
+    color: #6b7280 !important;
+    font-size: 15px !important;
+  }
+  
+  /* Loading state mobile */
+  .jobs-loading-mobile {
+    text-align: center !important;
+    padding: 48px 16px !important;
+    color: #6b7280 !important;
+    font-size: 15px !important;
+  }
+}
+
+/* Tablet specific adjustments */
+@media (min-width: 641px) and (max-width: 1023px) {
+  .jobs-grid-mobile {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+  
+  .load-more-btn-mobile {
+    width: auto !important;
+    min-width: 200px !important;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 380px) {
+  .job-card-mobile {
+    padding: 12px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  .job-company-logo {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  .job-company-name {
+    font-size: 15px !important;
+  }
+  
+  .job-title-mobile {
+    font-size: 14px !important;
+  }
+  
+  .latest-jobs-title {
+    font-size: 20px !important;
+  }
+}

@@ -7,6 +7,8 @@ import ErrorBoundary from './components/ErrorBoundary.tsx';
 import { GlobalErrorBoundary, GlobalErrorListener } from './components/GlobalErrorBoundary';
 import { setupGlobalErrorHandler } from './utils/enhancedErrorHandler';
 import { backendMonitor } from './utils/backendMonitor';
+import './utils/mobileTouchDebugger'; // Load mobile touch debugger
+import './styles/mobile.css'; // Load mobile styles
 
 Sentry.init({
   dsn: import.meta.env.VITE_SENTRY_DSN,

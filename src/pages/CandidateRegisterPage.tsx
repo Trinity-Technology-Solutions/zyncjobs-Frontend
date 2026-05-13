@@ -194,7 +194,7 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
     <div className="min-h-screen flex flex-col">
       <Header onNavigate={onNavigate} />
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 flex-col lg:flex-row">
         {/* LEFT PANEL */}
         <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
           <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-blue-100 opacity-40" />
@@ -265,15 +265,15 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
+        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-4 sm:px-6 py-8 sm:py-12 relative overflow-hidden min-h-screen lg:min-h-0">
           {/* Decorative Blobs */}
           <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15" />
           <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15" />
           
-          <div className="w-full max-w-md">
-            <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="w-full max-w-sm sm:max-w-md">
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8">
               {/* Step Indicator */}
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
                 {['Basic Info', 'Verify Email', 'Password'].map((label, i) => {
                   const num = i + 1;
                   const isActive = step === num;
@@ -294,8 +294,8 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                 })}
               </div>
 
-              <div className="mb-5">
-                <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
+              <div className="mb-4 sm:mb-5">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Create Account</h2>
                 <p className="text-gray-500 text-sm mt-1">Start your career journey</p>
               </div>
 
@@ -392,10 +392,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       <div className="relative">
                         <input
                           type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
-                          className="w-full h-11 px-4 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                          className="w-full h-11 px-4 pr-14 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
                           placeholder="Create a password" required
                         />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1">
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
@@ -405,10 +405,10 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
                       <div className="relative">
                         <input
                           type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
-                          className="w-full h-11 px-4 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
+                          className="w-full h-11 px-4 pr-14 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-gray-50 focus:bg-white transition"
                           placeholder="Confirm your password" required
                         />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                           {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>

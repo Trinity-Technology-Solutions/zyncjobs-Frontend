@@ -7,10 +7,11 @@ import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
+import MobileHamburgerMenu from './MobileHamburgerMenu';
 
 
 interface HeaderProps {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: string, data?: any) => void;
   user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
   onLogout?: () => void;
 }
@@ -724,89 +725,27 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           <div className="lg:hidden flex-shrink-0">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-gray-900 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="relative p-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              type="button"
             >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <div className="w-6 h-6 flex flex-col justify-center items-center">
+                <span className={`block h-0.5 w-6 bg-current transform transition-all duration-300 ease-out ${isMenuOpen ? 'rotate-45 translate-y-1.5' : ''}`} />
+                <span className={`block h-0.5 w-6 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? 'opacity-0 scale-0' : ''}`} />
+                <span className={`block h-0.5 w-6 bg-current transform transition-all duration-300 ease-out mt-1.5 ${isMenuOpen ? '-rotate-45 -translate-y-1.5' : ''}`} />
+              </div>
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
-        {isMenuOpen && (
-          <div className="lg:hidden py-4 border-t border-gray-200 bg-white">
-            <div className="px-4 space-y-1">
-              <button onClick={() => { handleFindJobsClick(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-3 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium text-base">
-                <Search className="w-5 h-5 mr-3 text-blue-600" />
-                {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
-              </button>
-              <button onClick={() => { handleCompaniesClick(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-3 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium text-base">
-                <svg className="w-5 h-5 mr-3 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" /></svg>
-                Companies
-              </button>
-              {user?.type !== 'employer' && (
-                <>
-                  <p className="px-3 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wider">Career Resources</p>
-                  <button onClick={() => { onNavigate && onNavigate('resume-studio'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">
-                    <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Resume Studio
-                  </button>
-                  <button onClick={() => { onNavigate && onNavigate('interview-tips'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">
-                    <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    Interview Prep
-                  </button>
-                  <button onClick={() => { onNavigate && onNavigate('career-coach'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">
-                    <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-                    </svg>
-                    Career Guidance
-                  </button>
-                  <button onClick={() => { onNavigate && onNavigate('skill-assessment'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 rounded-lg text-sm">
-                    <svg className="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Skill Check
-                  </button>
-                </>
-              )}
-              {user?.type === 'employer' && (
-                <button onClick={() => { onNavigate && onNavigate('my-jobs'); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">Posted Jobs</button>
-              )}
-              <button onClick={() => { if (user) { onNavigate && onNavigate(user.type === 'employer' ? 'job-posting-selection' : 'my-jobs'); } else { onNavigate && onNavigate('role-selection'); } setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 hover:text-blue-600 rounded-lg font-medium">
-                {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
-              </button>
-              <div className="pt-3 border-t border-gray-200 mt-2">
-                {user ? (
-                  <>
-                    <button onClick={() => { onNavigate && onNavigate('dashboard'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">
-                      <User className="w-4 h-4 mr-2 text-gray-600" />
-                      My Profile
-                    </button>
-                    <button onClick={() => { onNavigate && onNavigate('settings'); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">
-                      <Settings className="w-4 h-4 mr-2 text-gray-600" />
-                      Settings
-                    </button>
-                    <button onClick={() => { onLogout && onLogout(); setIsMenuOpen(false); }} className="flex items-center w-full text-left px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-medium">
-                      <svg className="w-4 h-4 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                      </svg>
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={() => { handleLoginClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-blue-600 hover:bg-blue-50 rounded-lg font-medium">Login</button>
-                    <button onClick={() => { handleRegisterClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">Register</button>
-                    <button onClick={() => { handleEmployerLoginClick(); setIsMenuOpen(false); }} className="block w-full text-left px-3 py-2.5 text-gray-800 hover:bg-blue-50 rounded-lg font-medium">For Employers</button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Mobile Hamburger Menu */}
+        <MobileHamburgerMenu 
+          isOpen={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          onNavigate={onNavigate}
+          user={user}
+          siteSettings={siteSettings || undefined}
+        />
       </div>
     </header>
   );

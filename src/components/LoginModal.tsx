@@ -152,24 +152,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
-              <div className="relative">
+              <div className="relative flex items-center">
+                <Lock className="absolute left-3 text-gray-400 w-5 h-5 pointer-events-none" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full h-12 pl-10 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Enter Password"
                   required
                 />
-              </div>
-              <div className="mt-2 text-right">
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center space-x-1 ml-auto"
+                  className="absolute right-3 flex items-center justify-center h-full text-gray-400 hover:text-gray-600"
                 >
-                  <span>Show Password</span>
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>

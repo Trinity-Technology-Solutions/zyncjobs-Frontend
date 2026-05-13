@@ -273,6 +273,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
         // Include domain verification results
         domainVerification,
         companyProfile: selectedCompanyProfile
+        // Remove inviteToken completely to avoid case sensitivity issues
       };
       
       console.log('Sending registration data:', registrationData);
@@ -481,7 +482,8 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                               isTeamMember: true,
                               domainVerification,
                               companyProfile: selectedCompanyProfile
-                            } as any);
+                              // Remove inviteToken completely
+                            });
                             if (response.user) localStorage.setItem('user', JSON.stringify(response.user));
                             setSuccess('✅ Registered as team member! Redirecting...');
                             setTimeout(() => onNavigate('employer-complete-profile'), 1500);
@@ -737,9 +739,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
                       <div className="relative">
                         <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
-                          className="w-full h-11 px-4 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
+                          className="w-full h-11 px-4 pr-14 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
                           placeholder="Create a password" required />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
@@ -748,9 +750,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
                       <div className="relative">
                         <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
-                          className="w-full h-11 px-4 pr-11 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
+                          className="w-full h-11 px-4 pr-14 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition"
                           placeholder="Confirm your password" required />
-                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                           {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
