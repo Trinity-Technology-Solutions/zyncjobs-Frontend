@@ -24,12 +24,12 @@ import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
 import { useAnalytics } from './hooks/useAnalytics';
 import './utils/extensionErrorHandler'; // Initialize extension error handling
-import './utils/mobileDebugger'; // Initialize mobile debugging
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
+
 const RoleSelectionModal = lazy(() => import('./components/RoleSelectionModal'));
 const RoleSelectionPage = lazy(() => import('./pages/RoleSelectionPage'));
 const CandidateRegisterPage = lazy(() => import('./pages/CandidateRegisterPage'));
@@ -172,6 +172,7 @@ function App() {
   const [userLoading, setUserLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
   const [showRoleSelectionModal, setShowRoleSelectionModal] = useState(false);
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
@@ -964,6 +965,7 @@ function App() {
       <Suspense fallback={null}>
         <LoginModal isOpen={showLoginModal} onClose={closeModals} onNavigate={handleNavigation} onLogin={handleLogin} />
         <RegisterModal isOpen={showRegisterModal} onClose={closeModals} onNavigate={handleNavigation} />
+
         <RoleSelectionModal isOpen={showRoleSelectionModal} onClose={closeModals} onSelectRole={handleRoleSelection} />
       </Suspense>
     </>
