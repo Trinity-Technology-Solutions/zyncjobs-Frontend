@@ -29,11 +29,13 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [useGoogleViewer, setUseGoogleViewer] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
     setPresignedUrl(null);
     setError(null);
+    setUseGoogleViewer(false);
     setCandidateName(directCandidateName || '');
     fetchPresignedUrl();
   }, [isOpen, applicationId, candidateEmail]);
@@ -41,11 +43,9 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
   const fetchPresignedUrl = async () => {
     setLoading(true);
     setError(null);
+    setUseGoogleViewer(false);
 
     try {
-      // Step 1: Get presigned URL via application ID
-      // Backend: GET /api/applications/:id/resume
-      // Backend uses: s3.getSignedUrl('getObject', { Bucket: 'qa-zync-jobs', Key: 'resumes/...', Expires: 60 })
       if (applicationId) {
         const result = await getResumeByApplicationId(applicationId);
         if (result.presignedUrl) {
@@ -55,8 +55,6 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
         }
       }
 
-      // Step 2: Fallback — get presigned URL via candidate email
-      // Backend: GET /api/resume/presigned?email=...
       if (candidateEmail) {
         const result = await getResumeByEmail(candidateEmail);
         if (result.presignedUrl) {
@@ -65,15 +63,13 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
         }
       }
 
-      // Step 3: If directResumeUrl is already an https URL (e.g. already presigned), use it
       if (directResumeUrl && directResumeUrl !== 'resume_from_quick_apply' && directResumeUrl.startsWith('http')) {
         setPresignedUrl(directResumeUrl);
         return;
       }
 
       setError('Resume not found. The candidate may not have uploaded a resume yet.');
-    } catch (e) {
-      console.error('ResumeModal fetchPresignedUrl error:', e);
+    } catch {
       setError('Failed to load resume. Please try again.');
     } finally {
       setLoading(false);
@@ -85,19 +81,27 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     setDownloading(true);
     try {
       if (applicationId) {
-        // Use backend download proxy — streams S3 file through qaapi.zyncjobs.com
         await downloadResumeByApplicationId(applicationId, candidateName);
       } else {
-        // Fallback: download directly from presigned URL
         await downloadResumeFromUrl(presignedUrl, candidateName);
       }
     } catch {
-      // Last resort: open presigned URL in new tab
       window.open(presignedUrl, '_blank');
     } finally {
       setDownloading(false);
     }
   };
+
+  // Determine viewer URL — use Google Docs viewer for PDFs to avoid S3 iframe CORS issues
+  const isPdf = presignedUrl && (
+    presignedUrl.toLowerCase().includes('.pdf') ||
+    presignedUrl.toLowerCase().includes('content-type=application%2Fpdf')
+  );
+  const viewerUrl = presignedUrl
+    ? useGoogleViewer || isPdf
+      ? `https://docs.google.com/viewer?url=${encodeURIComponent(presignedUrl)}&embedded=true`
+      : presignedUrl
+    : null;
 
   if (!isOpen) return null;
 
@@ -121,12 +125,23 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               <p className="text-xs text-gray-400 mt-0.5">{candidateEmail}</p>
             )}
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {presignedUrl && (
+              <button
+                onClick={() => setUseGoogleViewer(v => !v)}
+                className="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                title="Switch viewer if resume doesn't display"
+              >
+                {useGoogleViewer ? 'Direct View' : 'Google Viewer'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -152,12 +167,17 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
             </div>
           )}
 
-          {!loading && !error && presignedUrl && (
+          {!loading && !error && viewerUrl && (
             <iframe
-              src={presignedUrl}
+              key={viewerUrl}
+              src={viewerUrl}
               title={`Resume - ${candidateName || 'Candidate'}`}
-              className="w-full rounded-lg border border-gray-200"
+              className="w-full rounded-lg border border-gray-200 bg-gray-50"
               style={{ height: 'calc(92vh - 170px)', minHeight: '480px' }}
+              onError={() => {
+                // If direct iframe fails, switch to Google Docs viewer
+                if (!useGoogleViewer) setUseGoogleViewer(true);
+              }}
             />
           )}
 
