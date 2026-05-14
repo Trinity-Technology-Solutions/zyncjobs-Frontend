@@ -197,7 +197,10 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({
         type="button"
         onClick={initiateOAuth}
         disabled={status === 'loading'}
-        className={`flex items-center justify-center gap-2 px-4 py-2.5 border border-[#0A66C2] text-[#0A66C2] rounded-xl text-sm font-medium hover:bg-[#0A66C2] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+        className={className
+          ? `flex items-center justify-center gap-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${className}`
+          : `flex items-center justify-center gap-2 px-4 py-2.5 border border-[#0A66C2] text-[#0A66C2] rounded-xl text-sm font-medium hover:bg-[#0A66C2] hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed`
+        }
       >
         {status === 'loading' ? (
           <Loader className="w-4 h-4 animate-spin" />

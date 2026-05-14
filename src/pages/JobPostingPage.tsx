@@ -130,6 +130,103 @@ const KNOWN_TOOLS = [
   'machine learning', 'tensorflow', 'pytorch', 'rest', 'graphql', 'soap', 'api', 'sql'
 ];
 
+const TRENDING_COMPANIES = [
+  { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '6', name: 'Netflix', logo: 'https://img.logo.dev/netflix.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '7', name: 'Tesla', logo: 'https://img.logo.dev/tesla.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '8', name: 'Uber', logo: 'https://img.logo.dev/uber.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '9', name: 'Airbnb', logo: 'https://img.logo.dev/airbnb.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '10', name: 'Spotify', logo: 'https://img.logo.dev/spotify.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '11', name: 'Twitter', logo: 'https://img.logo.dev/twitter.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '12', name: 'LinkedIn', logo: 'https://img.logo.dev/linkedin.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '13', name: 'Adobe', logo: 'https://img.logo.dev/adobe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '14', name: 'Salesforce', logo: 'https://img.logo.dev/salesforce.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '15', name: 'Oracle', logo: 'https://img.logo.dev/oracle.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '16', name: 'SAP', logo: 'https://img.logo.dev/sap.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '17', name: 'IBM', logo: 'https://img.logo.dev/ibm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '18', name: 'Intel', logo: 'https://img.logo.dev/intel.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '19', name: 'NVIDIA', logo: 'https://img.logo.dev/nvidia.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '20', name: 'Qualcomm', logo: 'https://img.logo.dev/qualcomm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '21', name: 'PayPal', logo: 'https://img.logo.dev/paypal.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '22', name: 'Stripe', logo: 'https://img.logo.dev/stripe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '23', name: 'Shopify', logo: 'https://img.logo.dev/shopify.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '24', name: 'Zoom', logo: 'https://img.logo.dev/zoom.us?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '25', name: 'Slack', logo: 'https://img.logo.dev/slack.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '26', name: 'Atlassian', logo: 'https://img.logo.dev/atlassian.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '27', name: 'GitHub', logo: 'https://img.logo.dev/github.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '28', name: 'GitLab', logo: 'https://img.logo.dev/gitlab.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '29', name: 'Docker', logo: 'https://img.logo.dev/docker.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '30', name: 'MongoDB', logo: 'https://img.logo.dev/mongodb.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '31', name: 'Snowflake', logo: 'https://img.logo.dev/snowflake.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '32', name: 'Databricks', logo: 'https://img.logo.dev/databricks.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '33', name: 'Cloudflare', logo: 'https://img.logo.dev/cloudflare.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '34', name: 'Figma', logo: 'https://img.logo.dev/figma.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '35', name: 'Notion', logo: 'https://img.logo.dev/notion.so?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '36', name: 'Canva', logo: 'https://img.logo.dev/canva.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '37', name: 'HubSpot', logo: 'https://img.logo.dev/hubspot.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '38', name: 'Zendesk', logo: 'https://img.logo.dev/zendesk.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '39', name: 'ServiceNow', logo: 'https://img.logo.dev/servicenow.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '40', name: 'Workday', logo: 'https://img.logo.dev/workday.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '41', name: 'Datadog', logo: 'https://img.logo.dev/datadoghq.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '42', name: 'Twilio', logo: 'https://img.logo.dev/twilio.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '43', name: 'OpenAI', logo: 'https://img.logo.dev/openai.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '44', name: 'Anthropic', logo: 'https://img.logo.dev/anthropic.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '45', name: 'Palantir', logo: 'https://img.logo.dev/palantir.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '46', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '47', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '48', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '49', name: 'HCL Technologies', logo: 'https://img.logo.dev/hcltech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '50', name: 'Tech Mahindra', logo: 'https://img.logo.dev/techmahindra.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '51', name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '52', name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '53', name: 'Capgemini', logo: 'https://img.logo.dev/capgemini.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '54', name: 'Mphasis', logo: 'https://img.logo.dev/mphasis.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '55', name: 'Hexaware', logo: 'https://img.logo.dev/hexaware.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '56', name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '57', name: 'Persistent Systems', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '58', name: 'Coforge', logo: 'https://img.logo.dev/coforge.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '59', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '60', name: 'Freshworks', logo: 'https://img.logo.dev/freshworks.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '61', name: 'Flipkart', logo: 'https://img.logo.dev/flipkart.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '62', name: 'Swiggy', logo: 'https://img.logo.dev/swiggy.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '63', name: 'Zomato', logo: 'https://img.logo.dev/zomato.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '64', name: 'Ola', logo: 'https://img.logo.dev/olacabs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '65', name: 'Paytm', logo: 'https://img.logo.dev/paytm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '66', name: 'Razorpay', logo: 'https://img.logo.dev/razorpay.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '67', name: "BYJU'S", logo: 'https://img.logo.dev/byjus.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '68', name: 'Unacademy', logo: 'https://img.logo.dev/unacademy.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '69', name: 'upGrad', logo: 'https://img.logo.dev/upgrad.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '70', name: 'Meesho', logo: 'https://img.logo.dev/meesho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '71', name: 'Myntra', logo: 'https://img.logo.dev/myntra.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '72', name: 'Nykaa', logo: 'https://img.logo.dev/nykaa.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '73', name: 'OYO', logo: 'https://img.logo.dev/oyorooms.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '74', name: 'Dream11', logo: 'https://img.logo.dev/dream11.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '75', name: 'PhonePe', logo: 'https://img.logo.dev/phonepe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '76', name: 'Zerodha', logo: 'https://img.logo.dev/zerodha.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '77', name: 'Groww', logo: 'https://img.logo.dev/groww.in?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '78', name: 'CRED', logo: 'https://img.logo.dev/cred.club?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '79', name: 'Delhivery', logo: 'https://img.logo.dev/delhivery.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '80', name: 'Postman', logo: 'https://img.logo.dev/postman.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '81', name: 'BrowserStack', logo: 'https://img.logo.dev/browserstack.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '82', name: 'Deloitte', logo: 'https://img.logo.dev/deloitte.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '83', name: 'PwC', logo: 'https://img.logo.dev/pwc.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '84', name: 'KPMG', logo: 'https://img.logo.dev/kpmg.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '85', name: 'EY', logo: 'https://img.logo.dev/ey.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '86', name: 'McKinsey', logo: 'https://img.logo.dev/mckinsey.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '87', name: 'BCG', logo: 'https://img.logo.dev/bcg.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '88', name: 'HDFC Bank', logo: 'https://img.logo.dev/hdfcbank.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '89', name: 'ICICI Bank', logo: 'https://img.logo.dev/icicibank.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '90', name: 'JPMorgan', logo: 'https://img.logo.dev/jpmorgan.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '91', name: 'Goldman Sachs', logo: 'https://img.logo.dev/goldmansachs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '92', name: 'Samsung', logo: 'https://img.logo.dev/samsung.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '93', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
+  { id: '94', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
+];
+
 const INVALID_COMPANY_PHRASES = [
   'good to have', 'must have', 'nice to have', 'required', 'preferred',
   'skills', 'experience', 'qualifications', 'responsibilities', 'benefits',
@@ -339,22 +436,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           console.error('Error fetching company logo:', error);
         }
         
-        // Fallback to hardcoded companies if API fails or no match found
-        const fallbackCompanies = [
-          { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-          { id: '7', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
-          { id: '8', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '9', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '10', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '11', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
-        ];
-        
-        const matchedCompany = fallbackCompanies.find(company => 
+        const matchedCompany = TRENDING_COMPANIES.find(company => 
           company.name.toLowerCase().includes(parsedData.companyName.toLowerCase()) ||
           parsedData.companyName.toLowerCase().includes(company.name.toLowerCase())
         );
@@ -1556,7 +1638,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         const data = await response.json();
         const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
         
-        // Map backend company data to expected format
         const mappedCompanies = companies.map((company: any) => {
           const name = company.name || company.companyName || '';
           return {
@@ -1565,26 +1646,20 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || ''
           };
         });
+
+        // If backend returns results, merge with matching trending companies
+        // If backend returns empty, fall back entirely to trending companies
+        const filtered = TRENDING_COMPANIES.filter(c =>
+          c.name.toLowerCase().includes(query.toLowerCase())
+        );
+        const merged = mappedCompanies.length > 0
+          ? [...mappedCompanies, ...filtered.filter(f => !mappedCompanies.some((m: any) => m.name.toLowerCase() === f.name.toLowerCase()))]
+          : filtered;
         
-        setCompanySearchResults(mappedCompanies);
-        setShowCompanyDropdown(mappedCompanies.length > 0);
+        setCompanySearchResults(merged);
+        setShowCompanyDropdown(merged.length > 0);
       } else {
-        // Fallback to hardcoded companies if API fails
-        const fallbackCompanies = [
-          { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-          { id: '7', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
-          { id: '8', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '9', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '10', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-          { id: '11', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
-        ];
-        
-        const filtered = fallbackCompanies.filter(company => 
+        const filtered = TRENDING_COMPANIES.filter(company => 
           company.name.toLowerCase().includes(query.toLowerCase())
         );
         
@@ -1593,21 +1668,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      const fallbackCompanies = [
-        { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '6', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-        { id: '7', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
-        { id: '8', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '9', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '10', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-        { id: '11', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' }
-      ];
-      
-      const filtered = fallbackCompanies.filter(company => 
+      const filtered = TRENDING_COMPANIES.filter(company => 
         company.name.toLowerCase().includes(query.toLowerCase())
       );
       
