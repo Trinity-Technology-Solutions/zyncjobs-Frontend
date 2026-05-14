@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Upload, Users, UserX, Mail, ChevronRight } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
+import { S3Service } from '../../../services/s3Service';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
@@ -20,6 +21,39 @@ interface Props {
 
 export default function TalentPoolSection({ onUnauthorized }: Props) {
   const [subPage, setSubPage] = useState<SubPage>('upload');
+  const [globalProcessingStatus, setGlobalProcessingStatus] = useState<{
+    isProcessing: boolean;
+    status: string;
+    progress: number;
+  }>({ isProcessing: false, status: '', progress: 0 });
+
+  // Check for global processing status
+  useEffect(() => {
+    const checkGlobalProcessing = async () => {
+      const token = getToken();
+      try {
+        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/processing-status`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setGlobalProcessingStatus({
+            isProcessing: data.isProcessing || false,
+            status: data.status || '',
+            progress: data.progress || 0
+          });
+        }
+      } catch (error) {
+        console.error('Error checking global processing status:', error);
+      }
+    };
+    
+    checkGlobalProcessing();
+    
+    // Poll every 5 seconds for global status
+    const interval = setInterval(checkGlobalProcessing, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
   const tabs: { id: SubPage; label: string; icon: React.ElementType }[] = [
     { id: 'upload',    label: 'Upload Resumes',       icon: Upload },
@@ -36,7 +70,35 @@ export default function TalentPoolSection({ onUnauthorized }: Props) {
         <p className="text-sm text-gray-400 mt-1">Upload resumes, extract candidate details, and send bulk invitations.</p>
       </div>
 
-      {/* Sub Nav */}
+      {/* Global Processing Status Banner */}
+      {globalProcessingStatus.isProcessing && (
+        <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-700/50 rounded-xl p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <p className="text-blue-300 font-semibold text-sm flex items-center gap-2">
+                  🚀 Resume Processing Active
+                  <span className="px-2 py-0.5 bg-blue-600/30 text-blue-300 rounded-full text-xs">
+                    {globalProcessingStatus.progress}%
+                  </span>
+                </p>
+                <p className="text-blue-400/70 text-xs">{globalProcessingStatus.status}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-blue-300 text-xs">Processing continues in background</p>
+              <p className="text-blue-400/60 text-xs">Safe to navigate between sections</p>
+            </div>
+          </div>
+          <div className="w-full bg-blue-900/50 rounded-full h-1.5 mt-3">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-purple-500 h-1.5 rounded-full transition-all duration-500" 
+              style={{ width: `${globalProcessingStatus.progress}%` }}
+            />
+          </div>
+        </div>
+      )}
       <div className="flex gap-2 flex-wrap">
         {tabs.map(({ id, label, icon: Icon }) => (
           <button
@@ -71,6 +133,8 @@ function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
+  const [backgroundProcessing, setBackgroundProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>('');
 
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
@@ -99,6 +163,7 @@ function UploadPage() {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
   const CHUNK = 10;
+  const [processingJobId, setProcessingJobId] = useState<string | null>(null);
 
   // Set webkitdirectory on folder input after mount (can't set via JSX)
   useEffect(() => {
@@ -108,6 +173,63 @@ function UploadPage() {
       folderRef.current.setAttribute('multiple', '');
     }
   }, []);
+
+  // Check for ongoing processing on component mount
+  useEffect(() => {
+    const checkOngoingProcessing = async () => {
+      const token = getToken();
+      try {
+        const response = await fetch(`${API_ENDPOINTS.RESUME_PROCESSING_STATUS}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.isProcessing) {
+            setBackgroundProcessing(true);
+            setProcessingStatus(data.status || 'Processing resumes in background...');
+            setProcessingJobId(data.jobId);
+            // Start polling for updates
+            startStatusPolling(data.jobId);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking processing status:', error);
+      }
+    };
+    
+    checkOngoingProcessing();
+  }, []);
+
+  // Status polling function
+  const startStatusPolling = (jobId: string) => {
+    const pollInterval = setInterval(async () => {
+      const token = getToken();
+      try {
+        const response = await fetch(`${API_ENDPOINTS.RESUME_PROCESSING_STATUS}/${jobId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setProcessingStatus(data.status || 'Processing...');
+          setProgress(data.progress || 0);
+          
+          if (data.completed) {
+            setBackgroundProcessing(false);
+            setDone(true);
+            setResults(data.results || []);
+            setErrors(data.errors || 0);
+            clearInterval(pollInterval);
+          }
+        }
+      } catch (error) {
+        console.error('Error polling status:', error);
+        clearInterval(pollInterval);
+      }
+    }, 3000); // Poll every 3 seconds
+
+    // Cleanup interval on unmount
+    return () => clearInterval(pollInterval);
+  };
 
   const handleProcess = async () => {
     if (!files.length) return;
@@ -126,35 +248,112 @@ function UploadPage() {
     setTotalChunks(total);
     const allResults: any[] = [];
     let errCount = 0;
+    
     for (let i = 0; i < chunkList.length; i++) {
       setCurrentChunk(i + 1);
-      const fd = new FormData();
-      chunkList[i].forEach(f => fd.append('resumes', f));
-      try {
-        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/upload`, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-        const data = await res.json();
-        if (res.ok) {
-          allResults.push(...(data.results || []));
-          errCount += (data.results || []).filter((r: any) => r.status === 'error').length;
-        } else {
-          chunkList[i].forEach(f => allResults.push({ file: f.name, status: 'error', error: data.error || 'Failed' }));
-          errCount += chunkList[i].length;
+      const chunk = chunkList[i];
+      
+      // First upload each file to S3
+      const s3UploadPromises = chunk.map(async (file) => {
+        try {
+          const s3Result = await S3Service.uploadTalentResumeToS3(file);
+          if (s3Result.success && s3Result.fileUrl) {
+            return { file, s3Url: s3Result.fileUrl, success: true };
+          } else {
+            return { file, error: s3Result.error || 'S3 upload failed', success: false };
+          }
+        } catch (error) {
+          return { file, error: error instanceof Error ? error.message : 'S3 upload failed', success: false };
         }
-      } catch {
-        chunkList[i].forEach(f => allResults.push({ file: f.name, status: 'error', error: 'Network error' }));
-        errCount += chunkList[i].length;
+      });
+      
+      const s3Results = await Promise.all(s3UploadPromises);
+      
+      // Process successful S3 uploads
+      const successfulUploads = s3Results.filter(r => r.success);
+      const failedUploads = s3Results.filter(r => !r.success);
+      
+      // Add failed uploads to results
+      failedUploads.forEach(failed => {
+        allResults.push({ file: failed.file.name, status: 'error', error: failed.error });
+        errCount++;
+      });
+      
+      if (successfulUploads.length > 0) {
+        // Send S3 URLs to backend for processing
+        const fd = new FormData();
+        successfulUploads.forEach(upload => {
+          fd.append('resumeUrls', upload.s3Url);
+          fd.append('fileNames', upload.file.name);
+        });
+        fd.append('source', 'admin_talent_pool');
+        
+        try {
+          const res = await apiFetch(`${API_ENDPOINTS.RESUME_UPLOAD_BULK}`, { 
+            method: 'POST', 
+            headers: { Authorization: `Bearer ${token}` }, 
+            body: fd 
+          });
+          const data = await res.json();
+          
+          if (res.ok) {
+            allResults.push(...(data.results || []));
+            errCount += (data.results || []).filter((r: any) => r.status === 'error').length;
+            
+            if (data.jobId) {
+              setProcessingJobId(data.jobId);
+              setBackgroundProcessing(true);
+              startStatusPolling(data.jobId);
+            }
+          } else {
+            successfulUploads.forEach(upload => {
+              allResults.push({ file: upload.file.name, status: 'error', error: data.error || 'Processing failed' });
+              errCount++;
+            });
+          }
+        } catch {
+          successfulUploads.forEach(upload => {
+            allResults.push({ file: upload.file.name, status: 'error', error: 'Network error' });
+            errCount++;
+          });
+        }
       }
+      
       setProgress(Math.round(((i + 1) / total) * 100));
       setResults([...allResults]);
       setErrors(errCount);
     }
+    
     setUploading(false);
     setDone(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* Stats bar */}
+      {/* Background Processing Status */}
+      {backgroundProcessing && (
+        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <div>
+                <p className="text-blue-300 font-semibold text-sm">Background Processing Active</p>
+                <p className="text-blue-400/70 text-xs">{processingStatus}</p>
+              </div>
+            </div>
+            <span className="text-blue-300 text-sm font-medium">{progress}%</span>
+          </div>
+          <div className="w-full bg-blue-900/50 rounded-full h-2">
+            <div 
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <p className="text-blue-400/60 text-xs mt-2">
+            ⚡ Processing continues in background. You can navigate to other sections and return later.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Files Selected', val: files.length },
@@ -262,7 +461,7 @@ function UploadPage() {
           <div className="w-full bg-gray-800 rounded-full h-3">
             <div className="bg-gradient-to-r from-blue-600 to-orange-500 h-3 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
-          <p className="text-xs text-gray-600">Uploading {CHUNK} files per batch — AI parsing each resume...</p>
+          <p className="text-xs text-gray-600">Uploading to S3 and parsing {CHUNK} files per batch — AI processing each resume...</p>
         </div>
       )}
 
@@ -309,7 +508,7 @@ function ExtractedPage() {
   useEffect(() => {
     setLoading(true);
     const token = getToken();
-    fetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setCandidates(d.candidates || []))
       .catch(() => setCandidates([]))
@@ -331,7 +530,7 @@ function ExtractedPage() {
 
   const deleteCandidate = async (id: string) => {
     const token = getToken();
-    await apiFetch(`/api/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
   };
 
@@ -387,7 +586,7 @@ function ExtractedPage() {
                 const token = getToken();
                 const ids = Array.from(selected);
                 await Promise.all(ids.map(id => 
-                  apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates/${id}`, { 
+                  apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { 
                     method: 'DELETE', 
                     headers: { Authorization: `Bearer ${token}` } 
                   })
@@ -505,7 +704,7 @@ function InternalPage() {
   useEffect(() => {
     setLoading(true);
     const token = getToken();
-    fetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setCandidates(d.candidates || []))
       .catch(() => setCandidates([]))
@@ -527,7 +726,7 @@ function InternalPage() {
 
   const deleteCandidate = async (id: string) => {
     const token = getToken();
-    await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
   };
 
@@ -824,7 +1023,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
   useEffect(() => {
     const token = getToken();
     const queuedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('talentPool_emailQueue') || '[]'); } catch { return []; } })();
-    fetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/candidates`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => {
         const all = (d.candidates || []).map((c: any) => ({
@@ -866,7 +1065,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
       setCurrentBatch(i + 1);
       const batch = selectedList.slice(i * batchSize, (i + 1) * batchSize);
       try {
-        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/admin/talent/email`, {
+        const res = await apiFetch(`${API_ENDPOINTS.RESUME_EMAIL}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ candidateIds: batch.map((c:any) => c.id), template, batchSize: batch.length })

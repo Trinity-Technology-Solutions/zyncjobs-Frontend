@@ -1778,7 +1778,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 setTimeout(() => setShowCompanyDropdown(false), 200);
               }}
               className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Search for company (e.g., Google, Microsoft, Trinity Technology Solutions)..."
+              placeholder="Search for company (e.g., Google, Microsoft, Netflix)..."
             />
             {showCompanyDropdown && companySearchResults.length > 0 && (
               <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">

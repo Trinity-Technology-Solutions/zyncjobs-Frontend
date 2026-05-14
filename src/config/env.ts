@@ -106,6 +106,13 @@ export const API_ENDPOINTS = {
   NOTIFICATIONS: `${config.API_URL}/notifications`,
   CANDIDATE_NOTIFICATIONS: `${config.API_URL}/notifications/candidate`,
 
+  // Resume Upload & Processing
+  RESUME_UPLOAD: `${config.API_URL}/resume/upload`,
+  RESUME_UPLOAD_BULK: `${config.API_URL}/admin/talent/upload`,
+  RESUME_PROCESSING_STATUS: `${config.API_URL}/admin/talent/processing-status`,
+  RESUME_CANDIDATES: `${config.API_URL}/admin/talent/candidates`,
+  RESUME_EMAIL: `${config.API_URL}/admin/talent/email`,
+  
   // Admin
   ADMIN_OVERVIEW: `${config.API_URL}/admin/analytics/overview`,
   ADMIN_USER_GROWTH: `${config.API_URL}/admin/analytics/user-growth`,

@@ -21,6 +21,7 @@ interface MobileHamburgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate?: (page: string, data?: any) => void;
+  onLogout?: () => void;
   user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
   siteSettings?: {
     siteLogo?: { url?: string };
@@ -32,6 +33,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
   isOpen, 
   onClose, 
   onNavigate, 
+  onLogout,
   user,
   siteSettings 
 }) => {
@@ -101,16 +103,37 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
   ];
 
   const handleLogout = () => {
-    // Clear user data from localStorage
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    localStorage.removeItem('authToken');
+    console.log('Mobile logout clicked');
     
-    // Dispatch logout event
-    window.dispatchEvent(new CustomEvent('userLogout'));
-    
-    // Navigate to home and close menu
-    handleNavigation('home');
+    try {
+      // Clear user data from localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('employerToken');
+      localStorage.removeItem('candidateToken');
+      
+      // Dispatch logout event
+      window.dispatchEvent(new CustomEvent('userLogout'));
+      
+      // Call parent logout handler if provided
+      if (onLogout) {
+        onLogout();
+      }
+      
+      // Close menu and navigate to home
+      onClose();
+      
+      // Force page reload to ensure clean state
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force reload as fallback
+      window.location.reload();
+    }
   };
 
   const accountItems = user ? [

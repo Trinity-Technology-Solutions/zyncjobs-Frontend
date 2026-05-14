@@ -19,6 +19,7 @@ import { useToast, ToastType } from '../hooks/useToast';
 import NotificationComponent from '../components/Notification';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
+import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 
 interface EmployerDashboardPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -68,6 +69,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appSearch, setAppSearch] = useState('');
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -211,6 +213,32 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       console.log('Dashboard - Actual company name:', actualCompanyName);
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
+      
+      // Check if profile completion popup should be shown
+      // Only show for FIRST TIME after registration (not on subsequent visits)
+      const hasCompletedProfile = parsedUser.industry && 
+                                 parsedUser.companySize && 
+                                 parsedUser.headquarters && 
+                                 parsedUser.companyDescription &&
+                                 parsedUser.companyWebsite &&
+                                 parsedUser.tagline;
+      
+      const hasSeenPopup = localStorage.getItem('hasSeenProfilePopup');
+      const isFirstVisit = sessionStorage.getItem('isFirstVisitAfterRegistration'); // Only for current session
+      
+      // Show popup ONLY if:
+      // 1. Profile is not complete AND
+      // 2. This is their first visit after registration (session flag exists) AND
+      // 3. They haven't seen the popup before
+      if (!hasCompletedProfile && isFirstVisit && !hasSeenPopup) {
+        // Show popup after a short delay to let dashboard load
+        setTimeout(() => {
+          setShowProfilePopup(true);
+        }, 1500);
+        
+        // Clear the first visit flag so popup won't show on page refresh
+        sessionStorage.removeItem('isFirstVisitAfterRegistration');
+      }
       
       fetchDashboardData(parsedUser);
     }
@@ -2093,6 +2121,35 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           }}
         />
       )}
+
+      {/* Profile Completion Popup */}
+      <ProfileCompletionPopup
+        isOpen={showProfilePopup}
+        onClose={() => {
+          setShowProfilePopup(false);
+          localStorage.setItem('hasSeenProfilePopup', 'true');
+          // Also clear session flag to prevent showing on refresh
+          sessionStorage.removeItem('isFirstVisitAfterRegistration');
+        }}
+        onCompleteProfile={() => {
+          setShowProfilePopup(false);
+          localStorage.setItem('hasSeenProfilePopup', 'true');
+          // Clear session flag
+          sessionStorage.removeItem('isFirstVisitAfterRegistration');
+          onNavigate('employer-complete-profile');
+        }}
+        userInfo={{
+          name: employerName,
+          email: user?.email,
+          companyName: companyName,
+          industry: user?.industry,
+          companySize: user?.companySize,
+          headquarters: user?.headquarters,
+          companyDescription: user?.companyDescription,
+          companyWebsite: user?.companyWebsite,
+          tagline: user?.tagline
+        }}
+      />
     </div>
   );
 };
