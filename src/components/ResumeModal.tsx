@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Download, ExternalLink, RefreshCw } from 'lucide-react';
 import {
   getResumeByApplicationId,
@@ -24,53 +24,85 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
   candidateName: directCandidateName,
   candidateEmail,
 }) => {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [presignedUrl, setPresignedUrl] = useState<string | null>(null);
   const [candidateName, setCandidateName] = useState('');
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [useGoogleViewer, setUseGoogleViewer] = useState(false);
+  const prevBlobUrl = useRef<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    // Revoke previous blob URL to free memory
+    if (prevBlobUrl.current) {
+      URL.revokeObjectURL(prevBlobUrl.current);
+      prevBlobUrl.current = null;
+    }
+    setBlobUrl(null);
     setPresignedUrl(null);
     setError(null);
-    setUseGoogleViewer(false);
     setCandidateName(directCandidateName || '');
-    fetchPresignedUrl();
+    fetchAndRenderResume();
   }, [isOpen, applicationId, candidateEmail]);
 
-  const fetchPresignedUrl = async () => {
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (prevBlobUrl.current) URL.revokeObjectURL(prevBlobUrl.current);
+    };
+  }, []);
+
+  const fetchAndRenderResume = async () => {
     setLoading(true);
     setError(null);
-    setUseGoogleViewer(false);
 
     try {
+      let rawUrl: string | null = null;
+
+      // Step 1: get presigned URL from backend
       if (applicationId) {
         const result = await getResumeByApplicationId(applicationId);
         if (result.presignedUrl) {
-          setPresignedUrl(result.presignedUrl);
+          rawUrl = result.presignedUrl;
           if (result.candidateName) setCandidateName(prev => prev || result.candidateName!);
-          return;
         }
       }
 
-      if (candidateEmail) {
+      if (!rawUrl && candidateEmail) {
         const result = await getResumeByEmail(candidateEmail);
-        if (result.presignedUrl) {
-          setPresignedUrl(result.presignedUrl);
-          return;
-        }
+        if (result.presignedUrl) rawUrl = result.presignedUrl;
       }
 
-      if (directResumeUrl && directResumeUrl !== 'resume_from_quick_apply' && directResumeUrl.startsWith('http')) {
-        setPresignedUrl(directResumeUrl);
+      if (!rawUrl && directResumeUrl && directResumeUrl !== 'resume_from_quick_apply' && directResumeUrl.startsWith('http')) {
+        rawUrl = directResumeUrl;
+      }
+
+      if (!rawUrl) {
+        setError('Resume not found. The candidate may not have uploaded a resume yet.');
         return;
       }
 
-      setError('Resume not found. The candidate may not have uploaded a resume yet.');
+      setPresignedUrl(rawUrl);
+
+      // Step 2: fetch the file as a blob so the iframe renders it inline
+      // (S3 presigned URLs have Content-Disposition: attachment which causes download)
+      const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
+      if (!res.ok) throw new Error('Failed to fetch resume file');
+
+      const blob = await res.blob();
+      // Force PDF MIME type so browser renders it instead of downloading
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const url = URL.createObjectURL(pdfBlob);
+      prevBlobUrl.current = url;
+      setBlobUrl(url);
     } catch {
-      setError('Failed to load resume. Please try again.');
+      // If blob fetch fails (e.g. CORS), fall back to presigned URL directly
+      if (presignedUrl) {
+        setBlobUrl(presignedUrl);
+      } else {
+        setError('Failed to load resume. Please try downloading it instead.');
+      }
     } finally {
       setLoading(false);
     }
@@ -91,17 +123,6 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
       setDownloading(false);
     }
   };
-
-  // Determine viewer URL — use Google Docs viewer for PDFs to avoid S3 iframe CORS issues
-  const isPdf = presignedUrl && (
-    presignedUrl.toLowerCase().includes('.pdf') ||
-    presignedUrl.toLowerCase().includes('content-type=application%2Fpdf')
-  );
-  const viewerUrl = presignedUrl
-    ? useGoogleViewer || isPdf
-      ? `https://docs.google.com/viewer?url=${encodeURIComponent(presignedUrl)}&embedded=true`
-      : presignedUrl
-    : null;
 
   if (!isOpen) return null;
 
@@ -125,23 +146,12 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               <p className="text-xs text-gray-400 mt-0.5">{candidateEmail}</p>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {presignedUrl && (
-              <button
-                onClick={() => setUseGoogleViewer(v => !v)}
-                className="text-xs text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
-                title="Switch viewer if resume doesn't display"
-              >
-                {useGoogleViewer ? 'Direct View' : 'Google Viewer'}
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-lg hover:bg-gray-100"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Body */}
@@ -149,7 +159,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
           {loading && (
             <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-500">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-              <p className="text-sm">Fetching resume from S3...</p>
+              <p className="text-sm">Loading resume...</p>
             </div>
           )}
 
@@ -158,7 +168,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               <span className="text-5xl">📄</span>
               <p className="font-medium text-red-700 text-center">{error}</p>
               <button
-                onClick={fetchPresignedUrl}
+                onClick={fetchAndRenderResume}
                 className="flex items-center gap-2 text-sm text-blue-600 border border-blue-300 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
@@ -167,21 +177,17 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
             </div>
           )}
 
-          {!loading && !error && viewerUrl && (
+          {!loading && !error && blobUrl && (
             <iframe
-              key={viewerUrl}
-              src={viewerUrl}
+              key={blobUrl}
+              src={blobUrl}
               title={`Resume - ${candidateName || 'Candidate'}`}
               className="w-full rounded-lg border border-gray-200 bg-gray-50"
               style={{ height: 'calc(92vh - 170px)', minHeight: '480px' }}
-              onError={() => {
-                // If direct iframe fails, switch to Google Docs viewer
-                if (!useGoogleViewer) setUseGoogleViewer(true);
-              }}
             />
           )}
 
-          {!loading && !error && !presignedUrl && (
+          {!loading && !error && !blobUrl && (
             <div className="flex flex-col items-center justify-center h-64 gap-2 bg-gray-50 rounded-xl p-6 border border-gray-100">
               <span className="text-5xl">📄</span>
               <p className="font-medium text-gray-700">No resume available</p>
