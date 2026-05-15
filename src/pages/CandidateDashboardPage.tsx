@@ -69,6 +69,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
   const [messages, setMessages] = useState<any[]>([]);
   const [chatMessage, setChatMessage] = useState('');
   const [loadingChats, setLoadingChats] = useState(false);
+  const [activeQuickAction, setActiveQuickAction] = useState<string | null>(null);
 
   const sendChatMessage = async () => {
     if (!chatMessage.trim() || !selectedConversation) return;
@@ -717,107 +718,80 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               {!readOnly && (
               
               <div className="lg:col-span-1 order-3 lg:order-1">
-                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-                  <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-                  <div className="space-y-1">
-                    <button 
-                      onClick={() => onNavigate('job-listings')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <Search className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">Browse All Jobs</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('companies')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <Star className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">Company Reviews</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('skill-assessment')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <TrendingUp className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">Take Skill Assessment</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('skill-gap-analysis')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <Search className="w-5 h-5 text-purple-600" />
-                      <span className="text-gray-700">Skill Gap Analysis</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('career-roadmap')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <TrendingUp className="w-5 h-5 text-indigo-600" />
-                      <span className="text-gray-700">Career Roadmap</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('salary-insights')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      <span className="text-gray-700">Salary Insights</span>
-                    </button>
-                    <button 
-                      onClick={() => {
-                        try {
-                          onNavigate('job-matches');
-                        } catch (error) {
-                          console.error('Navigation error:', error);
-                          window.location.href = '/job-matches';
-                        }
-                      }}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-gray-700">AI Job Matches</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('my-applications')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <FileText className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">My Applications</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('interviews')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-gray-700">My Interviews</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('candidate-messages')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                      </svg>
-                      <span className="text-gray-700">Messages</span>
-                    </button>
-                    <button 
-                      onClick={() => onNavigate('settings')}
-                      className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
-                    >
-                      <Edit className="w-5 h-5 text-blue-600" />
-                      <span className="text-gray-700">Settings</span>
-                    </button>
+                {/* Quick Actions — styled to match employer dashboard sidebar */}
+                <div className="rounded-xl overflow-hidden shadow-lg mb-4 sm:mb-6" style={{background: 'linear-gradient(to bottom, #1e3a8a, #1d4ed8, #1e3a8a)'}}>
+                  {/* Header */}
+                  <div className="px-6 pt-5 pb-4 border-b border-blue-700">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                      <span className="text-yellow-300 text-base">⚡</span>
+                      Quick Actions
+                    </h3>
+                  </div>
+                  {/* Profile completion bar */}
+                  <div className="px-6 py-4 bg-blue-800/50">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-blue-200 font-semibold tracking-wide">Profile Strength</span>
+                      <span className="text-xs font-bold text-white bg-blue-600/60 px-2 py-0.5 rounded-full">{completionPercentage}%</span>
+                    </div>
+                    <div className="w-full bg-blue-900/70 rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-2 rounded-full transition-all duration-700"
+                        style={{
+                          width: `${completionPercentage}%`,
+                          background: completionPercentage >= 80
+                            ? 'linear-gradient(to right, #34d399, #10b981)'
+                            : completionPercentage >= 50
+                            ? 'linear-gradient(to right, #60a5fa, #22d3ee)'
+                            : 'linear-gradient(to right, #f59e0b, #fbbf24)'
+                        }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-blue-300 mt-1.5">
+                      {completionPercentage < 50 ? 'Add more details to stand out' : completionPercentage < 80 ? 'Almost there! Keep going' : 'Great profile!'}
+                    </p>
+                  </div>
+                  {/* Nav items */}
+                  <nav className="py-3 px-3 space-y-1">
+                    {([
+                      { key: 'job-listings',     label: 'Browse All Jobs',       icon: <Search className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('job-listings') },
+                      { key: 'companies',        label: 'Company Reviews',       icon: <Star className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('companies') },
+                      { key: 'skill-assessment', label: 'Take Skill Assessment', icon: <TrendingUp className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('skill-assessment') },
+                      { key: 'skill-gap',        label: 'Skill Gap Analysis',    icon: <Search className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('skill-gap-analysis') },
+                      { key: 'career-roadmap',   label: 'Career Roadmap',        icon: <TrendingUp className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('career-roadmap') },
+                      { key: 'salary-insights',  label: 'Salary Insights',       icon: <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, action: () => onNavigate('salary-insights') },
+                      { key: 'job-matches',      label: 'AI Job Matches',        icon: <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>, action: () => onNavigate('job-matches') },
+                      { key: 'my-applications',  label: 'My Applications',       icon: <FileText className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('my-applications'), badge: applications.length || null },
+                      { key: 'interviews',       label: 'My Interviews',         icon: <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>, action: () => onNavigate('interviews') },
+                      { key: 'messages',         label: 'Messages',              icon: <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>, action: () => onNavigate('candidate-messages') },
+                      { key: 'settings',         label: 'Settings',              icon: <Edit className="w-5 h-5 flex-shrink-0" />, action: () => onNavigate('settings') },
+                    ] as { key: string; label: string; icon: React.ReactNode; action: () => void; badge?: number | null }[]).map((item) => {
+                      const isActive = activeQuickAction === item.key;
+                      return (
+                        <button key={item.key}
+                          onClick={() => { setActiveQuickAction(item.key); item.action(); }}
+                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left font-medium transition-all duration-200 ${
+                            isActive
+                              ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40'
+                              : 'text-white hover:bg-blue-700/60'
+                          }`}
+                          style={{fontSize: '15px'}}
+                        >
+                          <span className={`flex-shrink-0 ${isActive ? 'text-white' : 'text-blue-200'}`}>{item.icon}</span>
+                          <span className={`flex-1 leading-tight ${isActive ? 'font-semibold' : 'font-medium'}`}>{item.label}</span>
+                          {item.badge ? (
+                            <span className="flex-shrink-0 min-w-[22px] h-[22px] px-1 rounded-full font-bold flex items-center justify-center bg-emerald-400 text-slate-900" style={{fontSize: '11px'}}>{item.badge}</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
 
-                    {/* LinkedIn Import */}
+                    {/* LinkedIn Import — full-width row matching other items */}
                     {!user?.linkedInImported && (
-                      <div className="pt-1">
+                      <div className="border-t border-blue-700/60 mt-1 pt-1">
                         <LinkedInConnect
                           mode="modal"
+                          className="w-full px-3 py-3 rounded-lg border border-white/30 text-white bg-transparent font-medium text-[15px] hover:bg-blue-700/60"
                           onImport={async (profile: LinkedInProfile) => {
-                            // Merge LinkedIn data into user profile
                             const merged = {
                               ...user,
                               name: profile.name || user?.name,
@@ -841,7 +815,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             setUser(merged);
                             localStorage.setItem('user', JSON.stringify(merged));
                             calculateProfileCompletion(merged);
-                            // Persist to backend
                             try {
                               await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
@@ -855,14 +828,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       </div>
                     )}
                     {user?.linkedInImported && (
-                      <div className="flex items-center gap-2 px-3 py-2 text-sm text-green-600">
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                      <div className="flex items-center gap-3 px-3 py-3 text-sm text-green-300 font-medium border-t border-blue-700/60 mt-2">
+                        <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
                         </svg>
                         LinkedIn connected
                       </div>
                     )}
-                  </div>
+                  </nav>
                 </div>
 
                 {/* Profile Visibility */}
