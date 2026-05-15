@@ -1,7 +1,4 @@
-/**
- * Resume Service
- * Handles fetching presigned S3 URLs from backend for secure resume access
- */
+import { apiFetch } from '../api/apiFetch';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -12,14 +9,9 @@ interface ResumeResponse {
   error?: string;
 }
 
-/**
- * Get presigned URL for viewing resume by application ID
- * Backend endpoint: GET /api/applications/:id/resume
- * Returns: { presignedUrl, downloadUrl?, candidateName? }
- */
 export const getResumeByApplicationId = async (applicationId: string): Promise<ResumeResponse> => {
   try {
-    const res = await fetch(`${API_BASE}/applications/${applicationId}/resume`);
+    const res = await apiFetch(`${API_BASE}/applications/${applicationId}/resume`);
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Failed to fetch resume' }));
       return { error: error.error || error.message || 'Resume not found' };
@@ -31,14 +23,9 @@ export const getResumeByApplicationId = async (applicationId: string): Promise<R
   }
 };
 
-/**
- * Get presigned URL for viewing resume by candidate email
- * Backend endpoint: GET /api/resume/presigned?email=...
- * Returns: { presignedUrl, downloadUrl? }
- */
 export const getResumeByEmail = async (email: string): Promise<ResumeResponse> => {
   try {
-    const res = await fetch(`${API_BASE}/resume/presigned?email=${encodeURIComponent(email)}`);
+    const res = await apiFetch(`${API_BASE}/resume/presigned?email=${encodeURIComponent(email)}`);
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Failed to fetch resume' }));
       return { error: error.error || error.message || 'Resume not found' };
@@ -50,37 +37,16 @@ export const getResumeByEmail = async (email: string): Promise<ResumeResponse> =
   }
 };
 
-/**
- * Download resume as blob via backend proxy
- * Backend endpoint: GET /api/applications/:id/resume/download
- * Streams S3 file through backend to avoid exposing S3 URLs
- */
 export const downloadResumeByApplicationId = async (
   applicationId: string,
   candidateName: string = 'candidate'
 ): Promise<void> => {
-  try {
-    const res = await fetch(`${API_BASE}/applications/${applicationId}/resume/download`);
-    if (!res.ok) throw new Error('Download failed');
-    
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `${candidateName.replace(/\s+/g, '_')}_resume.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-  } catch (error) {
-    console.error('downloadResumeByApplicationId error:', error);
-    throw error;
-  }
+  const res = await apiFetch(`${API_BASE}/applications/${applicationId}/resume/download`);
+  if (!res.ok) throw new Error('Download failed');
+  const blob = await res.blob();
+  triggerDownload(blob, candidateName);
 };
 
-/**
- * Download resume from presigned URL (fallback)
- */
 export const downloadResumeFromUrl = async (
   url: string,
   candidateName: string = 'candidate'
@@ -88,19 +54,20 @@ export const downloadResumeFromUrl = async (
   try {
     const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
     if (!res.ok) throw new Error('Download failed');
-    
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = `${candidateName.replace(/\s+/g, '_')}_resume.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-  } catch (error) {
-    console.error('downloadResumeFromUrl error:', error);
-    // Last resort: open in new tab
+    triggerDownload(await res.blob(), candidateName);
+  } catch {
     window.open(url, '_blank');
   }
 };
+
+function triggerDownload(blob: Blob, candidateName: string) {
+  const ext = blob.type.includes('pdf') ? 'pdf' : 'docx';
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = `${candidateName.replace(/\s+/g, '_')}_resume.${ext}`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
