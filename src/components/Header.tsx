@@ -743,6 +743,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           isOpen={isMenuOpen}
           onClose={() => setIsMenuOpen(false)}
           onNavigate={onNavigate}
+          onLogout={onLogout}
           user={user}
           siteSettings={siteSettings || undefined}
         />

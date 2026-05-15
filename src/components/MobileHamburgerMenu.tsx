@@ -11,13 +11,17 @@ import {
   UserPlus, 
   Briefcase,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  User,
+  LogOut,
+  Settings
 } from 'lucide-react';
 
 interface MobileHamburgerMenuProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate?: (page: string, data?: any) => void;
+  onLogout?: () => void;
   user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
   siteSettings?: {
     siteLogo?: { url?: string };
@@ -29,6 +33,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
   isOpen, 
   onClose, 
   onNavigate, 
+  onLogout,
   user,
   siteSettings 
 }) => {
@@ -97,12 +102,69 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
     }
   ];
 
+  const handleLogout = () => {
+    console.log('Mobile logout clicked');
+    
+    try {
+      // Clear user data from localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('employerToken');
+      localStorage.removeItem('candidateToken');
+      
+      // Dispatch logout event
+      window.dispatchEvent(new CustomEvent('userLogout'));
+      
+      // Call parent logout handler if provided
+      if (onLogout) {
+        onLogout();
+      }
+      
+      // Close menu and navigate to home
+      onClose();
+      
+      // Force page reload to ensure clean state
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+      
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force reload as fallback
+      window.location.reload();
+    }
+  };
+
   const accountItems = user ? [
+    {
+      icon: User,
+      label: 'Profile',
+      subtitle: 'View and edit your profile',
+      action: () => handleNavigation(user.type === 'employer' ? 'employer-profile' : 'dashboard'),
+      hasArrow: true
+    },
     {
       icon: user.type === 'employer' ? Briefcase : Search,
       label: user.type === 'employer' ? 'My Jobs' : 'My Applications',
+      subtitle: user.type === 'employer' ? 'Manage your job postings' : 'Track your applications',
       action: () => handleNavigation(user.type === 'employer' ? 'my-jobs' : 'my-applications'),
       hasArrow: true
+    },
+    {
+      icon: Settings,
+      label: 'Settings',
+      subtitle: 'Account preferences',
+      action: () => handleNavigation('settings'),
+      hasArrow: true
+    },
+    {
+      icon: LogOut,
+      label: 'Logout',
+      subtitle: 'Sign out of your account',
+      action: handleLogout,
+      hasArrow: false,
+      isLogout: true
     }
   ] : [
     {
@@ -169,6 +231,20 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
             scrollBehavior: 'smooth'
           }}
         >
+          {/* User Greeting Section */}
+          {user && (
+            <div className="px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+                  <User className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900">Hello, {user.name || 'User'}!</div>
+                  <div className="text-sm text-gray-500 capitalize">{user.type} Account</div>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Main Navigation */}
           <div className="px-6 py-6">
             <div className="space-y-3">
@@ -258,27 +334,46 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                 <button
                   key={item.label}
                   onClick={item.action}
-                  className={`group flex items-center justify-between w-full p-4 rounded-2xl bg-white hover:bg-blue-50 transition-all duration-200 transform ${
+                  className={`group flex items-center justify-between w-full p-4 rounded-2xl transition-all duration-200 transform ${
                     animateItems 
                       ? 'translate-x-0 opacity-100' 
                       : 'translate-x-8 opacity-0'
+                  } ${
+                    item.isLogout 
+                      ? 'bg-white hover:bg-red-50 border-red-100' 
+                      : 'bg-white hover:bg-blue-50'
                   }`}
                   style={{ 
-                    transitionDelay: animateItems ? `${(menuItems.length + careerResources.length + index) * 50}ms` : '0ms',
+                    transitionDelay: animateItems ? `${(menuItems.length + (user && user.type !== 'employer' ? careerResources.length : 0) + index) * 50}ms` : '0ms',
                     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.02)',
-                    border: '1px solid rgba(229, 231, 235, 0.3)'
+                    border: item.isLogout ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(229, 231, 235, 0.3)'
                   }}
                 >
                   <div className="flex items-center flex-1">
-                    <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center mr-4 group-hover:bg-blue-100 transition-colors duration-200 flex-shrink-0">
-                      <item.icon className="w-7 h-7 text-blue-600" />
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 transition-colors duration-200 flex-shrink-0 ${
+                      item.isLogout 
+                        ? 'bg-red-50 group-hover:bg-red-100' 
+                        : 'bg-blue-50 group-hover:bg-blue-100'
+                    }`}>
+                      <item.icon className={`w-7 h-7 ${
+                        item.isLogout ? 'text-red-600' : 'text-blue-600'
+                      }`} />
                     </div>
                     <div className="text-left flex-1">
-                      <div className="font-semibold text-gray-900 text-base leading-tight">{item.label}</div>
+                      <div className={`font-semibold text-base leading-tight ${
+                        item.isLogout ? 'text-red-900' : 'text-gray-900'
+                      }`}>{item.label}</div>
+                      {item.subtitle && (
+                        <div className="text-sm text-gray-500 leading-tight mt-0.5">{item.subtitle}</div>
+                      )}
                     </div>
                   </div>
                   {item.hasArrow && (
-                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors duration-200 flex-shrink-0 ml-2" />
+                    <ChevronRight className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ml-2 ${
+                      item.isLogout 
+                        ? 'text-red-400 group-hover:text-red-600' 
+                        : 'text-gray-400 group-hover:text-blue-600'
+                    }`} />
                   )}
                 </button>
               ))}

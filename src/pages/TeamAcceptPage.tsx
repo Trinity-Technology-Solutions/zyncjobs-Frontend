@@ -24,15 +24,24 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
 
   // Step 1 — validate token, get invite details
   useEffect(() => {
+    console.log('🔑 TeamAcceptPage mounted with token:', token);
+    console.log('🔑 Current URL:', window.location.href);
+    
     if (!token) {
+      console.error('🔑 No token found in URL');
       setError('This invitation link is missing a token. Please ask the employer to resend the invite or copy the link again.');
       setStep('error');
       return;
     }
 
+    console.log('🔑 Making API call to:', `${API}/team/invite-info/${token}`);
     fetch(`${API}/team/invite-info/${token}`)
-      .then(r => r.json())
+      .then(r => {
+        console.log('🔑 API response status:', r.status);
+        return r.json();
+      })
       .then(data => {
+        console.log('🔑 API response data:', data);
         if (data.success) {
           setInvite({
             name: data.memberName || data.email?.split('@')[0] || 'Team Member',
@@ -42,24 +51,36 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
           });
           // If member already has an account, skip password step
           if (data.hasAccount) {
+            console.log('🔑 User has account, auto-accepting...');
             acceptInvite(token);
           } else {
+            console.log('🔑 User needs to set password');
             setStep('set-password');
           }
         } else {
+          console.error('🔑 API error:', data.error);
           setError(data.error || 'Invalid or expired invitation link.');
           setStep('error');
         }
       })
-      .catch(() => { setError('Network error. Please try again.'); setStep('error'); });
+      .catch(err => { 
+        console.error('🔑 Network error:', err);
+        setError('Network error. Please try again.'); 
+        setStep('error'); 
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Accept invite (for users who already have an account)
   const acceptInvite = (tok: string) => {
+    console.log('🔑 Accepting invite with token:', tok);
     fetch(`${API}/team/accept/${tok}`)
-      .then(r => r.json())
+      .then(r => {
+        console.log('🔑 Accept response status:', r.status);
+        return r.json();
+      })
       .then(data => {
+        console.log('🔑 Accept response data:', data);
         if (data.success) {
           localStorage.setItem('accessToken', data.accessToken);
           localStorage.setItem('user', JSON.stringify(data.user));
@@ -68,11 +89,16 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
           setStep('success');
           setTimeout(() => onNavigate('dashboard'), 2000);
         } else {
+          console.error('🔑 Accept failed:', data.error);
           setError(data.error || 'Failed to accept invitation.');
           setStep('error');
         }
       })
-      .catch(() => { setError('Network error. Please try again.'); setStep('error'); });
+      .catch(err => { 
+        console.error('🔑 Accept network error:', err);
+        setError('Network error. Please try again.'); 
+        setStep('error'); 
+      });
   };
 
   // Step 2 — set password and activate account

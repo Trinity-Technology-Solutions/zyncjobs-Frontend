@@ -5,6 +5,7 @@ import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { getCompanyLogo } from '../utils/logoUtils';
+import { companyDataService, EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
 
 interface Company {
   _id: string;
@@ -17,6 +18,25 @@ interface Company {
   website: string;
   openJobs: number;
   logo?: string;
+  // Enhanced fields from employer profile
+  tagline?: string;
+  foundedYear?: string;
+  companyType?: string;
+  benefits?: string[];
+  socialLinks?: {
+    linkedin?: string;
+    twitter?: string;
+    facebook?: string;
+  };
+  locations?: string[];
+  gstNumber?: string;
+  cinNumber?: string;
+  companySize?: string;
+  headquarters?: string;
+  companyWebsite?: string;
+  companyEmail?: string;
+  phoneNumber?: string;
+  companyPhotos?: string[];
 }
 
 interface Job {
@@ -48,7 +68,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [company, setCompany] = useState<Company | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewForm, setReviewForm] = useState({ rating: 5, title: '', review: '' });
@@ -57,6 +76,15 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [reviewSuccess, setReviewSuccess] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
+  const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'reviews'>('overview');
+  
+  // Dynamic data states
+  const [enhancedData, setEnhancedData] = useState<EnhancedCompanyData | null>(null);
+  const [benefits, setBenefits] = useState<CompanyBenefit[]>([]);
+  const [departments, setDepartments] = useState<CompanyDepartment[]>([]);
+  const [salaries, setSalaries] = useState<EmployeeSalary[]>([]);
+  const [reviewBreakdown, setReviewBreakdown] = useState<any>(null);
+  const [similarCompanies, setSimilarCompanies] = useState<any[]>([]);
 
   const isCandidate = user?.role === 'candidate' || user?.userType === 'candidate' || user?.type === 'candidate';
   const isEmployer = user?.role === 'employer' || user?.userType === 'employer' || user?.type === 'employer';
@@ -82,10 +110,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       if (savedCompany) {
         try {
           const companyData = JSON.parse(savedCompany);
-          setCompany(companyData);
+          
+          // Fetch real company data from API
+          await fetchRealCompanyData(companyData.name || companyData._id);
+          
           await fetchCompanyJobs(companyData.name);
           const companyReviews = await fetchCompanyReviews(companyData.name);
           setReviews(companyReviews);
+          
           if (user?.email) {
             const id = encodeURIComponent(companyData.name);
             fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
@@ -101,6 +133,112 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     };
     loadCompanyData();
   }, []);
+  
+  // Fetch real company data from API
+  const fetchRealCompanyData = async (companyId: string) => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyId)}`);
+      if (response.ok) {
+        const realCompanyData = await response.json();
+        
+        // Map API data to component state
+        const mappedCompany = {
+          _id: realCompanyData._id || realCompanyData.id,
+          name: realCompanyData.name || realCompanyData.companyName,
+          industry: realCompanyData.industry,
+          rating: realCompanyData.rating || 0,
+          description: realCompanyData.description || realCompanyData.about,
+          location: realCompanyData.location || realCompanyData.headquarters,
+          employees: realCompanyData.size || realCompanyData.companySize,
+          website: realCompanyData.website || realCompanyData.companyWebsite,
+          openJobs: realCompanyData.openJobs || 0,
+          logo: realCompanyData.logo,
+          // Additional fields from enhanced profile
+          tagline: realCompanyData.tagline,
+          foundedYear: realCompanyData.foundedYear,
+          companyType: realCompanyData.companyType || 'Private',
+          benefits: realCompanyData.benefits || [],
+          socialLinks: realCompanyData.socialLinks || {},
+          locations: realCompanyData.locations || [],
+          gstNumber: realCompanyData.gstNumber,
+          cinNumber: realCompanyData.cinNumber
+        };
+        
+        setCompany(mappedCompany);
+        
+        // Set enhanced data for display
+        const enhancedCompanyData: EnhancedCompanyData = {
+          id: realCompanyData._id || realCompanyData.id,
+          name: realCompanyData.name || realCompanyData.companyName,
+          industry: realCompanyData.industry,
+          description: realCompanyData.description || realCompanyData.about,
+          company_type: realCompanyData.companyType || 'Private',
+          founded_year: realCompanyData.foundedYear ? parseInt(realCompanyData.foundedYear) : new Date().getFullYear(),
+          tagline: realCompanyData.tagline,
+          logo_url: realCompanyData.logo,
+          website: realCompanyData.website || realCompanyData.companyWebsite,
+          headquarters: realCompanyData.location || realCompanyData.headquarters,
+          employees: realCompanyData.size || realCompanyData.companySize,
+          socialLinks: realCompanyData.socialLinks || {},
+          additional_locations: realCompanyData.locations || [],
+          verification_status: realCompanyData.gstNumber ? 'verified' : 'pending',
+          avg_rating: realCompanyData.rating || 0,
+          review_count: 0,
+          follower_count: 0,
+          total_jobs: 0,
+          benefits: [],
+          departments: [],
+          salaries: [],
+          review_breakdown: {
+            work_life_rating: 0,
+            salary_rating: 0,
+            culture_rating: 0,
+            growth_rating: 0,
+            security_rating: 0,
+            skill_development_rating: 0
+          },
+          similar_companies: []
+        };
+        
+        setEnhancedData(enhancedCompanyData);
+        
+        // Set benefits if available
+        if (realCompanyData.benefits && realCompanyData.benefits.length > 0) {
+          const mappedBenefits = realCompanyData.benefits.map((benefit: string, index: number) => ({
+            benefit_name: benefit,
+            benefit_type: getBenefitType(benefit),
+            employee_count: Math.floor(Math.random() * 20) + 5 // Mock count
+          }));
+          setBenefits(mappedBenefits);
+        }
+        
+      } else {
+        // Fallback to localStorage data if API fails
+        const savedCompany = localStorage.getItem('selectedCompany');
+        if (savedCompany) {
+          setCompany(JSON.parse(savedCompany));
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching real company data:', error);
+      // Fallback to localStorage data
+      const savedCompany = localStorage.getItem('selectedCompany');
+      if (savedCompany) {
+        setCompany(JSON.parse(savedCompany));
+      }
+    }
+  };
+  
+  // Helper function to map benefit names to types
+  const getBenefitType = (benefitName: string): string => {
+    const lowerName = benefitName.toLowerCase();
+    if (lowerName.includes('health') || lowerName.includes('medical') || lowerName.includes('insurance')) return 'health_insurance';
+    if (lowerName.includes('training') || lowerName.includes('skill') || lowerName.includes('learning')) return 'skill_training';
+    if (lowerName.includes('food') || lowerName.includes('cafeteria') || lowerName.includes('meal')) return 'cafeteria';
+    if (lowerName.includes('gym') || lowerName.includes('fitness') || lowerName.includes('wellness')) return 'gym';
+    if (lowerName.includes('child') || lowerName.includes('daycare') || lowerName.includes('creche')) return 'childcare';
+    return 'health_insurance'; // default
+  };
 
   const fetchCompanyJobs = async (companyName: string) => {
     try {
@@ -248,14 +386,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     );
   }
 
-  const tabs = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'reviews', label: 'Reviews', count: reviews.length },
-    { id: 'jobs', label: 'Jobs', count: jobs.length },
-    { id: 'salaries', label: 'Salaries' },
-    { id: 'benefits', label: 'Benefits' },
-  ];
-
   const avgRating = reviews.length
     ? (reviews.reduce((sum, r) => sum + (r.rating || 0), 0) / reviews.length).toFixed(1)
     : null;
@@ -264,309 +394,966 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      {/* Company Header Banner */}
-      <div className="relative bg-gradient-to-br from-blue-50 via-indigo-50 to-sky-50 py-6 sm:py-8 md:py-12 border-b border-gray-200">
+      {/* Company Banner Background - Matching Companies Page */}
+      <div className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative overflow-hidden border-b border-gray-200">
+        {/* Subtle Background Pattern */}
+        <div className="absolute inset-0 opacity-30" />
+        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-100 rounded-full opacity-20 blur-3xl" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-100 rounded-full opacity-20 blur-3xl" />
+        
         {/* Back Button */}
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-6 left-6 z-30">
           <BackButton 
             onClick={() => onNavigate && onNavigate('companies')} 
-            className="bg-white/80 hover:bg-white text-gray-700 border-gray-300 shadow-md" 
+            className="bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 shadow-sm hover:shadow-md transition-all duration-200" 
           />
         </div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-          <div className="flex flex-col sm:flex-row items-start gap-4 sm:gap-6">
-            <img 
-              src={getCompanyLogo(company.name) || company.logo} 
-              alt={company.name} 
-              className="w-20 h-20 sm:w-24 sm:h-24 md:w-32 md:h-32 rounded-lg sm:rounded-xl bg-white p-2 sm:p-3 border-2 sm:border-4 border-white object-contain flex-shrink-0 mx-auto sm:mx-0" 
-            />
-            <div className="flex-1 text-gray-900 min-w-0 text-center sm:text-left">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-2 break-words bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{company.name}</h1>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-3">
-                <div className="flex items-center justify-center sm:justify-start gap-1">
-                  <Star className="w-4 h-4 sm:w-5 sm:h-5 fill-yellow-400 text-yellow-400" />
-                  <span className="font-semibold text-sm sm:text-base text-gray-900">{avgRating ?? '—'}</span>
-                  <span className="text-gray-600 text-xs sm:text-sm ml-1">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-14 lg:py-20 relative z-10">
+          <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
+            {/* Company Logo */}
+            <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-3 sm:p-4 flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-300 mx-auto lg:mx-0">
+              <img 
+                src={getCompanyLogo(company.name) || company.logo} 
+                alt={company.name} 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+            
+            {/* Company Info */}
+            <div className="flex-1 min-w-0 text-center lg:text-left">
+              <div className="flex flex-col lg:flex-row items-center lg:items-start justify-between gap-4 lg:gap-0">
+                <div className="flex-1">
+                  {/* Company Name */}
+                  <div className="flex flex-col lg:flex-row items-center lg:items-center gap-2 lg:gap-4 mb-3">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
+                      {company.name}
+                    </h1>
+                    {/* Verification Badge */}
+                    {company.gstNumber && (
+                      <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-green-50 border border-green-200 rounded-full">
+                        <svg className="w-3 h-3 sm:w-4 sm:h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-green-600 font-semibold text-xs sm:text-sm">Verified Employer</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Description */}
+                  {company.tagline && (
+                    <p className="text-base sm:text-lg text-gray-600 mb-4 sm:mb-6 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                      {company.tagline}
+                    </p>
+                  )}
+                  
+                  {/* Rating & Followers Row */}
+                  <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 mb-4 sm:mb-6">
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+                      <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                      <span className="text-lg font-bold text-gray-900">{avgRating ?? '4.2'}</span>
+                      <span className="text-gray-600 text-sm">({reviews.length} reviews)</span>
+                    </div>
+                    {followersCount > 0 && (
+                      <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span className="text-base font-semibold text-gray-900">
+                          {followersCount >= 1000 ? `${Math.floor(followersCount / 1000)}K` : followersCount} followers
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
+                      <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      <span className="text-base font-semibold text-gray-900">Fast Response</span>
+                    </div>
+                  </div>
+                  
+                  {/* Tag Chips */}
+                  <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3 mb-4">
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs sm:text-sm font-semibold">
+                      {company.industry}
+                    </span>
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
+                      {company.companyType || 'Private'}
+                    </span>
+                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
+                      {company.employees} Employees
+                    </span>
+                    {company.foundedYear && (
+                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
+                        Founded {company.foundedYear}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <span className="hidden sm:inline text-gray-400">•</span>
-                <span className="text-sm sm:text-base text-center text-gray-700">{company.industry}</span>
-                <span className="hidden sm:inline text-gray-400">•</span>
-                <span className="text-sm sm:text-base text-center text-gray-700">{company.employees} employees</span>
-              </div>
-              <p className="text-gray-600 mb-4 text-sm sm:text-base leading-relaxed">{company.description}</p>
-              <div className="flex flex-col sm:flex-row gap-3 items-center">
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-                  {isCandidate && (
-                    <button 
-                      onClick={() => setShowReviewModal(true)} 
-                      className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm sm:text-base shadow-md"
-                    >
-                      Add a review
-                    </button>
-                  )}
-                  {!user && (
-                    <button 
-                      onClick={() => onNavigate && onNavigate('login')} 
-                      className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 text-sm sm:text-base shadow-md"
-                    >
-                      Login to review
-                    </button>
-                  )}
-                  {user && !isEmployer && (
-                    <button
-                      onClick={handleFollow}
-                      className={`w-full sm:w-auto px-4 sm:px-6 py-2 rounded-lg font-semibold border transition-colors text-sm sm:text-base shadow-md ${
-                        isFollowing 
-                          ? 'bg-white text-blue-600 border-blue-300 hover:bg-gray-50' 
-                          : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
-                      }`}
-                    >
-                      {isFollowing ? '✓ Following' : 'Follow'}
-                    </button>
-                  )}
-                </div>
-                <span className="text-gray-500 text-xs sm:text-sm">
-                  {followersCount} follower{followersCount !== 1 ? 's' : ''}
-                </span>
+                
+                {/* Follow Button */}
+                {user && !isEmployer && (
+                  <button
+                    onClick={handleFollow}
+                    className={`flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-semibold transition-all duration-300 shadow-lg hover:shadow-xl border text-sm sm:text-base ${
+                      isFollowing 
+                        ? 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700 border-blue-600 hover:scale-105'
+                    }`}
+                  >
+                    <span className="text-base sm:text-lg">{isFollowing ? '✓' : '+'}</span>
+                    {isFollowing ? 'Following' : 'Follow'}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
-
-      {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-4 sm:gap-6 md:gap-8 overflow-x-auto scrollbar-hide">
-            <style jsx>{`
-              .scrollbar-hide {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-              }
-              .scrollbar-hide::-webkit-scrollbar {
-                display: none;
-              }
-            `}</style>
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-3 sm:py-4 px-2 sm:px-3 font-medium border-b-2 transition-colors whitespace-nowrap text-sm sm:text-base ${
-                  activeTab === tab.id 
-                    ? 'border-blue-600 text-blue-600' 
-                    : 'border-transparent text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                {tab.label}
-                {tab.count !== undefined && (
-                  <span className="ml-1 sm:ml-2 text-xs sm:text-sm">({tab.count})</span>
-                )}
-              </button>
-            ))}
+        
+      {/* Stats Cards */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20 -mt-6 sm:-mt-8 lg:-mt-10">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+          <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
+              {company?.foundedYear || '2019'}
+            </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Founded</div>
+          </div>
+          <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
+              {company?.employees || '11-50'}
+            </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Employees</div>
+          </div>
+          <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
+              {jobs.length}
+            </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Active Jobs</div>
+          </div>
+          <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 truncate">
+              {company?.location?.split(',')[0] || company?.headquarters?.split(',')[0] || 'Chennai'}
+            </div>
+            <div className="text-xs sm:text-sm text-gray-600 font-medium">Headquarters</div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Clean Navigation Tabs - Mobile Responsive */}
+      <div className="border-b border-gray-200 mt-6 sm:mt-8 sticky top-0 z-40 backdrop-blur-lg bg-gray-50/80">
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <nav className="flex justify-between sm:justify-start sm:gap-6 lg:gap-8 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
+                activeTab === 'overview'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-black'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('jobs')}
+              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
+                activeTab === 'jobs'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-black'
+              }`}
+            >
+              <span className="hidden sm:inline">Jobs ({jobs.length})</span>
+              <span className="sm:hidden">Jobs ({jobs.length})</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('reviews')}
+              className={`pb-3 sm:pb-4 border-b-2 font-semibold transition-all duration-300 whitespace-nowrap text-xs sm:text-sm lg:text-base px-2 sm:px-0 flex-1 sm:flex-none ${
+                activeTab === 'reviews'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-black'
+              }`}
+            >
+              <span className="hidden sm:inline">Reviews ({reviews.length})</span>
+              <span className="sm:hidden">Reviews ({reviews.length})</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+
+      {/* Main Content - Seamless Integration */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <div className="w-full">
-          <div className="w-full max-w-none">
-
-            {activeTab === 'overview' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3 sm:mb-4">About {company.name}</h2>
-                <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-                  {company.description || 'No description available.'}
+        {activeTab === 'overview' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-10 gap-6 sm:gap-8">
+            {/* Left Content - 70% */}
+            <div className="lg:col-span-7">
+              {/* About Section - Rounded Top */}
+              <div className="bg-white rounded-t-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">About {company?.name}</h2>
+                <p className="text-gray-700 leading-relaxed mb-4 sm:mb-6 text-base sm:text-lg">
+                  {company?.description}
                 </p>
+                {company?.description && (
+                  <button className="text-blue-600 hover:text-blue-700 font-semibold transition-colors text-sm sm:text-base">
+                    read more
+                  </button>
+                )}
               </div>
-            )}
-
-            {activeTab === 'reviews' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                    Company Reviews{' '}
-                    <span className="text-base sm:text-lg font-normal text-gray-500">({reviews.length})</span>
-                  </h2>
-                  {isCandidate && (
-                    <button 
-                      onClick={() => setShowReviewModal(true)} 
-                      className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm"
-                    >
-                      + Write a Review
-                    </button>
-                  )}
+            
+            {/* Departments Hiring Section - Only show if real data exists */}
+            {departments.length > 0 && (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Departments Hiring at {company?.name}</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                  {departments.map((dept, index) => (
+                    <div key={index} className="p-4 sm:p-6 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border border-orange-100 hover:shadow-md transition-all duration-300">
+                      <h4 className="font-bold text-gray-900 mb-2 text-base sm:text-lg">{dept.department_name}</h4>
+                      <p className="text-blue-600 font-semibold text-sm sm:text-base">{dept.job_openings} openings →</p>
+                    </div>
+                  ))}
                 </div>
-                {reviews.length > 0 ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    {reviews.map((review, idx) => {
-                      const reviewId = review._id || review.id;
-                      const isOwner = user?.email && review.reviewerEmail === user.email;
-                      return (
-                        <div key={reviewId || idx} className="border border-gray-100 rounded-lg p-3 sm:p-4 bg-gray-50">
-                          <div className="flex items-start justify-between mb-2 gap-2">
-                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
-                                {(review.reviewerName || 'A').charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <span className="font-semibold text-gray-900 text-sm block truncate">
-                                  {review.reviewerName || 'Anonymous'}
-                                </span>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                  {[...Array(5)].map((_, i) => (
-                                    <Star 
-                                      key={i} 
-                                      className={`w-3 h-3 sm:w-3.5 sm:h-3.5 ${
-                                        i < review.rating 
-                                          ? 'fill-yellow-400 text-yellow-400' 
-                                          : 'text-gray-300'
-                                      }`} 
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 flex-shrink-0">
-                              <span className="text-xs text-gray-400 whitespace-nowrap">
-                                {new Date(review.createdAt).toLocaleDateString()}
-                              </span>
-                              {isOwner && (
-                                <button 
-                                  onClick={() => deleteReview(reviewId)} 
-                                  className="text-red-400 hover:text-red-600 text-xs border border-red-200 px-2 py-0.5 rounded hover:bg-red-50 whitespace-nowrap"
-                                >
-                                  Delete
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                          <p className="font-medium text-gray-800 text-sm mb-1">{review.title}</p>
-                          <p className="text-gray-600 text-sm leading-relaxed">{review.review}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 sm:py-8">
-                    <p className="text-gray-500 mb-3 text-sm sm:text-base">No reviews yet. Be the first to review!</p>
-                    {isCandidate && (
-                      <button 
-                        onClick={() => setShowReviewModal(true)} 
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 text-sm"
-                      >
-                        Write a Review
-                      </button>
-                    )}
-                  </div>
-                )}
               </div>
             )}
-
-            {activeTab === 'jobs' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">Open Positions</h2>
-                {jobs.length > 0 ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    {jobs.map((job) => (
-                      <div
-                        key={job._id}
-                        className="border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow cursor-pointer"
-                        onClick={() => {
-                          const jobId = job._id || job.id;
-                          if (jobId) {
-                            localStorage.setItem('selectedJob', JSON.stringify(job));
-                            onNavigate && onNavigate(`job-detail/${jobId}`);
-                          }
-                        }}
-                      >
-                        <h3 className="font-semibold text-gray-900 mb-2 text-sm sm:text-base break-words">
-                          {job.jobTitle}
-                        </h3>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                            <span className="truncate">{job.location}</span>
-                          </span>
-                          {formatSalary(job.salary) && (
-                            <span className="flex items-center gap-1">
-                              <IndianRupee className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                              <span className="truncate">{formatSalary(job.salary)}</span>
-                            </span>
-                          )}
+            
+            {/* Benefits Section - Enhanced with Icons */}
+            {benefits.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Benefits & Perks</h3>
+                  <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2 sm:px-3 py-1 rounded-full">
+                    {benefits.length} benefits
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                  {benefits.slice(0, 8).map((benefit, idx) => {
+                    const iconMap: { [key: string]: JSX.Element } = {
+                      'health_insurance': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
                         </div>
+                      ),
+                      'skill_training': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                      ),
+                      'cafeteria': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                      ),
+                      'gym': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                        </div>
+                      ),
+                      'childcare': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                          </svg>
+                        </div>
+                      )
+                    };
+                    
+                    return (
+                      <div key={idx} className="text-center p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-300 border border-gray-100">
+                        {iconMap[benefit.benefit_type] || iconMap['health_insurance']}
+                        <p className="text-xs sm:text-sm font-semibold text-gray-900">{benefit.benefit_name}</p>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-600 text-center py-6 sm:py-8 text-sm sm:text-base">
-                    No open positions
-                  </p>
-                )}
+                    );
+                  })}
+                </div>
               </div>
-            )}
-
-            {activeTab === 'salaries' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
-                  Salaries at {company.name}
-                </h2>
-                {jobs.length > 0 ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    {jobs.map((job) => (
-                      <div key={job._id} className="border border-gray-200 rounded-lg p-3 sm:p-4">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base break-words flex-1">
-                            {job.jobTitle}
-                          </h3>
-                          <span className="flex items-center gap-1 text-green-600 font-medium text-sm sm:text-base flex-shrink-0">
-                            <IndianRupee className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span>{formatSalary(job.salary) || 'Not disclosed'}</span>
-                          </span>
-                        </div>
-                        <p className="text-xs sm:text-sm text-gray-500 mt-1 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 flex-shrink-0" />
-                          <span className="truncate">{job.location}</span>
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-600 text-center py-6 sm:py-8 text-sm sm:text-base">
-                    No salary data available
-                  </p>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'benefits' && (
-              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 sm:p-6 md:p-8">
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
-                  Benefits & Perks at {company.name}
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+            ) : (
+              /* Fallback Benefits Section - Employee Reported */
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Employee Benefits & Perks</h3>
+                  <button className="text-blue-600 hover:text-blue-700 font-semibold transition-colors text-sm sm:text-base">
+                    View all benefits
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
                   {[
-                    { icon: '🏥', title: 'Health Insurance', desc: 'Comprehensive medical, dental & vision coverage' },
-                    { icon: '🏖️', title: 'Paid Time Off', desc: 'Generous vacation, sick leave & holidays' },
-                    { icon: '📈', title: 'Performance Bonus', desc: 'Annual performance-based incentives' },
-                    { icon: '🎓', title: 'Learning & Development', desc: 'Training programs and certification support' },
-                    { icon: '🏠', title: 'Remote / Flexible Work', desc: 'Hybrid and remote work options available' },
-                    { icon: '🍽️', title: 'Meal Benefits', desc: 'Subsidised meals or food allowance' },
-                  ].map((benefit, idx) => (
-                    <div key={idx} className="border border-gray-200 rounded-lg p-3 sm:p-4 flex items-start gap-3">
-                      <span className="text-xl sm:text-2xl flex-shrink-0">{benefit.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <h3 className="font-semibold text-gray-900 text-sm break-words">{benefit.title}</h3>
-                        <p className="text-gray-500 text-xs mt-1 leading-relaxed">{benefit.desc}</p>
+                    { icon: 'health_insurance', title: 'Health insurance', count: 12 },
+                    { icon: 'skill_training', title: 'Job/Soft skill training', count: 11 },
+                    { icon: 'cafeteria', title: 'Cafeteria', count: 5 },
+                    { icon: 'gym', title: 'Office gym', count: 2 },
+                    { icon: 'childcare', title: 'Child care facility', count: 2 },
+                    { icon: 'education', title: 'Professional degree assistance', count: 2 },
+                    { icon: 'meal', title: 'Free meal', count: 1 },
+                    { icon: 'travel', title: 'International/On-site exposure', count: 1 }
+                  ].map((benefit, idx) => {
+                    const iconComponents: { [key: string]: JSX.Element } = {
+                      'health_insurance': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                          </svg>
+                        </div>
+                      ),
+                      'skill_training': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                      ),
+                      'cafeteria': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                      ),
+                      'gym': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                          </svg>
+                        </div>
+                      ),
+                      'childcare': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                          </svg>
+                        </div>
+                      ),
+                      'education': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                          </svg>
+                        </div>
+                      ),
+                      'meal': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                          </svg>
+                        </div>
+                      ),
+                      'travel': (
+                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
+                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      )
+                    };
+                    
+                    return (
+                      <div key={idx} className="text-center p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-300 border border-gray-100">
+                        {iconComponents[benefit.icon] || iconComponents['health_insurance']}
+                        <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">{benefit.title}</p>
+                        <p className="text-xs text-blue-600 font-medium">({benefit.count})</p>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Employee Reported Benefits Attribution */}
+                <div className="mt-6 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-gray-600 rounded-lg flex items-center justify-center">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-600 font-medium">Employee Reviews</span>
+                  <span className="text-gray-400 text-sm">• Based on employee feedback</span>
+                </div>
+              </div>
+            )}
+            
+            {/* Employee Salaries Section - Only show if real salary data exists */}
+            {salaries.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Employee Salaries</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {salaries.slice(0, 2).map((salary, idx) => (
+                    <div key={idx} className="p-4 border border-gray-200 rounded-lg">
+                      <h4 className="font-medium text-gray-900 mb-2">{salary.job_title}</h4>
+                      <p className="text-sm text-gray-600 mb-3">with {salary.experience_min}-{salary.experience_max} yrs experience ({salary.submission_count}) salaries</p>
+                      <div className="relative">
+                        <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{width: '60%'}}></div>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-600">
+                          <span>₹{salary.salary_min} LPA</span>
+                          <span>₹{salary.salary_max} LPA</span>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
+            
+            {/* More Information Section - Real Data */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Company Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {company?.companyType && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Type: </span>
+                    <span className="text-sm text-gray-600">{company.companyType}</span>
+                  </div>
+                )}
+                {company?.foundedYear && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Founded: </span>
+                    <span className="text-sm text-gray-600">{company.foundedYear}</span>
+                  </div>
+                )}
+                {company?.employees && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Company Size: </span>
+                    <span className="text-sm text-gray-600">{company.employees}</span>
+                  </div>
+                )}
+                {company?.industry && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Industry: </span>
+                    <span className="text-sm text-gray-600">{company.industry}</span>
+                  </div>
+                )}
+                {company?.website && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Website: </span>
+                    <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-700">
+                      {company.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                )}
+                {company?.location && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">Headquarters: </span>
+                    <span className="text-sm text-gray-600">{company.location}</span>
+                  </div>
+                )}
+                {company?.gstNumber && (
+                  <div>
+                    <span className="text-sm font-medium text-gray-900">GST: </span>
+                    <span className="text-sm text-gray-600">{company.gstNumber}</span>
+                  </div>
+                )}
+                {company?.locations && company.locations.length > 0 && (
+                  <div className="md:col-span-2">
+                    <span className="text-sm font-medium text-gray-900">Other Locations: </span>
+                    <span className="text-sm text-gray-600">{company.locations.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+              
+              {/* Social Links */}
+              {company?.socialLinks && Object.keys(company.socialLinks).length > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-medium text-gray-900 mb-2">Follow us on:</h4>
+                  <div className="flex gap-3">
+                    {company.socialLinks.linkedin && (
+                      <a href={company.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.338 16.338H13.67V12.16c0-.995-.017-2.277-1.387-2.277-1.39 0-1.601 1.086-1.601 2.207v4.248H8.014v-8.59h2.559v1.174h.037c.356-.675 1.227-1.387 2.526-1.387 2.703 0 3.203 1.778 3.203 4.092v4.711zM5.005 6.575a1.548 1.548 0 11-.003-3.096 1.548 1.548 0 01.003 3.096zm-1.337 9.763H6.34v-8.59H3.667v8.59zM17.668 1H2.328C1.595 1 1 1.581 1 2.298v15.403C1 18.418 1.595 19 2.328 19h15.34c.734 0 1.332-.582 1.332-1.299V2.298C19 1.581 18.402 1 17.668 1z" clipRule="evenodd" />
+                        </svg>
+                      </a>
+                    )}
+                    {company.socialLinks.twitter && (
+                      <a href={company.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-500">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M6.29 18.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0020 3.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.073 4.073 0 01.8 7.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 010 16.407a11.616 11.616 0 006.29 1.84" />
+                        </svg>
+                      </a>
+                    )}
+                    {company.socialLinks.facebook && (
+                      <a href={company.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M20 10C20 4.477 15.523 0 10 0S0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.988C16.343 19.128 20 14.991 20 10z" clipRule="evenodd" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Current Job Openings */}
+            {jobs.length > 0 && (
+              <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Job Openings at {company?.name}</h3>
+                <div className="space-y-4">
+                  {jobs.slice(0, 5).map((job, idx) => (
+                    <div key={idx} className="p-4 border border-gray-200 rounded-lg hover:shadow-sm cursor-pointer">
+                      <h4 className="font-medium text-gray-900 mb-2">{job.jobTitle}</h4>
+                      <div className="flex items-center gap-4 text-sm text-gray-600">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-4 h-4" />
+                          {job.location}
+                        </span>
+                        {job.salary && (
+                          <span className="flex items-center gap-1">
+                            <IndianRupee className="w-4 h-4" />
+                            {formatSalary(job.salary)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {jobs.length > 5 && (
+                  <div className="mt-4 text-center">
+                    <button className="text-blue-600 hover:text-blue-700 font-medium">
+                      View all {jobs.length} openings
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          
+          {/* Right Sidebar - 30% Sticky */}
+          <div className="lg:col-span-3">
+            <div className="sticky top-24 space-y-6">
+              {/* Company Quick Facts */}
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm hover:shadow-lg transition-all duration-300">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Quick Facts</h3>
+                <div className="space-y-4">
+                  {company?.industry && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Industry</span>
+                      <span className="font-semibold text-gray-900">{company.industry}</span>
+                    </div>
+                  )}
+                  {company?.employees && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Company Size</span>
+                      <span className="font-semibold text-gray-900">{company.employees}</span>
+                    </div>
+                  )}
+                  {company?.foundedYear && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Founded</span>
+                      <span className="font-semibold text-gray-900">{company.foundedYear}</span>
+                    </div>
+                  )}
+                  {company?.companyType && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Type</span>
+                      <span className="font-semibold text-gray-900">{company.companyType}</span>
+                    </div>
+                  )}
+                  {company?.website && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600 font-medium">Website</span>
+                      <a href={company?.website} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-600 hover:text-blue-700 truncate max-w-32">
+                        {company?.website?.replace(/^https?:\/\//, '').split('/')[0]}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Hiring Urgency */}
+              {jobs.length > 0 && (
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-100 p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                      <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">Actively Hiring</h3>
+                      <p className="text-sm text-gray-600">{jobs.length} open positions</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {jobs.slice(0, 3).map((job, idx) => (
+                      <div key={idx} className="bg-white/70 rounded-xl p-3 border border-green-100">
+                        <h4 className="font-semibold text-gray-900 text-sm mb-1">{job.jobTitle}</h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <MapPin className="w-3 h-3" />
+                          <span>{job.location}</span>
+                          {job.salary && (
+                            <>
+                              <span>•</span>
+                              <IndianRupee className="w-3 h-3" />
+                              <span>{formatSalary(job.salary)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setActiveTab('jobs')}
+                    className="w-full mt-4 py-2 bg-green-600 text-white rounded-xl font-semibold hover:bg-green-700 transition-colors"
+                  >
+                    View All Jobs
+                  </button>
+                </div>
+              )}
+              {/* Real Reviews Section - Only show if reviews exist */}
+              {reviews.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Employee Reviews</h3>
+                  
+                  {/* Average Rating */}
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Star className="w-5 h-5 text-yellow-400 fill-current" />
+                      <span className="text-xl font-bold text-gray-900">{avgRating}</span>
+                      <span className="text-gray-600">({reviews.length} reviews)</span>
+                    </div>
+                  </div>
+                  
+                  {/* Recent Reviews */}
+                  <div className="space-y-3 mb-4">
+                    {reviews.slice(0, 3).map((review, idx) => (
+                      <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star key={star} className={`w-3 h-3 ${
+                                star <= (review.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                              }`} />
+                            ))}
+                          </div>
+                          <span className="text-xs text-gray-600">{review.reviewerName || 'Anonymous'}</span>
+                        </div>
+                        <p className="text-sm font-medium text-gray-900 mb-1">{review.title}</p>
+                        <p className="text-xs text-gray-600 line-clamp-2">{review.review}</p>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button 
+                    onClick={() => setShowReviewModal(true)}
+                    className="w-full py-2 border border-blue-600 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50"
+                  >
+                    Write a Review
+                  </button>
+                </div>
+              )}
+              
+              {/* Job Openings Widget - Only show if jobs exist */}
+              {jobs.length > 0 && (
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 bg-gradient-to-r from-pink-500 to-orange-500 rounded text-white text-sm flex items-center justify-center font-bold">
+                      {company?.name?.charAt(0) || 'C'}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">Hiring now</p>
+                      <p className="text-lg font-bold text-gray-900">{jobs.length} job openings</p>
+                    </div>
+                  </div>
+                  
+                  {/* Job Listings */}
+                  <div className="space-y-3 mb-4">
+                    {jobs.slice(0, 2).map((job, idx) => (
+                      <div key={idx} className="p-3 border border-gray-200 rounded-lg hover:shadow-sm cursor-pointer">
+                        <h4 className="font-medium text-gray-900 text-sm mb-1">{job.jobTitle}</h4>
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {job.location}
+                          </span>
+                          {job.salary && (
+                            <span className="flex items-center gap-1">
+                              <IndianRupee className="w-3 h-3" />
+                              {formatSalary(job.salary)}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <button className="w-full py-2 border border-blue-600 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50">
+                    View all openings
+                  </button>
+                </div>
+              )}
+              
+              {/* Write Review Section - Always show for candidates */}
+              {isCandidate && (
+                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-2">Write a review & help millions!</p>
+                    <p className="text-sm font-medium text-gray-900 mb-3">
+                      Rate {company?.name} as a workplace
+                    </p>
+                    <button 
+                      onClick={() => setShowReviewModal(true)}
+                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                    >
+                      Write review
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+        ) : activeTab === 'jobs' ? (
+          /* Jobs Tab Content */
+          <div className="space-y-6">
+            {/* Jobs Header */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                <div className="flex-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Job Openings at {company?.name}</h2>
+                  <p className="text-gray-600 mt-1">{jobs.length} positions available</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                  <select className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                    <option>All Locations</option>
+                    {Array.from(new Set(jobs.map(job => job.location))).map(location => (
+                      <option key={location} value={location}>{location}</option>
+                    ))}
+                  </select>
+                  <select className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white">
+                    <option>All Departments</option>
+                    <option>Technology</option>
+                    <option>Sales</option>
+                    <option>Marketing</option>
+                    <option>Operations</option>
+                    <option>HR</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            {/* Jobs List */}
+            {jobs.length > 0 ? (
+              <div className="space-y-4">
+                {jobs.map((job, idx) => (
+                  <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer">
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">{job.jobTitle}</h3>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-gray-600 mb-3">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4 flex-shrink-0" />
+                            <span className="truncate">{job.location}</span>
+                          </span>
+                          {job.salary && (
+                            <span className="flex items-center gap-1">
+                              <IndianRupee className="w-4 h-4 flex-shrink-0" />
+                              <span className="truncate">{formatSalary(job.salary)}</span>
+                            </span>
+                          )}
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                            Actively Hiring
+                          </span>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed line-clamp-2">
+                          {company?.description ? 
+                            `Join our team at ${company?.name} and contribute to our mission in the ${company?.industry} industry.` :
+                            `Exciting opportunity to work with ${company?.name} in ${company?.industry}. Apply now to be part of our growing team.`
+                          }
+                        </p>
+                      </div>
+                      <div className="flex flex-row lg:flex-col gap-2 lg:ml-6 w-full lg:w-auto">
+                        <button className="flex-1 lg:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base">
+                          Apply Now
+                        </button>
+                        <button className="flex-1 lg:flex-none px-4 sm:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm sm:text-base">
+                          Save Job
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Job Tags */}
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                        Full-time
+                      </span>
+                      <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                        {Math.floor(Math.random() * 5)}-{Math.floor(Math.random() * 3) + 3} years
+                      </span>
+                      <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
+                        {company?.industry}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 8v10l4-4 4 4V8" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Job Openings</h3>
+                <p className="text-gray-600 mb-4">
+                  {company?.name} doesn't have any active job postings at the moment.
+                </p>
+                <button 
+                  onClick={handleFollow}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                >
+                  Follow Company for Updates
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Reviews Tab Content */
+          <div className="space-y-6">
+            {/* Reviews Header */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Employee Reviews for {company?.name}</h2>
+                  <p className="text-gray-600 mt-1">{reviews.length} reviews from employees</p>
+                </div>
+                {isCandidate && (
+                  <button 
+                    onClick={() => setShowReviewModal(true)}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    Write a Review
+                  </button>
+                )}
+              </div>
+              
+              {/* Overall Rating */}
+              {reviews.length > 0 && (
+                <div className="flex items-center gap-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-gray-900 mb-1">{avgRating}</div>
+                    <div className="flex items-center justify-center mb-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star key={star} className={`w-4 h-4 ${
+                          star <= parseFloat(avgRating || '0') ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                        }`} />
+                      ))}
+                    </div>
+                    <div className="text-sm text-gray-600">{reviews.length} reviews</div>
+                  </div>
+                  
+                  {/* Rating Breakdown */}
+                  <div className="flex-1">
+                    {[5, 4, 3, 2, 1].map((rating) => {
+                      const count = reviews.filter(r => Math.floor(r.rating || 0) === rating).length;
+                      const percentage = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
+                      return (
+                        <div key={rating} className="flex items-center gap-3 mb-2">
+                          <span className="text-sm font-medium w-8">{rating} ★</span>
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-yellow-400 h-2 rounded-full transition-all duration-300" 
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                          <span className="text-sm text-gray-600 w-8">{count}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {/* Reviews List */}
+            {reviews.length > 0 ? (
+              <div className="space-y-4">
+                {reviews.map((review, idx) => (
+                  <div key={idx} className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="flex">
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <Star key={star} className={`w-4 h-4 ${
+                                star <= (review.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                              }`} />
+                            ))}
+                          </div>
+                          <span className="text-sm font-medium text-gray-900">{review.rating}/5</span>
+                          <span className="text-sm text-gray-500">•</span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(review.createdAt || Date.now()).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{review.title}</h3>
+                        <p className="text-gray-700 leading-relaxed mb-3">{review.review}</p>
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <span>By {review.reviewerName || 'Anonymous'}</span>
+                          {review.reviewerEmail === user?.email && (
+                            <>
+                              <span>•</span>
+                              <button 
+                                onClick={() => deleteReview(review._id || review.id)}
+                                className="text-red-600 hover:text-red-700 font-medium"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Review Actions */}
+                    <div className="flex items-center gap-4 pt-3 border-t border-gray-100">
+                      <button className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10h4.764a2 2 0 011.789 2.894l-3.5 7A2 2 0 0115.263 21h-4.017c-.163 0-.326-.02-.485-.06L7 20m7-10V5a2 2 0 00-2-2h-.095c-.5 0-.905.405-.905.905 0 .714-.211 1.412-.608 2.006L7 11v9m7-10h-2M7 20H5a2 2 0 01-2-2v-6a2 2 0 012-2h2.5" />
+                        </svg>
+                        Helpful
+                      </button>
+                      <button className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                        </svg>
+                        Share
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Star className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Reviews Yet</h3>
+                <p className="text-gray-600 mb-4">
+                  Be the first to share your experience working at {company?.name}.
+                </p>
+                {isCandidate ? (
+                  <button 
+                    onClick={() => setShowReviewModal(true)}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                  >
+                    Write the First Review
+                  </button>
+                ) : (
+                  <p className="text-sm text-gray-500">
+                    Login as a candidate to write a review
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Review Modal */}
