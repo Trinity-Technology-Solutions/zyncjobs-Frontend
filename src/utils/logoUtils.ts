@@ -3,19 +3,10 @@ export const getCompanyLogo = (companyName: string): string => {
     return '';
   }
 
-  // Trinity special case — use local logo (PRIORITY)
-  if (companyName.toLowerCase().includes('trinity')) {
-    return '/images/company-logos/trinity-logo.png';
-  }
-
-  // Nambikkai special case (PRIORITY)
-  if (companyName.toLowerCase().includes('nambikkai')) {
-    return '/images/company-logos/nambikkai-logo.png';
-  }
-
-  // ZyncJobs special case (PRIORITY)
-  if (companyName.toLowerCase().includes('zync')) {
-    return '/images/zyncjobs-logo.png';
+  // Check for local logos first
+  const localLogo = getLocalCompanyLogo(companyName);
+  if (localLogo) {
+    return localLogo;
   }
 
   // Known domain map — use logo.dev (FALLBACK)
@@ -25,6 +16,31 @@ export const getCompanyLogo = (companyName: string): string => {
   }
 
   // Return empty string instead of avatar fallback
+  return '';
+};
+
+const getLocalCompanyLogo = (companyName: string): string => {
+  const name = companyName.toLowerCase();
+  
+  const localLogos: { [key: string]: string } = {
+    'nambikkai': '/images/company-logos/nambikkai-logo.png',
+    'nambikkai india': '/images/company-logos/nambikkai-logo.png',
+    'trinity technology solutions': '/images/company-logos/trinity-logo.png',
+    'trinity': '/images/company-logos/trinity-logo.png'
+  };
+  
+  // Check for exact matches first
+  if (localLogos[name]) {
+    return localLogos[name];
+  }
+  
+  // Check for partial matches
+  for (const [key, logo] of Object.entries(localLogos)) {
+    if (name.includes(key) || key.includes(name)) {
+      return logo;
+    }
+  }
+  
   return '';
 };
 
@@ -420,11 +436,7 @@ const getCompanyDomain = (companyName: string): string => {
     'larsen & toubro': 'larsentoubro.com',
     'l&t': 'larsentoubro.com',
     'infra': 'larsentoubro.com',
-    // Local
-    'growthpulss private solutions': 'growthpulss.com',
-    'growthpulse solutions': 'growthpulss.com',
-    'growthpulse': 'growthpulss.com',
-    'growth pulse': 'growthpulss.com',
+    // Local - Removed GrowthPulse entries to prevent HP logo confusion
   };
   
   // Check for exact matches first

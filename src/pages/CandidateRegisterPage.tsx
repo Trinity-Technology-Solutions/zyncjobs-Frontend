@@ -55,8 +55,25 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
   };
 
   const handleSendOTP = async () => {
-    if (!formData.name.trim()) { setError('Please enter your full name.'); showToast('Please enter your full name.', 'error'); return; }
-    if (!formData.email.trim()) { setError('Please enter your email.'); showToast('Please enter your email.', 'error'); return; }
+    if (!formData.name.trim()) { 
+      setError('Please enter your full name.'); 
+      showToast('Please enter your full name.', 'error'); 
+      return; 
+    }
+    if (!formData.email.trim()) { 
+      setError('Please enter your email.'); 
+      showToast('Please enter your email.', 'error'); 
+      return; 
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setError('Please enter a valid email address.');
+      showToast('Please enter a valid email address.', 'error');
+      return;
+    }
+    
     setError('');
     setLoading(true);
     try {

@@ -951,18 +951,38 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             />
             <h1 className="lg:hidden text-lg font-bold text-gray-900 truncate">Dashboard</h1>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1 sm:gap-2">
             {/* Complete Profile Button */}
             <button
               onClick={() => onNavigate('employer-complete-profile')}
-              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs sm:text-sm shadow-lg flex items-center gap-1"
+              className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
-              <span>Edit Profile</span>
+              <span className="hidden sm:inline">Edit Profile</span>
+              <span className="sm:hidden">Edit</span>
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
+            
+            {/* Post Job Button */}
+            {canPostJobs ? (
+              <button
+                onClick={() => onNavigate('job-posting-selection')}
+                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-2 py-1.5 sm:px-5 sm:py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-xs shadow-lg"
+                title="Post a new job"
+              >
+                <span className="hidden sm:inline">Post Job</span>
+                <span className="sm:hidden">Post</span>
+              </button>
+            ) : (
+              <span className="bg-gray-100 text-gray-400 px-2 py-1.5 sm:px-5 sm:py-2 rounded-lg text-xs border border-gray-200 cursor-not-allowed" title="View only access — cannot post jobs">
+                <span className="hidden sm:inline">View Only</span>
+                <span className="sm:hidden">View</span>
+              </span>
+            )}
+            
+            {/* Notification Bell - Moved to right side */}
             <div className="relative">
               <button
                 onClick={async () => {
@@ -978,28 +998,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     } catch (e) { console.error('Bell fetch error:', e); }
                   }
                 }}
-                className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                className="relative p-1.5 sm:p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Notifications"
               >
-                <Bell className="w-5 h-5 sm:w-6 sm:h-6" />
+                <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                 {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center font-bold text-[10px] sm:text-xs">
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full flex items-center justify-center font-bold text-[9px] sm:text-[10px]">
                     {notifications.length > 9 ? '9+' : notifications.length}
                   </span>
                 )}
               </button>
             </div>
-            {canPostJobs ? (
-              <button
-                onClick={() => onNavigate('job-posting-selection')}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-3 py-2 sm:px-5 sm:py-2 rounded-lg font-medium hover:from-blue-700 hover:to-blue-800 transition-colors text-xs sm:text-sm shadow-lg"
-              >
-                Post Job
-              </button>
-            ) : (
-              <span className="bg-gray-100 text-gray-400 px-3 py-2 sm:px-5 sm:py-2 rounded-lg text-xs sm:text-sm border border-gray-200 cursor-not-allowed" title="View only access — cannot post jobs">
-                View Only
-              </span>
-            )}
           </div>
         </div>
 
@@ -1514,22 +1523,32 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             View Profile
                           </button>
                           <button 
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
                               const appId = application._id || application.id;
-                              openConfirm('Delete Application', 'Are you sure you want to delete this application?', () => {
-                                fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
-                                  method: 'DELETE',
-                                  headers: { 'Content-Type': 'application/json' },
-                                }).then(res => {
-                                  if (res.ok) {
-                                    setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
-                                    showToast('Application deleted successfully!', 'success');
-                                  } else {
+                              openConfirm(
+                                'Delete Application', 
+                                'Are you sure you want to delete this application? This action cannot be undone.', 
+                                async () => {
+                                  try {
+                                    const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
+                                      method: 'DELETE',
+                                      headers: { 'Content-Type': 'application/json' },
+                                    });
+                                    if (response.ok) {
+                                      setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
+                                      showToast('Application deleted successfully!', 'success');
+                                    } else {
+                                      showToast('Failed to delete application', 'error');
+                                    }
+                                  } catch (error) {
+                                    console.error('Delete error:', error);
                                     showToast('Failed to delete application', 'error');
                                   }
-                                }).catch(() => showToast('Failed to delete application', 'error'));
-                                closeConfirm();
-                              });
+                                  closeConfirm();
+                                }
+                              );
                             }}
                             className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md w-full justify-center flex items-center gap-2"
                           >
@@ -1546,41 +1565,57 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'interviews' ? (
             <>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8">Scheduled Interviews</h1>
+              <div className="mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Interviews</h1>
+                    <p className="text-sm text-gray-500">
+                      {interviews.length === 0 ? 'No interviews scheduled' : 
+                       interviews.length === 1 ? '1 interview scheduled' : 
+                       `${interviews.length} interviews scheduled`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium">
+                      📅 Schedule Management
+                    </span>
+                  </div>
+                </div>
+              </div>
               {loading ? (
                 <div className="flex justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
                 </div>
               ) : interviews.length === 0 ? (
                 <div className="text-center py-16">
-                  <MessageSquare className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No Interviews Scheduled</h3>
-                  <p className="text-gray-600 mb-6">Interview schedules will appear here when candidates book interviews.</p>
+                  <MessageSquare className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
+                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No Interviews Scheduled</h3>
+                  <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">Interview schedules will appear here when candidates book interviews.</p>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   {interviews.map((interview) => (
-                    <div key={interview._id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-4 flex-1">
-                          <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-600 font-semibold text-sm">
+                    <div key={interview._id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-sm transition-shadow duration-200">
+                      <div className="flex flex-col lg:flex-row items-start gap-4">
+                        <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-600 font-semibold text-xs sm:text-sm">
                               {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
                             </span>
                           </div>
                           
-                          <div className="flex-1">
-                            <div className="flex items-start justify-between mb-3">
-                              <div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
+                              <div className="min-w-0">
+                                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1 truncate">
                                   {interview.candidateName || 'Candidate'}
                                 </h3>
-                                <p className="text-base text-purple-700 font-semibold flex items-center gap-1">
-                                  <Briefcase className="w-4 h-4" />
-                                  {interview.jobTitle || 'Interview'}
+                                <p className="text-sm sm:text-base text-purple-700 font-semibold flex items-center gap-1">
+                                  <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span className="truncate">{interview.jobTitle || 'Interview'}</span>
                                 </p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              <span className={`flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                                 interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                                 interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
                                 interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
@@ -1590,23 +1625,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </span>
                             </div>
                             
-                            <div className="flex items-center gap-3 mb-3 flex-wrap text-sm text-gray-500">
-                              <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-
-                              <span className="flex items-center gap-1"><Clock className="w-4 h-4" />{interview.time}</span>
-
-                              <span>{interview.candidateEmail}</span>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 text-xs sm:text-sm text-gray-500">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                <span className="truncate">{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                <span>{interview.time}</span>
+                              </span>
+                              <span className="truncate">{interview.candidateEmail}</span>
                             </div>
 
                             {interview.meetingLink && (
-                              <div className="mb-3 flex items-center gap-2">
+                              <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                                 <a
                                   href={interview.meetingLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                                  className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
                                 >
-                                  <Video className="w-4 h-4" />
+                                  <Video className="w-3 h-3 sm:w-4 sm:h-4" />
                                   <span>Join Meeting</span>
                                 </a>
                                 <button
@@ -1614,7 +1653,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     navigator.clipboard.writeText(interview.meetingLink);
                                     showToast('Meeting link copied!', 'success');
                                   }}
-                                  className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                  className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                                   title="Copy meeting link"
                                 >
                                   Copy Link
@@ -1623,14 +1662,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             )}
 
                             {interview.notes && (
-                              <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded border-l-2 border-gray-300">
+                              <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border-l-2 border-gray-300">
                                 <strong className="text-gray-700">Notes:</strong> {interview.notes}
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-auto">
+                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
                           <select
                             value={interview.status || 'scheduled'}
                             onChange={async (e) => {
@@ -1658,7 +1697,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 e.target.value = interview.status || 'scheduled';
                               }
                             }}
-                            className="px-4 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                            className="px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
                             title="Update interview status"
                           >
                             <option value="scheduled">Scheduled</option>
@@ -1666,26 +1705,36 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <option value="cancelled">Cancelled</option>
                           </select>
                           <button 
-                            onClick={() => {
-                              openConfirm('Delete Interview', 'Are you sure you want to delete this interview?', () => {
-                                fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
-                                  method: 'DELETE',
-                                  headers: { 'Content-Type': 'application/json' },
-                                }).then(res => {
-                                  if (res.ok) {
-                                    setInterviews(prev => prev.filter(int => int._id !== interview._id));
-                                    showToast('Interview deleted successfully!', 'success');
-                                  } else {
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openConfirm(
+                                'Delete Interview', 
+                                'Are you sure you want to delete this interview? This action cannot be undone.', 
+                                async () => {
+                                  try {
+                                    const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
+                                      method: 'DELETE',
+                                      headers: { 'Content-Type': 'application/json' },
+                                    });
+                                    if (response.ok) {
+                                      setInterviews(prev => prev.filter(int => int._id !== interview._id));
+                                      showToast('Interview deleted successfully!', 'success');
+                                    } else {
+                                      showToast('Failed to delete interview', 'error');
+                                    }
+                                  } catch (error) {
+                                    console.error('Delete error:', error);
                                     showToast('Failed to delete interview', 'error');
                                   }
-                                }).catch(() => showToast('Failed to delete interview', 'error'));
-                                closeConfirm();
-                              });
+                                  closeConfirm();
+                                }
+                              );
                             }}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm shadow-md flex items-center gap-2"
+                            className="bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
                           >
-                            <Trash2 className="w-4 h-4" />
-                            Delete
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            <span className="hidden sm:inline">Delete</span>
                           </button>
                         </div>
                       </div>
@@ -1823,26 +1872,34 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <Mail className="w-4 h-4" />Contact
                           </button>
                           <button
-                            onClick={() => {
-                              openConfirm('Remove Candidate', 'Remove this candidate from your saved list?', () => {
-                                const token = getToken();
-                                const recordId = candidate.id || candidate._id;
-                                const candidateId = candidate.candidateId;
-                                fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidateId}`, {
-                                  method: 'DELETE',
-                                  headers: { 'Authorization': `Bearer ${token}` }
-                                })
-                                .then(res => {
-                                  if (res.ok) {
-                                    setSavedCandidates(prev => prev.filter(c => (c.id || c._id) !== recordId));
-                                    showToast('Candidate removed from saved list!', 'success');
-                                  } else {
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openConfirm(
+                                'Remove Candidate', 
+                                'Remove this candidate from your saved list? This action cannot be undone.', 
+                                async () => {
+                                  try {
+                                    const token = getToken();
+                                    const recordId = candidate.id || candidate._id;
+                                    const candidateId = candidate.candidateId;
+                                    const response = await fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidateId}`, {
+                                      method: 'DELETE',
+                                      headers: { 'Authorization': `Bearer ${token}` }
+                                    });
+                                    if (response.ok) {
+                                      setSavedCandidates(prev => prev.filter(c => (c.id || c._id) !== recordId));
+                                      showToast('Candidate removed from saved list!', 'success');
+                                    } else {
+                                      showToast('Failed to remove candidate. Please try again.', 'error');
+                                    }
+                                  } catch (error) {
+                                    console.error('Remove error:', error);
                                     showToast('Failed to remove candidate. Please try again.', 'error');
                                   }
-                                })
-                                .catch(() => showToast('Failed to remove candidate. Please try again.', 'error'));
-                                closeConfirm();
-                              });
+                                  closeConfirm();
+                                }
+                              );
                             }}
                             className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
                           >
@@ -1963,8 +2020,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             <TeamSection employerEmail={user?.email} companyName={companyName} showToast={showToast} canInvite={canInviteMembers} />
           ) : activeMenu === 'auto-rejection' ? (
             <>
-              <h1 className="text-3xl font-bold text-gray-900 mb-8">AI Auto-Rejection Settings</h1>
-              <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
+              <div className="mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">AI Auto-Rejection</h1>
+                    <p className="text-sm text-gray-500">
+                      Configure intelligent filtering to automatically screen applications
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium border border-blue-200">
+                      🤖 Smart Filtering
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+                <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
+              </div>
             </>
           ) : activeMenu === 'credentialing' ? (
             <CandidateCredentialing employerEmail={user?.email || ''} showToast={showToast} />
@@ -2280,36 +2353,38 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between mb-6 gap-3">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Team Management</h1>
-          <p className="text-gray-500 text-sm mt-1">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Team Management</h1>
+          <p className="text-gray-500 text-xs sm:text-sm mt-1 truncate">{companyName} · {members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
           {members.some(m => m.status === 'pending') && (
             <button onClick={fetchMembers}
-              className="flex items-center gap-1 text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors min-h-[40px]">
+              className="flex items-center justify-center gap-1 text-xs border border-gray-300 text-gray-600 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors min-h-[36px] sm:min-h-[40px]">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
-              Refresh
+              <span>Refresh</span>
             </button>
           )}
           {canInvite ? (
             <button onClick={() => setShowInvite(true)}
-              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm min-h-[40px]">
-              <UserPlus className="w-4 h-4" /> Invite Member
+              className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs sm:text-sm min-h-[36px] sm:min-h-[40px]">
+              <UserPlus className="w-4 h-4" /> 
+              <span>Invite Member</span>
             </button>
           ) : (
-            <span className="flex items-center gap-2 bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-sm border border-gray-200 cursor-not-allowed" title="Only Owners can invite members">
-              <UserPlus className="w-4 h-4" /> Invite Member
+            <span className="flex items-center justify-center gap-2 bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-xs sm:text-sm border border-gray-200 cursor-not-allowed min-h-[36px] sm:min-h-[40px]" title="Only Owners can invite members">
+              <UserPlus className="w-4 h-4" /> 
+              <span>Invite Member</span>
             </span>
           )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {(Object.entries(ROLE_PERMISSIONS) as [TeamRole, string[]][]).map(([role, perms]) => (
           <div key={role} onClick={() => setSelectedRole(selectedRole === role ? null : role)}
-            className={`bg-white rounded-xl p-4 border cursor-pointer transition-all ${
+            className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-pointer transition-all ${
               selectedRole === role ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'
             }`}>
             <div className="flex items-center justify-between mb-2">
@@ -2317,47 +2392,64 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
               <span className="text-xs text-gray-400">{members.filter(m => m.role === role).length} member{members.filter(m => m.role === role).length !== 1 ? 's' : ''}</span>
             </div>
             <ul className="space-y-1">
-              {perms.map(p => <li key={p} className="text-xs text-gray-600 flex items-center gap-1"><span className="text-green-500">✓</span>{p}</li>)}
+              {perms.map(p => <li key={p} className="text-xs text-gray-600 flex items-center gap-1"><span className="text-green-500 flex-shrink-0">✓</span><span className="truncate">{p}</span></li>)}
             </ul>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">Members</h2>
+      <div className="bg-white rounded-lg sm:rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900 text-sm sm:text-base">Members</h2>
         </div>
         <div className="divide-y divide-gray-100">
           {members.map(member => (
-            <div key={member.id} className="flex items-center gap-4 px-6 py-4 hover:bg-gray-50">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-orange-400 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+            <div key={member.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 hover:bg-gray-50">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-orange-400 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0">
                 {member.memberName.charAt(0).toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-medium text-gray-900 text-sm truncate">{member.memberName}</p>
                 <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
               </div>
-              <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : roleColors[member.role]
-              }`}>
-                {member.status === 'pending' ? '⏳ Pending' : member.role}
-              </span>
-              {member.memberEmail !== employerEmail ? (
-                <div className="flex items-center gap-2">
-                  <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
-                    className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="Recruiter">Recruiter</option>
-                    <option value="Viewer">Viewer</option>
-                    <option value="Owner">Owner</option>
-                  </select>
-                  <button onClick={() => handleRemove(member.id)}
-                    className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors">
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <span className="text-xs text-gray-400 italic">You</span>
-              )}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
+                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : roleColors[member.role]
+                }`}>
+                  {member.status === 'pending' ? '⏳ Pending' : member.role}
+                </span>
+                {member.memberEmail !== employerEmail ? (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
+                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white min-w-[100px]">
+                      <option value="Recruiter">Recruiter</option>
+                      <option value="Viewer">Viewer</option>
+                      <option value="Owner">Owner</option>
+                    </select>
+                    <button onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      openConfirm(
+                        'Remove Team Member', 
+                        'Are you sure you want to remove this team member? This action cannot be undone.', 
+                        async () => {
+                          try {
+                            await handleRemove(member.id);
+                          } catch (error) {
+                            console.error('Remove member error:', error);
+                          }
+                          closeConfirm();
+                        }
+                      );
+                    }}
+                      className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400 italic text-center sm:text-left">You</span>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -2365,21 +2457,21 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
       {showInvite && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-lg font-bold text-gray-900">
+          <div className="bg-white rounded-xl sm:rounded-2xl w-full max-w-sm sm:max-w-md p-4 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4 sm:mb-5">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900">
                 {inviteSent ? '✅ Invite Sent!' : 'Invite Team Member'}
               </h3>
-              <button onClick={handleCloseInvite} className="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+              <button onClick={handleCloseInvite} className="text-gray-400 hover:text-gray-600 text-xl p-1">&times;</button>
             </div>
 
             {inviteSent ? (
               <div className="text-center py-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl">🎉</span>
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-2xl sm:text-3xl">🎉</span>
                 </div>
-                <p className="text-gray-700 font-medium mb-1">{inviteEmail}</p>
-                <p className="text-gray-500 text-sm mb-4">
+                <p className="text-gray-700 font-medium mb-1 text-sm sm:text-base">{inviteEmail}</p>
+                <p className="text-gray-500 text-xs sm:text-sm mb-4">
                   Invited as <span className="font-semibold text-blue-600">{inviteRole}</span>.
                   They will receive an email with a link to join.
                 </p>
@@ -2402,7 +2494,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                     Copy Link
                   </button>
                 </div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button onClick={handleCloseInvite}
                     className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Done</button>
                   <button onClick={() => setInviteSent(false)}
@@ -2438,13 +2530,14 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                     <ul className="space-y-1">
                       {ROLE_PERMISSIONS[inviteRole].map(p => (
                         <li key={p} className="text-xs text-gray-600 flex items-center gap-1.5">
-                          <span className="text-green-500">✓</span>{p}
+                          <span className="text-green-500 flex-shrink-0">✓</span>
+                          <span className="truncate">{p}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 </div>
-                <div className="flex gap-3 mt-6">
+                <div className="flex flex-col sm:flex-row gap-3 mt-6">
                   <button onClick={handleCloseInvite}
                     className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}

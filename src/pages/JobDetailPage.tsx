@@ -1,5 +1,5 @@
-﻿import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle, IndianRupee, Calendar, Users, Award, Target, Code, Zap, MessageSquare } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
@@ -599,159 +599,209 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               </div>
               {/* Job Description directly below banner inside same card */}
               <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">Job Description</h2>
-              <div className="text-gray-700 leading-relaxed mb-4">
+                <h2 className="text-2xl font-bold text-gray-900 mb-6">Job description</h2>
+                
                 {(() => {
                   const sourceDesc = job.jobDescription || job.description || 'Job description not available.';
-                  const hasHTML = /<(p|ul|ol|li|br|div|h[1-6]|strong|em|b|i)[\s>]/i.test(sourceDesc);
-                  if (hasHTML) {
-                    // Use decodeHtmlEntities and strip $→₹ for HTML path
-                    const htmlDesc = decodeHtmlEntities(sourceDesc).replace(/\$([0-9,]+)/g, '₹$1');
-                    return (
-                      <div dangerouslySetInnerHTML={{ __html: sourceDesc.replace(/\$([0-9,]+)/g, '₹$1') }} style={{ lineHeight: '1.7' }} />
+                  
+                  // Always use our custom parsing logic instead of HTML rendering
+                  // This ensures we get the clean 3-section format
+                  
+                  // Parse the job description into structured sections
+                  const lines = sourceDesc.split('\n').filter((line: string) => line.trim());
+                  const sections: { [key: string]: string[] } = {};
+                  let currentSection = 'summary';
+                  let currentContent: string[] = [];
+
+                  // Enhanced section headers detection
+                  const sectionHeaders: Record<string, string> = {
+                    'job summary': 'summary',
+                    'summary': 'summary',
+                    'key responsibilities': 'responsibilities', 
+                    'responsibilities': 'responsibilities',
+                    'mandatory skills': 'mandatory-skills',
+                    'required skills': 'mandatory-skills',
+                    'good to have skills': 'good-to-have',
+                    'nice to have': 'good-to-have',
+                    'preferred candidate profile': 'candidate-profile',
+                    'candidate profile': 'candidate-profile',
+                    'interview process': 'interview-process',
+                    'locations open for sourcing': 'locations',
+                    'location': 'locations',
+                    'recruitment drive details': 'recruitment-details',
+                    'drive details': 'recruitment-details'
+                  };
+
+                  for (const line of lines) {
+                    // Decode HTML entities and strip HTML tags
+                    const decoded = line.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+                    const stripped = decoded.replace(/<[^>]*>/g, '').trim();
+                    const trimmed = stripped.trim();
+                    const lowerLine = trimmed.toLowerCase();
+                    
+                    // Check if this line is a section header
+                    const matchedSection = Object.keys(sectionHeaders).find(header => 
+                      lowerLine === header || lowerLine.startsWith(header) || lowerLine.includes(header)
                     );
+                    
+                    if (matchedSection) {
+                      // Save previous section
+                      if (currentContent.length > 0) {
+                        sections[currentSection] = [...currentContent];
+                      }
+                      // Start new section
+                      currentSection = sectionHeaders[matchedSection] as string;
+                      currentContent = [];
+                    } else if (trimmed && !trimmed.match(/^(Job Title|Work Location|Experience Required|Notice Period|Employment Type|Salary Range)$/)) {
+                      // Skip empty lines and HTML tags
+                      if (trimmed && !trimmed.match(/^<\/?[^>]+>$/)) {
+                        currentContent.push(trimmed);
+                      }
+                    }
+                  }
+                  
+                  // Save the last section
+                  if (currentContent.length > 0) {
+                    sections[currentSection] = currentContent;
                   }
 
-                  // Known section headings
-                  const HEADING_KEYWORDS = [
-                    'job summary', 'summary', 'key responsibilities', 'responsibilities',
-                    'requirements', 'preferred qualifications', 'qualifications',
-                    'what we offer', 'nice to have', 'skills required', 'required skills',
-                    'benefits', 'about the role', 'who you are', 'your responsibilities',
-                    'job responsibilities', 'duties', 'key duties', 'position overview',
-                    'about us', 'about the company', 'overview', 'how to apply',
-                    'what you will do', 'what you bring', 'required qualifications',
-                    'employment type', 'education', 'work authorization',
-                  ];
-
-                  // Headings that introduce bullet lists
-                  const BULLET_SECTION_KEYWORDS = /responsibilities|requirements|qualifications|duties|skills|benefits|what we offer|what you|nice to have/i;
-
-                  const lines = sourceDesc
-                    .replace(/\$([0-9,]+)/g, '₹$1')
-                    .replace(/\*\*([^*]+)\*\*/g, '$1')
-                    .replace(/\r\n|\r/g, '\n')
-                    .split('\n');
-
-                  let inBulletSection = false;
-                  return lines.map((line: string, i: number) => {
-                    const t = line.trim();
-                    if (!t) { inBulletSection = false; return <div key={i} className="h-2" />; }
-
-                    const lower = t.toLowerCase().replace(/:$/, '');
-
-                    // Detect heading: matches keyword list, dynamic "About X" / "About X:" pattern, or short title-case line ending with colon
-                    const isHeading =
-                      HEADING_KEYWORDS.some(h => lower === h || lower.startsWith(h + ':')) ||
-                      /^about\s+\S/i.test(lower) ||
-                      (/^[A-Z][A-Za-z &]+:$/.test(t) && t.length < 60);
-
-                    if (isHeading) {
-                      inBulletSection = BULLET_SECTION_KEYWORDS.test(t);
-                      return (
-                        <p key={i} className="font-bold text-gray-900 mt-5 mb-2 text-base border-l-4 border-blue-500 pl-3">
-                          {t.replace(/:$/, '')}
-                        </p>
-                      );
-                    }
-
-                    // Explicit bullet character
-                    if (/^[•\-\*]\s/.test(t)) {
-                      inBulletSection = true;
-                      return (
-                        <div key={i} className="flex items-start gap-2 ml-2 mb-1">
-                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                          <span className="text-gray-700">{t.replace(/^[•\-\*]\s*/, '')}</span>
+                  return (
+                    <div className="space-y-6">
+                      {/* Job Summary Section */}
+                      {sections.summary && sections.summary.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Job Summary</h4>
+                          <div className="text-gray-700 space-y-2">
+                            {sections.summary.map((line: string, i: number) => (
+                              <p key={i} className="text-sm leading-relaxed">{line}</p>
+                            ))}
+                          </div>
                         </div>
-                      );
-                    }
+                      )}
 
-                    // Lines inside a bullet section get bullet treatment
-                    if (inBulletSection) {
-                      return (
-                        <div key={i} className="flex items-start gap-2 ml-2 mb-1">
-                          <span className="mt-2 w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
-                          <span className="text-gray-700">{t}</span>
+                      {/* Key Responsibilities Section */}
+                      {sections.responsibilities && sections.responsibilities.length > 0 && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Role & responsibilities</h4>
+                          <div className="space-y-2">
+                            {sections.responsibilities.map((line: string, i: number) => {
+                              const isBulletPoint = /^[•\-\*]/.test(line) || 
+                                line.toLowerCase().includes('design') || 
+                                line.toLowerCase().includes('build') || 
+                                line.toLowerCase().includes('develop') || 
+                                line.toLowerCase().includes('implement') || 
+                                line.toLowerCase().includes('write') || 
+                                line.toLowerCase().includes('monitor') || 
+                                line.toLowerCase().includes('collaborate') || 
+                                line.toLowerCase().includes('ensure') ||
+                                line.toLowerCase().includes('integrate') ||
+                                line.toLowerCase().includes('migrate');
+                              
+                              if (isBulletPoint) {
+                                return (
+                                  <div key={i} className="flex items-start gap-2">
+                                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
+                                    <span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <p key={i} className="text-sm text-gray-700 leading-relaxed">{line}</p>
+                              );
+                            })}
+                          </div>
                         </div>
-                      );
-                    }
+                      )}
 
-                    // Colon key-value line e.g. "Job Title: Software Developer"
-                    const colonMatch = t.match(/^([A-Za-z][A-Za-z ]{1,40}):\s+(.+)$/);
-                    if (colonMatch) return (
-                      <p key={i} className="mb-1">
-                        <span className="font-semibold text-gray-900">{colonMatch[1]}: </span>
-                        <span className="text-gray-700">{colonMatch[2]}</span>
-                      </p>
-                    );
-
-                    return <p key={i} className="text-gray-700 mb-2">{t}</p>;
-                  });
-                })()}
-              </div>
-              
-              {/* Created By & On Details */}
-              <div className="border-t border-gray-100 pt-4 mt-4">
-                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">Created By:</span>
-                    <span>{job.postedBy || jobPoster?.name || jobPoster?.fullName || 'System'}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">Posted:</span>
-                    <span className="text-blue-600 font-medium">{formatDetailedTime(job.createdAt)}</span>
-                    {getPostingFreshness(job.createdAt) === 'new' && (
-                      <span className="ml-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                        NEW
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <span className="font-medium">Company:</span>
-                    <span>{job.employerCompany || jobPoster?.company || job.company}</span>
-                  </div>
-                  {(job.jobCategory || job.category) && (
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium">Category:</span>
-                      <span className="text-blue-600">{job.jobCategory || job.category}</span>
+                      {/* Requirements Section - Combining Mandatory Skills and Candidate Profile */}
+                      {((sections['mandatory-skills'] && sections['mandatory-skills'].length > 0) || 
+                        (sections['candidate-profile'] && sections['candidate-profile'].length > 0)) && (
+                        <div>
+                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Required Skills & Qualifications</h4>
+                          <div className="space-y-2">
+                            {/* Mandatory Skills */}
+                            {sections['mandatory-skills'] && sections['mandatory-skills'].map((skill: string, i: number) => (
+                              <div key={`skill-${i}`} className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
+                                <span className="text-sm text-gray-700 leading-relaxed">{skill}</span>
+                              </div>
+                            ))}
+                            {/* Candidate Profile */}
+                            {sections['candidate-profile'] && sections['candidate-profile'].map((requirement: string, i: number) => (
+                              <div key={`req-${i}`} className="flex items-start gap-2">
+                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
+                                <span className="text-sm text-gray-700 leading-relaxed">{requirement}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {/* Employer ID and Position ID - Enhanced Display */}
-                  {(() => {
-                    const displayEmployerId = getDisplayEmployerId(job, jobPoster);
-                    return displayEmployerId ? (
-                      <div className="flex items-center space-x-1">
-                        <span className="font-medium text-gray-700">Employer ID:</span>
-                        <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                          {displayEmployerId}
+                  );
+                })()}
+                
+                {/* Created By & On Details */}
+                <div className="border-t border-gray-100 pt-6 mt-8">
+                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">Created By:</span>
+                      <span>{job.postedBy || jobPoster?.name || jobPoster?.fullName || 'System'}</span>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">Posted:</span>
+                      <span className="text-blue-600 font-medium">{formatDetailedTime(job.createdAt)}</span>
+                      {getPostingFreshness(job.createdAt) === 'new' && (
+                        <span className="ml-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          NEW
                         </span>
-                      </div>
-                    ) : null;
-                  })()} 
-                  {(() => {
-                    const rawPos = job.positionId;
-                    if (!rawPos) return null;
-                    // Already in new format ABBR/YY/NNNN
-                    const isNewFormat = /^[A-Z]{2,4}\/\d{2}\/\d{4}$/.test(rawPos);
-                    let displayPos = rawPos;
-                    if (!isNewFormat) {
-                      // Reformat old positionId using company name
-                      const abbr = getCompanyAbbreviation(job.company || job.employerCompany || '');
-                      const year = new Date().getFullYear().toString().slice(-2);
-                      // Extract numeric part from old format (e.g. "2026-0006" -> "0006", "PID0003" -> "0003")
-                      const numMatch = rawPos.match(/(\d{4})$/);
-                      const seq = numMatch ? numMatch[1] : String(parseInt(rawPos.replace(/\D/g, '')) || 1).padStart(4, '0');
-                      displayPos = `${abbr}/${year}/${seq}`;
-                    }
-                    return (
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <span className="font-medium">Company:</span>
+                      <span>{job.employerCompany || jobPoster?.company || job.company}</span>
+                    </div>
+                    {(job.jobCategory || job.category) && (
                       <div className="flex items-center space-x-1">
-                        <span className="font-medium text-gray-700">Position Code:</span>
-                        <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full border border-green-200">{displayPos}</span>
+                        <span className="font-medium">Category:</span>
+                        <span className="text-blue-600">{job.jobCategory || job.category}</span>
                       </div>
-                    );
-                  })()}
+                    )}
+                    {/* Employer ID and Position ID - Enhanced Display */}
+                    {(() => {
+                      const displayEmployerId = getDisplayEmployerId(job, jobPoster);
+                      return displayEmployerId ? (
+                        <div className="flex items-center space-x-1">
+                          <span className="font-medium text-gray-700">Employer ID:</span>
+                          <span className="text-blue-600 font-bold text-sm bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                            {displayEmployerId}
+                          </span>
+                        </div>
+                      ) : null;
+                    })()} 
+                    {(() => {
+                      const rawPos = job.positionId;
+                      if (!rawPos) return null;
+                      // Already in new format ABBR/YY/NNNN
+                      const isNewFormat = /^[A-Z]{2,4}\/\d{2}\/\d{4}$/.test(rawPos);
+                      let displayPos = rawPos;
+                      if (!isNewFormat) {
+                        // Reformat old positionId using company name
+                        const abbr = getCompanyAbbreviation(job.company || job.employerCompany || '');
+                        const year = new Date().getFullYear().toString().slice(-2);
+                        // Extract numeric part from old format (e.g. "2026-0006" -> "0006", "PID0003" -> "0003")
+                        const numMatch = rawPos.match(/(\d{4})$/);
+                        const seq = numMatch ? numMatch[1] : String(parseInt(rawPos.replace(/\D/g, '')) || 1).padStart(4, '0');
+                        displayPos = `${abbr}/${year}/${seq}`;
+                      }
+                      return (
+                        <div className="flex items-center space-x-1">
+                          <span className="font-medium text-gray-700">Position Code:</span>
+                          <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full border border-green-200">{displayPos}</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
-              </div>
               </div>
             </div>
           </div>

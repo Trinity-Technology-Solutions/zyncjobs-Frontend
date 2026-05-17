@@ -228,28 +228,43 @@ const TRENDING_COMPANIES = [
 ];
 
 const INVALID_COMPANY_PHRASES = [
-  'good to have', 'must have', 'nice to have', 'required', 'preferred',
-  'skills', 'experience', 'qualifications', 'responsibilities', 'benefits',
-  'about the role', 'mandatory', 'optional', 'desired', 'added advantage',
+  'good to have', 'must have', 'nice to have', 'required skills', 'preferred skills',
   'key skills', 'technical skills', 'soft skills', 'job description',
   'job requirements', 'what we offer', 'who we are', 'not mentioned',
-  'not specified', 'not provided', 'n/a', 'none'
+  'not specified', 'not provided', 'n/a', 'none', 'responsibilities include',
+  'duties include', 'candidate should', 'applicant must', 'looking for',
+  'we are seeking', 'ideal candidate', 'successful candidate'
 ];
 
 const sanitizeParsedCompany = (company?: string): string => {
   if (!company || company.trim().length < 2) return '';
-  const lower = company.toLowerCase().trim();
+  
+  const trimmed = company.trim();
+  const lower = trimmed.toLowerCase();
+  
+  // Skip obvious invalid phrases
   if (INVALID_COMPANY_PHRASES.some(p => lower.includes(p))) return '';
-  // Check if it's a known tool/technology
-  if (KNOWN_TOOLS.some(t => lower === t || lower.startsWith(t + ' ') || lower.includes(t + ','))) return '';
-  // If comma-separated and any part is a tool = skills list, not company
-  if (lower.includes(',')) {
+  
+  // Skip if it's just a known tool/technology
+  if (KNOWN_TOOLS.some(t => lower === t)) return '';
+  
+  // Skip if it starts with a number
+  if (/^\d/.test(trimmed)) return '';
+  
+  // Skip if it's all caps and more than 4 words (likely a description)
+  if (/^[A-Z\s&]+$/.test(trimmed) && trimmed.split(/\s+/).length > 4) return '';
+  
+  // Skip if it contains common job description keywords
+  const jobDescKeywords = ['experience', 'required', 'preferred', 'skills', 'qualifications', 'responsibilities', 'duties', 'requirements', 'candidate', 'applicant', 'position', 'role', 'job', 'work', 'years', 'degree', 'education'];
+  if (jobDescKeywords.some(keyword => lower.includes(keyword))) return '';
+  
+  // Skip if it's a comma-separated list (likely skills)
+  if (lower.includes(',') && lower.split(',').length > 2) {
     const parts = lower.split(',').map(p => p.trim());
     if (parts.some(p => KNOWN_TOOLS.some(t => p.includes(t)))) return '';
   }
-  if (/^[A-Z\s&]+$/.test(company) && company.trim().split(/\s+/).length > 3) return '';
-  if (/^\d/.test(company.trim())) return '';
-  return company.trim();
+  
+  return trimmed;
 };
 
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
@@ -1647,30 +1662,79 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           };
         });
 
-        // If backend returns results, merge with matching trending companies
-        // If backend returns empty, fall back entirely to trending companies
-        const filtered = TRENDING_COMPANIES.filter(c =>
-          c.name.toLowerCase().includes(query.toLowerCase())
-        );
-        const merged = mappedCompanies.length > 0
-          ? [...mappedCompanies, ...filtered.filter(f => !mappedCompanies.some((m: any) => m.name.toLowerCase() === f.name.toLowerCase()))]
-          : filtered;
+        // Enhanced search: also check if the query matches any part of company names
+        const queryLower = query.toLowerCase();
+        const additionalMatches = TRENDING_COMPANIES.filter(c => {
+          const nameLower = c.name.toLowerCase();
+          return nameLower.includes(queryLower) || 
+                 queryLower.includes(nameLower) ||
+                 // Check for partial word matches
+                 nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
+                 queryLower.split(' ').some(word => nameLower.includes(word));
+        });
+        
+        // Merge backend results with trending companies, avoiding duplicates
+        const merged = [...mappedCompanies];
+        additionalMatches.forEach(trending => {
+          if (!merged.some(m => m.name.toLowerCase() === trending.name.toLowerCase())) {
+            merged.push(trending);
+          }
+        });
+        
+        // If no results found, allow user to add the company they typed
+        if (merged.length === 0 && query.trim().length > 2) {
+          merged.push({
+            id: 'custom-' + Date.now(),
+            name: query.trim(),
+            logo: ''
+          });
+        }
         
         setCompanySearchResults(merged);
         setShowCompanyDropdown(merged.length > 0);
       } else {
-        const filtered = TRENDING_COMPANIES.filter(company => 
-          company.name.toLowerCase().includes(query.toLowerCase())
-        );
+        // Fallback to trending companies with enhanced search
+        const queryLower = query.toLowerCase();
+        const filtered = TRENDING_COMPANIES.filter(company => {
+          const nameLower = company.name.toLowerCase();
+          return nameLower.includes(queryLower) || 
+                 queryLower.includes(nameLower) ||
+                 nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
+                 queryLower.split(' ').some(word => nameLower.includes(word));
+        });
+        
+        // If no matches in trending companies, allow custom company
+        if (filtered.length === 0 && query.trim().length > 2) {
+          filtered.push({
+            id: 'custom-' + Date.now(),
+            name: query.trim(),
+            logo: ''
+          });
+        }
         
         setCompanySearchResults(filtered);
         setShowCompanyDropdown(filtered.length > 0);
       }
     } catch (error) {
       console.error('Error fetching companies:', error);
-      const filtered = TRENDING_COMPANIES.filter(company => 
-        company.name.toLowerCase().includes(query.toLowerCase())
-      );
+      // Enhanced fallback search
+      const queryLower = query.toLowerCase();
+      const filtered = TRENDING_COMPANIES.filter(company => {
+        const nameLower = company.name.toLowerCase();
+        return nameLower.includes(queryLower) || 
+               queryLower.includes(nameLower) ||
+               nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
+               queryLower.split(' ').some(word => nameLower.includes(word));
+      });
+      
+      // Always allow custom company entry
+      if (query.trim().length > 2) {
+        filtered.push({
+          id: 'custom-' + Date.now(),
+          name: query.trim(),
+          logo: ''
+        });
+      }
       
       setCompanySearchResults(filtered);
       setShowCompanyDropdown(filtered.length > 0);

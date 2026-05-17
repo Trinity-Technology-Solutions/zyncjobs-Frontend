@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle, Info } from 'lucide-react';
 import Header from '../components/Header';
 import { apiFetch } from '../api/apiFetch';
 
@@ -623,7 +623,22 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         successMessage = 'Company profile saved successfully! User data will sync when backend is available.';
       }
       
-      alert(successMessage);
+      // Show success message with icon instead of emoji
+      const alertDiv = document.createElement('div');
+      alertDiv.className = 'fixed top-4 right-4 z-50 flex items-center gap-3 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg shadow-lg max-w-md';
+      alertDiv.innerHTML = `
+        <svg class="w-5 h-5 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <span class="font-medium">${successMessage}</span>
+        <button onclick="this.parentElement.remove()" class="ml-2 text-green-600 hover:text-green-800">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      `;
+      document.body.appendChild(alertDiv);
+      setTimeout(() => alertDiv.remove(), 5000);
       
       onNavigate('dashboard');
     } catch (error) { 

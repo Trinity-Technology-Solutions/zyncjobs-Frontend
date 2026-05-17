@@ -414,9 +414,27 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             {/* Company Logo */}
             <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-3 sm:p-4 flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-300 mx-auto lg:mx-0">
               <img 
-                src={getCompanyLogo(company.name) || company.logo} 
+                src={company.logo || getCompanyLogo(company.name)} 
                 alt={company.name} 
-                className="w-full h-full object-contain" 
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  const fallback = getCompanyLogo(company.name);
+                  if (fallback && img.src !== fallback) {
+                    img.src = fallback;
+                  } else {
+                    // Letter avatar fallback
+                    const initials = (company.name || 'C').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                    img.style.display = 'none';
+                    const parent = img.parentElement;
+                    if (parent && !parent.querySelector('.letter-avatar')) {
+                      const div = document.createElement('div');
+                      div.className = 'letter-avatar w-full h-full rounded-xl bg-gradient-to-br from-blue-600 to-orange-500 flex items-center justify-center text-white font-bold text-2xl';
+                      div.textContent = initials;
+                      parent.appendChild(div);
+                    }
+                  }
+                }}
               />
             </div>
             
@@ -673,108 +691,75 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   })}
                 </div>
               </div>
-            ) : (
-              /* Fallback Benefits Section - Employee Reported */
-              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Employee Benefits & Perks</h3>
-                  <button className="text-blue-600 hover:text-blue-700 font-semibold transition-colors text-sm sm:text-base">
-                    View all benefits
-                  </button>
+            ) : company?.benefits && company.benefits.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Benefits & Perks</h3>
+                  <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full font-medium">
+                    {company.benefits.length} benefits
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-                  {[
-                    { icon: 'health_insurance', title: 'Health insurance', count: 12 },
-                    { icon: 'skill_training', title: 'Job/Soft skill training', count: 11 },
-                    { icon: 'cafeteria', title: 'Cafeteria', count: 5 },
-                    { icon: 'gym', title: 'Office gym', count: 2 },
-                    { icon: 'childcare', title: 'Child care facility', count: 2 },
-                    { icon: 'education', title: 'Professional degree assistance', count: 2 },
-                    { icon: 'meal', title: 'Free meal', count: 1 },
-                    { icon: 'travel', title: 'International/On-site exposure', count: 1 }
-                  ].map((benefit, idx) => {
-                    const iconComponents: { [key: string]: JSX.Element } = {
-                      'health_insurance': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
+
+                {(() => {
+                  const BenefitIcon = ({ name }: { name: string }) => {
+                    const n = name.toLowerCase();
+                    if (n.includes('health') || n.includes('medical') || n.includes('insurance'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>;
+                    if (n.includes('gym') || n.includes('fitness') || n.includes('wellness'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>;
+                    if (n.includes('remote') || n.includes('work from home') || n.includes('hybrid'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
+                    if (n.includes('flexible') || n.includes('time off') || n.includes('leave') || n.includes('hours'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+                    if (n.includes('training') || n.includes('skill') || n.includes('learning') || n.includes('course') || n.includes('development') || n.includes('mentorship') || n.includes('certification'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>;
+                    if (n.includes('bonus') || n.includes('stock') || n.includes('esop') || n.includes('provident') || n.includes('gratuity') || n.includes('retirement') || n.includes('financial'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+                    if (n.includes('meal') || n.includes('food') || n.includes('cafeteria') || n.includes('snack'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" /></svg>;
+                    if (n.includes('transport') || n.includes('travel') || n.includes('parking'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>;
+                    if (n.includes('career') || n.includes('growth') || n.includes('advancement') || n.includes('innovation'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>;
+                    if (n.includes('child') || n.includes('maternity') || n.includes('paternity'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" /></svg>;
+                    if (n.includes('mobile') || n.includes('phone') || n.includes('allowance'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>;
+                    if (n.includes('international') || n.includes('global') || n.includes('sabbatical'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+                    if (n.includes('game') || n.includes('recreation') || n.includes('pet'))
+                      return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+                    return <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+                  };
+                  const getBg = (name: string) => {
+                    const n = name.toLowerCase();
+                    if (n.includes('health')||n.includes('medical')||n.includes('insurance')) return 'bg-red-50 text-red-600';
+                    if (n.includes('gym')||n.includes('fitness')||n.includes('wellness')) return 'bg-orange-50 text-orange-600';
+                    if (n.includes('remote')||n.includes('work from home')||n.includes('hybrid')) return 'bg-green-50 text-green-600';
+                    if (n.includes('flexible')||n.includes('time off')||n.includes('leave')||n.includes('hours')) return 'bg-blue-50 text-blue-600';
+                    if (n.includes('training')||n.includes('skill')||n.includes('learning')||n.includes('course')||n.includes('development')||n.includes('mentorship')||n.includes('certification')) return 'bg-purple-50 text-purple-600';
+                    if (n.includes('bonus')||n.includes('stock')||n.includes('esop')||n.includes('provident')||n.includes('gratuity')||n.includes('retirement')||n.includes('financial')) return 'bg-yellow-50 text-yellow-600';
+                    if (n.includes('meal')||n.includes('food')||n.includes('cafeteria')||n.includes('snack')) return 'bg-amber-50 text-amber-600';
+                    if (n.includes('transport')||n.includes('travel')||n.includes('parking')) return 'bg-indigo-50 text-indigo-600';
+                    if (n.includes('career')||n.includes('growth')||n.includes('advancement')||n.includes('innovation')) return 'bg-teal-50 text-teal-600';
+                    if (n.includes('child')||n.includes('maternity')||n.includes('paternity')) return 'bg-pink-50 text-pink-600';
+                    return 'bg-gray-100 text-gray-600';
+                  };
+                  return (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {company.benefits.map((benefit, idx) => (
+                        <div key={idx} className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-white hover:shadow-sm transition-all duration-200">
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${getBg(benefit)}`}>
+                            <BenefitIcon name={benefit} />
+                          </div>
+                          <span className="text-xs sm:text-sm font-medium text-gray-800 leading-tight">{benefit}</span>
                         </div>
-                      ),
-                      'skill_training': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                          </svg>
-                        </div>
-                      ),
-                      'cafeteria': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                          </svg>
-                        </div>
-                      ),
-                      'gym': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                          </svg>
-                        </div>
-                      ),
-                      'childcare': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                          </svg>
-                        </div>
-                      ),
-                      'education': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
-                          </svg>
-                        </div>
-                      ),
-                      'meal': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                          </svg>
-                        </div>
-                      ),
-                      'travel': (
-                        <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mb-3">
-                          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                        </div>
-                      )
-                    };
-                    
-                    return (
-                      <div key={idx} className="text-center p-3 sm:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all duration-300 border border-gray-100">
-                        {iconComponents[benefit.icon] || iconComponents['health_insurance']}
-                        <p className="text-xs sm:text-sm font-semibold text-gray-900 mb-1">{benefit.title}</p>
-                        <p className="text-xs text-blue-600 font-medium">({benefit.count})</p>
-                      </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Employee Reported Benefits Attribution */}
-                <div className="mt-6 flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gray-600 rounded-lg flex items-center justify-center">
-                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </div>
-                  <span className="text-gray-600 font-medium">Employee Reviews</span>
-                  <span className="text-gray-400 text-sm">• Based on employee feedback</span>
-                </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
-            )}
+            ) : null}
             
             {/* Employee Salaries Section - Only show if real salary data exists */}
             {salaries.length > 0 && (

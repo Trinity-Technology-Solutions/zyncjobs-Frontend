@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
 import { sendAIMessage } from '../services/aiChatService';
+import { JobParser } from '../utils/jobParser';
 
 interface JobParsingPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -59,7 +60,48 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
   };
 
   const parseJobDescription = async (description: string) => {
-    // Try backend first, silently fall back on any error (404, 500, network)
+    // Try consolidated job parser first
+    try {
+      const parserResult = JobParser.parseJobDescription(description);
+      
+      // If overall confidence is high enough, use parser result
+      if (parserResult.confidence.overall > 0.4) {
+        return {
+          jobTitle: parserResult.title,
+          companyName: parserResult.company,
+          jobLocation: parserResult.location,
+          country: await inferCountryFromCity(
+            (import.meta.env.VITE_API_URL || 'http://localhost:5000').endsWith('/api') 
+              ? import.meta.env.VITE_API_URL 
+              : `${import.meta.env.VITE_API_URL}/api`,
+            parserResult.location
+          ),
+          jobType: extractJobType(description),
+          experienceRange: parserResult.experience || extractExperience(description),
+          skills: parserResult.mandatorySkills.length > 0 ? parserResult.mandatorySkills : extractSkills(description),
+          minSalary: parserResult.salary.min,
+          maxSalary: parserResult.salary.max,
+          currency: parserResult.salary.currency,
+          payRate: parserResult.salary.payRate,
+          benefits: extractBenefits(description),
+          educationLevel: extractEducation(description),
+          jobDescription: description,
+          responsibilities: parserResult.responsibilities.length > 0 ? parserResult.responsibilities : extractResponsibilities(description),
+          requirements: parserResult.mandatorySkills.length > 0 ? parserResult.mandatorySkills : extractRequirements(description),
+          jobCategory: extractJobCategory(description),
+          priority: extractPriority(description),
+          clientName: extractClientName(description),
+          reportingManager: extractReportingManager(description),
+          workAuth: extractWorkAuth(description),
+          // Add confidence metadata for UI warnings
+          _confidence: parserResult.confidence
+        };
+      }
+    } catch (error) {
+      console.log('Job parser failed, falling back to legacy parser:', error);
+    }
+
+    // Try backend as fallback
     try {
       const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const base = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
@@ -406,89 +448,37 @@ ${description.slice(0, 2000)}`;
   };
 
   const extractCompanyName = (text: string): string => {
+    // Use enhanced parser's company extraction with confidence check
+    try {
+      const enhancedResult = EnhancedJobParser.parseJobDescription(text);
+      if (enhancedResult.company && enhancedResult.confidence > 0.3) {
+        return enhancedResult.company;
+      }
+    } catch (error) {
+      console.log('Enhanced company extraction failed, using fallback');
+    }
+
+    // Fallback to original logic
     const companyPatterns = [
-      // Most reliable patterns first
-      /\bat\s+([A-Z][a-zA-Z0-9\s&\.\-,']+?)(?:\s*[,\.!]|\s+(?:we|is|are|the|in|on|as|to|for|and|or|but|located|based|offers|provides|seeks|looking|hiring|where))/,
-      /join\s+(?:the\s+team\s+at\s+)?([A-Z][a-zA-Z0-9\s&\.\-,']+?)(?:\s*[,\.!]|\s+(?:as|to|for|and|or|team|where|in|today))/i,
-      /work\s+(?:at|for|with)\s+([A-Z][a-zA-Z0-9\s&\.\-,']+?)(?:\s*[,\.!]|\s+(?:as|to|for|and|or|in|where|today))/i,
-      /([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})\s+(?:is|are)\s+(?:looking|seeking|hiring|recruiting|searching)/i,
-      /about\s+([A-Z][a-zA-Z0-9\s&\.\-,']+?)\s*[:\n]/i,
-      /\(([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\)/,
-      /^([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s*[-–—]\s*(?:job|career|opportunity|position|role|hiring)/i,
-      /@([a-zA-Z0-9\-]+)\.(?:com|org|net|edu|gov)/i,
-      /we\s+are\s+([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})(?:\s*[,\.!]|\s+(?:and|a|an|the))/i,
-      /([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s*[-–—]\s*(?:remote|hybrid|onsite|[A-Z][a-z]+,\s*[A-Z]{2})/i,
-      /([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s+(?:seeks|needs|requires|wants)\s+(?:a|an)?\s*[a-z]/i,
-      // Company name before job title pattern
-      /^([A-Z][a-zA-Z0-9\s&\.\-,']{2,30})\s*[-–—]\s*[A-Z][a-z]/m
+      /^([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})\s*[-–—]\s*[A-Z][a-z]/m,
+      /company[:\s-]+([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})(?:\s*[,\.!]|\s+(?:is|are|the|in|on|as|to|for|and|or|but|located|based))/i,
+      /join\s+(?:the\s+team\s+at\s+)?([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})(?:\s*[,\.!]|\s+(?:as|to|for|and|or|team|where|in|today))/i
     ];
 
     for (const pattern of companyPatterns) {
       const match = text.match(pattern);
       if (match && match[1]) {
         let company = match[1].trim();
-        
-        // Clean up company name
         company = company.replace(/[\-\|–—].*$/g, '').trim();
-        company = company.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-        company = company.replace(/\s+/g, ' ');
         company = company.replace(/[,\.!]+$/, '').trim();
-        company = company.replace(/^(?:the|a|an)\s+/i, '').trim();
         
-        // Enhanced validation - exclude job titles and common phrases
-        const invalidWords = [
-          'senior', 'junior', 'lead', 'principal', 'staff', 'chief', 'head',
-          'software', 'developer', 'engineer', 'analyst', 'manager', 'director',
-          'full stack', 'frontend', 'backend', 'fullstack', 'web', 'mobile',
-          'data', 'machine learning', 'ai', 'devops', 'cloud', 'security',
-          'position', 'role', 'job', 'opportunity', 'career', 'hiring',
-          'looking', 'seeking', 'recruiting', 'candidate', 'applicant',
-          'team', 'experience', 'skills', 'requirements', 'qualifications',
-          'responsibilities', 'duties', 'benefits', 'salary', 'compensation'
-        ];
-        
-        const companyLower = company.toLowerCase();
+        const invalidWords = ['interview', 'mode', 'face', 'weekend', 'hiring', 'drive', 'recruitment'];
         const hasInvalidWord = invalidWords.some(word => 
-          companyLower.includes(word) || companyLower === word
+          company.toLowerCase().includes(word)
         );
         
-        // Additional validation checks
-        const isValid = company.length >= 2 && company.length <= 50 && 
-                       !hasInvalidWord &&
-                       !/^\d+$/.test(company) && // Not just numbers
-                       !company.includes('@') && // Not email
-                       !company.toLowerCase().includes('http') && // Not URL
-                       /^[A-Z]/.test(company) && // Should start with capital
-                       company.split(/\s+/).length <= 6; // Not too many words
-        
-        if (isValid) {
+        if (!hasInvalidWord && company.length >= 3 && company.length <= 40) {
           return company;
-        }
-      }
-    }
-
-    // Enhanced fallback: Look for well-known company patterns
-    const lines = text.split('\n').slice(0, 5);
-    for (const line of lines) {
-      // Look for "Company - Job Title" pattern but exclude if first part looks like job title
-      const separatorMatch = line.match(/^([A-Z][a-zA-Z0-9\s&\.\-,']{2,30})\s*[-|–—]\s*(.+)/i);
-      if (separatorMatch && separatorMatch[1] && separatorMatch[2]) {
-        const potential = separatorMatch[1].trim();
-        const afterSeparator = separatorMatch[2].trim();
-        
-        // Check if the part after separator looks more like a job title
-        const jobTitleWords = ['developer', 'engineer', 'analyst', 'manager', 'director', 'senior', 'junior', 'lead'];
-        const afterSeparatorIsJobTitle = jobTitleWords.some(word => 
-          afterSeparator.toLowerCase().includes(word)
-        );
-        
-        // Check if the first part looks like a company (not a job title)
-        const firstPartIsJobTitle = jobTitleWords.some(word => 
-          potential.toLowerCase().includes(word)
-        );
-        
-        if (afterSeparatorIsJobTitle && !firstPartIsJobTitle && potential.length >= 3 && potential.length <= 30) {
-          return potential;
         }
       }
     }
@@ -1289,10 +1279,20 @@ ${description.slice(0, 2000)}`;
   };
 
   const extractRequirements = (text: string): string[] => {
+    // Use enhanced parser for better requirement extraction
+    try {
+      const enhancedResult = EnhancedJobParser.parseJobDescription(text);
+      if (enhancedResult.mandatorySkills.length > 0 && enhancedResult.confidence > 0.3) {
+        return enhancedResult.mandatorySkills;
+      }
+    } catch (error) {
+      console.log('Enhanced requirements extraction failed, using fallback');
+    }
+
     const requirements: string[] = [];
     
     // Look for requirements/qualifications section
-    const requirementsMatch = text.match(/(?:(?:job\s+)?requirements?|qualifications?|skills?)[:\s]*([\s\S]*?)(?=(?:responsibilities?|benefits?|about\s+(?:us|the\s+role)|$))/gi);
+    const requirementsMatch = text.match(/(?:(?:job\s+)?requirements?|qualifications?|mandatory\s+skills?)[:\s]*([\s\S]*?)(?=(?:responsibilities?|benefits?|about\s+(?:us|the\s+role)|$))/gi);
     
     if (requirementsMatch && requirementsMatch[0]) {
       const section = requirementsMatch[0];
@@ -1303,41 +1303,19 @@ ${description.slice(0, 2000)}`;
         bulletPoints.forEach(point => {
           const cleaned = point.replace(/^\s*[•\-\*\d+\.)\s]+/, '').trim();
           if (cleaned.length > 10 && cleaned.length < 200) {
-            requirements.push(cleaned);
-          }
-        });
-      }
-      
-      // If no bullet points found, try to split by sentences
-      if (requirements.length === 0) {
-        const sentences = section.split(/[.!]\s+/);
-        sentences.forEach(sentence => {
-          const cleaned = sentence.replace(/(?:(?:job\s+)?requirements?|qualifications?|skills?)[:\s]*/gi, '').trim();
-          if (cleaned.length > 20 && cleaned.length < 200 && !cleaned.toLowerCase().includes('requirements') && !cleaned.toLowerCase().includes('qualifications')) {
-            requirements.push(cleaned);
-          }
-        });
-      }
-    }
-    
-    // Fallback: look for degree/experience requirements
-    if (requirements.length === 0) {
-      const degreeMatch = text.match(/(?:bachelor|master|phd|degree|diploma|certification)[^.!]*[.!]/gi);
-      if (degreeMatch) {
-        degreeMatch.forEach(match => {
-          const cleaned = match.trim();
-          if (cleaned.length > 15 && cleaned.length < 200) {
-            requirements.push(cleaned);
-          }
-        });
-      }
-      
-      const experienceMatch = text.match(/(?:\d+[\s-]+years?|experience)[^.!]*[.!]/gi);
-      if (experienceMatch) {
-        experienceMatch.forEach(match => {
-          const cleaned = match.trim();
-          if (cleaned.length > 15 && cleaned.length < 200) {
-            requirements.push(cleaned);
+            // Filter out invalid requirements
+            const invalidKeywords = [
+              'Interview', 'Hiring Drive', 'Face-to-Face', 'Offer Rollout',
+              'Round', 'Office Location', 'Weekend', 'Mode', 'Process'
+            ];
+            
+            const hasInvalidKeyword = invalidKeywords.some(keyword =>
+              cleaned.toLowerCase().includes(keyword.toLowerCase())
+            );
+            
+            if (!hasInvalidKeyword) {
+              requirements.push(cleaned);
+            }
           }
         });
       }
