@@ -150,9 +150,26 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   };
 
   const handleStep1Next = async () => {
-    if (!formData.name.trim()) { setError('Please enter your full name.'); return; }
-    if (!formData.companyName.trim()) { setError('Please enter your company name.'); return; }
-    if (!formData.email.trim()) { setError('Please enter your company email.'); return; }
+    if (!formData.name.trim()) { 
+      setError('Please enter your full name.'); 
+      return; 
+    }
+    if (!formData.companyName.trim()) { 
+      setError('Please enter your company name.'); 
+      return; 
+    }
+    if (!formData.email.trim()) { 
+      setError('Please enter your company email.'); 
+      return; 
+    }
+    
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email.trim())) {
+      setError('Please enter a valid email address.');
+      showToast('Please enter a valid email address.', 'error');
+      return;
+    }
     
     // Verify domain first if not already done
     if (!domainVerification) {

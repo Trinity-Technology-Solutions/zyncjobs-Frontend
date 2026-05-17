@@ -402,12 +402,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       
       console.log('Making DELETE request to:', `${API_ENDPOINTS.JOBS}/${jobId}`);
       
-      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}/permanent`, {
-        method: 'DELETE',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
+      // Use apiFetch which automatically handles authentication
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, {
+        method: 'DELETE'
       });
       
       console.log('Delete response status:', response.status);
@@ -469,13 +466,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         return;
       }
       
+      // Use apiFetch which automatically handles authentication
       await Promise.all(selectedJobs.map(jobId =>
         apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { 
-          method: 'DELETE', 
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
-          } 
+          method: 'DELETE'
         })
       ));
       
@@ -991,57 +985,80 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                             />
                             
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (selectedJobs.length === 0) {
                                   showNotification('Please select jobs to delete', 'error');
                                   return;
                                 }
                                 
-                                setConfirmDialog({
-                                  isOpen: true,
-                                  title: 'Delete Selected Jobs',
-                                  message: `Are you sure you want to delete ${selectedJobs.length} selected job${selectedJobs.length > 1 ? 's' : ''}? This action cannot be undone.`,
-                                  onConfirm: async () => {
-                                    setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-                                    try {
-                                      // Delete jobs one by one
-                                      const deletePromises = selectedJobs.map(jobId => 
-                                        fetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' })
-                                      );
-                                      
-                                      const results = await Promise.all(deletePromises);
-                                      const successCount = results.filter(res => res.ok).length;
-                                      const failCount = results.length - successCount;
-                                      
-                                      if (successCount > 0) {
-                                        // Remove successfully deleted jobs from state
-                                        setPostedJobs(prev => prev.filter(job => !selectedJobs.includes(getId(job))));
-                                        setSelectedJobs([]);
-                                        
-                                        // Dispatch event for dashboard sync
-                                        selectedJobs.forEach(jobId => {
-                                          window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
-                                        });
-                                        
-                                        if (failCount === 0) {
-                                          showNotification(`Successfully deleted ${successCount} job${successCount > 1 ? 's' : ''}!`);
-                                        } else {
-                                          showNotification(`Deleted ${successCount} job${successCount > 1 ? 's' : ''}, ${failCount} failed.`, 'error');
-                                        }
-                                      } else {
-                                        showNotification('Failed to delete selected jobs. Please try again.', 'error');
-                                      }
-                                    } catch (error) {
-                                      console.error('Error deleting jobs:', error);
-                                      showNotification('Error deleting jobs. Please try again.', 'error');
-                                    }
+                                const confirmed = await (window as any).confirmAsync(
+                                  `Are you sure you want to delete ${selectedJobs.length} selected job${selectedJobs.length > 1 ? 's' : ''}? This action cannot be undone.`
+                                );
+                                
+                                if (!confirmed) return;
+                                
+                                try {
+                                  console.log('Deleting selected jobs:', selectedJobs);
+                                  
+                                  // Check authentication
+                                  const { tokenStorage } = await import('../utils/tokenStorage');
+                                  const accessToken = tokenStorage.getAccess();
+                                  
+                                  if (!accessToken) {
+                                    showNotification('Please log in again to delete jobs.', 'error');
+                                    if (onLogout) onLogout();
+                                    return;
                                   }
-                                });
+                                  
+                                  // Delete jobs one by one
+                                  const deletePromises = selectedJobs.map(jobId => 
+                                    apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' })
+                                  );
+                                  
+                                  const results = await Promise.allSettled(deletePromises);
+                                  
+                                  const successCount = results.filter(result => 
+                                    result.status === 'fulfilled' && result.value.ok
+                                  ).length;
+                                  
+                                  const failCount = results.length - successCount;
+                                  
+                                  if (successCount > 0) {
+                                    // Remove successfully deleted jobs from state
+                                    setPostedJobs(prev => prev.filter(job => !selectedJobs.includes(getId(job))));
+                                    setSelectedJobs([]);
+                                    
+                                    // Dispatch events for dashboard sync
+                                    selectedJobs.forEach(jobId => {
+                                      window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
+                                    });
+                                    
+                                    if (failCount === 0) {
+                                      showNotification(`Successfully deleted ${successCount} job${successCount > 1 ? 's' : ''}!`);
+                                    } else {
+                                      showNotification(`Deleted ${successCount} job${successCount > 1 ? 's' : ''}, ${failCount} failed.`, 'error');
+                                    }
+                                    
+                                    // Refresh the jobs list
+                                    setTimeout(() => {
+                                      fetchPostedJobs();
+                                    }, 1000);
+                                  } else {
+                                    showNotification('Failed to delete selected jobs. Please try again.', 'error');
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting jobs:', error);
+                                  showNotification('Error deleting jobs. Please try again.', 'error');
+                                }
                               }}
                               disabled={selectedJobs.length === 0}
-                              className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${
+                                selectedJobs.length === 0
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : 'bg-red-600 text-white hover:bg-red-700'
+                              }`}
                             >
-                              Delete Selected
+                              Delete Selected ({selectedJobs.length})
                             </button>
                             
                             <button

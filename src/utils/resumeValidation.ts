@@ -85,7 +85,7 @@ export const handleResumeValidationAlert = (
     // Show alert and then redirect after user acknowledges
     window.dispatchEvent(new CustomEvent('zync:alert', { 
       detail: { 
-        message: `📄 ${message} Please upload your resume in your profile to continue.`
+        message: `Resume Required: ${message} Please upload your resume in your profile to continue.`
       } 
     }));
     

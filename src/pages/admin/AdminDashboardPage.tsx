@@ -128,7 +128,9 @@ async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?
 }
 
 export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props) {
-  const [activeNav, setActiveNav] = useState('overview');
+  const [activeNav, setActiveNav] = useState(() => {
+    return localStorage.getItem('adminActiveNav') || 'overview';
+  });
   const [sidebarOpen, setSidebarOpen] = useState(true); // Default to open on desktop
   const [stats, setStats] = useState<OverviewStats | null>(null);
   const [growth, setGrowth] = useState<GrowthPoint[]>([]);
@@ -396,6 +398,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
                     <button
                       onClick={() => {
                         setActiveNav(id);
+                        localStorage.setItem('adminActiveNav', id);
                         if (window.innerWidth < 1024) setSidebarOpen(false);
                       }}
                       title={!sidebarOpen ? label : undefined}

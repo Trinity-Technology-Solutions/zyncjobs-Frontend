@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingUp, Star, Edit, FileText, Search, X } from 'lucide-react';
+import { TrendingUp, Star, Edit, FileText, Search, X, Lightbulb, BarChart3, Flame, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { apiFetch } from '../api/apiFetch';
 import Notification from '../components/Notification';
@@ -723,7 +723,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   {/* Header */}
                   <div className="px-6 pt-5 pb-4 border-b border-blue-700">
                     <h3 className="text-sm font-bold text-white uppercase tracking-widest flex items-center gap-2">
-                      <span className="text-yellow-300 text-base">⚡</span>
+                      <Lightbulb className="w-4 h-4 text-yellow-300" />
                       Quick Actions
                     </h3>
                   </div>
@@ -1996,21 +1996,27 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             Update
                           </button>
                           <button
-                            onClick={async () => {
-                              if (!confirm('Are you sure you want to remove your resume?')) return;
-                              const updatedUser = { ...user, resume: null, resumeUrl: '' };
-                              setUser(updatedUser);
-                              localStorage.setItem('user', JSON.stringify(updatedUser));
-                              calculateProfileCompletion(updatedUser);
+                            onClick={async (e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (!confirm('Are you sure you want to remove your resume? This action cannot be undone.')) return;
+                              
                               try {
+                                const updatedUser = { ...user, resume: null, resumeUrl: '' };
+                                setUser(updatedUser);
+                                localStorage.setItem('user', JSON.stringify(updatedUser));
+                                calculateProfileCompletion(updatedUser);
+                                
                                 const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                   method: 'POST',
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: '', removeResume: true })
                                 });
+                                
                                 if (!res.ok) throw new Error('Save failed');
                                 setNotification({ type: 'success', message: 'Resume removed successfully!', isVisible: true });
-                              } catch {
+                              } catch (error) {
+                                console.error('Error removing resume:', error);
                                 // Revert on failure
                                 setUser(user);
                                 localStorage.setItem('user', JSON.stringify(user));

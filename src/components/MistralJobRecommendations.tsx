@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { rankJobs, computeMatchScore, type MatchBreakdown } from '../services/jobMatchEngine';
+import { EnhancedAIRecommendationEngine, type EnhancedJobRecommendation } from '../services/enhancedAIRecommendationEngine';
+import { IntelligentSkillsService } from '../services/intelligentSkillsService';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -21,21 +23,24 @@ const ScoreBar: React.FC<{ label: string; value: number; color: string }> = ({ l
   </div>
 );
 
-const MatchCard: React.FC<{
-  job: any;
-  breakdown: MatchBreakdown;
+const EnhancedMatchCard: React.FC<{
+  recommendation: EnhancedJobRecommendation;
   onNavigate?: (page: string, data?: any) => void;
-}> = ({ job, breakdown, onNavigate }) => {
+}> = ({ recommendation, onNavigate }) => {
+  const { job, matchScore, skillMatch, careerFit, recommendations: rec, aiInsights } = recommendation;
   const [expanded, setExpanded] = useState(false);
 
-  const scoreColor = breakdown.overall >= 80
+  const scoreColor = matchScore >= 80
     ? 'text-green-700 bg-green-100 border-green-200'
-    : breakdown.overall >= 60
+    : matchScore >= 60
     ? 'text-yellow-700 bg-yellow-100 border-yellow-200'
     : 'text-red-700 bg-red-100 border-red-200';
 
-  const barColor = breakdown.overall >= 80 ? 'bg-green-500'
-    : breakdown.overall >= 60 ? 'bg-yellow-500' : 'bg-red-400';
+  const barColor = matchScore >= 80 ? 'bg-green-500'
+    : matchScore >= 60 ? 'bg-yellow-500' : 'bg-red-400';
+
+  const confidenceColor = rec.confidenceLevel === 'high' ? 'text-green-600' :
+    rec.confidenceLevel === 'medium' ? 'text-yellow-600' : 'text-red-600';
 
   return (
     <div className="border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all bg-white">
@@ -47,25 +52,31 @@ const MatchCard: React.FC<{
         </div>
         <div className="text-right ml-3 shrink-0">
           <span className={`inline-block px-2.5 py-1 rounded-full text-sm font-bold border ${scoreColor}`}>
-            {breakdown.overall}%
+            {matchScore}%
           </span>
-          <p className="text-xs text-gray-400 mt-0.5">Match</p>
+          <p className={`text-xs mt-0.5 font-medium ${confidenceColor}`}>
+            {rec.confidenceLevel.toUpperCase()}
+          </p>
         </div>
       </div>
 
       <div className="space-y-1.5 mb-3">
-        <ScoreBar label="Skills" value={breakdown.skillScore} color={barColor} />
-        <ScoreBar label="Title" value={breakdown.titleScore} color={barColor} />
-        <ScoreBar label="Location" value={breakdown.locationScore} color={barColor} />
+        <ScoreBar label="Skills" value={Math.round((skillMatch.matched.length / (skillMatch.matched.length + skillMatch.missing.length)) * 100)} color={barColor} />
+        <ScoreBar label="Experience" value={careerFit.experienceAlignment} color={barColor} />
+        <ScoreBar label="Location" value={careerFit.locationFit} color={barColor} />
+        <ScoreBar label="Salary" value={careerFit.salaryAlignment} color={barColor} />
       </div>
 
-      {breakdown.matchedSkills.length > 0 && (
+      {skillMatch.matched.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {breakdown.matchedSkills.slice(0, 4).map((s, i) => (
+          {skillMatch.matched.slice(0, 4).map((s, i) => (
             <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">✓ {s}</span>
           ))}
-          {breakdown.missingSkills.slice(0, 2).map((s, i) => (
+          {skillMatch.missing.slice(0, 2).map((s, i) => (
             <span key={i} className="bg-red-50 text-red-500 px-2 py-0.5 rounded text-xs">✗ {s}</span>
+          ))}
+          {skillMatch.bonus.slice(0, 2).map((s, i) => (
+            <span key={i} className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">⭐ {s}</span>
           ))}
         </div>
       )}
@@ -78,18 +89,29 @@ const MatchCard: React.FC<{
       </button>
 
       {expanded && (
-        <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-1">
-          {breakdown.explanation.map((line, i) => (
-            <p key={i} className="text-xs text-gray-700">{line}</p>
-          ))}
-          {breakdown.bonusSkills.length > 0 && (
-            <div className="mt-2 pt-2 border-t border-gray-200">
-              <p className="text-xs text-gray-500 mb-1">Your extra skills:</p>
-              <div className="flex flex-wrap gap-1">
-                {breakdown.bonusSkills.map((s, i) => (
-                  <span key={i} className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">{s}</span>
-                ))}
-              </div>
+        <div className="bg-gray-50 rounded-lg p-3 mb-3 space-y-2">
+          <div>
+            <p className="text-xs font-semibold text-gray-600 mb-1">AI Insights:</p>
+            {aiInsights.map((insight, i) => (
+              <p key={i} className="text-xs text-gray-700">{insight}</p>
+            ))}
+          </div>
+          
+          {rec.improvementSuggestions.length > 0 && (
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-xs font-semibold text-gray-600 mb-1">Improvement Tips:</p>
+              {rec.improvementSuggestions.map((tip, i) => (
+                <p key={i} className="text-xs text-blue-600">• {tip}</p>
+              ))}
+            </div>
+          )}
+          
+          {rec.careerProgression.length > 0 && (
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-xs font-semibold text-gray-600 mb-1">Career Impact:</p>
+              {rec.careerProgression.map((prog, i) => (
+                <p key={i} className="text-xs text-purple-600">• {prog}</p>
+              ))}
             </div>
           )}
         </div>
@@ -126,9 +148,13 @@ const MatchCard: React.FC<{
             }));
             window.location.href = '/job-application';
           }}
-          className="flex-1 border border-blue-600 text-blue-600 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-50 transition-colors"
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            rec.shouldApply 
+              ? 'border border-green-600 text-green-600 hover:bg-green-50'
+              : 'border border-gray-400 text-gray-500 hover:bg-gray-50'
+          }`}
         >
-          Apply Now
+          {rec.shouldApply ? '✓ Recommended' : 'Consider'}
         </button>
       </div>
     </div>
@@ -141,10 +167,11 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
   experience,
   onNavigate,
 }) => {
-  const [rankedJobs, setRankedJobs] = useState<any[]>([]);
+  const [rankedJobs, setRankedJobs] = useState<EnhancedJobRecommendation[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [aiInsights, setAiInsights] = useState<string[]>([]);
   const prevSkillsKey = useRef('');
 
   const skillsKey = resumeSkills.map(s => s.skill).join(',');
@@ -174,7 +201,13 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
             const data = await res.json();
             const matched = Array.isArray(data.jobs) ? data.jobs : [];
             if (matched.length > 0) {
-              setRankedJobs(buildBreakdowns(matched, skillNames, exp, loc));
+              const enhancedRecommendations = await EnhancedAIRecommendationEngine.generateRecommendations(
+                { skills: skillNames, experience: exp, location: loc },
+                matched,
+                10
+              );
+              setRankedJobs(enhancedRecommendations);
+              setAiInsights(generateGlobalInsights(enhancedRecommendations));
               return;
             }
           }
@@ -192,13 +225,19 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           const data = await res.json();
           const matches = Array.isArray(data.matches) ? data.matches : [];
           if (matches.length > 0) {
-            setRankedJobs(buildBreakdowns(matches, skillNames, exp, loc));
+            const enhancedRecommendations = await EnhancedAIRecommendationEngine.generateRecommendations(
+              { skills: skillNames, experience: exp, location: loc },
+              matches,
+              10
+            );
+            setRankedJobs(enhancedRecommendations);
+            setAiInsights(generateGlobalInsights(enhancedRecommendations));
             return;
           }
         }
       } catch (_) {}
 
-      // Step 3: Fetch all jobs and rank locally — ALWAYS show results
+      // Step 3: Fetch all jobs and rank with enhanced AI — ALWAYS show results
       const res = await fetch(`${API_ENDPOINTS.JOBS}`);
       if (!res.ok) throw new Error(`Jobs API returned ${res.status}`);
 
@@ -208,17 +247,58 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
         return;
       }
 
-      // Rank all jobs by skill match against job skills + description
-      const ranked = rankJobsLocally(allJobs, skillNames, exp, loc);
+      // Use enhanced AI recommendation engine
+      const enhancedRecommendations = await EnhancedAIRecommendationEngine.generateRecommendations(
+        { skills: skillNames, experience: exp, location: loc },
+        allJobs,
+        8
+      );
 
-      // Always show top 8 regardless of score — never show empty
-      setRankedJobs(ranked.slice(0, 8));
+      setRankedJobs(enhancedRecommendations);
+      setAiInsights(generateGlobalInsights(enhancedRecommendations));
     } catch (e: any) {
       console.error('Job matching error:', e);
       setError('Could not load job recommendations. Please try again.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Generate global insights from all recommendations
+  const generateGlobalInsights = (recommendations: EnhancedJobRecommendation[]): string[] => {
+    const insights: string[] = [];
+    
+    const highConfidenceJobs = recommendations.filter(r => r.recommendations.confidenceLevel === 'high').length;
+    const avgMatchScore = Math.round(recommendations.reduce((sum, r) => sum + r.matchScore, 0) / recommendations.length);
+    
+    if (highConfidenceJobs >= 3) {
+      insights.push(`🎯 ${highConfidenceJobs} high-confidence matches found - you're well-positioned!`);
+    }
+    
+    if (avgMatchScore >= 75) {
+      insights.push(`⭐ Strong overall profile match (${avgMatchScore}% average)`);
+    } else if (avgMatchScore >= 60) {
+      insights.push(`📈 Good profile match with room for improvement (${avgMatchScore}% average)`);
+    }
+    
+    // Skill insights
+    const commonMissingSkills = new Map<string, number>();
+    recommendations.forEach(r => {
+      r.skillMatch.missing.forEach(skill => {
+        commonMissingSkills.set(skill, (commonMissingSkills.get(skill) || 0) + 1);
+      });
+    });
+    
+    const topMissingSkills = Array.from(commonMissingSkills.entries())
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 2)
+      .map(([skill]) => skill);
+    
+    if (topMissingSkills.length > 0) {
+      insights.push(`📚 Focus on learning: ${topMissingSkills.join(', ')} to improve match rates`);
+    }
+    
+    return insights;
   };
 
   // Build match breakdowns merging backend scores with local computation
@@ -356,25 +436,34 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
   }
 
   const displayed = showAll ? rankedJobs : rankedJobs.slice(0, 3);
-  const topScore = rankedJobs[0]?.matchBreakdown.overall || 0;
+  const topScore = rankedJobs[0]?.matchScore || 0;
+  const recommendedCount = rankedJobs.filter(r => r.recommendations.shouldApply).length;
 
   return (
     <div className="space-y-4">
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3">
         <p className="text-sm font-semibold text-blue-900">
-          🎯 Found {rankedJobs.length} matching jobs
+          🎯 Found {rankedJobs.length} matching jobs • {recommendedCount} recommended
         </p>
         <p className="text-xs text-blue-700 mt-0.5">
-          Best match: <strong>{topScore}%</strong> — ranked by skills, title & location fit
+          Best match: <strong>{topScore}%</strong> — AI-powered matching with career insights
         </p>
       </div>
 
+      {aiInsights.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+          <p className="text-sm font-semibold text-blue-900 mb-2">🤖 AI Career Insights</p>
+          {aiInsights.map((insight, i) => (
+            <p key={i} className="text-xs text-blue-700 mb-1">{insight}</p>
+          ))}
+        </div>
+      )}
+
       <div className="space-y-3">
-        {displayed.map((job, i) => (
-          <MatchCard
-            key={job._id || i}
-            job={job}
-            breakdown={job.matchBreakdown}
+        {displayed.map((recommendation, i) => (
+          <EnhancedMatchCard
+            key={recommendation.job._id || i}
+            recommendation={recommendation}
             onNavigate={onNavigate}
           />
         ))}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Bookmark, BookmarkCheck, MapPin, Briefcase } from 'lucide-react';
+import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame } from 'lucide-react';
 import localStorageMigration from '../services/localStorageMigration';
 import { formatSalary } from '../utils/textUtils';
-import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
 
 interface Job {
@@ -41,7 +41,21 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     if (!salary) return 0;
     
     if (typeof salary === 'string') {
-      return parseInt(salary.replace(/[^0-9]/g, '') || '0');
+      // Extract numbers from salary string (e.g., "₹50,000 - ₹80,000" or "50k-80k")
+      const numbers = salary.match(/\d+/g);
+      if (numbers && numbers.length > 0) {
+        let num = parseInt(numbers[0]);
+        // If salary contains 'k' or 'K', multiply by 1000
+        if (salary.toLowerCase().includes('k')) {
+          num = num * 1000;
+        }
+        // If salary contains 'l' or 'L' (lakh), multiply by 100000
+        if (salary.toLowerCase().includes('l')) {
+          num = num * 100000;
+        }
+        return num;
+      }
+      return 0;
     }
     
     if (typeof salary === 'object' && salary.min) {
@@ -69,21 +83,73 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     // Filter by salary range
     if (filters.salaryRange) {
       filtered = filtered.filter(job => {
-        if (!job.salary) return false;
-        const salary = getNumericSalary(job.salary);
+        // Check multiple salary fields
+        const salaryFields = [
+          job.salary,
+          job.salaryMin,
+          job.salaryMax,
+          formatSalary(job.salary)
+        ];
         
-        if (filters.salaryRange === '0-50k') return salary <= 50000;
-        if (filters.salaryRange === '50k-100k') return salary >= 50000 && salary <= 100000;
-        if (filters.salaryRange === '100k-150k') return salary >= 100000 && salary <= 150000;
-        if (filters.salaryRange === '150k+') return salary >= 150000;
-        return true;
+        let hasSalaryInRange = false;
+        
+        for (const salaryField of salaryFields) {
+          if (!salaryField) continue;
+          
+          const salary = getNumericSalary(salaryField);
+          if (salary === 0) continue;
+          
+          if (filters.salaryRange === '0-50k' && salary <= 50000) {
+            hasSalaryInRange = true;
+            break;
+          }
+          if (filters.salaryRange === '50k-100k' && salary >= 50000 && salary <= 100000) {
+            hasSalaryInRange = true;
+            break;
+          }
+          if (filters.salaryRange === '100k-150k' && salary >= 100000 && salary <= 150000) {
+            hasSalaryInRange = true;
+            break;
+          }
+          if (filters.salaryRange === '150k+' && salary >= 150000) {
+            hasSalaryInRange = true;
+            break;
+          }
+        }
+        
+        return hasSalaryInRange;
       });
     }
 
     // Filter by job type
     if (filters.jobType) {
-      filtered = filtered.filter(job => job.type === filters.jobType);
+      filtered = filtered.filter(job => {
+        const jobTypes = [
+          job.type,
+          job.jobType,
+          Array.isArray(job.jobType) ? job.jobType.join(' ') : job.jobType,
+          Array.isArray(job.type) ? job.type.join(' ') : job.type
+        ];
+        
+        return jobTypes.some(type => 
+          type && type.toString().toLowerCase().includes(filters.jobType.toLowerCase())
+        );
+      });
     }
+
+    console.log('Filter Debug:', {
+      originalJobs: jobs.length,
+      filteredJobs: filtered.length,
+      salaryFilter: filters.salaryRange,
+      typeFilter: filters.jobType,
+      sampleJob: jobs[0] ? {
+        salary: jobs[0].salary,
+        salaryMin: jobs[0].salaryMin,
+        salaryMax: jobs[0].salaryMax,
+        type: jobs[0].type,
+        jobType: jobs[0].jobType
+      } : null
+    });
 
     setFilteredJobs(filtered);
   }, [jobs, filters]);
@@ -288,14 +354,50 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
 
   return (
     <div>
+      {/* Header Section */}
+      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4 mb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Recommended Jobs for You</h2>
+            <p className="text-sm text-gray-600">Based on your skills and preferences • Updated daily</p>
+          </div>
+          <div className="text-right">
+            <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>
+            <div className="text-xs text-gray-500">Jobs Found</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Skills Match Summary */}
+      {resumeSkills && resumeSkills.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Your Skills Profile</h3>
+          <div className="flex flex-wrap gap-2 mb-3">
+            {resumeSkills.slice(0, 8).map((skillObj, idx) => (
+              <span key={idx} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                {skillObj.skill}
+              </span>
+            ))}
+            {resumeSkills.length > 8 && (
+              <span className="text-sm text-gray-500">+{resumeSkills.length - 8} more skills</span>
+            )}
+          </div>
+          <p className="text-sm text-gray-600">
+            We're matching jobs based on these skills from your profile. Update your skills to get better recommendations.
+          </p>
+        </div>
+      )}
+
       {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-3 mb-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex-1 min-w-[120px]">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3">Filter Jobs</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
             <select
               value={filters.salaryRange}
               onChange={(e) => setFilters(prev => ({ ...prev, salaryRange: e.target.value }))}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Salaries</option>
               <option value="0-50k">₹0 - ₹50k</option>
@@ -304,28 +406,46 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               <option value="150k+">₹150k+</option>
             </select>
           </div>
-          <div className="flex-1 min-w-[120px]">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
             <select
               value={filters.jobType}
               onChange={(e) => setFilters(prev => ({ ...prev, jobType: e.target.value }))}
-              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Types</option>
-              <option value="Full-time">Full-time</option>
-              <option value="Part-time">Part-time</option>
-              <option value="Contract">Contract</option>
-              <option value="Internship">Internship</option>
-              <option value="Remote">Remote</option>
+              <option value="full">Full-time</option>
+              <option value="part">Part-time</option>
+              <option value="contract">Contract</option>
+              <option value="intern">Internship</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="onsite">On-site</option>
             </select>
           </div>
-          <span className="text-xs text-gray-500 w-full sm:w-auto text-right">Showing {filteredJobs.length} of {jobs.length} jobs</span>
+          <div className="flex items-end">
+            <div className="w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Actions</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFilters({ salaryRange: '', jobType: '' })}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Clear Filters
+                </button>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-sm text-blue-700 font-medium">
+                  {filteredJobs.length} of {jobs.length} jobs
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       {/* Jobs List */}
-      <div className="space-y-4">
+      <div className="space-y-3 -mx-1">
         {filteredJobs.length === 0 ? (
-          <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+          <div className="text-center py-10 bg-gray-50 rounded-xl border border-dashed border-gray-300 mx-1">
             <p className="text-gray-500">No jobs match your filters.</p>
           </div>
         ) : (
@@ -374,26 +494,41 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
             })() : '';
 
             return (
-              <div key={jobId} className="relative bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all overflow-hidden group">
+              <div key={jobId} className="relative bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-md transition-all overflow-hidden group mx-1">
 
                 {/* Blue left border strip */}
                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-blue-500 to-blue-600" />
 
-                <div className="pl-4 pr-4 pt-4 pb-3">
+                <div className="pl-4 pr-4 pt-3 pb-2">
 
                   {/* Row 1: Logo + Company name — left | Applied/Save/ViewDetails — right */}
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0 pr-2">
                       {/* Company logo + name */}
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-3 mb-1.5">
                         <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                           <img
                             src={(() => {
-                              // Force Nambikkai companies to use the local logo
-                              if (company.toLowerCase().includes('nambikkai')) {
-                                return '/images/company-logos/nambikkai-logo.png';
-                              }
-                              return companyLogos[(company).toLowerCase()] || getSafeCompanyLogo(job);
+                              const companyName = company.toLowerCase();
+                              // Priority 1: Local logos from logoUtils
+                              const localLogo = (() => {
+                                if (companyName.includes('nambikkai')) return '/images/company-logos/nambikkai-logo.png';
+                                if (companyName.includes('trinity')) return '/images/company-logos/trinity-logo.png';
+                                if (companyName.includes('growthpulse')) return '/images/company-logos/growthpulse-logo.svg';
+                                return '';
+                              })();
+                              if (localLogo) return localLogo;
+                              
+                              // Priority 2: API fetched logos
+                              const apiLogo = companyLogos[companyName];
+                              if (apiLogo) return apiLogo;
+                              
+                              // Priority 3: getSafeCompanyLogo (uses logo.dev)
+                              const safeLogo = getSafeCompanyLogo(job);
+                              if (safeLogo) return safeLogo;
+                              
+                              // Priority 4: UI Avatars fallback
+                              return `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
                             })()
                             }
                             alt={`${company} logo`}
@@ -401,8 +536,8 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
                               img.onerror = null;
-                              // Use Nambikkai logo as fallback for all companies
-                              img.src = '/images/company-logos/nambikkai-logo.png';
+                              // Final fallback to UI Avatars
+                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
                             }}
                           />
                         </div>
@@ -415,34 +550,34 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                       </h4>
 
                       {/* Tags row */}
-                      <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                        <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
                           <MapPin className="w-3 h-3" />{loc}
                         </span>
                         {salary && (
-                          <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-2.5 py-1 rounded-full">{salary}</span>
+                          <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1 rounded-full">{salary}</span>
                         )}
                         {jobType && (
-                          <span className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full">
+                          <span className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full">
                             <Briefcase className="w-3 h-3" />{jobType}
                           </span>
                         )}
                         {postedAgo && <span className="text-xs text-gray-400">{postedAgo}</span>}
-                        {isNew && <span className="text-xs font-bold bg-green-500 text-white px-2 py-0.5 rounded-full">NEW</span>}
+                        {isNew && <span className="text-xs font-bold bg-green-500 text-white px-2 py-1 rounded-full">NEW</span>}
                       </div>
 
                       {/* Description */}
                       {desc && (
-                        <p className="text-sm text-gray-600 mb-2 line-clamp-2 leading-relaxed border-l-2 border-blue-400 pl-2.5">
+                        <p className="text-sm text-gray-600 mb-2 line-clamp-2 leading-relaxed border-l-2 border-blue-400 pl-3">
                           {desc}
                         </p>
                       )}
 
                       {/* Skills */}
                       {skills.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1.5">
                           {skills.slice(0, 4).map((skill: string, idx: number) => (
-                            <span key={idx} className={`text-xs px-2.5 py-0.5 rounded border ${
+                            <span key={idx} className={`text-xs px-3 py-1 rounded border ${
                               job.matchingSkills?.includes(skill.toLowerCase())
                                 ? 'bg-green-50 text-green-700 border-green-200'
                                 : 'bg-blue-50 text-blue-700 border-blue-100'
@@ -454,14 +589,14 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                     </div>
 
                     {/* Right side buttons — stacked like job search page */}
-                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[120px]">
+                    <div className="flex flex-col gap-2 flex-shrink-0 min-w-[110px]">
                       {job.matchPercentage > 0 && (
                         <span className="text-xs font-bold bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded-full text-center">
                           {job.matchPercentage}% Match
                         </span>
                       )}
                       <button onClick={() => handleSaveJob(jobId)}
-                        className={`flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border transition-colors ${
+                        className={`flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors ${
                           isSaved
                             ? 'bg-blue-50 border-blue-200 text-blue-600'
                             : 'border-gray-300 text-gray-600 hover:border-gray-400 bg-white'
@@ -470,7 +605,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                         {isSaved ? 'Saved' : 'Save'}
                       </button>
                       <button onClick={() => handleApplyNow(job)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors shadow-sm w-full">
+                        className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors shadow-sm w-full">
                         View Details
                       </button>
                     </div>
@@ -482,6 +617,101 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           })
         )}
       </div>
+
+      {/* Job Search Tips */}
+      <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4 mt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 text-yellow-500" />
+          Job Search Tips
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
+              <span className="text-sm text-gray-700">Update your profile regularly to get better job matches</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
+              <span className="text-sm text-gray-700">Add relevant skills and certifications to your resume</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
+              <span className="text-sm text-gray-700">Save interesting jobs to apply later</span>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
+              <span className="text-sm text-gray-700">Apply within 24-48 hours for better response rates</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
+              <span className="text-sm text-gray-700">Customize your cover letter for each application</span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full mt-2 flex-shrink-0"></span>
+              <span className="text-sm text-gray-700">Follow up on applications after a week</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Job Market Insights */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-blue-500" />
+          Job Market Insights
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>
+            <div className="text-sm text-gray-600">Active Jobs</div>
+          </div>
+          <div className="bg-green-50 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {Math.round((filteredJobs.filter(j => j.matchPercentage > 70).length / Math.max(filteredJobs.length, 1)) * 100)}%
+            </div>
+            <div className="text-sm text-gray-600">High Match Rate</div>
+          </div>
+          <div className="bg-purple-50 rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {filteredJobs.filter(j => j.createdAt && (Date.now() - new Date(j.createdAt).getTime()) < 48 * 3600000).length}
+            </div>
+            <div className="text-sm text-gray-600">New This Week</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Popular Skills Section */}
+      {resumeSkills && resumeSkills.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mt-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Flame className="w-5 h-5 text-orange-500" />
+            Trending Skills in Your Field
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              'React', 'Node.js', 'Python', 'AWS', 'Docker', 'Kubernetes', 'TypeScript', 'MongoDB',
+              'PostgreSQL', 'Redis', 'GraphQL', 'Next.js', 'Vue.js', 'Angular', 'Spring Boot', 'Django'
+            ].slice(0, 12).map((skill, idx) => {
+              const isUserSkill = resumeSkills.some(s => s.skill.toLowerCase().includes(skill.toLowerCase()));
+              return (
+                <div key={idx} className={`p-2 rounded-lg text-center text-sm ${
+                  isUserSkill 
+                    ? 'bg-green-100 text-green-800 border border-green-200' 
+                    : 'bg-gray-100 text-gray-700 border border-gray-200'
+                }`}>
+                  {skill}
+                  {isUserSkill && <CheckCircle className="w-3 h-3 ml-1 text-green-600" />}
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-xs text-gray-500 mt-3">
+            <CheckCircle className="w-3 h-3 text-green-600" /> Skills you have • Gray skills are trending in the market
+          </p>
+        </div>
+      )}
     </div>
   );
 };

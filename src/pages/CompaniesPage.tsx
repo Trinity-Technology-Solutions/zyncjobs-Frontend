@@ -15,6 +15,7 @@ interface Company {
   employees?: string;
   website?: string;
   logo?: string;
+  logoUrl?: string;
   rating?: number;
   openJobs?: number;
   // Enhanced fields from employer profile
@@ -59,6 +60,52 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
   const locationDropdownRef = useRef<HTMLDivElement>(null);
   const industryDropdownRef = useRef<HTMLDivElement>(null);
 
+  // Helper function to get the best logo for a company
+  const getBestCompanyLogo = (company: Company): string => {
+    // Special case: Only Nambikkai India uses local logo
+    const companyName = company.name.toLowerCase();
+    if (companyName.includes('nambikkai')) {
+      return '/images/company-logos/nambikkai-logo.png';
+    }
+
+    // For all other companies, check API logo first
+    const apiLogo = company?.logo || company?.logoUrl;
+    if (apiLogo && apiLogo.trim() !== '') {
+      return apiLogo;
+    }
+
+    // Then use logoUtils for external logos (TCS, Zoho, etc.)
+    const logoUtilsLogo = getCompanyLogo(company.name);
+    if (logoUtilsLogo && logoUtilsLogo.trim() !== '') {
+      return logoUtilsLogo;
+    }
+
+    // Fallback to UI avatars
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=64&background=3b82f6&color=ffffff&bold=true`;
+  };
+
+  // Normalize company name for comparison - enhanced version
+  const normalizeCompanyName = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/[+\s-_.(),]+/g, '') // Remove special characters, spaces, and parentheses
+      .replace(/solutions?/g, 'sol') // Normalize "solution" variations
+      .replace(/private?/g, 'priv') // Normalize "private" variations
+      .replace(/limited?/g, 'ltd') // Normalize "limited" variations
+      .replace(/technologies?/g, 'tech') // Normalize "technology" variations
+      .replace(/pvt/g, 'priv') // Normalize "pvt" to "priv"
+      .replace(/ltd/g, 'ltd') // Normalize "ltd" variations
+      .replace(/inc/g, 'inc') // Normalize "inc" variations
+      .replace(/corp/g, 'corp') // Normalize "corp" variations
+      .replace(/company/g, 'co') // Normalize "company" variations
+      .replace(/enterprises?/g, 'ent') // Normalize "enterprise" variations
+      .replace(/systems?/g, 'sys') // Normalize "system" variations
+      .replace(/services?/g, 'serv') // Normalize "service" variations
+      .replace(/consultancy/g, 'consult') // Normalize "consultancy" variations
+      .replace(/consulting/g, 'consult') // Normalize "consulting" variations
+      .trim();
+  };
+
   const ALL_INDUSTRIES = [
     'Information Technology', 'Software & SaaS', 'Healthcare & Pharmaceuticals',
     'Finance & Banking', 'Insurance', 'Education & E-Learning', 'Manufacturing',
@@ -88,6 +135,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
   const loadData = async () => {
     setLoading(true);
+    
     try {
       // Load companies and jobs first
       const [companiesRes, jobsRes] = await Promise.all([
@@ -127,7 +175,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       
       // Fallback: Extract unique industries and locations from companies if API data is empty
       if (industriesList.length === 0) {
-        industriesList = [...new Set(companiesList.map((c: any) => c.industry).filter(Boolean))].sort();
+        industriesList = [...new Set(companiesList.map((c: any) => c.industry).filter(Boolean))] as string[];
         console.log('📋 Industries extracted from companies:', industriesList);
         
         // If still no industries found, add some common ones as fallback
@@ -230,9 +278,9 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
           tagline: company.tagline,
           foundedYear: company.foundedYear,
           companyType: company.companyType || 'Private',
-          benefits: company.benefits || [],
+          benefits: Array.isArray(company.benefits) ? company.benefits : [],
           socialLinks: company.socialLinks || {},
-          locations: company.locations || [],
+          locations: Array.isArray(company.locations) ? company.locations : [],
           gstNumber: company.gstNumber,
           cinNumber: company.cinNumber,
           openJobs: companyJobs.length,
@@ -246,6 +294,22 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       console.log('📍 Locations loaded:', locationsList.length);
       console.log('🏭 Industries loaded:', industriesList.length);
       
+      // Debug: Log all companies data
+      console.log('🔍 All companies data:', companiesWithJobCounts);
+      console.log('🔍 Raw companies response:', companiesData);
+      
+      // Debug: Log GrowthPulse companies specifically
+      const growthPulseCompanies = companiesWithJobCounts.filter(c => 
+        c.name.toLowerCase().includes('growthpulse') || c.name.toLowerCase().includes('growth pulse')
+      );
+      if (growthPulseCompanies.length > 0) {
+        console.log('🔍 GrowthPulse companies found:', growthPulseCompanies.map(c => ({
+          name: c.name,
+          normalized: normalizeCompanyName(c.name),
+          logo: getCompanyLogo(c.name)
+        })));
+      }
+      
       setCompanies(companiesWithJobCounts);
       setJobs(jobsList);
       setLocations(locationsList);
@@ -254,6 +318,14 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       
     } catch (error) {
       console.error('Error loading data:', error);
+      console.error('API_ENDPOINTS.COMPANIES:', API_ENDPOINTS.COMPANIES);
+      console.error('API_ENDPOINTS.JOBS:', API_ENDPOINTS.JOBS);
+      
+      // Try to get more details about the error
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       // Set default data even on error
       setIndustries([
         'Information Technology',
@@ -332,27 +404,16 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
            normalizedSelectedLocation.includes(normalizedCompanyLocation);
   };
 
-  // Normalize company name for comparison
-  const normalizeCompanyName = (name: string): string => {
-    return name
-      .toLowerCase()
-      .replace(/[+\s-_.]+/g, '') // Remove special characters and spaces
-      .replace(/solutions?/g, 'sol') // Normalize "solution" variations
-      .replace(/private?/g, 'priv') // Normalize "private" variations
-      .replace(/limited?/g, 'ltd') // Normalize "limited" variations
-      .replace(/technologies?/g, 'tech') // Normalize "technology" variations
-      .replace(/pvt/g, 'priv') // Normalize "pvt" to "priv"
-      .trim();
-  };
+
 
   // Filter companies based on search and filters
   const filteredCompanies = companies
     .filter((company, index, self) => {
       // Remove duplicates based on normalized company names
       const normalizedName = normalizeCompanyName(company.name);
-      return index === self.findIndex(c => normalizeCompanyName(c.name) === normalizedName);
+      return index === self.findIndex((c: Company) => normalizeCompanyName(c.name) === normalizedName);
     })
-    .filter(company => {
+    .filter((company: Company) => {
       const matchesSearch = !searchTerm || 
         company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (company.description || '').toLowerCase().includes(searchTerm.toLowerCase());
@@ -427,7 +488,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
               .map((company, index) => (
               <div key={`${company.name}-${index}`} className="w-12 h-12 bg-white rounded-lg shadow-sm border border-slate-200 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity">
                 <img
-                  src={getCompanyLogo(company.name) || company.logo}
+                  src={getBestCompanyLogo(company)}
                   alt={company.name}
                   className="w-8 h-8 object-contain"
                   onError={(e) => {
@@ -549,7 +610,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                 {/* Company Header */}
                 <div className="flex items-start space-x-4 mb-4">
                   <img
-                    src={getCompanyLogo(company.name) || company.logo}
+                    src={getBestCompanyLogo(company)}
                     alt={company.name}
                     className="w-16 h-16 rounded-lg border border-gray-200 object-contain bg-white p-2"
                     onError={(e) => {

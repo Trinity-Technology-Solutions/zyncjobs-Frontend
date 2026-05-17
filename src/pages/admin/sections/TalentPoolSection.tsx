@@ -117,13 +117,44 @@ export default function TalentPoolSection({ onUnauthorized }: Props) {
         ))}
       </div>
 
-      {/* Sub Pages */}
-      {subPage === 'upload'    && <UploadPage />}
-      {subPage === 'extracted' && <ExtractedPage />}
-      {subPage === 'internal'  && <InternalPage />}
-      {subPage === 'email'     && <BulkEmailPage />}
+      {/* Sub Pages — keep all mounted to preserve state */}
+      <div className={subPage === 'upload'    ? '' : 'hidden'}><UploadPage /></div>
+      <div className={subPage === 'extracted' ? '' : 'hidden'}><ExtractedPage /></div>
+      <div className={subPage === 'internal'  ? '' : 'hidden'}><InternalPage /></div>
+      <div className={subPage === 'email'     ? '' : 'hidden'}><BulkEmailPage /></div>
     </div>
   );
+}
+
+const PROCESSING_KEY = 'talentPool_processing';
+
+interface ProcessingState {
+  isProcessing: boolean;
+  progress: number;
+  status: string;
+  currentChunk: number;
+  totalChunks: number;
+  processed: number;
+  errors: number;
+  done: boolean;
+  savedAt: number;
+}
+
+function saveProcessingState(state: Omit<ProcessingState, 'savedAt'>) {
+  localStorage.setItem(PROCESSING_KEY, JSON.stringify({ ...state, savedAt: Date.now() }));
+}
+
+function loadProcessingState(): ProcessingState | null {
+  try {
+    const raw = localStorage.getItem(PROCESSING_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (Date.now() - data.savedAt > 2 * 60 * 60 * 1000) {
+      localStorage.removeItem(PROCESSING_KEY);
+      return null;
+    }
+    return data;
+  } catch { return null; }
 }
 
 /* ─── 1. Upload Page ─────────────────────────────────────────── */
@@ -163,8 +194,6 @@ function UploadPage() {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
   const CHUNK = 10;
-  const [processingJobId, setProcessingJobId] = useState<string | null>(null);
-
   // Set webkitdirectory on folder input after mount (can't set via JSX)
   useEffect(() => {
     if (folderRef.current) {
@@ -174,62 +203,24 @@ function UploadPage() {
     }
   }, []);
 
-  // Check for ongoing processing on component mount
+  // Restore processing state from localStorage on mount
   useEffect(() => {
-    const checkOngoingProcessing = async () => {
-      const token = getToken();
-      try {
-        const response = await fetch(`${API_ENDPOINTS.RESUME_PROCESSING_STATUS}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          if (data.isProcessing) {
-            setBackgroundProcessing(true);
-            setProcessingStatus(data.status || 'Processing resumes in background...');
-            setProcessingJobId(data.jobId);
-            // Start polling for updates
-            startStatusPolling(data.jobId);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking processing status:', error);
-      }
-    };
-    
-    checkOngoingProcessing();
+    const saved = loadProcessingState();
+    if (!saved) return;
+    setProgress(saved.progress || 0);
+    setCurrentChunk(saved.currentChunk || 0);
+    setTotalChunks(saved.totalChunks || 0);
+    setErrors(saved.errors || 0);
+    if (saved.done) {
+      setDone(true);
+      localStorage.removeItem(PROCESSING_KEY);
+    } else if (saved.isProcessing) {
+      // Was mid-processing when page was refreshed — show interrupted warning
+      setBackgroundProcessing(true);
+      setProcessingStatus(`⚠️ Processing was interrupted at chunk ${saved.currentChunk}/${saved.totalChunks}. ${saved.processed} resumes were saved before refresh.`);
+    }
   }, []);
 
-  // Status polling function
-  const startStatusPolling = (jobId: string) => {
-    const pollInterval = setInterval(async () => {
-      const token = getToken();
-      try {
-        const response = await fetch(`${API_ENDPOINTS.RESUME_PROCESSING_STATUS}/${jobId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setProcessingStatus(data.status || 'Processing...');
-          setProgress(data.progress || 0);
-          
-          if (data.completed) {
-            setBackgroundProcessing(false);
-            setDone(true);
-            setResults(data.results || []);
-            setErrors(data.errors || 0);
-            clearInterval(pollInterval);
-          }
-        }
-      } catch (error) {
-        console.error('Error polling status:', error);
-        clearInterval(pollInterval);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    // Cleanup interval on unmount
-    return () => clearInterval(pollInterval);
-  };
 
   const handleProcess = async () => {
     if (!files.length) return;
@@ -248,6 +239,8 @@ function UploadPage() {
     setTotalChunks(total);
     const allResults: any[] = [];
     let errCount = 0;
+
+    saveProcessingState({ isProcessing: true, progress: 0, status: 'Starting upload...', currentChunk: 0, totalChunks: total, processed: 0, errors: 0 });
     
     for (let i = 0; i < chunkList.length; i++) {
       setCurrentChunk(i + 1);
@@ -299,12 +292,6 @@ function UploadPage() {
           if (res.ok) {
             allResults.push(...(data.results || []));
             errCount += (data.results || []).filter((r: any) => r.status === 'error').length;
-            
-            if (data.jobId) {
-              setProcessingJobId(data.jobId);
-              setBackgroundProcessing(true);
-              startStatusPolling(data.jobId);
-            }
           } else {
             successfulUploads.forEach(upload => {
               allResults.push({ file: upload.file.name, status: 'error', error: data.error || 'Processing failed' });
@@ -319,13 +306,28 @@ function UploadPage() {
         }
       }
       
-      setProgress(Math.round(((i + 1) / total) * 100));
+      const pct = Math.round(((i + 1) / total) * 100);
+      const processedCount = allResults.filter((r: any) => r.status === 'ok').length;
+      setProgress(pct);
       setResults([...allResults]);
       setErrors(errCount);
+      saveProcessingState({
+        isProcessing: i + 1 < total,
+        done: false,
+        progress: pct,
+        status: `Processed chunk ${i + 1} of ${total} — ${processedCount} parsed`,
+        currentChunk: i + 1,
+        totalChunks: total,
+        processed: processedCount,
+        errors: errCount
+      });
     }
-    
+
+    const finalProcessed = allResults.filter((r: any) => r.status === 'ok').length;
+    saveProcessingState({ isProcessing: false, done: true, progress: 100, status: 'Complete', currentChunk: total, totalChunks: total, processed: finalProcessed, errors: errCount });
     setUploading(false);
     setDone(true);
+    setBackgroundProcessing(false);
   };
 
   return (
@@ -357,7 +359,7 @@ function UploadPage() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Files Selected', val: files.length },
-          { label: 'Processed',      val: done ? results.filter((r:any) => r.status === 'ok').length : 0 },
+          { label: 'Processed',      val: (done || backgroundProcessing) ? (results.filter((r:any) => r.status === 'ok').length || loadProcessingState()?.processed || 0) : 0 },
           { label: 'Errors',         val: errors },
         ].map(({ label, val }) => (
           <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
@@ -503,17 +505,29 @@ function ExtractedPage() {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewResume, setViewResume] = useState<any | null>(null);
+  const isProcessing = loadProcessingState()?.isProcessing ?? false;
 
-  // Load from backend API
-  useEffect(() => {
-    setLoading(true);
+  const fetchCandidates = () => {
     const token = getToken();
     fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json())
       .then(d => setCandidates(d.candidates || []))
-      .catch(() => setCandidates([]))
+      .catch(() => {})
       .finally(() => setLoading(false));
+  };
+
+  // Load on mount
+  useEffect(() => {
+    setLoading(true);
+    fetchCandidates();
   }, []);
+
+  // Auto-poll every 8s while processing is active
+  useEffect(() => {
+    if (!isProcessing) return;
+    const interval = setInterval(fetchCandidates, 8000);
+    return () => clearInterval(interval);
+  }, [isProcessing]);
 
   const filtered = candidates.filter(c =>
     !search ||
@@ -542,6 +556,14 @@ function ExtractedPage() {
 
   return (
     <div className="space-y-4">
+      {/* Processing active banner */}
+      {isProcessing && (
+        <div className="flex items-center gap-3 bg-blue-900/30 border border-blue-700/50 rounded-xl px-4 py-3">
+          <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+          <p className="text-blue-300 text-sm">Processing in progress — new candidates will appear automatically every 8 seconds.</p>
+          <button onClick={fetchCandidates} className="ml-auto text-xs text-blue-400 hover:text-blue-300 underline">Refresh now</button>
+        </div>
+      )}
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
@@ -630,7 +652,9 @@ function ExtractedPage() {
                   </tr>
                 ))
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={7} className="text-center text-gray-500 py-10 text-sm">No candidates found.</td></tr>
+                <tr><td colSpan={7} className="text-center text-gray-500 py-10 text-sm">
+                  {isProcessing ? '⏳ Parsing resumes... candidates will appear shortly.' : 'No candidates found.'}
+                </td></tr>
               ) : filtered.map(c => (
                 <tr key={c.id} className={`border-b border-gray-800 hover:bg-gray-800/40 transition-colors ${selected.has(c.id) ? 'bg-blue-900/10' : ''}`}>
                   <td className="px-4 py-3">

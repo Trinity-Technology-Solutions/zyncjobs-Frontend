@@ -335,48 +335,28 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       });
     }
     if (filters.workMode.length > 0) {
-      console.log('Applying workMode filter:', filters.workMode);
       filtered = filtered.filter(job => {
         const lt = (job.locationType || '').toLowerCase();
         const loc = (job.location || '').toLowerCase();
         const desc = (job.description || '').toLowerCase();
         const title = (job.title || job.jobTitle || '').toLowerCase();
         
-        console.log(`Job: ${job.title}, Location: ${job.location}, LocationType: ${job.locationType}`);
-        
-        const matches = filters.workMode.some(mode => {
+        return filters.workMode.some(mode => {
           if (mode === 'Remote') {
-            const isRemote = lt.includes('remote') || 
-                           loc.includes('remote') || 
-                           desc.includes('remote') || 
-                           title.includes('remote') || 
-                           lt.includes('work from home') || 
-                           loc.includes('work from home') ||
-                           loc === 'remote' ||
-                           lt === 'remote';
-            console.log(`Remote check: ${isRemote}`);
-            return isRemote;
+            return lt.includes('remote') || loc.includes('remote') || desc.includes('remote') || 
+                   title.includes('remote') || lt.includes('work from home') || 
+                   loc.includes('work from home') || loc === 'remote' || lt === 'remote';
           }
-          if (mode === 'Hybrid') {
-            const isHybrid = lt.includes('hybrid') || loc.includes('hybrid') || desc.includes('hybrid');
-            console.log(`Hybrid check: ${isHybrid}`);
-            return isHybrid;
-          }
+          if (mode === 'Hybrid') return lt.includes('hybrid') || loc.includes('hybrid') || desc.includes('hybrid');
           if (mode === 'Work from office') {
-            const isOffice = (lt === 'in person' || lt === 'onsite') || 
-                           (!lt.includes('remote') && !lt.includes('hybrid') && 
-                            !loc.includes('remote') && !loc.includes('hybrid') &&
-                            !desc.includes('remote') && !desc.includes('hybrid'));
-            console.log(`Office check: ${isOffice}`);
-            return isOffice;
+            return (lt === 'in person' || lt === 'onsite') || 
+                   (!lt.includes('remote') && !lt.includes('hybrid') && 
+                    !loc.includes('remote') && !loc.includes('hybrid') &&
+                    !desc.includes('remote') && !desc.includes('hybrid'));
           }
           return false;
         });
-        
-        console.log(`Job matches workMode filter: ${matches}`);
-        return matches;
       });
-      console.log('Jobs after workMode filter:', filtered.length);
     }
     if (filters.location.length > 0) {
       filtered = filtered.filter(job =>
@@ -398,41 +378,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
     if (filters.freshness.length > 0) {
       const now = Date.now();
-      console.log('Applying freshness filter:', filters.freshness);
       filtered = filtered.filter(job => {
         const raw = job.createdAt || job.postedAt || job.datePosted;
-        if (!raw) {
-          console.log('Job has no date:', job.title);
-          return false;
-        }
-        const jobDate = new Date(raw);
-        const t = jobDate.getTime();
-        if (isNaN(t) || t <= 0) {
-          console.log('Invalid job date:', raw, job.title);
-          return false;
-        }
-        
+        if (!raw) return false;
+        const t = new Date(raw).getTime();
+        if (isNaN(t) || t <= 0) return false;
         const daysDiff = (now - t) / (1000 * 60 * 60 * 24);
-        console.log(`Job: ${job.title}, Date: ${jobDate.toLocaleDateString()}, Days ago: ${daysDiff.toFixed(1)}`);
-        
         return filters.freshness.some(freshness => {
-          if (freshness === '48h') {
-            const match = daysDiff <= 2;
-            console.log(`48h filter: ${match} (${daysDiff.toFixed(1)} days)`);
-            return match;
-          }
-          if (freshness === '7d') {
-            const match = daysDiff <= 7;
-            console.log(`7d filter: ${match} (${daysDiff.toFixed(1)} days)`);
-            return match;
-          }
+          if (freshness === '48h') return daysDiff <= 2;
+          if (freshness === '7d') return daysDiff <= 7;
           return false;
         });
       });
-      console.log('Jobs after freshness filter:', filtered.length);
     }
     filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    console.log('✅ Final filtered results:', filtered.length);
     setFilteredJobs(filtered);
     setCurrentPage(1);
     setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
@@ -1554,17 +1513,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 )}
               </p>
               
-              {/* Debug Panel for Filters */}
-              {(filters.freshness.length > 0 || filters.workMode.length > 0) && (
-                <div className="text-xs bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
-                  <div className="text-yellow-700">
-                    Active Filters: 
-                    {filters.freshness.length > 0 && <span className="ml-1 bg-yellow-200 px-1 rounded">Freshness: {filters.freshness.join(', ')}</span>}
-                    {filters.workMode.length > 0 && <span className="ml-1 bg-yellow-200 px-1 rounded">Work: {filters.workMode.join(', ')}</span>}
-                  </div>
-                  <div className="text-yellow-600">Quick Filter: {activeQuickFilter || 'None'}</div>
-                </div>
-              )}
               {isFiltered ? (
                 <button
                   onClick={() => {
