@@ -62,10 +62,16 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
   // Helper function to get the best logo for a company
   const getBestCompanyLogo = (company: Company): string => {
-    // Special case: Only Nambikkai India uses local logo
+    // Special cases: Local logos for specific companies
     const companyName = company.name.toLowerCase();
     if (companyName.includes('nambikkai')) {
       return '/images/company-logos/nambikkai-logo.png';
+    }
+    if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) {
+      return '/images/company-logos/growthpulss.png';
+    }
+    if (companyName.includes('trinity')) {
+      return '/images/company-logos/trinity-logo.png';
     }
 
     // For all other companies, check API logo first
@@ -163,15 +169,16 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
         console.log('Locations API not available, extracting from companies');
       }
       
-      try {
-        const industriesRes = await fetch(`${API_ENDPOINTS.BASE_URL}/industries`);
-        if (industriesRes.ok) {
-          const industriesData = await industriesRes.json();
-          industriesList = Array.isArray(industriesData) ? industriesData : (industriesData.industries || industriesData.data || []);
-        }
-      } catch (error) {
-        console.log('Industries API not available, extracting from companies');
-      }
+      // Skip industries API call since it returns 404
+      // try {
+      //   const industriesRes = await fetch(`${API_ENDPOINTS.BASE_URL}/industries`);
+      //   if (industriesRes.ok) {
+      //     const industriesData = await industriesRes.json();
+      //     industriesList = Array.isArray(industriesData) ? industriesData : (industriesData.industries || industriesData.data || []);
+      //   }
+      // } catch (error) {
+      //   console.log('Industries API not available, extracting from companies');
+      // }
       
       // Fallback: Extract unique industries and locations from companies if API data is empty
       if (industriesList.length === 0) {
@@ -433,7 +440,14 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
     });
 
   const handleCompanyClick = (company: Company) => {
-    localStorage.setItem('selectedCompany', JSON.stringify(company));
+    // Encode company name properly to avoid 500 errors
+    const encodedCompanyName = encodeURIComponent(company.name.trim());
+    console.log('🏢 Navigating to company:', company.name, 'Encoded:', encodedCompanyName);
+    
+    localStorage.setItem('selectedCompany', JSON.stringify({
+      ...company,
+      encodedName: encodedCompanyName
+    }));
     onNavigate && onNavigate('company-details');
   };
 

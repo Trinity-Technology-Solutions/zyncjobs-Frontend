@@ -19,6 +19,7 @@ import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
+import EnhancedSearchInput from '../components/EnhancedSearchInput';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -173,14 +174,37 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const clientFilter = useCallback((jobList: any[], term: string, loc: string) => {
     return jobList.filter(job => {
-      const text = [
+      // Enhanced search matching using searchAccuracy engine
+      const searchableFields = [
         job.title, job.jobTitle, job.description,
         job.company, job.skills, job.requirements,
         job.jobCategory, job.category
-      ].filter(Boolean).join(' ').toLowerCase();
-      const matchTerm = !term || term.toLowerCase().split(/\s+/).every(w => text.includes(w));
-      const matchLoc = !loc || (job.location || '').toLowerCase().includes(loc.toLowerCase()) ||
-        (job.country || '').toLowerCase().includes(loc.toLowerCase());
+      ].filter(Boolean);
+      
+      const searchText = searchableFields.join(' ').toLowerCase();
+      
+      let matchTerm = true;
+      if (term) {
+        const termLower = term.toLowerCase();
+        // Check for exact matches first
+        if (searchText.includes(termLower)) {
+          matchTerm = true;
+        } else {
+          // Use enhanced matching for partial matches
+          const jobTitleMatches = searchAccuracy.getAccurateMatches(term, [job.title || job.jobTitle || ''], 'job');
+          const companyMatches = searchAccuracy.getAccurateMatches(term, [job.company || ''], 'company');
+          const skillMatches = job.skills ? searchAccuracy.getAccurateMatches(term, job.skills, 'skill') : [];
+          
+          matchTerm = jobTitleMatches.length > 0 || companyMatches.length > 0 || skillMatches.length > 0 ||
+                     termLower.split(/\s+/).some(word => searchText.includes(word));
+        }
+      }
+      
+      const matchLoc = !loc || 
+        (job.location || '').toLowerCase().includes(loc.toLowerCase()) ||
+        (job.country || '').toLowerCase().includes(loc.toLowerCase()) ||
+        searchAccuracy.getLocationMatches(loc, [job.location || '']).length > 0;
+      
       return matchTerm && matchLoc;
     });
   }, []);
@@ -596,6 +620,88 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       uniqueSkills
     );
   };
+
+  // Enhanced search function with better accuracy
+  const performEnhancedSearch = useCallback(async (searchQuery: string, locationQuery: string) => {
+    if (!searchQuery && !locationQuery) {
+      fetchJobs(1, false, { term: '', loc: '', freshness: filters.freshness });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // First try the advanced search API
+      const searchParams = {
+        query: searchQuery,
+        location: locationQuery,
+        jobType: filters.jobType ? [filters.jobType] : [],
+        industry: filters.industry,
+        companySize: filters.companySize,
+        freshness: filters.freshness,
+        page: 1,
+        limit: 100
+      };
+
+      const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(searchParams)
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        let jobsArray = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data) ? data : []);
+        
+        // If we got results, enhance them with client-side scoring
+        if (jobsArray.length > 0 && searchQuery) {
+          jobsArray = jobsArray.map(job => {
+            let score = 0;
+            const queryLower = searchQuery.toLowerCase();
+            const jobTitleLower = (job.title || job.jobTitle || '').toLowerCase();
+            const companyLower = (job.company || '').toLowerCase();
+            const skillsText = (job.skills || []).join(' ').toLowerCase();
+            
+            // Title matching (highest priority)
+            if (jobTitleLower.includes(queryLower)) score += 100;
+            
+            // Company matching
+            if (companyLower.includes(queryLower)) score += 80;
+            
+            // Skills matching using enhanced accuracy
+            if (job.skills && job.skills.length > 0) {
+              const skillMatches = searchAccuracy.getAccurateMatches(searchQuery, job.skills, 'skill');
+              score += skillMatches.length * 20;
+            }
+            
+            // Description matching
+            if ((job.description || '').toLowerCase().includes(queryLower)) score += 40;
+            
+            return { ...job, searchScore: score };
+          }).sort((a: any, b: any) => (b.searchScore || 0) - (a.searchScore || 0));
+        }
+        
+        setJobs(jobsArray);
+        setFilteredJobs(jobsArray);
+        setCurrentPage(1);
+        setTotalPages(Math.ceil(jobsArray.length / jobsPerPage) || 1);
+      } else {
+        // Fallback to client-side filtering
+        const filtered = clientFilter(jobs, searchQuery, locationQuery);
+        setFilteredJobs(filtered);
+        setCurrentPage(1);
+        setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
+      }
+    } catch (error) {
+      console.error('Enhanced search error:', error);
+      // Fallback to client-side filtering
+      const filtered = clientFilter(jobs, searchQuery, locationQuery);
+      setFilteredJobs(filtered);
+      setCurrentPage(1);
+      setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, jobs, clientFilter]);
   
   const generateKeywordSuggestions = (input: string): string[] => {
     const keywordPatterns = {
@@ -731,24 +837,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   const handleSearch = async () => {
-    if (location) {
-      try {
-        const geocoded = await geocodeLocationText(location);
-        if (geocoded) {
-          await handleLocationSearch({ latitude: geocoded.lat, longitude: geocoded.lng, radius, query: searchTerm });
-          return;
-        }
-        // Fallback: GPS
-        const coords = await new Promise<GeolocationCoordinates>((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(p => resolve(p.coords), reject, { timeout: 4000 })
-        );
-        await handleLocationSearch({ latitude: coords.latitude, longitude: coords.longitude, radius, query: searchTerm });
-        return;
-      } catch {
-        // Both failed — fall through to text search
-      }
-    }
-    fetchJobs(1, false, { term: searchTerm, loc: location, freshness: filters.freshness });
+    // Use enhanced search for better accuracy
+    await performEnhancedSearch(searchTerm, location);
   };
 
   const selectJobSuggestion = (suggestion: string, type: 'keyword' | 'jobTitle' | 'company') => {
@@ -976,111 +1066,34 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
           {/* Search Bar - Only show in search tab */}
           {activeTab === 'search' && (
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Job title, skill, company, keyword"
-                value={searchTerm}
-                onChange={handleJobInputChange}
-                onFocus={() => searchTerm.length >= 1 && setShowJobSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowJobSuggestions(false), 200)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-              {showJobSuggestions && (jobSuggestions.keywords.length > 0 || jobSuggestions.jobTitles.length > 0 || jobSuggestions.companies.length > 0) && (
-                <div className="absolute w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{zIndex: 999999}}>
-                  {/* Keywords Section */}
-                  {jobSuggestions.keywords.length > 0 && (
-                    <div>
-                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">KEYWORD</span>
-                      </div>
-                      {jobSuggestions.keywords.map((suggestion, index) => (
-                        <button
-                          key={`keyword-${index}`}
-                          type="button"
-                          onMouseDown={() => selectJobSuggestion(suggestion, 'keyword')}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 flex items-center text-gray-900"
-                        >
-                          <Search className="w-4 h-4 text-gray-400 mr-3" />
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Job Titles Section */}
-                  {jobSuggestions.jobTitles.length > 0 && (
-                    <div>
-                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">JOB TITLE</span>
-                      </div>
-                      {jobSuggestions.jobTitles.map((suggestion, index) => (
-                        <button
-                          key={`jobtitle-${index}`}
-                          type="button"
-                          onMouseDown={() => selectJobSuggestion(suggestion, 'jobTitle')}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 flex items-center text-gray-900"
-                        >
-                          <Briefcase className="w-4 h-4 text-blue-500 mr-3" />
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Companies Section */}
-                  {jobSuggestions.companies.length > 0 && (
-                    <div>
-                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">COMPANY</span>
-                      </div>
-                      {jobSuggestions.companies.map((suggestion, index) => (
-                        <button
-                          key={`company-${index}`}
-                          type="button"
-                          onMouseDown={() => selectJobSuggestion(suggestion, 'company')}
-                          className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 flex items-center text-gray-900"
-                        >
-                          <div className="w-4 h-4 bg-blue-100 rounded mr-3 flex items-center justify-center">
-                            <span className="text-xs font-bold text-blue-600">C</span>
-                          </div>
-                          {suggestion}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Location (ex. Denver, remote)"
-                value={location}
-                onChange={handleLocationInputChange}
-                onFocus={() => location.length >= 1 && setShowLocationSuggestions(true)}
-                onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 200)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="w-full px-4 py-3 bg-white text-gray-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-              />
-              {showLocationSuggestions && locationSuggestions.length > 0 && (
-                <div className="absolute w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto" style={{zIndex: 999999}}>
-                  {locationSuggestions.map((suggestion, index) => (
-                    <button
-                      key={index}
-                      type="button"
-                      onMouseDown={() => selectLocationSuggestion(suggestion)}
-                      className="w-full text-left px-4 py-3 hover:bg-gray-50 text-sm border-b border-gray-100 last:border-b-0 flex items-center text-gray-900"
-                    >
-                      <MapPin className="w-4 h-4 text-gray-400 mr-3" />
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mb-6">
+              <div className="flex-1">
+                <EnhancedSearchInput
+                  placeholder="Job title, skill, company, keyword"
+                  value={searchTerm}
+                  onChange={setSearchTerm}
+                  type="mixed"
+                  showCategories={true}
+                  maxSuggestions={12}
+                  onSelect={(suggestion) => {
+                    setSearchTerm(suggestion.text);
+                    setTimeout(() => handleSearch(), 100);
+                  }}
+                />
+              </div>
+              <div className="flex-1">
+                <EnhancedSearchInput
+                  placeholder="Location (ex. Denver, remote)"
+                  value={location}
+                  onChange={setLocation}
+                  type="location"
+                  showCategories={false}
+                  maxSuggestions={10}
+                  onSelect={(suggestion) => {
+                    setLocation(suggestion.text);
+                  }}
+                />
+              </div>
             <div className="flex gap-2">
               <select
                 value={radius}

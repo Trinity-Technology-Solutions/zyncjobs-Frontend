@@ -514,7 +514,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                               const localLogo = (() => {
                                 if (companyName.includes('nambikkai')) return '/images/company-logos/nambikkai-logo.png';
                                 if (companyName.includes('trinity')) return '/images/company-logos/trinity-logo.png';
-                                if (companyName.includes('growthpulse')) return '/images/company-logos/growthpulse-logo.svg';
+                                if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) return '/images/company-logos/growthpulss.png';
                                 return '';
                               })();
                               if (localLogo) return localLogo;

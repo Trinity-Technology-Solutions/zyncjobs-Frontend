@@ -9,14 +9,15 @@ export const getCompanyLogo = (companyName: string): string => {
     return localLogo;
   }
 
-  // Known domain map — use logo.dev (FALLBACK)
+  // Known domain map — try multiple logo services
   const domain = getCompanyDomain(companyName);
   if (domain) {
-    return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
+    // Try Clearbit first (most reliable for company logos)
+    return `https://logo.clearbit.com/${domain}`;
   }
 
-  // Return empty string instead of avatar fallback
-  return '';
+  // If no domain mapping, return UI avatars directly
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
 };
 
 const getLocalCompanyLogo = (companyName: string): string => {
@@ -26,7 +27,12 @@ const getLocalCompanyLogo = (companyName: string): string => {
     'nambikkai': '/images/company-logos/nambikkai-logo.png',
     'nambikkai india': '/images/company-logos/nambikkai-logo.png',
     'trinity technology solutions': '/images/company-logos/trinity-logo.png',
-    'trinity': '/images/company-logos/trinity-logo.png'
+    'trinity': '/images/company-logos/trinity-logo.png',
+    'growthpulse': '/images/company-logos/growthpulss.png',
+    'growthpulse solutions': '/images/company-logos/growthpulss.png',
+    'growth pulse': '/images/company-logos/growthpulss.png',
+    'growth pulse solutions': '/images/company-logos/growthpulss.png',
+    'growthpulss': '/images/company-logos/growthpulss.png'
   };
   
   // Check for exact matches first
@@ -436,7 +442,9 @@ const getCompanyDomain = (companyName: string): string => {
     'larsen & toubro': 'larsentoubro.com',
     'l&t': 'larsentoubro.com',
     'infra': 'larsentoubro.com',
-    // Local - Removed GrowthPulse entries to prevent HP logo confusion
+    // Local Companies - Updated with correct domains
+    // Note: Growthpulse Solutions may not have a public website
+    // Removed growthpulse mappings to avoid DNS errors
   };
   
   // Check for exact matches first
@@ -444,15 +452,56 @@ const getCompanyDomain = (companyName: string): string => {
     return domainMap[name];
   }
   
-  // Check for partial matches
+  // Check for partial matches - but be more specific to avoid false matches
   for (const [key, domain] of Object.entries(domainMap)) {
-    if (name.includes(key) || key.includes(name)) {
-      return domain;
+    // Only match if the key is a significant part of the company name
+    // Avoid matching short keys like 'hp' inside longer names
+    if (key.length >= 3) {
+      if (name.includes(key) || key.includes(name)) {
+        return domain;
+      }
+    } else {
+      // For short keys (like 'hp'), require exact word match
+      const nameWords = name.split(/\s+/);
+      if (nameWords.includes(key)) {
+        return domain;
+      }
     }
   }
   
   // Try to construct domain from company name (only for known patterns)
   return '';
+};
+
+// Add a helper function to get multiple logo fallbacks
+export const getLogoWithFallbacks = (companyName: string, website?: string): string[] => {
+  const logos: string[] = [];
+  
+  // Local logo first
+  const localLogo = getLocalCompanyLogo(companyName);
+  if (localLogo) {
+    logos.push(localLogo);
+  }
+  
+  // Domain-based logos
+  let domain = getCompanyDomain(companyName);
+  if (!domain && website) {
+    try {
+      domain = new URL(website).hostname;
+    } catch {}
+  }
+  
+  if (domain) {
+    // Multiple logo services as fallbacks - reordered for better reliability
+    logos.push(`https://logo.clearbit.com/${domain}`);
+    logos.push(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`);
+    logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=64`);
+  }
+  
+  // UI avatars as final fallback
+  logos.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`);
+  
+  return logos;
 };
 
 export const getSafeCompanyLogo = (job: any): string => {
