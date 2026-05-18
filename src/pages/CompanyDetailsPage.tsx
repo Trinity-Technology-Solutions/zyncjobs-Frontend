@@ -3,6 +3,7 @@ import { Star, MapPin, IndianRupee, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { companyDataService, EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
@@ -92,16 +93,37 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   useEffect(() => {
     const savedCompany = localStorage.getItem('selectedCompany');
     if (!savedCompany || !user?.email) return;
+    
     try {
       const companyData = JSON.parse(savedCompany);
-      const id = encodeURIComponent(companyData.name || companyData._id);
-      fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-          if (data) { setIsFollowing(data.isFollowing || false); setFollowersCount(data.followersCount || 0); }
+      const companyIdentifier = companyData._id || companyData.name || '';
+      
+      // Try to get follow status, but don't fail if endpoint doesn't exist
+      fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyIdentifier)}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
+        .then(r => {
+          if (r.ok) {
+            return r.json();
+          } else if (r.status === 404) {
+            // Follow feature not implemented - set default values
+            return { isFollowing: false, followersCount: 0 };
+          }
+          return null;
         })
-        .catch(() => {});
-    } catch {}
+        .then(data => {
+          if (data) { 
+            setIsFollowing(data.isFollowing || false); 
+            setFollowersCount(data.followersCount || 0); 
+          }
+        })
+        .catch(error => {
+          console.log('Follow status check failed:', error);
+          // Set default values on error
+          setIsFollowing(false);
+          setFollowersCount(0);
+        });
+    } catch (error) {
+      console.error('Error parsing company data for follow status:', error);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -119,11 +141,27 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           setReviews(companyReviews);
           
           if (user?.email) {
-            const id = encodeURIComponent(companyData.name);
-            fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
-              .then(r => r.ok ? r.json() : null)
-              .then(data => { if (data) { setIsFollowing(data.isFollowing || false); setFollowersCount(data.followersCount || 0); } })
-              .catch(() => {});
+            const companyIdentifier = companyData._id || companyData.name || '';
+            fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyIdentifier)}/follow-status?userEmail=${encodeURIComponent(user.email)}`)
+              .then(r => {
+                if (r.ok) {
+                  return r.json();
+                } else if (r.status === 404) {
+                  return { isFollowing: false, followersCount: 0 };
+                }
+                return null;
+              })
+              .then(data => { 
+                if (data) { 
+                  setIsFollowing(data.isFollowing || false); 
+                  setFollowersCount(data.followersCount || 0); 
+                } 
+              })
+              .catch(error => {
+                console.log('Follow status check failed in loadCompanyData:', error);
+                setIsFollowing(false);
+                setFollowersCount(0);
+              });
           }
         } catch (error) {
           console.error('Error parsing company data:', error);
@@ -137,7 +175,40 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   // Fetch real company data from API
   const fetchRealCompanyData = async (companyId: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyId)}`);
+      // First try to get company by ID if it looks like an ID
+      let response;
+      if (companyId.match(/^[0-9a-fA-F]{24}$/)) {
+        // MongoDB ObjectId format
+        response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${companyId}`);
+      } else {
+        // For company names, search through all companies to find a match
+        const encodedName = encodeURIComponent(companyId.trim());
+        
+        // Try to get all companies and find by name
+        const allCompaniesResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
+        if (allCompaniesResponse.ok) {
+          const allCompanies = await allCompaniesResponse.json();
+          const companies = Array.isArray(allCompanies) ? allCompanies : allCompanies.companies || [];
+          const foundCompany = companies.find((c: any) => 
+            (c.name || c.companyName || '').toLowerCase() === companyId.toLowerCase()
+          );
+          
+          if (foundCompany) {
+            // Create a mock response with the found company data
+            response = {
+              ok: true,
+              json: async () => foundCompany
+            } as Response;
+          } else {
+            // If not found in companies list, try direct endpoint as fallback
+            response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodedName}`);
+          }
+        } else {
+          // Fallback to direct endpoint
+          response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodedName}`);
+        }
+      }
+      
       if (response.ok) {
         const realCompanyData = await response.json();
         
@@ -213,18 +284,25 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         }
         
       } else {
+        console.log('Company API returned:', response.status, response.statusText);
         // Fallback to localStorage data if API fails
         const savedCompany = localStorage.getItem('selectedCompany');
         if (savedCompany) {
-          setCompany(JSON.parse(savedCompany));
+          const companyData = JSON.parse(savedCompany);
+          setCompany(companyData);
         }
       }
     } catch (error) {
       console.error('Error fetching real company data:', error);
-      // Fallback to localStorage data
+      // Always fallback to localStorage data on error
       const savedCompany = localStorage.getItem('selectedCompany');
       if (savedCompany) {
-        setCompany(JSON.parse(savedCompany));
+        try {
+          const companyData = JSON.parse(savedCompany);
+          setCompany(companyData);
+        } catch (parseError) {
+          console.error('Error parsing saved company data:', parseError);
+        }
       }
     }
   };
@@ -281,31 +359,68 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please login to follow companies' } }));
       return;
     }
-    const id = encodeURIComponent(company?.name || company?._id || '');
-    if (!id) return;
+    
+    const companyName = company?.name || company?._id || '';
+    if (!companyName) return;
+    
     const wasFollowing = isFollowing;
     const prevCount = followersCount;
     const action = wasFollowing ? 'unfollow' : 'follow';
+    
+    // Optimistically update UI
     setIsFollowing(!wasFollowing);
     setFollowersCount(wasFollowing ? Math.max(0, prevCount - 1) : prevCount + 1);
+    
     try {
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${id}/${action}`, {
+      // Try the follow endpoint
+      const companyIdentifier = company?._id || company?.name || '';
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies/${encodeURIComponent(companyIdentifier)}/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail: user.email, userName: user.name }),
       });
+      
       if (response.ok) {
         const data = await response.json();
-        if (data.followersCount !== undefined) setFollowersCount(data.followersCount);
+        if (data.followersCount !== undefined) {
+          setFollowersCount(data.followersCount);
+        }
+        window.dispatchEvent(new CustomEvent('zync:alert', { 
+          detail: { 
+            message: `Successfully ${wasFollowing ? 'unfollowed' : 'followed'} ${companyName}!`,
+            type: 'success'
+          } 
+        }));
+      } else if (response.status === 404) {
+        // Follow feature not implemented yet - show message but keep UI state
+        window.dispatchEvent(new CustomEvent('zync:alert', { 
+          detail: { 
+            message: 'Company following feature is coming soon!',
+            type: 'info'
+          } 
+        }));
       } else {
+        // Revert UI changes on other errors
         setIsFollowing(wasFollowing);
         setFollowersCount(prevCount);
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to update follow status. Please try again.' } }));
+        window.dispatchEvent(new CustomEvent('zync:alert', { 
+          detail: { 
+            message: 'Failed to update follow status. Please try again.',
+            type: 'error'
+          } 
+        }));
       }
-    } catch {
+    } catch (error) {
+      console.error('Follow error:', error);
+      // Revert UI changes on network errors
       setIsFollowing(wasFollowing);
       setFollowersCount(prevCount);
-      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error. Please try again.' } }));
+      window.dispatchEvent(new CustomEvent('zync:alert', { 
+        detail: { 
+          message: 'Network error. Please try again.',
+          type: 'error'
+        } 
+      }));
     }
   };
 
@@ -413,28 +528,11 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           <div className="flex flex-col lg:flex-row items-start gap-6 lg:gap-8">
             {/* Company Logo */}
             <div className="w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white rounded-2xl sm:rounded-3xl border border-gray-200 p-3 sm:p-4 flex-shrink-0 shadow-lg hover:shadow-xl transition-all duration-300 mx-auto lg:mx-0">
-              <img 
-                src={company.logo || getCompanyLogo(company.name)} 
-                alt={company.name} 
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  const fallback = getCompanyLogo(company.name);
-                  if (fallback && img.src !== fallback) {
-                    img.src = fallback;
-                  } else {
-                    // Letter avatar fallback
-                    const initials = (company.name || 'C').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
-                    img.style.display = 'none';
-                    const parent = img.parentElement;
-                    if (parent && !parent.querySelector('.letter-avatar')) {
-                      const div = document.createElement('div');
-                      div.className = 'letter-avatar w-full h-full rounded-xl bg-gradient-to-br from-blue-600 to-orange-500 flex items-center justify-center text-white font-bold text-2xl';
-                      div.textContent = initials;
-                      parent.appendChild(div);
-                    }
-                  }
-                }}
+              <CompanyLogo 
+                companyName={company.name}
+                website={company.website || company.companyWebsite}
+                size={112}
+                className="w-full h-full rounded-xl"
               />
             </div>
             

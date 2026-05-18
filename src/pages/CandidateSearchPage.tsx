@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CandidateProfileView from './CandidateProfileView';
 import { apiFetch } from '../api/apiFetch';
+import { searchAccuracy } from '../utils/searchAccuracy';
 
 interface Candidate {
   _id: string;
@@ -429,17 +430,32 @@ return (
                         value={selectedSkill}
                         onChange={(e) => {
                           setSelectedSkill(e.target.value);
-                          const filtered = allSkills.filter(skill =>
-                            skill.toLowerCase().includes(e.target.value.toLowerCase())
-                          ).slice(0, 50);
-                          setSkillSuggestions(filtered);
-                          setShowSkillSuggestions(true);
+                          if (e.target.value.length >= 1) {
+                            const filtered = searchAccuracy.getAccurateMatches(
+                              e.target.value, 
+                              allSkills, 
+                              'skill'
+                            ).slice(0, 12).map(m => m.item);
+                            setSkillSuggestions(filtered);
+                            setShowSkillSuggestions(true);
+                          } else {
+                            const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'];
+                            setSkillSuggestions(popularSkills);
+                            setShowSkillSuggestions(true);
+                          }
                         }}
                         onFocus={() => {
-                          const filtered = selectedSkill
-                            ? allSkills.filter(s => s.toLowerCase().includes(selectedSkill.toLowerCase())).slice(0, 50)
-                            : allSkills.slice(0, 50);
-                          setSkillSuggestions(filtered);
+                          if (selectedSkill) {
+                            const filtered = searchAccuracy.getAccurateMatches(
+                              selectedSkill, 
+                              allSkills, 
+                              'skill'
+                            ).slice(0, 12).map(m => m.item);
+                            setSkillSuggestions(filtered);
+                          } else {
+                            const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'];
+                            setSkillSuggestions(popularSkills);
+                          }
                           setShowSkillSuggestions(true);
                         }}
                         onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
@@ -476,17 +492,30 @@ return (
                         value={selectedLocation}
                         onChange={(e) => {
                           setSelectedLocation(e.target.value);
-                          const filtered = allLocations.filter(location =>
-                            location.toLowerCase().includes(e.target.value.toLowerCase())
-                          ).slice(0, 50);
-                          setLocationSuggestions(filtered);
-                          setShowLocationSuggestions(true);
+                          if (e.target.value.length >= 1) {
+                            const filtered = searchAccuracy.getLocationMatches(
+                              e.target.value, 
+                              allLocations
+                            ).slice(0, 12);
+                            setLocationSuggestions(filtered);
+                            setShowLocationSuggestions(true);
+                          } else {
+                            const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'];
+                            setLocationSuggestions(popularLocations);
+                            setShowLocationSuggestions(true);
+                          }
                         }}
                         onFocus={() => {
-                          const filtered = selectedLocation
-                            ? allLocations.filter(l => l.toLowerCase().includes(selectedLocation.toLowerCase())).slice(0, 50)
-                            : allLocations.slice(0, 50);
-                          setLocationSuggestions(filtered);
+                          if (selectedLocation) {
+                            const filtered = searchAccuracy.getLocationMatches(
+                              selectedLocation, 
+                              allLocations
+                            ).slice(0, 12);
+                            setLocationSuggestions(filtered);
+                          } else {
+                            const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'];
+                            setLocationSuggestions(popularLocations);
+                          }
                           setShowLocationSuggestions(true);
                         }}
                         onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
