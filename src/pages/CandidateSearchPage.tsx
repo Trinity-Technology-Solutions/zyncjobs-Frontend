@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot } from 'lucide-react';
+import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot, Download } from 'lucide-react';
 import { tokenStorage } from '../utils/tokenStorage';
 import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
@@ -29,6 +29,7 @@ interface Candidate {
   languages?: string;
   employment?: any;
   certifications?: any;
+  resumeUrl?: string;
   // AI computed
   aiScore?: number;
   matchedSkills?: string[];
@@ -237,7 +238,11 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             }
           }
           
-          return { ...c, _id: c._id || c.id, profilePhoto };
+          const resumeUrl = c.resumeUrl ||
+            (c.resume && typeof c.resume === 'object'
+              ? (c.resume.url || c.resume.fileUrl || (c.resume.filename ? `${API_ENDPOINTS.BASE_URL}/uploads/${c.resume.filename}` : ''))
+              : c.resume) || '';
+          return { ...c, _id: c._id || c.id, profilePhoto, resumeUrl };
         });
       setCandidates(filtered);
       setTotalCandidates(filtered.length);
@@ -321,6 +326,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       name: getCandidateName(candidate),
       email: candidate.email || '',
       skills: candidate.skills || [],
+      resumeUrl: candidate.resumeUrl || '',
     }));
     setViewingCandidateId(cid);
   };
@@ -818,6 +824,19 @@ return (
                     >
                       View Profile
                     </button>
+                    {candidate.resumeUrl && (
+                      <a
+                        href={candidate.resumeUrl}
+                        download={`${getCandidateName(candidate).replace(/\s+/g, '_')}_Resume.pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700 text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors flex-shrink-0"
+                        title="Download Resume"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span className="sm:hidden">Resume</span>
+                      </a>
+                    )}
                     <div className="relative w-full sm:w-auto" data-contact-menu>
                       <button
                         onClick={() => setOpenContactMenu(openContactMenu === candidate._id ? null : candidate._id)}

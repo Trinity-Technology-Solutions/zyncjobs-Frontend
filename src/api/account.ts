@@ -129,14 +129,11 @@ export const accountAPI = {
 
   async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<AccountAPIResponse> {
     try {
-      const url = `${API}/users/${userId}/password`;
-      console.log('🔐 Calling password update:', url);
-      const res = await fetch(url, {
+      const res = await apiFetch(`${API}/users/${userId}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      console.log('🔐 Password update response status:', res.status);
       if (res.ok) return { success: true, message: 'Password updated successfully!' };
       const data = await res.json().catch(() => ({}));
       return { success: false, message: data.error || `Server error: ${res.status}` };

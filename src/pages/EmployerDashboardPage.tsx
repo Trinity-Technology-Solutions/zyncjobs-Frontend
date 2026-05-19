@@ -710,7 +710,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="bg-gray-50 flex flex-col lg:flex-row" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
+    <div className="flex flex-col lg:flex-row bg-gray-50" style={{height: 'calc(100vh - 64px)', overflow: 'hidden', maxWidth: '100vw'}}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
@@ -730,8 +730,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
+      {/* Sidebar — fixed height, scrolls independently */}
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:relative top-0 left-0 h-screen lg:h-full ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -929,8 +929,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 bg-gray-50 min-w-0">
+      {/* Main Content — scrolls independently */}
+      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto h-full">
         {/* Top bar with Back Button */}
         <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
