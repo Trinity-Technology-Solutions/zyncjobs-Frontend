@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Users, UserX, Mail, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Upload, Users, UserX, Mail, ChevronRight, Copy } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { S3Service } from '../../../services/s3Service';
+import { apiFetch } from '../../../api/apiFetch';
 
 const getToken = () =>
   sessionStorage.getItem('adminToken') ||
   sessionStorage.getItem('accessToken') ||
-  localStorage.getItem('accessToken') || '';
-
-// Helper function for API calls
-const apiFetch = async (url: string, options: RequestInit = {}) => {
-  return fetch(url, options);
-};
+  localStorage.getItem('accessToken') ||
+  localStorage.getItem('adminToken') || '';
 
 type SubPage = 'upload' | 'extracted' | 'internal' | 'email';
 
@@ -19,8 +16,9 @@ interface Props {
   onUnauthorized: () => void;
 }
 
-export default function TalentPoolSection({ onUnauthorized }: Props) {
+export default function TalentPoolSection({ onUnauthorized: _onUnauthorized }: Props) {
   const [subPage, setSubPage] = useState<SubPage>('upload');
+  const [lastUploadAt, setLastUploadAt] = useState(0);
   const [globalProcessingStatus, setGlobalProcessingStatus] = useState<{
     isProcessing: boolean;
     status: string;
@@ -118,8 +116,8 @@ export default function TalentPoolSection({ onUnauthorized }: Props) {
       </div>
 
       {/* Sub Pages — keep all mounted to preserve state */}
-      <div className={subPage === 'upload'    ? '' : 'hidden'}><UploadPage /></div>
-      <div className={subPage === 'extracted' ? '' : 'hidden'}><ExtractedPage /></div>
+      <div className={subPage === 'upload'    ? '' : 'hidden'}><UploadPage onUploadDone={() => setLastUploadAt(Date.now())} /></div>
+      <div className={subPage === 'extracted' ? '' : 'hidden'}><ExtractedPage lastUploadAt={lastUploadAt} /></div>
       <div className={subPage === 'internal'  ? '' : 'hidden'}><InternalPage /></div>
       <div className={subPage === 'email'     ? '' : 'hidden'}><BulkEmailPage /></div>
     </div>
@@ -158,7 +156,7 @@ function loadProcessingState(): ProcessingState | null {
 }
 
 /* ─── 1. Upload Page ─────────────────────────────────────────── */
-function UploadPage() {
+function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -191,6 +189,10 @@ function UploadPage() {
   const [errors, setErrors] = useState(0);
   const [currentChunk, setCurrentChunk] = useState(0);
   const [totalChunks, setTotalChunks] = useState(0);
+  const [failedFiles, setFailedFiles] = useState<File[]>([]);
+  const [failedFileNames, setFailedFileNames] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('talentPool_failedNames') || '[]'); } catch { return []; }
+  });
   const inputRef = React.useRef<HTMLInputElement>(null);
   const folderRef = React.useRef<HTMLInputElement>(null);
   const CHUNK = 10;
@@ -222,30 +224,48 @@ function UploadPage() {
   }, []);
 
 
-  const handleProcess = async () => {
-    if (!files.length) return;
+  const handleRetryFailed = () => {
+    if (!failedFiles.length) return;
+    setFiles(failedFiles);
+    setFailedFiles([]);
+    setFailedFileNames([]);
+    localStorage.removeItem('talentPool_failedNames');
+    setDone(false);
+    setResults([]);
+    setErrors(0);
+    setProgress(0);
+  };
+
+  const handleProcess = async (filesToProcess = files) => {
+    if (!filesToProcess.length) return;
     setUploading(true);
     setProgress(0);
     setDone(false);
     setResults([]);
     setErrors(0);
+    setFailedFiles([]);
+    setFailedFileNames([]);
+    localStorage.removeItem('talentPool_failedNames');
     setCurrentChunk(0);
     setTotalChunks(0);
 
     const token = getToken();
     const chunkList: File[][] = [];
-    for (let i = 0; i < files.length; i += CHUNK) chunkList.push(files.slice(i, i + CHUNK));
+    for (let i = 0; i < filesToProcess.length; i += CHUNK) chunkList.push(filesToProcess.slice(i, i + CHUNK));
     const total = chunkList.length;
     setTotalChunks(total);
     const allResults: any[] = [];
     let errCount = 0;
 
-    saveProcessingState({ isProcessing: true, progress: 0, status: 'Starting upload...', currentChunk: 0, totalChunks: total, processed: 0, errors: 0 });
+    saveProcessingState({ isProcessing: true, done: false, progress: 0, status: 'Starting upload...', currentChunk: 0, totalChunks: total, processed: 0, errors: 0 });
     
     for (let i = 0; i < chunkList.length; i++) {
       setCurrentChunk(i + 1);
       const chunk = chunkList[i];
       
+      // Track File objects that fail so we can retry them
+      const chunkFailedFiles: File[] = [];
+
       // First upload each file to S3
       const s3UploadPromises = chunk.map(async (file) => {
         try {
@@ -269,6 +289,7 @@ function UploadPage() {
       // Add failed uploads to results
       failedUploads.forEach(failed => {
         allResults.push({ file: failed.file.name, status: 'error', error: failed.error });
+        chunkFailedFiles.push(failed.file);
         errCount++;
       });
       
@@ -276,7 +297,7 @@ function UploadPage() {
         // Send S3 URLs to backend for processing
         const fd = new FormData();
         successfulUploads.forEach(upload => {
-          fd.append('resumeUrls', upload.s3Url);
+          fd.append('resumeUrls', upload.s3Url ?? '');
           fd.append('fileNames', upload.file.name);
         });
         fd.append('source', 'admin_talent_pool');
@@ -291,21 +312,32 @@ function UploadPage() {
           
           if (res.ok) {
             allResults.push(...(data.results || []));
-            errCount += (data.results || []).filter((r: any) => r.status === 'error').length;
+            const backendErrors = (data.results || []).filter((r: any) => r.status === 'error');
+            errCount += backendErrors.length;
+            backendErrors.forEach((r: any) => {
+              const f = successfulUploads.find(u => u.file.name === r.file);
+              if (f) chunkFailedFiles.push(f.file);
+            });
           } else {
             successfulUploads.forEach(upload => {
               allResults.push({ file: upload.file.name, status: 'error', error: data.error || 'Processing failed' });
+              chunkFailedFiles.push(upload.file);
               errCount++;
             });
           }
         } catch {
           successfulUploads.forEach(upload => {
             allResults.push({ file: upload.file.name, status: 'error', error: 'Network error' });
+            chunkFailedFiles.push(upload.file);
             errCount++;
           });
         }
       }
       
+      setFailedFiles(prev => [...prev, ...chunkFailedFiles]);
+      const newFailedNames = [...failedFileNames, ...chunkFailedFiles.map(f => f.name)];
+      setFailedFileNames(newFailedNames);
+      localStorage.setItem('talentPool_failedNames', JSON.stringify(newFailedNames));
       const pct = Math.round(((i + 1) / total) * 100);
       const processedCount = allResults.filter((r: any) => r.status === 'ok').length;
       setProgress(pct);
@@ -328,6 +360,7 @@ function UploadPage() {
     setUploading(false);
     setDone(true);
     setBackgroundProcessing(false);
+    onUploadDone();
   };
 
   return (
@@ -467,16 +500,47 @@ function UploadPage() {
         </div>
       )}
 
+      {/* Persistent failed files panel — survives refresh */}
+      {!done && failedFileNames.length > 0 && (
+        <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-red-400">⚠️ {failedFileNames.length} file(s) failed in last session</p>
+            <button
+              onClick={() => { setFailedFileNames([]); localStorage.removeItem('talentPool_failedNames'); }}
+              className="text-xs text-gray-500 hover:text-gray-300">Dismiss</button>
+          </div>
+          <p className="text-xs text-gray-400">Re-select these files and upload again to retry:</p>
+          <div className="max-h-24 overflow-y-auto space-y-0.5">
+            {failedFileNames.slice(0, 20).map((name, i) => (
+              <p key={i} className="text-xs text-red-400 truncate">• {name}</p>
+            ))}
+            {failedFileNames.length > 20 && <p className="text-xs text-gray-500">...and {failedFileNames.length - 20} more</p>}
+          </div>
+        </div>
+      )}
+
       {done && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 bg-emerald-900/30 border border-emerald-700/50 text-emerald-400 rounded-xl px-4 py-3 text-sm">
             ✅ {results.filter((r:any) => r.status === 'ok').length} resumes parsed. {errors > 0 ? `${errors} failed.` : ''} Go to "Extracted Candidates" tab.
           </div>
-          {results.filter((r:any) => r.status === 'error').length > 0 && (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 max-h-32 overflow-y-auto">
-              {results.filter((r:any) => r.status === 'error').map((r:any, i:number) => (
-                <p key={i} className="text-xs text-red-400">{r.file}: {r.error}</p>
-              ))}
+          {failedFiles.length > 0 && (
+            <div className="bg-red-900/20 border border-red-700/50 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-red-400">⚠️ {failedFiles.length} file(s) failed to parse</p>
+                <button
+                  onClick={handleRetryFailed}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-600 hover:bg-orange-500 text-white text-xs font-semibold rounded-lg transition-colors"
+                >
+                  <Upload className="w-3 h-3" />
+                  Retry {failedFiles.length} Failed File(s)
+                </button>
+              </div>
+              <div className="max-h-28 overflow-y-auto space-y-1">
+                {results.filter((r:any) => r.status === 'error').map((r:any, i:number) => (
+                  <p key={i} className="text-xs text-red-400 truncate">• {r.file}: {r.error}</p>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -484,7 +548,7 @@ function UploadPage() {
 
       {/* Process Button */}
       <button
-        onClick={handleProcess}
+        onClick={() => handleProcess()}
         disabled={!files.length || uploading}
         className="w-full py-3 bg-gradient-to-r from-blue-600 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
@@ -499,28 +563,81 @@ function UploadPage() {
 }
 
 /* ─── 2. Extracted Candidates Page ──────────────────────────── */
-function ExtractedPage() {
+function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Parsed' | 'Error'>('all');
+  const [showDuplicates, setShowDuplicates] = useState(false);
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [viewResume, setViewResume] = useState<any | null>(null);
   const isProcessing = loadProcessingState()?.isProcessing ?? false;
 
-  const fetchCandidates = () => {
+  // Group duplicates by email (primary) or name+phone (fallback)
+  const duplicateGroups = useMemo(() => {
+    const emailMap = new Map<string, any[]>();
+    const namePhoneMap = new Map<string, any[]>();
+    candidates.forEach(c => {
+      const email = (c.email || '').trim().toLowerCase();
+      const namePhone = `${(c.name || '').trim().toLowerCase()}||${(c.phone || '').trim()}`;
+      if (email) {
+        if (!emailMap.has(email)) emailMap.set(email, []);
+        emailMap.get(email)!.push(c);
+      } else if ((c.name || '').trim() && (c.phone || '').trim()) {
+        if (!namePhoneMap.has(namePhone)) namePhoneMap.set(namePhone, []);
+        namePhoneMap.get(namePhone)!.push(c);
+      }
+    });
+    const groups: any[][] = [];
+    emailMap.forEach(g => { if (g.length > 1) groups.push(g); });
+    namePhoneMap.forEach(g => { if (g.length > 1) groups.push(g); });
+    return groups;
+  }, [candidates]);
+
+  const duplicateIds = useMemo(() => {
+    // For each group keep the first (oldest), mark rest as duplicates
+    const ids = new Set<string>();
+    duplicateGroups.forEach(g => g.slice(1).forEach(c => ids.add(c.id)));
+    return ids;
+  }, [duplicateGroups]);
+
+  const deleteSingleDuplicate = async (id: string) => {
+    setDeletingIds(prev => new Set(prev).add(id));
     const token = getToken();
-    fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => setCandidates(d.candidates || []))
-      .catch(() => {})
+    await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    setCandidates(prev => prev.filter(c => c.id !== id));
+    setDeletingIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+  };
+
+  const deleteAllDuplicates = async () => {
+    if (!duplicateIds.size) return;
+    if (!confirm(`Delete ${duplicateIds.size} duplicate entries? The first occurrence of each will be kept.`)) return;
+    const token = getToken();
+    setDeletingIds(new Set(duplicateIds));
+    await Promise.all(Array.from(duplicateIds).map(id =>
+      apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } })
+    ));
+    setCandidates(prev => prev.filter(c => !duplicateIds.has(c.id)));
+    setDeletingIds(new Set());
+  };
+
+  const fetchCandidates = () => {
+    apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => setCandidates(Array.isArray(d) ? d : (d.candidates || [])))
+      .catch((err) => console.error('ExtractedPage fetch error:', err))
       .finally(() => setLoading(false));
   };
 
-  // Load on mount
+  // Load on mount + re-fetch whenever a new upload completes
   useEffect(() => {
     setLoading(true);
     fetchCandidates();
-  }, []);
+  }, [lastUploadAt]);
 
   // Auto-poll every 8s while processing is active
   useEffect(() => {
@@ -529,12 +646,13 @@ function ExtractedPage() {
     return () => clearInterval(interval);
   }, [isProcessing]);
 
-  const filtered = candidates.filter(c =>
-    !search ||
-    (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.skills || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = candidates.filter(c => {
+    if (statusFilter !== 'all' && c.status !== statusFilter) return false;
+    return !search ||
+      (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.email || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c.skills || '').toLowerCase().includes(search.toLowerCase());
+  });
 
   const toggleSelect = (id: string) =>
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
@@ -543,6 +661,7 @@ function ExtractedPage() {
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
 
   const deleteCandidate = async (id: string) => {
+    if (!confirm('Delete this candidate? This cannot be undone.')) return;
     const token = getToken();
     await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
@@ -564,17 +683,86 @@ function ExtractedPage() {
           <button onClick={fetchCandidates} className="ml-auto text-xs text-blue-400 hover:text-blue-300 underline">Refresh now</button>
         </div>
       )}
+      {/* Duplicate Finder Panel */}
+      {showDuplicates && (
+        <div className="bg-gray-900 border border-orange-700/50 rounded-xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-orange-700/30 bg-orange-900/20">
+            <div className="flex items-center gap-2">
+              <Copy className="w-4 h-4 text-orange-400" />
+              <p className="text-sm font-semibold text-orange-300">
+                {duplicateGroups.length === 0 ? 'No duplicates found ✅' : `${duplicateGroups.length} duplicate group(s) — ${duplicateIds.size} extra entries`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {duplicateIds.size > 0 && (
+                <button
+                  onClick={deleteAllDuplicates}
+                  className="text-xs px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-semibold rounded-lg transition-colors"
+                >
+                  🗑️ Delete All {duplicateIds.size} Duplicates
+                </button>
+              )}
+              <button onClick={() => setShowDuplicates(false)} className="text-gray-400 hover:text-white text-lg">×</button>
+            </div>
+          </div>
+          {duplicateGroups.length > 0 && (
+            <div className="divide-y divide-gray-800 max-h-96 overflow-y-auto">
+              {duplicateGroups.map((group, gi) => (
+                <div key={gi} className="px-5 py-3 space-y-2">
+                  <p className="text-xs text-orange-400 font-medium">
+                    Group {gi + 1} — matched by: {(group[0].email || '').trim() ? 'email' : 'name + phone'}
+                  </p>
+                  {group.map((c, ci) => (
+                    <div key={c.id} className={`flex items-center justify-between rounded-lg px-3 py-2 ${
+                      ci === 0 ? 'bg-emerald-900/20 border border-emerald-700/30' : 'bg-red-900/10 border border-red-700/20'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          ci === 0 ? 'bg-emerald-800/50 text-emerald-300' : 'bg-red-800/50 text-red-300'
+                        }`}>{ci === 0 ? 'Keep' : 'Duplicate'}</span>
+                        <div>
+                          <p className="text-sm text-gray-200">{c.name || '—'}</p>
+                          <p className="text-xs text-gray-500">{c.email || '—'} · {c.phone || '—'}</p>
+                        </div>
+                      </div>
+                      {ci !== 0 && (
+                        <button
+                          onClick={() => deleteSingleDuplicate(c.id)}
+                          disabled={deletingIds.has(c.id)}
+                          className="text-xs px-2 py-1 bg-red-900/40 hover:bg-red-900/70 text-red-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {deletingIds.has(c.id) ? '...' : 'Delete'}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Total Extracted', val: candidates.length, color: 'text-blue-400' },
-          { label: 'Parsed OK',       val: candidates.filter(c => c.status === 'Parsed').length, color: 'text-emerald-400' },
-          { label: 'Errors',          val: candidates.filter(c => c.status === 'Error').length,  color: 'text-red-400' },
-        ].map(({ label, val, color }) => (
-          <div key={label} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
+          { label: 'Total Extracted', val: candidates.length,                                        color: 'text-blue-400',    filter: 'all'    as const },
+          { label: 'Parsed OK',       val: candidates.filter(c => c.status === 'Parsed').length,     color: 'text-emerald-400', filter: 'Parsed' as const },
+          { label: 'Errors',          val: candidates.filter(c => c.status === 'Error').length,      color: 'text-red-400',     filter: 'Error'  as const },
+        ].map(({ label, val, color, filter }) => (
+          <button
+            key={label}
+            onClick={() => setStatusFilter(prev => prev === filter ? 'all' : filter)}
+            className={`bg-gray-900 border rounded-xl p-4 text-center transition-all hover:border-gray-600 ${
+              statusFilter === filter ? 'border-gray-500 ring-1 ring-gray-500' : 'border-gray-800'
+            }`}
+          >
             <p className={`text-2xl font-bold ${color}`}>{val}</p>
             <p className="text-xs text-gray-400 mt-1">{label}</p>
-          </div>
+            {statusFilter === filter && filter !== 'all' && (
+              <p className="text-xs text-gray-500 mt-1">click to clear filter</p>
+            )}
+          </button>
         ))}
       </div>
 
@@ -587,6 +775,17 @@ function ExtractedPage() {
           onChange={e => setSearch(e.target.value)}
           className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
+        <button
+          onClick={() => setShowDuplicates(v => !v)}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            duplicateGroups.length > 0
+              ? 'bg-orange-600/20 border border-orange-600/50 text-orange-300 hover:bg-orange-600/30'
+              : 'bg-gray-700 text-gray-400 hover:text-white hover:bg-gray-600'
+          }`}
+        >
+          <Copy className="w-4 h-4" />
+          Find Duplicates {duplicateGroups.length > 0 && `(${duplicateGroups.length})`}
+        </button>
         <button
           onClick={toggleAll}
           className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm font-medium rounded-lg transition-colors"
@@ -727,11 +926,13 @@ function InternalPage() {
 
   useEffect(() => {
     setLoading(true);
-    const token = getToken();
-    fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
-      .then(d => setCandidates(d.candidates || []))
-      .catch(() => setCandidates([]))
+    apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(d => setCandidates(Array.isArray(d) ? d : (d.candidates || [])))
+      .catch((err) => { console.error('InternalPage fetch error:', err); setCandidates([]); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -749,6 +950,7 @@ function InternalPage() {
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
 
   const deleteCandidate = async (id: string) => {
+    if (!confirm('Delete this candidate? This cannot be undone.')) return;
     const token = getToken();
     await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
     setCandidates(prev => prev.filter(c => c.id !== id));
@@ -1045,12 +1247,14 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
   };
 
   useEffect(() => {
-    const token = getToken();
     const queuedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('talentPool_emailQueue') || '[]'); } catch { return []; } })();
-    fetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`, { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
+    apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`)
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then(d => {
-        const all = (d.candidates || []).map((c: any) => ({
+        const all = (Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({
           ...c,
           name: typeof c.name === 'object' ? (c.name?.name || c.name?.first || '') : c.name,
         }));
@@ -1074,7 +1278,17 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
   const toggleAll = () =>
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
 
-  const selectedList = candidates.filter(c => selected.has(c.id));
+  // Deduplicate selected list by email before sending
+  const selectedList = useMemo(() => {
+    const seen = new Set<string>();
+    return candidates.filter(c => {
+      if (!selected.has(c.id)) return false;
+      const key = (c.email || '').trim().toLowerCase() || c.id;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [candidates, selected]);
 
   const handleSend = async () => {
     if (!selectedList.length) return;
@@ -1110,16 +1324,26 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
     setDone(true);
   };
 
-  const progress = selectedList.length > 0 ? Math.round((sentCount / selectedList.length) * 100) : 0;
+  const rawSelectedCount = candidates.filter(c => selected.has(c.id)).length;
+  const dedupedCount = selectedList.length;
+  const progress = dedupedCount > 0 ? Math.round((sentCount / dedupedCount) * 100) : 0;
 
   return (
     <div className="space-y-5">
+      {rawSelectedCount > dedupedCount && (
+        <div className="flex items-center gap-3 bg-orange-900/20 border border-orange-700/40 rounded-xl px-4 py-3">
+          <Copy className="w-4 h-4 text-orange-400 shrink-0" />
+          <p className="text-orange-300 text-sm">
+            <span className="font-semibold">{rawSelectedCount - dedupedCount} duplicate email(s) removed</span> from send list — {dedupedCount} unique recipients will receive the email.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-4 gap-4">
         {[
           { label: 'Total Candidates', val: candidates.length,   color: 'text-blue-400'    },
-          { label: 'Selected',         val: selected.size,        color: 'text-purple-400'  },
-          { label: 'Sent This Session',val: sentCount,            color: 'text-emerald-400' },
-          { label: 'Remaining',        val: Math.max(0, selected.size - sentCount), color: 'text-orange-400' },
+          { label: 'Selected',         val: dedupedCount,          color: 'text-purple-400'  },
+          { label: 'Sent This Session',val: sentCount,                          color: 'text-emerald-400' },
+          { label: 'Remaining',        val: Math.max(0, dedupedCount - sentCount), color: 'text-orange-400' },
         ].map((stat) => (
           <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
             <p className={`text-2xl font-bold ${stat.color}`}>{stat.val}</p>
@@ -1241,7 +1465,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
             <span className="text-gray-300 font-medium">
               {done ? '✅ Sending complete!' : `Batch ${currentBatch} of ${totalBatches} — sending...`}
             </span>
-            <span className="text-gray-400">{sentCount} / {selectedList.length} sent ({progress}%)</span>
+            <span className="text-gray-400">{sentCount} / {dedupedCount} sent ({progress}%)</span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-3">
             <div

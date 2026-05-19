@@ -482,10 +482,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             </div>
             
             <div className="mt-4 lg:mt-0 flex flex-wrap items-center gap-2 sm:gap-3">
-              {/* Always show share button for testing */}
               <button 
                 onClick={() => setShowShareModal(true)}
-                className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-2"
+                className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-2 text-sm"
               >
                 <Share2 className="w-4 h-4" />
                 <span>Share</span>
@@ -493,18 +492,18 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               
               {/* Apply buttons - Hide for employers */}
               {user?.type !== 'employer' && user?.userType !== 'employer' && (
-                <div className="flex items-center space-x-3">
+                <div className="flex flex-wrap items-center gap-2">
                   {hasApplied ? (
                     applicationStatus === 'withdrawn' ? (
                       <button 
                         onClick={handleReapply}
-                        className="bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2"
+                        className="bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm"
                       >
                         <CheckCircle className="w-4 h-4" />
                         <span>Reapply</span>
                       </button>
                     ) : (
-                      <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-6 py-3 rounded-lg font-semibold">
+                      <div className="flex items-center space-x-2 bg-green-100 text-green-800 px-4 py-2.5 rounded-lg font-semibold text-sm">
                         <CheckCircle className="w-4 h-4" />
                         <span>Applied</span>
                       </div>
@@ -564,7 +563,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             onNavigate('login');
                           }
                         }}
-                        className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                        className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm whitespace-nowrap"
                       >
                         {user && (user.name || user.fullName) ? 'Apply with Cover Letter' : 'Login to Apply'}
                       </button>

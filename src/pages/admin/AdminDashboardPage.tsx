@@ -11,8 +11,7 @@ import {
 } from 'recharts';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
-import { apiRequest } from '../../api/enhancedApiFetch';
-import { handleApiError } from '../../utils/enhancedErrorHandler';
+import { apiFetch } from '../../api/apiFetch';
 import { BackendStatusIndicator } from '../../utils/backendMonitor';
 import { isSuperAdmin, hasPermission, PERMISSIONS } from '../../utils/rolePermissions';
 import UserDetailsModal from './sections/UserDetailsModal';
@@ -99,31 +98,26 @@ function authHeaders() {
 
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
   try {
-    const response = await apiRequest(url, {
+    const response = await apiFetch(url, {
       ...options,
       headers: { ...authHeaders(), ...(options.headers || {}) }
-    }, { maxRetries: 2, retryOn5xx: true });
+    });
 
-    if (!response.success) {
-      if (response.error?.includes('401') || response.error?.includes('Authentication')) {
-        tokenStorage.clear();
-        onUnauthorized?.();
-        throw new Error('UNAUTHORIZED');
-      }
-      throw new Error(response.error || 'API request failed');
+    if (response.status === 401) {
+      tokenStorage.clear();
+      onUnauthorized?.();
+      throw new Error('UNAUTHORIZED');
     }
 
-    return response.data;
-  } catch (error) {
-    const errorInfo = handleApiError(error, 'admin-api');
-    
-    if (errorInfo.isServerError || errorInfo.isNetworkError) {
-      console.warn('Admin API error:', errorInfo.message);
-      // Don't throw for server errors, return empty data instead
-      return {};
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
     }
-    
-    throw error;
+
+    return await response.json();
+  } catch (error: any) {
+    if (error.message === 'UNAUTHORIZED') throw error;
+    console.warn('Admin API error:', error.message);
+    return {};
   }
 }
 

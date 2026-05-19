@@ -53,6 +53,7 @@ interface JobData {
   
   // Step 5: Qualifications
   skills: string[];
+  goodToHaveSkills: string[];
   educationLevel: string;
   certifications: string[];
   
@@ -60,6 +61,7 @@ interface JobData {
   jobDescription: string;
   responsibilities: string[];
   requirements: string[];
+  noticePeriod: string;
   
   // Company Information
   companyName: string;
@@ -87,29 +89,25 @@ const snapToDropdownYear = (n: number, isMax: boolean): string => {
 
 const extractExperienceFromText = (text: string): string => {
   if (!text) return '';
+  // Only match lines/phrases that are clearly about experience years — not random sentences
   const patterns = [
-    /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
-    /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
-    /minimum\s+(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)/i,
-    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*(?:years?|yrs?)/i,
-    /(\d+)\+\s*(?:years?|yrs?)/i,
-    /(\d+)\s*(?:years?|yrs?)\s+(?:of\s+)?experience/i,
-    /experience\s*[:\-]?\s*(\d+)\s*[-–to]+\s*(\d+)/i,
-    /experience\s*[:\-]?\s*(\d+)\+?/i,
+    /(?:experience\s+required|experience)[:\s]*?(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:experience\s+required|experience)[:\s]*?(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)/i,
+    /(\d+)\s*[-–]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+    /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-–to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+    /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+    /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
   ];
   for (const pattern of patterns) {
     const match = text.match(pattern);
     if (match) {
-      if (match[1] && match[2]) {
-        const min = snapToDropdownYear(parseInt(match[1]), false);
-        const max = snapToDropdownYear(parseInt(match[2]), true);
-        return `${min} - ${max}`;
+      const a = parseInt(match[1]), b = match[2] ? parseInt(match[2]) : NaN;
+      if (!isNaN(a) && a <= 40 && !isNaN(b) && b <= 40 && b >= a) {
+        return `${snapToDropdownYear(a, false)} - ${snapToDropdownYear(b, true)}`;
       }
-      if (match[1]) {
-        const n = parseInt(match[1]);
-        const min = snapToDropdownYear(n, false);
-        const max = snapToDropdownYear(Math.min(n + 2, 25), true);
-        return `${min} - ${max}`;
+      if (!isNaN(a) && a <= 40) {
+        return `${snapToDropdownYear(a, false)} - ${snapToDropdownYear(Math.min(a + 2, 25), true)}`;
       }
     }
   }
@@ -303,13 +301,48 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       return /^(remote|hybrid)$/i.test(loc.trim()) ? loc : loc;
     })(),
     expandCandidateSearch: false,
-    experienceRange: editJob?.experienceRange || editJob?.experience || editJob?.experienceLevel || parsedData?.experienceRange || '',
+    experienceRange: (() => {
+      const raw = editJob?.experienceRange || editJob?.experience || editJob?.experienceLevel || parsedData?.experienceRange || '';
+      const snapMin = (n: number) => { const opts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20]; const c = opts.reduce((a,b) => Math.abs(b-n)<Math.abs(a-n)?b:a); return `${c} year${c!==1?'s':''}`; };
+      const snapMax = (n: number) => { const opts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25]; const c = opts.reduce((a,b) => Math.abs(b-n)<Math.abs(a-n)?b:a); return `${c} year${c!==1?'s':''}`; };
+      const normalize = (val: string) => {
+        const m = val.match(/(\d+)\s*[-\u2013\u2014to]+\s*(\d+)/);
+        if (m) return `${snapMin(parseInt(m[1]))} - ${snapMax(parseInt(m[2]))}`;
+        const s = val.match(/(\d+)/);
+        if (s) { const n = parseInt(s[1]); return `${snapMin(n)} - ${snapMax(Math.min(n+2,25))}`; }
+        return '';
+      };
+      // Only use raw if it actually contains year numbers (not garbage text)
+      if (raw && /\d+\s*[-\u2013\u2014to]+\s*\d+|\d+\+?\s*(?:years?|yrs?)/i.test(raw)) return normalize(raw);
+      // Fallback: parse directly from JD text
+      if (parsedData?.jobDescription) {
+        const jd = parsedData.jobDescription;
+        const labelMatch = jd.match(/experience\s+required\s*[:\-]?\s*([\d][\d\s\-\u2013\u2014to]*(?:years?|yrs?))/i);
+        if (labelMatch) return normalize(labelMatch[1]);
+        const rangeMatch = jd.match(/(\d+)\s*[-\u2013\u2014]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i);
+        if (rangeMatch) return normalize(rangeMatch[0]);
+      }
+      return '';
+    })(),
     country: editJob?.country || parsedData?.country || '',
     language: (() => {
       const lang = editJob?.language || editJob?.languages;
-      if (!lang) return [];
-      if (Array.isArray(lang)) return lang;
-      if (typeof lang === 'string' && lang.trim()) return lang.split(',').map((l: string) => l.trim()).filter(Boolean);
+      if (lang) {
+        if (Array.isArray(lang)) return lang;
+        if (typeof lang === 'string' && lang.trim()) return lang.split(',').map((l: string) => l.trim()).filter(Boolean);
+      }
+      // Auto-parse from JD/parsedData
+      if (parsedData?.jobDescription || parsedData?.requirements) {
+        const text = ((parsedData.jobDescription || '') + ' ' + (parsedData.requirements || '')).toLowerCase();
+        const langMap: Record<string, string> = {
+          english: 'English', hindi: 'Hindi', tamil: 'Tamil', telugu: 'Telugu',
+          kannada: 'Kannada', malayalam: 'Malayalam', marathi: 'Marathi',
+          bengali: 'Bengali', gujarati: 'Gujarati', punjabi: 'Punjabi'
+        };
+        return Object.entries(langMap)
+          .filter(([key]) => new RegExp(`\\b${key}\\b`).test(text))
+          .map(([, val]) => val);
+      }
       return [];
     })(),
     jobCategory: editJob?.jobCategory || editJob?.category || parsedData?.jobCategory || '',
@@ -317,6 +350,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     clientName: editJob?.clientName || parsedData?.clientName || '',
     jobCode: editJob?.jobCode || `JOB-${Date.now()}`,
     reportingManager: editJob?.reportingManager || parsedData?.reportingManager || '',
+    noticePeriod: parsedData?.noticePeriod || '',
     hiringTimeline: '',
     numberOfPeople: 0,
     workAuth: editJob?.workAuth || parsedData?.workAuth || [],
@@ -338,9 +372,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       ? (Array.isArray(editJob.requirements) ? editJob.requirements : editJob.requirements.split('\n').filter(Boolean))
       : parsedData?.requirements || [],
     skills: editJob?.skills || parsedData?.skills || [],
+    goodToHaveSkills: parsedData?.goodToHaveSkills || [],
     educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: editJob?.company || editJob?.companyName || sanitizeParsedCompany(parsedData?.companyName) || '',
+    companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || ''),
     companyLogo: editJob?.companyLogo || '',
     companyId: ''
   });
@@ -513,12 +548,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     }
   }, []);
 
-  // Auto-extract experience range from job description
+  // Auto-extract experience range from job description — only in manual mode when not already set
   useEffect(() => {
+    if (mode === 'parse') return;
     if (jobData.jobDescription && !jobData.experienceRange) {
       const extracted = extractExperienceFromText(jobData.jobDescription);
       if (extracted) updateJobData('experienceRange', extracted);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobData.jobDescription]);
 
   // Load countries on component mount
@@ -942,6 +979,21 @@ How to Apply
 If you are passionate about ${jobTitle.toLowerCase()} and meet the above requirements, we would love to hear from you. Apply now through ZyncJobs and take the next step in your career journey.`;
   };
 
+  // Extract bullet points from a named section in JD text
+  const extractSectionFromJD = (text: string, headings: string[]): string[] => {
+    for (const heading of headings) {
+      const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const match = text.match(new RegExp(`${escaped}\\s*\\n([\\s\\S]*?)(?=\\n[A-Z][^\\n]{2,}\\n|$)`, 'i'));
+      if (match) {
+        return match[1]
+          .split('\n')
+          .map(l => l.replace(/^[•\-\*\d+\.\)\s]+/, '').trim())
+          .filter(l => l.length > 10);
+      }
+    }
+    return [];
+  };
+
   // Auto-generate job description and populate skills/education
   const generateJobDescription = async (jobTitle: string, forceUpdate = false) => {
     if (!jobTitle || jobTitle.length < 3) return;
@@ -991,6 +1043,11 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         if (jobData.requirements.length === 0) updateJobData('requirements', titleRequirements);
       } else {
         updateJobData('skills', [...new Set([...jobData.skills, ...parsedSkills])].slice(0, 15));
+        // On regenerate, also extract responsibilities and requirements from the new JD
+        const extractedResp = extractSectionFromJD(jdText, ['Key Responsibilities', 'Responsibilities']);
+        const extractedReq = extractSectionFromJD(jdText, ['Requirements', 'Qualifications']);
+        if (extractedResp.length > 0) updateJobData('responsibilities', extractedResp);
+        if (extractedReq.length > 0) updateJobData('requirements', extractedReq);
       }
       setNotification({ type: 'success', message: 'Job description generated!', isVisible: true });
     } catch (error) {
@@ -1760,8 +1817,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
         if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
-        const languages = Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [];
-        if (languages.length === 0) return { isValid: false, message: 'At least one language is required' };
         break;
       case 2:
         // Step 2 is removed - no validation needed
@@ -2030,45 +2085,51 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           )}
         </div>
         
-        <div>
-          <label className="block text-gray-700 font-medium mb-3">Languages *</label>
-          <p className="text-gray-500 text-sm mb-3">Select all languages required for this position</p>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              'English', 'Tamil', 'Hindi', 'Spanish', 'French', 'German', 
-              'Mandarin', 'Japanese', 'Korean', 'Arabic', 'Portuguese', 'Russian'
-            ].map((lang) => (
-              <button
-                key={lang}
-                type="button"
-                onClick={() => {
-                  const currentLanguages = Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [];
-                  const newLanguages = currentLanguages.includes(lang)
-                    ? currentLanguages.filter(l => l !== lang)
-                    : [...currentLanguages, lang];
-                  updateJobData('language', newLanguages);
-                }}
-                className={`px-4 py-2 border rounded-lg text-sm transition-colors ${
-                  (Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : []).includes(lang)
-                    ? 'border-blue-600 text-blue-600 bg-blue-50'
-                    : 'border-gray-300 text-gray-700 hover:border-gray-400'
-                }`}
-              >
-                + {lang}
-              </button>
-            ))}
-          </div>
-          {Array.isArray(jobData.language) && jobData.language.length > 0 && (
-            <div className="mt-3">
-              <p className="text-sm text-gray-600">Selected: {jobData.language.join(', ')}</p>
-            </div>
-          )}
-        </div>
+
         
         <div>
+          <label className="block text-gray-700 font-medium mb-3">
+            Language(s) required{' '}
+            <span className="text-gray-400 font-normal text-sm">(optional)</span>
+            {Array.isArray(jobData.language) && jobData.language.length > 0 && mode === 'parse' && (
+              <span className="ml-2 text-xs text-green-600">✨ Auto-detected from JD</span>
+            )}
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {['English', 'Hindi', 'Tamil', 'Telugu', 'Kannada', 'Malayalam', 'Marathi', 'Bengali', 'Gujarati', 'Punjabi'].map((lang) => {
+              const selected = Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [];
+              return (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => {
+                    const newLangs = selected.includes(lang)
+                      ? selected.filter((l: string) => l !== lang)
+                      : [...selected, lang];
+                    updateJobData('language', newLangs);
+                  }}
+                  className={`px-4 py-2 border rounded-lg text-sm transition-colors ${
+                    selected.includes(lang)
+                      ? 'border-blue-600 text-blue-600 bg-blue-50'
+                      : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                  }`}
+                >
+                  {selected.includes(lang) ? '✓' : '+'} {lang}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
           <label className="block text-gray-700 font-medium mb-3">Experience Range</label>
-          {mode === 'parse' && jobData.experienceRange && (
+          {mode === 'parse' && jobData.experienceRange && /^\d+ years? - \d+ years?$/.test(jobData.experienceRange) && (
             <p className="text-xs text-green-600 mb-2">✨ Auto-extracted from JD: <strong>{jobData.experienceRange}</strong></p>
+          )}
+          {mode === 'parse' && jobData.noticePeriod && (
+            <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-3 py-2 mb-3">
+              📋 <strong>Note from JD:</strong> {jobData.noticePeriod}
+            </p>
           )}
           <div className="flex gap-4">
             <div className="flex-1">
@@ -2580,6 +2641,87 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </div>
             </div>
           )}
+
+          {/* Good to Have Skills Section */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-gray-700 font-medium">Good to Have Skills</h3>
+                <p className="text-xs text-gray-400 mt-0.5">Optional skills that are a bonus but not required</p>
+              </div>
+              {mode === 'parse' && parsedData?.goodToHaveSkills?.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const toAdd = parsedData.goodToHaveSkills.filter((s: string) => !jobData.goodToHaveSkills.includes(s));
+                    updateJobData('goodToHaveSkills', [...jobData.goodToHaveSkills, ...toAdd]);
+                  }}
+                  className="text-xs bg-amber-100 text-amber-700 border border-amber-300 px-3 py-1 rounded-lg hover:bg-amber-200 transition-colors"
+                >
+                  ✨ Import from JD ({parsedData.goodToHaveSkills.length})
+                </button>
+              )}
+            </div>
+
+            {/* Selected Good to Have tags */}
+            <div className="flex flex-wrap gap-2 mb-3">
+              {jobData.goodToHaveSkills.map((skill, index) => (
+                <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-amber-100 text-amber-800 border border-amber-200">
+                  {skill}
+                  <button
+                    type="button"
+                    onClick={() => updateJobData('goodToHaveSkills', jobData.goodToHaveSkills.filter((_, i) => i !== index))}
+                    className="ml-2 text-amber-600 hover:text-amber-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            {/* Good to Have input */}
+            <input
+              type="text"
+              placeholder="Type a good-to-have skill and press Enter..."
+              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const val = (e.target as HTMLInputElement).value.trim();
+                  if (val && !jobData.goodToHaveSkills.includes(val)) {
+                    updateJobData('goodToHaveSkills', [...jobData.goodToHaveSkills, val]);
+                  }
+                  (e.target as HTMLInputElement).value = '';
+                }
+              }}
+            />
+
+            {/* JD parsed good-to-have suggestions */}
+            {mode === 'parse' && parsedData?.goodToHaveSkills?.length > 0 && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs font-medium text-amber-700 mb-2">✨ From JD — click to add:</p>
+                <div className="flex flex-wrap gap-2">
+                  {parsedData.goodToHaveSkills.map((skill: string) => (
+                    <button
+                      key={skill}
+                      type="button"
+                      onClick={() => {
+                        if (!jobData.goodToHaveSkills.includes(skill))
+                          updateJobData('goodToHaveSkills', [...jobData.goodToHaveSkills, skill]);
+                      }}
+                      className={`px-3 py-1.5 border rounded-lg text-sm transition-colors ${
+                        jobData.goodToHaveSkills.includes(skill)
+                          ? 'border-amber-500 text-amber-700 bg-amber-100'
+                          : 'border-amber-300 text-amber-700 hover:bg-amber-100'
+                      }`}
+                    >
+                      {jobData.goodToHaveSkills.includes(skill) ? '✓' : '+'} {skill}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
         <div>
@@ -3014,7 +3156,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       responsibilities: (Array.isArray(jobData.responsibilities) ? jobData.responsibilities.filter(Boolean) : []).join('\n'),
       requirements: (Array.isArray(jobData.requirements) ? jobData.requirements.filter(Boolean) : []).join('\n'),
       skills: formatArrayField(jobData.skills),
-      experienceLevel: mapExperienceLevel(jobData.experienceRange),
+      goodToHaveSkills: formatArrayField(jobData.goodToHaveSkills),
       experienceRange: jobData.experienceRange || '',
       ...(shouldIncludeSalary && {
         salary: {
@@ -3081,6 +3223,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           jobLocation: '',
           expandCandidateSearch: false,
           experienceRange: '',
+          noticePeriod: '',
           country: '',
           language: '',
           jobCategory: '',
@@ -3102,6 +3245,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           responsibilities: [],
           requirements: [],
           skills: [],
+          goodToHaveSkills: [],
           educationLevel: "Bachelor's degree",
           certifications: [],
           companyName: '',
