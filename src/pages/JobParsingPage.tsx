@@ -77,7 +77,13 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
             parserResult.location
           ),
           jobType: extractJobType(description),
-          experienceRange: parserResult.experience || extractExperience(description),
+          experienceRange: (() => {
+            const exp = parserResult.experience || '';
+            // Only use if it contains actual year numbers, not garbage text
+            const hasNumbers = /\d+\s*[-\u2013\u2014to]+\s*\d+|\d+\+?\s*(?:years?|yrs?)/i.test(exp);
+            if (hasNumbers) return normalizeExperienceRange(exp);
+            return extractExperience(description);
+          })(),
           skills: parserResult.mandatorySkills.length > 0 ? parserResult.mandatorySkills : extractSkills(description),
           minSalary: parserResult.salary.min,
           maxSalary: parserResult.salary.max,
@@ -87,12 +93,13 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
           educationLevel: extractEducation(description),
           jobDescription: description,
           responsibilities: parserResult.responsibilities.length > 0 ? parserResult.responsibilities : extractResponsibilities(description),
-          requirements: parserResult.mandatorySkills.length > 0 ? parserResult.mandatorySkills : extractRequirements(description),
+          goodToHaveSkills: parserResult.goodToHaveSkills || [],
           jobCategory: extractJobCategory(description),
           priority: extractPriority(description),
           clientName: extractClientName(description),
           reportingManager: extractReportingManager(description),
           workAuth: extractWorkAuth(description),
+          noticePeriod: extractNoticePeriod(description),
           // Add confidence metadata for UI warnings
           _confidence: parserResult.confidence
         };
@@ -138,11 +145,12 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
           jobDescription:   d.description      || description,
           responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
           requirements:     d.requirements?.length     ? d.requirements    : extractRequirements(description),
-          jobCategory:      d.jobCategory      || extractJobCategory(description),
+          goodToHaveSkills: extractGoodToHaveSkills(description),
           priority:         d.priority         || extractPriority(description),
           clientName:       extractClientName(description),
           reportingManager: extractReportingManager(description),
           workAuth:         extractWorkAuth(description),
+          noticePeriod:     extractNoticePeriod(description),
         };
       }
     } catch {
@@ -201,11 +209,12 @@ ${description.slice(0, 2000)}`;
         jobDescription:   description,
         responsibilities: Array.isArray(d.responsibilities) && d.responsibilities.length ? d.responsibilities : extractResponsibilities(description),
         requirements:     Array.isArray(d.requirements) && d.requirements.length ? d.requirements : extractRequirements(description),
-        jobCategory:      d.jobCategory      || extractJobCategory(description),
+        goodToHaveSkills: extractGoodToHaveSkills(description),
         priority:         extractPriority(description),
         clientName:       extractClientName(description),
         reportingManager: extractReportingManager(description),
         workAuth:         extractWorkAuth(description),
+        noticePeriod:     extractNoticePeriod(description),
       };
     } catch {
       // Final fallback: pure regex
@@ -235,11 +244,12 @@ ${description.slice(0, 2000)}`;
       jobDescription:   description,
       responsibilities: extractResponsibilities(description),
       requirements:     extractRequirements(description),
-      jobCategory:      extractJobCategory(description),
+      goodToHaveSkills: extractGoodToHaveSkills(description),
       priority:         extractPriority(description),
       clientName:       extractClientName(description),
       reportingManager: extractReportingManager(description),
       workAuth:         extractWorkAuth(description),
+      noticePeriod:     extractNoticePeriod(description),
     };
   };
 
@@ -360,20 +370,19 @@ ${description.slice(0, 2000)}`;
       return `${c} year${c !== 1 ? 's' : ''}`;
     };
 
-    // Try to extract two numbers (range)
-    const rangeMatch = text.match(/(\d+)\s*[-–to]+\s*(\d+)/);
+    // Match "11-15 years" or "11 - 15 years" or "11 to 15 years" or "11 – 15 years"
+    const rangeMatch = text.match(/(\d+)\s*[-–—to]+\s*(\d+)/);
     if (rangeMatch) {
       return `${snapMin(parseInt(rangeMatch[1]))} - ${snapMax(parseInt(rangeMatch[2]))}`;
     }
 
-    // Single number
+    // Single number like "11+ years"
     const singleMatch = text.match(/(\d+)/);
     if (singleMatch) {
       const n = parseInt(singleMatch[1]);
       return `${snapMin(n)} - ${snapMax(Math.min(n + 2, 25))}`;
     }
 
-    // Keyword fallbacks
     if (/fresher|entry|no experience|0/i.test(text)) return '0 years - 1 year';
     if (/junior/i.test(text)) return '1 year - 2 years';
     if (/mid|intermediate/i.test(text)) return '3 years - 5 years';
@@ -448,36 +457,33 @@ ${description.slice(0, 2000)}`;
   };
 
   const extractCompanyName = (text: string): string => {
-    // Use enhanced parser's company extraction with confidence check
-    try {
-      const enhancedResult = EnhancedJobParser.parseJobDescription(text);
-      if (enhancedResult.company && enhancedResult.confidence > 0.3) {
-        return enhancedResult.company;
-      }
-    } catch (error) {
-      console.log('Enhanced company extraction failed, using fallback');
-    }
+    // Strip everything from interview/recruitment section onwards to avoid false matches
+    const cleanText = text.replace(
+      /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open)[\s\S]*/gi,
+      ''
+    ).trim();
 
-    // Fallback to original logic
     const companyPatterns = [
+      /(?:company\s+(?:name)?|organisation|employer)\s*[:\-]\s*([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})/i,
+      /(?:at|for|with|join)\s+([A-Z][a-zA-Z0-9\s&\.\-,']{2,35})(?:\s*[,\.!]|\s+(?:is|are|we|our|the|in|as|to|for|and|or|team|today|where|located|based))/,
       /^([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})\s*[-–—]\s*[A-Z][a-z]/m,
-      /company[:\s-]+([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})(?:\s*[,\.!]|\s+(?:is|are|the|in|on|as|to|for|and|or|but|located|based))/i,
-      /join\s+(?:the\s+team\s+at\s+)?([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})(?:\s*[,\.!]|\s+(?:as|to|for|and|or|team|where|in|today))/i
+    ];
+
+    const invalidWords = [
+      'interview', 'mode', 'face', 'weekend', 'hiring', 'drive', 'recruitment',
+      'handle', 'post', 'location', 'salary', 'experience', 'notice', 'priority',
+      'summary', 'responsibilities', 'skills', 'candidate', 'process', 'round'
     ];
 
     for (const pattern of companyPatterns) {
-      const match = text.match(pattern);
+      const match = cleanText.match(pattern);
       if (match && match[1]) {
-        let company = match[1].trim();
-        company = company.replace(/[\-\|–—].*$/g, '').trim();
-        company = company.replace(/[,\.!]+$/, '').trim();
-        
-        const invalidWords = ['interview', 'mode', 'face', 'weekend', 'hiring', 'drive', 'recruitment'];
-        const hasInvalidWord = invalidWords.some(word => 
-          company.toLowerCase().includes(word)
-        );
-        
-        if (!hasInvalidWord && company.length >= 3 && company.length <= 40) {
+        let company = match[1].trim()
+          .replace(/[\-\|–—].*$/g, '')
+          .replace(/[,\.!]+$/, '')
+          .trim();
+        const hasInvalid = invalidWords.some(w => company.toLowerCase().includes(w));
+        if (!hasInvalid && company.length >= 3 && company.length <= 40) {
           return company;
         }
       }
@@ -631,64 +637,50 @@ ${description.slice(0, 2000)}`;
     return types;
   };
 
+  const extractNoticePeriod = (text: string): string => {
+    // Capture sentences near notice period / immediate joiner / availability keywords
+    const patterns = [
+      /notice\s+period\s*[:\-]?\s*([^\n.]{5,80})/i,
+      /(immediate\s+joiners?[^\n.]{0,80})/i,
+      /(available\s+to\s+join\s+immediately[^\n.]{0,60})/i,
+      /(serving\s+notice[^\n.]{0,60})/i,
+    ];
+    for (const p of patterns) {
+      const m = text.match(p);
+      if (m) return m[1].trim().replace(/[.\s]+$/, '');
+    }
+    return '';
+  };
+
   const extractExperience = (text: string): string => {
-    const expPatterns = [
-      // Range patterns with "years" keyword
-      /(\d+)[\s-]+(\d+)\s*years?\s*(?:of\s*)?(?:experience|exp|working|in)/i,
-      /(?:experience|exp)\s*(?:required|needed)?[:\s-]*(\d+)[\s-]+(\d+)\s*years?/i,
-      /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*[-–—to]\s*(\d+)\s*years?/i,
-      // Single number patterns
-      /(\d+)\+?\s*years?\s+(?:of\s+)?(?:experience|exp|working|in)/i,
-      /(?:experience|exp)\s*(?:required|needed)?[:\s-]*(\d+)\+?\s*years?/i,
-      /(?:minimum|at\s+least|min\.?)\s*(\d+)\s*years?/i,
-      /with\s+(\d+)[\s-]+(\d+)\s*years?/i,
-      /having\s+(\d+)\s*years?/i,
-      /(\d+)\+\s*years?/i
-    ];
+    // Priority 1: explicit "Experience Required" label followed by range on same or next line
+    const labelMatch = text.match(/experience\s+required\s*[:\-]?\s*([\d\s\-–—to]+(?:years?|yrs?))/i);
+    if (labelMatch) {
+      const raw = labelMatch[1].trim();
+      const m = raw.match(/(\d+)\s*[-–—to]+\s*(\d+)/);
+      if (m) return `${parseInt(m[1])}-${parseInt(m[2])} years`;
+      const s = raw.match(/(\d+)/);
+      if (s) return `${parseInt(s[1])}+ years`;
+    }
 
-    for (const pattern of expPatterns) {
-      const match = text.match(pattern);
-      if (match) {
-        // Handle range patterns
-        if (match[1] && match[2] && !isNaN(parseInt(match[1])) && !isNaN(parseInt(match[2]))) {
-          const min = parseInt(match[1]);
-          const max = parseInt(match[2]);
-          if (min <= max && min >= 0 && max <= 50) {
-            return `${min}-${max} years`;
-          }
-        }
-        // Handle single number patterns
-        else if (match[1] && !isNaN(parseInt(match[1]))) {
-          const years = parseInt(match[1]);
-          if (years >= 0 && years <= 50) {
-            if (years >= 15) return '15+ years';
-            if (years >= 10) return '10-15 years';
-            if (years >= 8) return '8-10 years';
-            if (years >= 5) return '5-8 years';
-            if (years >= 3) return '3-5 years';
-            if (years >= 2) return '2-3 years';
-            if (years >= 1) return '1-2 years';
-            return '0-1 years';
-          }
+    // Priority 2: range patterns directly tied to experience keyword
+    const rangePatterns = [
+      /(\d+)\s*[-–—]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+      /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+      /(?:experience|exp)\s*[:\-]?\s*(\d+)\s*[-–—to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /(?:minimum|at\s+least)\s*(\d+)\s*[-–—to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+    ];
+    for (const p of rangePatterns) {
+      const m = text.match(p);
+      if (m && m[1]) {
+        const a = parseInt(m[1]), b = m[2] ? parseInt(m[2]) : NaN;
+        if (!isNaN(a) && a <= 40) {
+          if (!isNaN(b) && b <= 40 && b >= a) return `${a}-${b} years`;
+          return `${a}+ years`;
         }
       }
     }
-
-    // Additional context-based detection
-    const contextPatterns = [
-      { pattern: /no\s+experience\s+required|entry\s+level|fresher|fresh\s+graduate|beginner/i, experience: '0-1 years' },
-      { pattern: /junior|entry.level/i, experience: '0-2 years' },
-      { pattern: /mid.level|intermediate|3\s*[-–—]\s*5\s*years/i, experience: '3-5 years' },
-      { pattern: /senior|5\s*[-–—]\s*8\s*years|experienced/i, experience: '5-8 years' },
-      { pattern: /lead|principal|staff|10\s*[-–—]\s*15\s*years|expert|seasoned/i, experience: '10+ years' }
-    ];
-
-    for (const { pattern, experience } of contextPatterns) {
-      if (pattern.test(text)) {
-        return experience;
-      }
-    }
-
     return '';
   };
 
@@ -1278,50 +1270,53 @@ ${description.slice(0, 2000)}`;
     return responsibilities.slice(0, 8); // Limit to 8 responsibilities
   };
 
-  const extractRequirements = (text: string): string[] => {
-    // Use enhanced parser for better requirement extraction
-    try {
-      const enhancedResult = EnhancedJobParser.parseJobDescription(text);
-      if (enhancedResult.mandatorySkills.length > 0 && enhancedResult.confidence > 0.3) {
-        return enhancedResult.mandatorySkills;
-      }
-    } catch (error) {
-      console.log('Enhanced requirements extraction failed, using fallback');
+  const extractGoodToHaveSkills = (text: string): string[] => {
+    const cleanText = text.replace(
+      /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open)[\s\S]*/gi, ''
+    );
+    const sectionMatch = cleanText.match(
+      /(?:good\s+to\s+have|nice\s+to\s+have|preferred\s+skills?|bonus\s+skills?|optional\s+skills?)[:\s]*([\s\S]*?)(?=(?:preferred\s+candidate|interview|recruitment|$))/i
+    );
+    if (!sectionMatch) return [];
+    const bullets = sectionMatch[1].match(/(?:^|\n)\s*[•\-\*\d+\.\)\s]+(.+)/gm);
+    if (bullets) {
+      return bullets
+        .map(b => b.replace(/^\s*[•\-\*\d+\.\)\s]+/, '').trim())
+        .filter(b => b.length > 2 && b.length < 100)
+        .slice(0, 10);
     }
+    // fallback: split by newlines
+    return sectionMatch[1].split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 2 && l.length < 100)
+      .slice(0, 10);
+  };
 
+  const extractRequirements = (text: string): string[] => {
     const requirements: string[] = [];
     
-    // Look for requirements/qualifications section
-    const requirementsMatch = text.match(/(?:(?:job\s+)?requirements?|qualifications?|mandatory\s+skills?)[:\s]*([\s\S]*?)(?=(?:responsibilities?|benefits?|about\s+(?:us|the\s+role)|$))/gi);
+    // Strip interview/recruitment noise
+    const cleanText = text.replace(
+      /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open)[\s\S]*/gi,
+      ''
+    );
+
+    const requirementsMatch = cleanText.match(/(?:(?:job\s+)?requirements?|qualifications?|mandatory\s+skills?)[:\s]*([\s\S]*?)(?=(?:responsibilities?|benefits?|about\s+(?:us|the\s+role)|good\s+to\s+have|preferred|$))/gi);
     
     if (requirementsMatch && requirementsMatch[0]) {
       const section = requirementsMatch[0];
-      
-      // Extract bullet points or numbered items
       const bulletPoints = section.match(/(?:^|\n)\s*[•\-\*\d+\.)\s]+(.+)/gm);
       if (bulletPoints) {
         bulletPoints.forEach(point => {
           const cleaned = point.replace(/^\s*[•\-\*\d+\.)\s]+/, '').trim();
           if (cleaned.length > 10 && cleaned.length < 200) {
-            // Filter out invalid requirements
-            const invalidKeywords = [
-              'Interview', 'Hiring Drive', 'Face-to-Face', 'Offer Rollout',
-              'Round', 'Office Location', 'Weekend', 'Mode', 'Process'
-            ];
-            
-            const hasInvalidKeyword = invalidKeywords.some(keyword =>
-              cleaned.toLowerCase().includes(keyword.toLowerCase())
-            );
-            
-            if (!hasInvalidKeyword) {
-              requirements.push(cleaned);
-            }
+            requirements.push(cleaned);
           }
         });
       }
     }
     
-    return requirements.slice(0, 8); // Limit to 8 requirements
+    return requirements.slice(0, 8);
   };
 
   return (
