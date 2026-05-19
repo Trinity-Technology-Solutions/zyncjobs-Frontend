@@ -46,12 +46,14 @@ export class JobParser {
   // All possible section headings for boundary protection (70+ variations)
   private static readonly ALL_HEADINGS = [
     // Job basics
-    'Job Title', 'Position', 'Role', 'Company', 'Organization',
+    'Job Title', 'Position', 'Role', 'Organization',
     'Work Location', 'Location', 'Office Location', 'Based In',
     
     // Experience & Education
     'Experience', 'Experience Required', 'Years of Experience',
     'Work Experience', 'Professional Experience', 'Minimum Experience',
+    'Notice Period', 'Employment Type', 'Salary Range', 'Priority',
+    'Job Summary', 'Preferred Candidate Profile', 'Preferred Candidate',
     'Education', 'Educational Qualifications', 'Academic Background',
     
     // Skills sections (all variations)
@@ -216,40 +218,26 @@ export class JobParser {
    * Extract company name with validation
    */
   private static extractCompanyName(text: string): string {
-    // Priority 1: Explicit Company label
-    const companyMatch = text.match(/Company\s*:?\s*(.+)/i);
-    if (companyMatch) {
-      let company = companyMatch[1].trim();
-      company = this.applyBoundaryProtection(company);
-      
-      const isInvalid = this.INVALID_COMPANY_WORDS.some(word =>
-        company.toLowerCase().includes(word)
-      );
-      
-      if (!isInvalid && company.length > 2 && company.length < 50) {
-        return company;
-      }
+    // Strip interview/recruitment/drive sections before any matching
+    const cleanText = text.replace(
+      /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open\s+for)[\s\S]*/gi,
+      ''
+    ).trim();
+
+    // Priority 1: Explicit "Company Name:" or "Company:" label (not "Company for this job")
+    const companyLabelMatch = cleanText.match(/^\s*Company\s+(?:Name)?\s*:\s*(.+)/im);
+    if (companyLabelMatch) {
+      let company = companyLabelMatch[1].split('\n')[0].trim();
+      const isInvalid = this.INVALID_COMPANY_WORDS.some(w => company.toLowerCase().includes(w));
+      if (!isInvalid && company.length > 2 && company.length < 50) return company;
     }
 
-    // Priority 2: Pattern-based extraction
-    const patterns = [
-      /^([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})\s*[-–—]\s*[A-Z]/m,
-      /([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s+(?:is|are)\s+(?:looking|seeking|hiring)/i
-    ];
-
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        let company = match[1].trim().replace(/[,\.!]+$/, '');
-        
-        const isInvalid = this.INVALID_COMPANY_WORDS.some(word =>
-          company.toLowerCase().includes(word)
-        );
-        
-        if (!isInvalid && company.length >= 3 && company.length <= 40) {
-          return company;
-        }
-      }
+    // Priority 2: "X is looking/hiring/seeking"
+    const seekingMatch = cleanText.match(/([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s+(?:is|are)\s+(?:looking|seeking|hiring)/i);
+    if (seekingMatch) {
+      let company = seekingMatch[1].trim().replace(/[,\.!]+$/, '');
+      const isInvalid = this.INVALID_COMPANY_WORDS.some(w => company.toLowerCase().includes(w));
+      if (!isInvalid && company.length >= 3 && company.length <= 40) return company;
     }
 
     return '';
@@ -300,19 +288,38 @@ export class JobParser {
     return '';
   }
 
-  /**
-   * Extract experience
-   */
   private static extractExperience(text: string, sections: Record<string, string>): string {
-    if (sections['experience required'] || sections['experience']) {
-      return sections['experience required'] || sections['experience'];
+    // Check sections first — take only first line (the actual value)
+    const rawSection = (sections['experience required'] || sections['experience'] || '').split('\n')[0].trim();
+    if (rawSection) {
+      const m = rawSection.match(/(\d+)\s*[-\u2013\u2014to]+\s*(\d+)/);
+      if (m) return `${m[1]}-${m[2]} years`;
+      const s = rawSection.match(/(\d+)/);
+      if (s && parseInt(s[1]) <= 40) return `${s[1]}+ years`;
     }
 
-    const experienceMatch = text.match(/Experience Required\s*:?\s*([\s\S]*?)(?=Mandatory Skills|Requirements|$)/i);
-    if (experienceMatch) {
-      return this.applyBoundaryProtection(experienceMatch[1].trim());
+    // Direct scan of original text for "Experience Required" label
+    // Use original text (before cleanText collapses newlines) via regex
+    const labelPatterns = [
+      /experience\s+required\s*[:\-]?\s*(\d+)\s*[-\u2013\u2014to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /experience\s+required\s*[:\-]?\s*(\d+)\+?\s*(?:years?|yrs?)/i,
+      // Handles inline collapsed text: "Experience Required 11 – 15 Years Notice Period"
+      /experience\s+required\s+(\d+)\s*[-\u2013\u2014]+\s*(\d+)/i,
+      /experience\s+required\s+(\d+)/i,
+      /(\d+)\s*[-\u2013\u2014]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+      /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+      /(?:minimum|at\s+least)\s*(\d+)\s*[-\u2013\u2014to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+    ];
+    for (const p of labelPatterns) {
+      const m = text.match(p);
+      if (m && m[1]) {
+        const a = parseInt(m[1]), b = m[2] ? parseInt(m[2]) : NaN;
+        if (!isNaN(a) && a <= 40) {
+          if (!isNaN(b) && b <= 40 && b >= a) return `${a}-${b} years`;
+          return `${a}+ years`;
+        }
+      }
     }
-
     return '';
   }
 

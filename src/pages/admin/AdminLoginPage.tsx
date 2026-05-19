@@ -35,8 +35,10 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
       }
 
       const token = data.accessToken || data.token;
+      const refreshToken = data.refreshToken;
       tokenStorage.setAccess(token);
       tokenStorage.setAdmin(token);
+      if (refreshToken) tokenStorage.setRefresh(refreshToken);
       localStorage.setItem('user', JSON.stringify({ ...data.user, userType: role }));
       onLogin({ name: data.user.name, type: role, email: data.user.email });
       onNavigate('admin/dashboard');
