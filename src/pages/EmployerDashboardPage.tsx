@@ -308,6 +308,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       const userId = userData.id || userData._id || userData.userId;
       const userEmail = userData.email;
       const userName = userData.name || userData.fullName;
+      // For team members, use the owner's email/company to load shared company data
+      const ownerEmail = userData.employerOwnerId || userEmail;
       
       console.log('Using userId:', userId, 'userEmail:', userEmail, 'userName:', userName);
       
@@ -317,97 +319,60 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       let dashboardStats = { activeJobs: 0, applications: 0, interviews: 0, hired: 0 };
       let recentActivity = [];
       
-      // Fetch Jobs
+      // Fetch Jobs — use employer/email endpoint for precise server-side filtering
       try {
-        console.log('Fetching jobs from:', API_ENDPOINTS.JOBS);
-        const jobsRes = await apiFetch(API_ENDPOINTS.JOBS);
+        const jobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
         if (jobsRes.ok) {
-          const allJobs = await jobsRes.json();
-          console.log('Dashboard - All jobs:', allJobs.length);
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const myEmployerId = storedUser.employerId;
-          employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
-            const email = userEmail?.toLowerCase().trim();
-            // Match own jobs
-            const matchesEmail = job.postedBy?.toLowerCase().trim() === email || job.employerEmail?.toLowerCase().trim() === email;
-            // If team member — also show all jobs posted under same employerId (owner + all team)
-            const matchesEmployerId = myEmployerId && (
-              job.employerId === myEmployerId ||
-              job.postedByEmployerId === myEmployerId
-            );
-            return matchesEmail || matchesEmployerId;
-          }) : [];
-          console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
+          employerJobs = await jobsRes.json();
+          // Also include jobs posted by the current member email if different
+          if (ownerEmail !== userEmail) {
+            try {
+              const memberJobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`);
+              if (memberJobsRes.ok) {
+                const memberJobs = await memberJobsRes.json();
+                const existingIds = new Set(employerJobs.map((j: any) => j.id || j._id));
+                memberJobs.forEach((j: any) => { if (!existingIds.has(j.id || j._id)) employerJobs.push(j); });
+              }
+            } catch { /* non-critical */ }
+          }
           setJobs(employerJobs);
           dashboardStats.activeJobs = employerJobs.length;
         } else {
-          const errorText = await jobsRes.text().catch(() => 'Unknown error');
-          console.error('Jobs API returned error:', jobsRes.status, jobsRes.statusText);
-          console.error('Jobs API error details:', errorText);
-          
-          // Set more specific error message based on status code
-          if (jobsRes.status === 500) {
-            setError('Server error while loading jobs. The backend server may be experiencing issues. Please try again later or contact support.');
-          } else if (jobsRes.status === 404) {
-            setError('Jobs API endpoint not found. Please check if the server is properly configured.');
-          } else {
-            setError(`Failed to load jobs: ${jobsRes.status} ${jobsRes.statusText}`);
-          }
+          if (jobsRes.status === 500) setError('Server error while loading jobs. Please try again later.');
+          else setError(`Failed to load jobs: ${jobsRes.status} ${jobsRes.statusText}`);
           setJobs([]);
         }
       } catch (error) {
         console.error('Jobs API network error:', error);
-        setError('Network error while loading jobs. Please check your internet connection and try again.');
+        setError('Network error while loading jobs.');
         setJobs([]);
       }
 
-      // Fetch Applications
+      // Fetch Applications — server-side filtered by ownerEmail
       try {
-        const appsRes = await apiFetch(API_ENDPOINTS.APPLICATIONS);
+        const appsRes = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(ownerEmail)}`);
         if (appsRes.ok) {
           const response = await appsRes.json();
           const allApps = response.applications || response || [];
-          console.log('Dashboard - All applications:', allApps.length);
-          
-          // Fetch job details for each application
-          const appsWithJobDetails = await Promise.all(
+          // Enrich with job titles
+          employerApps = await Promise.all(
             allApps.map(async (app: any) => {
-              try {
-                const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
-                console.log('Processing application:', app.candidateName, 'jobId:', appJobId);
-                
-                if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined') {
+              const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
+              if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined') {
+                try {
                   const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
-                    console.log('Fetched job data for', appJobId, ':', jobData.jobTitle || jobData.title);
                     return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Job Position' };
-                  } else {
-                    console.log('Job fetch failed for', appJobId, ':', jobRes.status);
                   }
-                } else {
-                  console.log('No valid jobId for application:', app.candidateName);
-                }
-              } catch (e) {
-                console.log('Failed to fetch job for application:', app._id || app.id, e);
+                } catch { /* non-critical */ }
               }
               return app;
             })
           );
-          
-          employerApps = Array.isArray(appsWithJobDetails) ? appsWithJobDetails.filter((app: any) => {
-            const matchesEmail = app.employerEmail === userEmail;
-            // Team member — also show apps for jobs posted under same company
-            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-            const myEmployerId = storedUser.employerId;
-            const matchesEmployerId = myEmployerId && app.employerEmployerId === myEmployerId;
-            return matchesEmail || matchesEmployerId;
-          }) : [];
-          console.log('Dashboard - Filtered employer applications:', employerApps.length);
           setApplications(employerApps);
           dashboardStats.applications = employerApps.length;
         } else {
-          console.warn('Applications API returned error:', appsRes.status);
           setApplications([]);
         }
       } catch (error) {
@@ -417,7 +382,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`);
+        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
@@ -452,7 +417,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Dashboard Stats (non-critical, fail silently)
       try {
-        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        const storedUserForStats = JSON.parse(localStorage.getItem('user') || '{}');
+        const myCompanyForStats = storedUserForStats.companyName || storedUserForStats.company || '';
+        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}&companyName=${encodeURIComponent(myCompanyForStats)}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
           dashboardStats = { ...dashboardStats, ...stats };
@@ -2017,7 +1984,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </>
           ) : activeMenu === 'team' ? (
-            <TeamSection employerEmail={user?.email} companyName={companyName} showToast={showToast} canInvite={canInviteMembers} />
+            <TeamSection 
+              employerEmail={user?.employerOwnerId || user?.email} 
+              currentUserEmail={user?.email}
+              companyName={companyName} 
+              showToast={showToast} 
+              canInvite={canInviteMembers} 
+            />
           ) : activeMenu === 'auto-rejection' ? (
             <>
               <div className="mb-6">
@@ -2239,7 +2212,10 @@ const ROLE_PERMISSIONS: Record<TeamRole, string[]> = {
   Viewer: ['View Analytics'],
 };
 
-const TeamSection: React.FC<{ employerEmail: string; companyName: string; showToast: (message: string, type?: ToastType) => void; canInvite?: boolean }> = ({ employerEmail, companyName, showToast, canInvite = true }) => {
+const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; companyName: string; showToast: (message: string, type?: ToastType) => void; canInvite?: boolean }> = ({ employerEmail, currentUserEmail, companyName, showToast, canInvite = true }) => {
+  const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const openConfirm = (title: string, message: string, onConfirm: () => void) => setConfirmDialog({ isOpen: true, title, message, onConfirm });
+  const closeConfirm = () => setConfirmDialog(c => ({ ...c, isOpen: false }));
   const API_BASE = import.meta.env.VITE_API_URL || '/api';
   const [members, setMembers] = React.useState<TeamMember[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -2257,8 +2233,10 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
       const res = await apiFetch(`${API_BASE}/team?employerId=${encodeURIComponent(employerEmail)}`);
       if (res.ok) {
         const data = await res.json();
+        // Only auto-create Owner record if the current user IS the owner
+        const isOwner = !currentUserEmail || currentUserEmail === employerEmail;
         const hasOwner = data.some((m: TeamMember) => m.memberEmail === employerEmail && m.role === 'Owner');
-        if (!hasOwner) {
+        if (!hasOwner && isOwner) {
           await apiFetch(`${API_BASE}/team`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2272,16 +2250,14 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
         }
       } else {
         console.error('Team API error:', res.status, res.statusText);
-        // Set fallback owner on API error
         setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
       }
     } catch (e) { 
       console.error('Team fetch error:', e);
-      // Set fallback owner on network error
       setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
     }
     finally { setLoading(false); }
-  }, [employerEmail, API_BASE]);
+  }, [employerEmail, currentUserEmail, API_BASE]);
 
   React.useEffect(() => { fetchMembers(); }, [fetchMembers]);
 
@@ -2339,8 +2315,16 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
   const handleRemove = async (id: string) => {
     try {
       const res = await apiFetch(`${API_BASE}/team/${id}`, { method: 'DELETE' });
-      if (res.ok) { await fetchMembers(); showToast('Member removed', 'success'); }
-    } catch { showToast('Failed to remove member', 'error'); }
+      if (res.ok) {
+        setMembers(prev => prev.filter(m => m.id !== id));
+        showToast('Member removed successfully', 'success');
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Failed to remove member', 'error');
+      }
+    } catch {
+      showToast('Network error. Failed to remove member.', 'error');
+    }
   };
 
   const roleColors: Record<TeamRole, string> = {
@@ -2353,6 +2337,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   return (
     <>
+      <ConfirmDialog isOpen={confirmDialog.isOpen} title={confirmDialog.title} message={confirmDialog.message} onConfirm={confirmDialog.onConfirm} onCancel={closeConfirm} />
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 sm:mb-6 gap-3">
         <div className="min-w-0">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900">Team Management</h1>
@@ -2418,7 +2403,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                 }`}>
                   {member.status === 'pending' ? '⏳ Pending' : member.role}
                 </span>
-                {member.memberEmail !== employerEmail ? (
+                {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">
                     <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
                       className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white min-w-[100px]">
@@ -2430,15 +2415,11 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                       e.preventDefault();
                       e.stopPropagation();
                       openConfirm(
-                        'Remove Team Member', 
-                        'Are you sure you want to remove this team member? This action cannot be undone.', 
+                        'Remove Team Member',
+                        'Are you sure you want to remove this team member? This action cannot be undone.',
                         async () => {
-                          try {
-                            await handleRemove(member.id);
-                          } catch (error) {
-                            console.error('Remove member error:', error);
-                          }
                           closeConfirm();
+                          await handleRemove(member.id);
                         }
                       );
                     }}

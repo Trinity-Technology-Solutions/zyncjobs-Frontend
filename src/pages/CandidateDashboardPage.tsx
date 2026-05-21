@@ -1971,7 +1971,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               });
                               const result = await uploadRes.json();
                               if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                              const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? /uploads/+result.filename : null);
+                              const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? `/uploads/${result.filename}` : null);
                               const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
                               const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                               setUser(updatedUser);
@@ -2057,7 +2057,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             });
                             const result = await uploadRes.json();
                             if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                            const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? /uploads/+result.filename : null);
+                            const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? `/uploads/${result.filename}` : null);
                             const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
                             const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                             setUser(updatedUser);

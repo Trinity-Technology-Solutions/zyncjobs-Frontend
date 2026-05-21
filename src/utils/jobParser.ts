@@ -326,12 +326,30 @@ export class JobParser {
   /**
    * Extract salary information
    */
-  private static extractSalary(text: string): { min: string; max: string; currency: string; payRate: string } {
+  private static extractSalary(text: string): { min: string; max: string; currency: string; payRate: string; payType?: string } {
     const defaultSalary = { min: '', max: '', currency: 'INR', payRate: 'per year' };
-    
+
+    // Priority 1: "up to X LPA" / "upto X LPA" → Maximum amount
+    const uptoPattern = /(?:up\s*to|upto)\s*([0-9]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?)/i;
+    const uptoMatch = text.match(uptoPattern);
+    if (uptoMatch) {
+      let max = parseFloat(uptoMatch[1].replace(/,/g, ''));
+      if (/lpa|lakh/i.test(uptoMatch[0])) max *= 100000;
+      if (max > 0) {
+        return { min: '', max: String(Math.round(max)), currency: 'INR', payRate: 'per year', payType: 'Maximum amount' };
+      }
+    }
+
+    // Priority 2: Range patterns — handles "₹2 LPA – ₹3 LPA", "2-3 LPA", "2 to 3 lakhs"
     const patterns = [
-      /([0-9,]+(?:\.[0-9]+)?)\s*[-–to]+\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?)/gi,
-      /₹\s*([0-9,]+(?:\.[0-9]+)?)\s*[-–to]+\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi
+      // ₹2 LPA – ₹3 LPA  (LPA after each number)
+      /₹\s*([0-9]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?)\s*[-–—to]+\s*₹?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?)/gi,
+      // 2 LPA – 3 LPA  (no ₹)
+      /([0-9]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?)\s*[-–—to]+\s*([0-9]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?)/gi,
+      // 2-3 LPA  (LPA only after second number)
+      /([0-9,]+(?:\.[0-9]+)?)\s*[-–—to]+\s*([0-9,]+(?:\.[0-9]+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?)/gi,
+      // ₹2 – ₹3
+      /₹\s*([0-9,]+(?:\.[0-9]+)?)\s*[-–—to]+\s*₹?\s*([0-9,]+(?:\.[0-9]+)?)/gi,
     ];
 
     for (const pattern of patterns) {
@@ -339,13 +357,8 @@ export class JobParser {
       if (match) {
         let min = parseFloat(match[1].replace(/,/g, ''));
         let max = parseFloat(match[2].replace(/,/g, ''));
-        
-        if (/lpa|lakh/i.test(match[0])) {
-          min *= 100000;
-          max *= 100000;
-        }
-        
-        if (min > 0 && max > 0) {
+        if (/lpa|lakh/i.test(match[0])) { min *= 100000; max *= 100000; }
+        if (min > 0 && max > 0 && max >= min) {
           return {
             min: String(Math.round(min)),
             max: String(Math.round(max)),
