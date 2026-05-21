@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, AlertCircle, Clock, Target } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, AlertCircle, Clock, Target, FileText } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -50,7 +50,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   }, []);
 
   const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', companyName: '', otp: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', confirmPassword: '', companyName: '', otp: '', gstNumber: '' });
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
@@ -63,7 +63,11 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   const [companySuggestions, setCompanySuggestions] = useState<CompanyProfile[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   
-  // New company verification states
+  // GST verification states
+  const [gstLoading, setGstLoading] = useState(false);
+  const [gstVerification, setGstVerification] = useState<{ verified: boolean; legalName?: string; tradeName?: string; status?: string; state?: string } | null>(null);
+
+  // Domain verification states
   const [domainVerification, setDomainVerification] = useState<DomainVerificationResult | null>(null);
   const [selectedCompanyProfile, setSelectedCompanyProfile] = useState<CompanyProfile | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
@@ -149,33 +153,58 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     }
   };
 
+  const handleGSTVerification = async () => {
+    const gst = formData.gstNumber.trim().toUpperCase();
+    if (!gst) { setError('Please enter your GST number.'); return; }
+    const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    if (!gstRegex.test(gst)) { setError('Invalid GST number format. Example: 22AAAAA0000A1Z5'); return; }
+
+    setGstLoading(true);
+    setError('');
+    setGstVerification(null);
+    try {
+      // Call backend proxy to Surepass sandbox (avoids CORS + keeps token server-side)
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/verify/gst`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gstin: gst }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const d = data.data || {};
+        setGstVerification({
+          verified: true,
+          legalName: d.legal_name || d.legalName || '',
+          tradeName: d.trade_name || d.tradeName || '',
+          status: d.gstin_status || d.status || 'Active',
+          state: d.state || '',
+        });
+        // Auto-fill company name if empty
+        if (!formData.companyName.trim()) {
+          setFormData(prev => ({ ...prev, companyName: d.trade_name || d.legal_name || prev.companyName }));
+        }
+        showToast('GST verified successfully!', 'success');
+      } else {
+        setGstVerification({ verified: false });
+        setError(data.message || 'GST verification failed. Please check the number and try again.');
+      }
+    } catch {
+      setGstVerification({ verified: false });
+      setError('GST verification service unavailable. You can still proceed — admin will verify manually.');
+    } finally {
+      setGstLoading(false);
+    }
+  };
+
   const handleStep1Next = async () => {
-    if (!formData.name.trim()) { 
-      setError('Please enter your full name.'); 
-      return; 
-    }
-    if (!formData.companyName.trim()) { 
-      setError('Please enter your company name.'); 
-      return; 
-    }
-    if (!formData.email.trim()) { 
-      setError('Please enter your company email.'); 
-      return; 
-    }
-    
-    // Email validation
+    if (!formData.name.trim()) { setError('Please enter your full name.'); return; }
+    if (!formData.companyName.trim()) { setError('Please enter your company name.'); return; }
+    if (!formData.email.trim()) { setError('Please enter your company email.'); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) {
-      setError('Please enter a valid email address.');
-      showToast('Please enter a valid email address.', 'error');
-      return;
-    }
-    
-    // Verify domain first if not already done
-    if (!domainVerification) {
-      await handleDomainVerification();
-      return;
-    }
+    if (!emailRegex.test(formData.email.trim())) { setError('Please enter a valid email address.'); return; }
+    if (!formData.gstNumber.trim()) { setError('Please enter your GST number.'); return; }
+    if (!gstVerification) { setError('Please verify your GST number before continuing.'); return; }
+    if (!gstVerification.verified) { setError('GST verification failed. Please check your GST number.'); return; }
     
     setError('');
     setLoading(true);
@@ -287,42 +316,23 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
         companyLogo, 
         userType: 'employer' as const, 
         employerId,
-        // Include domain verification results
+        gstNumber: formData.gstNumber.trim().toUpperCase(),
+        gstVerification,
+        verificationStatus: 'pending_admin',
         domainVerification,
         companyProfile: selectedCompanyProfile
-        // Remove inviteToken completely to avoid case sensitivity issues
       };
       
       console.log('Sending registration data:', registrationData);
       
       const response = await authAPI.register(registrationData);
       
-      // Backend decides verification status based on domain verification
-      const isVerified = response.verificationStatus === 'verified';
-      const msg = isVerified
-        ? '✅ Account created! Your company email was verified automatically. Redirecting to sign in...'
-        : domainVerification?.verificationMethod === 'company_database'
-        ? '✅ Account created! Your company is verified. Redirecting to sign in...'
-        : domainVerification?.verificationMethod === 'domain_check'
-        ? '🔍 Account created! Your corporate domain is being verified. You can start using the platform.'
-        : '⏳ Account created! Since you used a personal email or unverified domain, your account is pending admin verification.';
-      
+      const msg = '⏳ Registration successful! Your account is pending admin verification. You will receive an email once approved.';
       setSuccess(msg);
-      showToast(msg, isVerified ? 'success' : 'warning');
+      showToast('Registration submitted! Awaiting admin approval.', 'info');
       
-      if (response.user) {
-        if (!response.user.employerId) response.user.employerId = employerId;
-        // Store verification status
-        response.user.verificationStatus = response.verificationStatus;
-        response.user.companyProfile = selectedCompanyProfile;
-        response.user.companyDomain = formData.email.split('@')[1];
-        localStorage.setItem('user', JSON.stringify(response.user));
-        
-        // Set flag for first visit after registration
-        sessionStorage.setItem('isFirstVisitAfterRegistration', 'true');
-      }
-      
-      setTimeout(() => onNavigate('dashboard'), isVerified ? 2000 : 4000);
+      // Do NOT navigate to dashboard — account is pending
+      setTimeout(() => onNavigate('employer-login'), 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
       if (msg.includes('already has an account') || msg.includes('COMPANY_ALREADY_EXISTS') || msg.includes('already registered') || msg.includes('already exists')) {
@@ -428,7 +438,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 
               {/* Step Indicator */}
               <div className="flex items-center justify-between mb-6">
-                {['Company Info', 'Verify Email', 'Security'].map((label, i) => {
+                {['Company & GST', 'Verify Email', 'Security'].map((label, i) => {
                   const num = i + 1;
                   const isActive = step === num;
                   const isDone = step > num;
@@ -586,6 +596,64 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         )}
                       </div>
                     </div>
+                    {/* GST Number */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        GST Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="gstNumber"
+                          value={formData.gstNumber}
+                          onChange={(e) => {
+                            setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() });
+                            setGstVerification(null);
+                          }}
+                          className="flex-1 h-12 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white uppercase tracking-wider"
+                          placeholder="e.g. 22AAAAA0000A1Z5"
+                          maxLength={15}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleGSTVerification}
+                          disabled={gstLoading || !formData.gstNumber.trim()}
+                          className="h-12 px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                          {gstLoading ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {gstLoading ? 'Verifying...' : 'Verify GST'}
+                        </button>
+                      </div>
+                      {/* GST Verification Result */}
+                      {gstVerification && (
+                        <div className={`mt-2 p-3 rounded-lg border text-sm ${
+                          gstVerification.verified
+                            ? 'bg-green-50 border-green-200 text-green-700'
+                            : 'bg-red-50 border-red-200 text-red-700'
+                        }`}>
+                          <div className="flex items-center gap-2 font-medium">
+                            {gstVerification.verified ? (
+                              <><CheckCircle className="w-4 h-4" /> GST Verified</>
+                            ) : (
+                              <><AlertCircle className="w-4 h-4" /> Verification Failed</>
+                            )}
+                          </div>
+                          {gstVerification.verified && (
+                            <div className="mt-1 text-xs space-y-0.5 text-green-600">
+                              {gstVerification.legalName && <div>Legal Name: <strong>{gstVerification.legalName}</strong></div>}
+                              {gstVerification.tradeName && <div>Trade Name: <strong>{gstVerification.tradeName}</strong></div>}
+                              {gstVerification.state && <div>State: {gstVerification.state}</div>}
+                              <div>Status: <strong>{gstVerification.status}</strong></div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Email</label>
                       <div className="relative">
@@ -674,7 +742,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     <button type="button" onClick={handleStep1Next}
                       disabled={loading || verificationLoading}
                       className="w-full h-12 sm:h-14 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]">
-                      {loading ? 'Sending...' : verificationLoading ? 'Verifying...' : domainVerification ? 'Continue →' : 'Verify & Continue →'}
+                      {loading ? 'Sending...' : 'Continue →'}
                     </button>
                   </div>
 

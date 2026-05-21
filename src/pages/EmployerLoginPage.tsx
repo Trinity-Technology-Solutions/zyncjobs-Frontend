@@ -35,8 +35,8 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       }
       // Check if employer account is pending admin verification
       const verificationStatus = (response.user as any).verificationStatus;
-      if (verificationStatus === 'pending') {
-        setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
+      if (verificationStatus === 'pending' || verificationStatus === 'pending_admin') {
+        setError("Your account is pending admin verification. You'll receive an email once approved.");
         setLoading(false);
         return;
       }
@@ -48,7 +48,8 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       if (!response.user.employerId) response.user.employerId = generateEmployerId();
       localStorage.setItem('user', JSON.stringify(response.user));
       const displayName = response.user.name || response.user.companyName || response.user.company || response.user.fullName || response.user.email.split('@')[0];
-      onLogin({ name: displayName, type: 'employer', email: response.user.email, id: response.user.id } as any);
+      // Pass full user object so handleLogin doesn't overwrite employerOwnerId/teamRole
+      onLogin({ ...response.user, name: displayName, type: 'employer' } as any);
       onNavigate('dashboard');
       if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome back! Login successful.' });
     } catch (err) {
