@@ -30,6 +30,7 @@ interface Job {
   salaryMax?: number;
   currency?: string;
   createdAt: string;
+  urgentNote?: string;
 }
 
 const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
@@ -223,6 +224,11 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                     </div>
                     
+                    {job.urgentNote && (
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-3">
+                        <p className="text-sm text-orange-700 font-medium line-clamp-2">{job.urgentNote}</p>
+                      </div>
+                    )}
                     <p className="text-gray-600 text-sm mb-4 line-clamp-2">{formatJobDescription(job.description || '', 100)}</p>
                     
                     <div className="flex justify-between items-center mb-4">

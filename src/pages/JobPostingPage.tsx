@@ -62,6 +62,7 @@ interface JobData {
   responsibilities: string[];
   requirements: string[];
   noticePeriod: string;
+  urgentNote: string;
   
   // Company Information
   companyName: string;
@@ -292,13 +293,17 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     jobTitle: editJob?.jobTitle || editJob?.title || parsedData?.jobTitle || '',
     locationType: editJob?.locationType || (() => {
       const loc = parsedData?.jobLocation || '';
-      if (/^remote$/i.test(loc.trim())) return 'Remote';
-      if (/^hybrid$/i.test(loc.trim())) return 'Hybrid';
+      const rawJD = parsedData?.jobDescription || '';
+      if (/^remote$/i.test(loc.trim()) || /\bfully\s+remote\b|\b100%\s+remote\b/i.test(rawJD)) return 'Remote';
+      if (/^hybrid$/i.test(loc.trim()) || /\bwork\s+mode\s*[:\-]?\s*hybrid\b|\bhybrid\b/i.test(rawJD)) return 'Hybrid';
       return 'In person';
     })(),
     jobLocation: editJob?.location || editJob?.jobLocation || (() => {
       const loc = parsedData?.jobLocation || '';
-      return /^(remote|hybrid)$/i.test(loc.trim()) ? loc : loc;
+      // Strip work mode keywords if they bled into the location string
+      return loc.replace(/\s*(?:work\s+mode|work\s+type)[^\n]*/gi, '')
+                .replace(/\s*(hybrid|remote|on-?site|in-?person)\s*$/gi, '')
+                .trim();
     })(),
     expandCandidateSearch: false,
     experienceRange: (() => {
@@ -351,6 +356,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     jobCode: editJob?.jobCode || `JOB-${Date.now()}`,
     reportingManager: editJob?.reportingManager || parsedData?.reportingManager || '',
     noticePeriod: parsedData?.noticePeriod || '',
+    urgentNote: editJob?.urgentNote || '',
     hiringTimeline: '',
     numberOfPeople: 0,
     workAuth: editJob?.workAuth || parsedData?.workAuth || [],
@@ -358,7 +364,16 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
              editJob?.jobType ? (Array.isArray(editJob.jobType) ? editJob.jobType : [editJob.jobType]) :
              parsedData?.jobType && Array.isArray(parsedData.jobType) ? parsedData.jobType :
              parsedData?.jobType ? [parsedData.jobType] : [],
-    payType: 'Range',
+    payType: (() => {
+      if (editJob?.payType) return editJob.payType;
+      // If parsed salary has min=0 or min is auto-calculated (70% of max), treat as 'Maximum amount'
+      if (parsedData?.minSalary && parsedData?.maxSalary) {
+        const min = parseInt(parsedData.minSalary);
+        const max = parseInt(parsedData.maxSalary);
+        if (min > 0 && max > 0 && Math.round(min / max * 10) === 7) return 'Maximum amount';
+      }
+      return 'Range';
+    })(),
     minSalary: getSalaryMin(editJob) || (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0 ? parsedData.minSalary : ''),
     maxSalary: getSalaryMax(editJob) || (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0 ? parsedData.maxSalary : ''),
     payRate: editJob?.salary?.period === 'monthly' ? 'per month' : editJob?.salary?.period === 'hourly' ? 'per hour' : parsedData?.payRate || 'per year',
@@ -2045,6 +2060,21 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         </div>
         
         <div>
+          <label className="block text-gray-700 font-medium mb-3">
+            Urgent Note{' '}
+            <span className="text-gray-400 font-normal text-sm">(optional)</span>
+          </label>
+          <p className="text-gray-500 text-sm mb-2">Highlight urgent requirements. Shown as an orange alert on the job card.</p>
+          <textarea
+            value={jobData.urgentNote || ''}
+            onChange={(e) => updateJobData('urgentNote', e.target.value)}
+            rows={2}
+            className="w-full border border-orange-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-orange-400 focus:border-orange-400 text-sm"
+            placeholder="e.g. Immediate joiners preferred. Strong analytical skills required."
+          />
+        </div>
+
+        <div>
           <label className="block text-gray-700 font-medium mb-3">Priority Level *</label>
           <select
             value={jobData.priority || 'Medium'}
@@ -2366,12 +2396,18 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               <label className="block text-gray-600 text-sm mb-2">Show pay by</label>
               <select
                 value={jobData.payType}
-                onChange={(e) => updateJobData('payType', e.target.value)}
+                onChange={(e) => {
+                  updateJobData('payType', e.target.value);
+                  // Clear irrelevant field when switching type
+                  if (e.target.value === 'Maximum amount') updateJobData('minSalary', '');
+                  if (e.target.value === 'Starting amount') updateJobData('maxSalary', '');
+                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); }
+                }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="Range">Range</option>
                 <option value="Starting amount">Starting amount</option>
-                <option value="Maximum amount">Maximum amount</option>
+                <option value="Maximum amount">Maximum amount (Upto)</option>
                 <option value="Exact amount">Exact amount</option>
               </select>
             </div>
@@ -2383,42 +2419,61 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </div>
             </div>
             
-            <div>
-              <label className="block text-gray-600 text-sm mb-2">Minimum</label>
-              <input
-                type="text"
-                value={salaryFocused === 'min' ? jobData.minSalary : (jobData.minSalary ? formatSalary(jobData.minSalary) : '')}
-                onFocus={() => setSalaryFocused('min')}
-                onChange={(e) => {
-                  updateJobData('minSalary', e.target.value.replace(/[^0-9]/g, ''));
-                  setSalaryModified(true);
-                }}
-                onBlur={() => setSalaryFocused(null)}
-                placeholder="e.g. 500000"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            {jobData.payType !== 'Maximum amount' && (
+              <div>
+                <label className="block text-gray-600 text-sm mb-2">
+                  {jobData.payType === 'Starting amount' ? 'Starting amount' : jobData.payType === 'Exact amount' ? 'Amount' : 'Minimum'}
+                </label>
+                <input
+                  type="text"
+                  value={salaryFocused === 'min' ? jobData.minSalary : (jobData.minSalary ? formatSalary(jobData.minSalary) : '')}
+                  onFocus={() => setSalaryFocused('min')}
+                  onChange={(e) => {
+                    updateJobData('minSalary', e.target.value.replace(/[^0-9]/g, ''));
+                    setSalaryModified(true);
+                  }}
+                  onBlur={() => setSalaryFocused(null)}
+                  placeholder="e.g. 500000"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            )}
             
-            <div className="text-center">
-              <span className="text-gray-500">to</span>
-            </div>
+            {jobData.payType === 'Range' && (
+              <div className="text-center">
+                <span className="text-gray-500">to</span>
+              </div>
+            )}
             
-            <div>
-              <label className="block text-gray-600 text-sm mb-2">Maximum</label>
-              <input
-                type="text"
-                value={salaryFocused === 'max' ? jobData.maxSalary : (jobData.maxSalary ? formatSalary(jobData.maxSalary) : '')}
-                onFocus={() => setSalaryFocused('max')}
-                onChange={(e) => {
-                  updateJobData('maxSalary', e.target.value.replace(/[^0-9]/g, ''));
-                  setSalaryModified(true);
-                }}
-                onBlur={() => setSalaryFocused(null)}
-                placeholder="e.g. 800000"
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+            {jobData.payType !== 'Starting amount' && jobData.payType !== 'Exact amount' && (
+              <div>
+                <label className="block text-gray-600 text-sm mb-2">
+                  {jobData.payType === 'Maximum amount' ? 'Upto (Maximum)' : 'Maximum'}
+                </label>
+                <input
+                  type="text"
+                  value={salaryFocused === 'max' ? jobData.maxSalary : (jobData.maxSalary ? formatSalary(jobData.maxSalary) : '')}
+                  onFocus={() => setSalaryFocused('max')}
+                  onChange={(e) => {
+                    updateJobData('maxSalary', e.target.value.replace(/[^0-9]/g, ''));
+                    setSalaryModified(true);
+                  }}
+                  onBlur={() => setSalaryFocused(null)}
+                  placeholder={jobData.payType === 'Maximum amount' ? 'e.g. 2500000' : 'e.g. 800000'}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            )}
           </div>
+          {/* Salary preview hint */}
+          {salaryModified && (jobData.minSalary || jobData.maxSalary) && (
+            <p className="text-xs text-gray-500 mt-2">
+              Preview: {jobData.payType === 'Maximum amount' ? `Upto ₹${formatSalary(jobData.maxSalary)}` :
+                        jobData.payType === 'Starting amount' ? `From ₹${formatSalary(jobData.minSalary)}` :
+                        jobData.payType === 'Exact amount' ? `₹${formatSalary(jobData.minSalary)}` :
+                        `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
+            </p>
+          )}
           
           <div className="mt-4">
             <label className="block text-gray-600 text-sm mb-2">Rate</label>
@@ -3144,8 +3199,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
     const jobPostData = {
       jobTitle: jobData.jobTitle,
-      company: user?.companyName || jobData.companyName || 'Your Company',
-      companyName: user?.companyName || jobData.companyName || 'Your Company',
+      company: jobData.companyName || user?.companyName || 'Your Company',
+      companyName: jobData.companyName || user?.companyName || 'Your Company',
       companyLogo: logoUrl,
       location: jobData.jobLocation,
       jobLocation: jobData.jobLocation,
@@ -3177,7 +3232,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       locationType: jobData.locationType || '',
       language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
       languages: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
-      country: jobData.country || ''
+      country: jobData.country || '',
+      urgentNote: jobData.urgentNote?.trim() || ''
     };
     
     console.log('Posting job for user:', user.email);
@@ -3224,6 +3280,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           expandCandidateSearch: false,
           experienceRange: '',
           noticePeriod: '',
+          urgentNote: '',
           country: '',
           language: '',
           jobCategory: '',
