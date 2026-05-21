@@ -424,6 +424,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   // Keep applyFilters as a no-op shim so existing call sites don't break
   const applyFilters = useCallback((_f: any, _j: any, _eMin?: any, _eMax?: any, _sMin?: any, _sMax?: any) => {}, []);
 
+  const handleQuickFilterToggle = (key: string, filterType: string, value: string) => {
+    handleQuickFilter(key, filterType, value);
+  };
+
   const fetchStats = async () => {
     try {
       const jobsRes = await apiFetch(API_ENDPOINTS.JOBS);
@@ -1701,6 +1705,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                         )}
                       </div>
 
+                      {job.urgentNote && (
+                        <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-2">
+                          <p className="text-sm text-orange-700 font-medium leading-relaxed line-clamp-2">{job.urgentNote}</p>
+                        </div>
+                      )}
                       {job.description && (
                         <div className="bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                           <p className="text-sm text-gray-600 leading-relaxed line-clamp-2">

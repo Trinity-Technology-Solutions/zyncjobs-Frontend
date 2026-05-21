@@ -660,6 +660,25 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
   const toggleAll = () =>
     setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map(c => c.id)));
 
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+
+  const retryCandidate = async (c: any) => {
+    setRetryingIds(prev => new Set(prev).add(c.id));
+    const token = getToken();
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}/${c.id}/retry`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (res.ok && data.status === 'Parsed') {
+        setCandidates(prev => prev.map(x => x.id === c.id ? { ...x, ...data } : x));
+      }
+    } catch { /* silent */ } finally {
+      setRetryingIds(prev => { const s = new Set(prev); s.delete(c.id); return s; });
+    }
+  };
+
   const deleteCandidate = async (id: string) => {
     if (!confirm('Delete this candidate? This cannot be undone.')) return;
     const token = getToken();
@@ -878,6 +897,15 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
                     <div className="flex items-center gap-2">
                       <button onClick={() => setViewResume(c)}
                         className="text-xs px-2 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded transition-colors">View</button>
+                      {c.status === 'Error' && (
+                        <button
+                          onClick={() => retryCandidate(c)}
+                          disabled={retryingIds.has(c.id)}
+                          className="text-xs px-2 py-1 bg-orange-900/40 hover:bg-orange-900/70 text-orange-400 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {retryingIds.has(c.id) ? '...' : '↺ Retry'}
+                        </button>
+                      )}
                       <button onClick={() => deleteCandidate(c.id)}
                         className="text-xs px-2 py-1 bg-red-900/30 hover:bg-red-900/60 text-red-400 rounded transition-colors">Delete</button>
                     </div>
@@ -1140,12 +1168,21 @@ function InternalPage() {
 
 
 
+// Persist sent email IDs across sessions
+const SENT_IDS_KEY = 'talentPool_sentEmailIds';
+function loadSentIds(): Set<string> {
+  try { return new Set(JSON.parse(localStorage.getItem(SENT_IDS_KEY) || '[]')); } catch { return new Set(); }
+}
+function saveSentIds(ids: Set<string>) {
+  localStorage.setItem(SENT_IDS_KEY, JSON.stringify(Array.from(ids)));
+}
+
 /* ─── 4. Bulk Email Page ───────────────────────────────────────── */
 function BulkEmailPage() {
   const [candidates, setCandidates] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [template, setTemplate] = useState('invite');
-  const [batchSize, setBatchSize] = useState(100);
+  const [batchSize, setBatchSize] = useState(200);
   const [sending, setSending] = useState(false);
   const [sentCount, setSentCount] = useState(0);
   const [currentBatch, setCurrentBatch] = useState(0);
@@ -1153,101 +1190,120 @@ function BulkEmailPage() {
   const [done, setDone] = useState(false);
   const [preview, setPreview] = useState(false);
   const [search, setSearch] = useState('');
+  const [sentIds, setSentIds] = useState<Set<string>>(loadSentIds);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastSentCount, setLastSentCount] = useState(0);
+  const [testEmail, setTestEmail] = useState('');
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
 
-  const TEMPLATE_PREVIEWS: Record<string, { subject: string; body: string }> = {
+  const handleTestSend = async () => {
+    if (!testEmail.trim()) return;
+    setTestSending(true);
+    setTestResult(null);
+    const token = getToken();
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.RESUME_EMAIL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ testEmail: testEmail.trim(), template })
+      });
+      const data = await res.json();
+      setTestResult({ ok: res.ok, msg: res.ok ? `✅ Test email sent to ${testEmail.trim()}` : `❌ ${data.error || 'Failed to send'}` });
+    } catch {
+      setTestResult({ ok: false, msg: '❌ Network error — check backend connection' });
+    }
+    setTestSending(false);
+  };
+
+  const TEMPLATE_PREVIEWS: Record<string, { subject: string; previewHtml: string }> = {
     invite: {
-      subject: 'You\'re Invited to Join ZyncJobs — Your Next Career Move Starts Here',
-      body: `Dear [Name],
-
-I hope this message finds you well.
-
-We recently came across your profile and were genuinely impressed by your background and professional experience. We believe you could be a strong fit for exciting opportunities currently available on our platform.
-
-ZyncJobs is a next-generation career platform designed to connect talented professionals like yourself with top employers across industries. Our AI-powered matching engine ensures you are presented with roles that align with your skills, experience, and career aspirations — saving you time and maximising your chances of landing the right opportunity.
-
-What ZyncJobs offers you:
-  • Personalised job recommendations based on your profile
-  • Direct access to verified employers and hiring managers
-  • One-click applications with your uploaded resume
-  • Real-time application tracking and status updates
-  • Career resources, salary insights, and interview tips
-
-We would love to have you on board. Getting started takes less than 2 minutes.
-
-👉 Create Your Free Profile: https://zyncjobs.com/register
-
-Should you have any questions or require assistance, please do not hesitate to reach out to our team at support@zyncjobs.com.
-
-We look forward to supporting your career journey.
-
-Warm regards,
-
-The ZyncJobs Talent Team
-ZyncJobs — Your Smart Career Platform
-https://zyncjobs.com  |  support@zyncjobs.com`,
+      subject: "You're Personally Invited to Join ZyncJobs — Your Next Career Move Awaits",
+      previewHtml: `
+        <div style="padding:24px 28px;">
+          <h2 style="color:#1F2937;font-size:18px;font-weight:700;margin:0 0 6px;">You have been hand-picked.</h2>
+          <p style="color:#374151;font-size:13px;line-height:1.7;margin:0 0 16px;">Our team reviewed your background and believes you are a strong match for roles currently open on ZyncJobs. We are reaching out personally because we think you deserve better opportunities — and we can help you find them.</p>
+          <div style="background:linear-gradient(135deg,#EEF2FF 0%,#F5F3FF 100%);border:1px solid #C7D2FE;border-radius:12px;padding:16px 18px;margin:0 0 16px;">
+            <p style="color:#3730A3;font-size:13px;font-weight:700;margin:0 0 10px;display:flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke="#3730A3" stroke-width="2" fill="#3730A3"/></svg> Why ZyncJobs is different:</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> <strong>AI-powered matching</strong> — we surface roles that fit your exact skills, not just keywords</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> <strong>Verified employers only</strong> — every company on our platform is screened and active</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> <strong>One-click apply</strong> — your uploaded resume does the work, no re-filling forms</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> <strong>Real-time status updates</strong> — know exactly where your application stands at all times</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><polyline points="20 6 9 17 4 12" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg> <strong>Free for candidates</strong> — always, no hidden fees or premium tiers</p>
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+            <tr>
+              <td style="width:33%;padding:4px;vertical-align:top;"><div style="border:1.5px solid #D8DCF0;border-radius:12px;padding:12px 8px;text-align:center;"><p style="color:#1F2937;font-size:11px;font-weight:700;margin:0 0 3px;">Thousands of Jobs</p><p style="color:#6B7280;font-size:10px;margin:0;">Verified openings across tech, finance, healthcare, and more</p></div></td>
+              <td style="width:33%;padding:4px;vertical-align:top;"><div style="border:1.5px solid #D8DCF0;border-radius:12px;padding:12px 8px;text-align:center;"><p style="color:#1F2937;font-size:11px;font-weight:700;margin:0 0 3px;">Smart AI Match</p><p style="color:#6B7280;font-size:10px;margin:0;">Personalised recommendations updated daily based on your profile</p></div></td>
+              <td style="width:33%;padding:4px;vertical-align:top;"><div style="border:1.5px solid #D8DCF0;border-radius:12px;padding:12px 8px;text-align:center;"><p style="color:#1F2937;font-size:11px;font-weight:700;margin:0 0 3px;">Instant Apply</p><p style="color:#6B7280;font-size:10px;margin:0;">Upload once, apply everywhere with a single click</p></div></td>
+            </tr>
+          </table>
+          <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
+          <p style="color:#1F2937;font-size:13px;font-weight:700;margin:0 0 12px;">Get hired in 3 simple steps:</p>
+          <div style="border-bottom:1px solid #F3F4F6;padding:8px 0;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0;"><span style="background:#5C6BC8;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-block;text-align:center;line-height:22px;font-size:11px;font-weight:700;margin-right:8px;">1</span>Create your free profile</p><p style="color:#6B7280;font-size:11px;margin:2px 0 0 30px;">Takes under 2 minutes — just your name, email, and resume</p></div>
+          <div style="border-bottom:1px solid #F3F4F6;padding:8px 0;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0;"><span style="background:#5C6BC8;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-block;text-align:center;line-height:22px;font-size:11px;font-weight:700;margin-right:8px;">2</span>Let AI find your matches</p><p style="color:#6B7280;font-size:11px;margin:2px 0 0 30px;">Our engine scans thousands of live roles and ranks the best fits for you</p></div>
+          <div style="padding:8px 0;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0;"><span style="background:#5C6BC8;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-block;text-align:center;line-height:22px;font-size:11px;font-weight:700;margin-right:8px;">3</span>Apply and track your progress</p><p style="color:#6B7280;font-size:11px;margin:2px 0 0 30px;">One click to apply, then watch your pipeline update in real time</p></div>
+          <div style="text-align:center;margin:16px 0;">
+            <span style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;">Claim Your Free Account Now</span>
+          </div>
+          <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:10px 14px;margin:0 0 16px;">
+            <p style="color:#92400E;font-size:11px;margin:0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#92400E" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke="#92400E" stroke-width="2" stroke-linecap="round"/></svg> <strong>Limited-time:</strong> Candidates who register this week get priority visibility to employers actively hiring right now.</p>
+          </div>
+          <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
+          <div style="background:#F0F7FF;border-radius:10px;padding:12px 16px;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0 0 3px;">Questions? We are here to help.</p><p style="color:#6B7280;font-size:12px;margin:0;">Reply to this email or reach us at Admin@zyncjobs.com</p></div>
+        </div>`
     },
     followup: {
-      subject: 'Following Up — Exclusive Opportunities Waiting for You on ZyncJobs',
-      body: `Dear [Name],
-
-I wanted to follow up on our earlier invitation to join ZyncJobs.
-
-We understand that your time is valuable, and we want to assure you that registering on ZyncJobs is completely free and takes only a couple of minutes. Since our last message, several new positions have been added that closely match your professional profile.
-
-Here is a quick reminder of what awaits you:
-  • Curated job matches tailored to your skills and experience
-  • Opportunities with leading companies actively hiring right now
-  • A streamlined application process — no lengthy forms
-  • Full visibility into your application pipeline
-
-Thousands of professionals have already taken the next step in their careers through ZyncJobs. We would be delighted to help you do the same.
-
-👉 Join ZyncJobs Today: https://zyncjobs.com/register
-
-If you have already registered, simply log in to explore the latest openings:
-🔗 https://zyncjobs.com/login
-
-For any queries, our support team is available at support@zyncjobs.com.
-
-Best regards,
-
-The ZyncJobs Talent Team
-ZyncJobs — Your Smart Career Platform
-https://zyncjobs.com  |  support@zyncjobs.com`,
+      subject: "Following Up — Exclusive Opportunities Waiting for You on ZyncJobs",
+      previewHtml: `
+        <div style="padding:24px 28px;">
+          <p style="color:#1F2937;font-size:15px;font-weight:700;margin:0 0 12px;">Dear Candidate,</p>
+          <p style="color:#374151;font-size:13px;line-height:1.7;margin:0 0 16px;">We noticed you have not joined ZyncJobs yet. Since our last message, several new positions have been added that closely match your profile.</p>
+          <div style="background:#EEF2FF;border:1px solid #C7D2FE;border-radius:12px;padding:16px 18px;margin:0 0 16px;">
+            <p style="color:#3730A3;font-size:13px;font-weight:700;margin:0 0 8px;">What is waiting for you:</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Curated job matches tailored to your skills</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Opportunities with companies actively hiring now</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Streamlined application process — no lengthy forms</p>
+            <p style="color:#374151;font-size:12px;margin:5px 0;">✓ Full visibility into your application pipeline</p>
+          </div>
+          <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
+          <div style="text-align:center;margin:0 0 16px;">
+            <span style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;">Join Now — It's Free</span>
+          </div>
+          <div style="background:#F0F7FF;border-radius:10px;padding:12px 16px;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0 0 3px;">Need help getting started?</p><p style="color:#6B7280;font-size:12px;margin:0;">Admin@zyncjobs.com</p></div>
+        </div>`
     },
     jobs: {
-      subject: 'New Job Openings Matching Your Profile — Act Now Before They\'re Filled',
-      body: `Dear [Name],
-
-We have identified several new job openings on ZyncJobs that closely match your skills and professional background.
-
-These positions are with reputable employers who are actively seeking candidates with your level of expertise. Roles are filling quickly, and we encourage you to review them at your earliest convenience.
-
-To view all matching opportunities and submit your application:
-
-👉 Explore Jobs on ZyncJobs: https://zyncjobs.com/register
-
-Once registered, your profile will be automatically matched against hundreds of live vacancies, and you will receive personalised alerts whenever a new relevant role is posted.
-
-Why act now?
-  • High-demand roles close fast — early applicants have a significant advantage
-  • Employers on ZyncJobs are actively reviewing profiles this week
-  • Your resume is already in our system — registration takes under 2 minutes
-
-We are committed to helping you find a role that truly fits your ambitions.
-
-For assistance, contact us at support@zyncjobs.com.
-
-Kind regards,
-
-The ZyncJobs Talent Team
-ZyncJobs — Your Smart Career Platform
-https://zyncjobs.com  |  support@zyncjobs.com`,
+      subject: "New Job Openings Matching Your Profile — Act Now Before They're Filled",
+      previewHtml: `
+        <div style="padding:24px 28px;">
+          <p style="color:#1F2937;font-size:15px;font-weight:700;margin:0 0 12px;">Dear Candidate,</p>
+          <p style="color:#374151;font-size:13px;line-height:1.7;margin:0 0 16px;">We have identified several new job openings on ZyncJobs that closely match your skills and professional background. Roles are filling quickly!</p>
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;">
+            <tr>
+              <td style="width:33%;padding:4px;vertical-align:top;"><div style="border:1.5px solid #D8DCF0;border-radius:12px;padding:12px 8px;text-align:center;"><p style="color:#1F2937;font-size:11px;font-weight:700;margin:0 0 3px;">Hot Roles</p><p style="color:#6B7280;font-size:10px;margin:0;">High-demand positions closing fast</p></div></td>
+              <td style="width:33%;padding:4px;vertical-align:top;"><div style="border:1.5px solid #D8DCF0;border-radius:12px;padding:12px 8px;text-align:center;"><p style="color:#1F2937;font-size:11px;font-weight:700;margin:0 0 3px;">Skill Match</p><p style="color:#6B7280;font-size:10px;margin:0;">Jobs matched to your exact experience</p></div></td>
+              <td style="width:33%;padding:4px;vertical-align:top;"><div style="border:1.5px solid #D8DCF0;border-radius:12px;padding:12px 8px;text-align:center;"><p style="color:#1F2937;font-size:11px;font-weight:700;margin:0 0 3px;">Quick Apply</p><p style="color:#6B7280;font-size:10px;margin:0;">Apply in under 2 minutes</p></div></td>
+            </tr>
+          </table>
+          <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:12px;padding:14px 18px;margin:0 0 16px;">
+            <p style="color:#92400E;font-size:12px;font-weight:700;margin:0 0 6px;">Why act now?</p>
+            <p style="color:#78350F;font-size:12px;margin:4px 0;">• High-demand roles close fast — early applicants have a significant advantage</p>
+            <p style="color:#78350F;font-size:12px;margin:4px 0;">• Employers are actively reviewing profiles this week</p>
+            <p style="color:#78350F;font-size:12px;margin:4px 0;">• Registration takes under 2 minutes</p>
+          </div>
+          <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
+          <div style="text-align:center;margin:0 0 16px;">
+            <span style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;">View Matching Jobs</span>
+          </div>
+          <div style="background:#F0F7FF;border-radius:10px;padding:12px 16px;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0 0 3px;">Need help getting started?</p><p style="color:#6B7280;font-size:12px;margin:0;">Admin@zyncjobs.com</p></div>
+        </div>`
     },
   };
 
   useEffect(() => {
     const queuedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem('talentPool_emailQueue') || '[]'); } catch { return []; } })();
+    const persistedSentIds = loadSentIds();
     apiFetch(`${API_ENDPOINTS.RESUME_CANDIDATES}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -1259,11 +1315,13 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
           name: typeof c.name === 'object' ? (c.name?.name || c.name?.first || '') : c.name,
         }));
         setCandidates(all);
-        // Pre-select queued ids if any, else select all with email
-        const ids = queuedIds.length > 0 ? queuedIds : all.filter((c:any) => c.email).map((c:any) => c.id);
-        setSelected(new Set(ids));
+        if (queuedIds.length > 0) {
+          setSelected(new Set(queuedIds));
+        }
+        // Don't auto-select all — let user pick batches manually
       })
       .catch(() => setCandidates([]));
+    setSentIds(persistedSentIds);
   }, []);
 
   const filtered = candidates.filter(c =>
@@ -1290,18 +1348,33 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
     });
   }, [candidates, selected]);
 
+  const selectNextBatch = (size: number) => {
+    const unsent = candidates.filter(c => c.email && !sentIds.has(c.id));
+    setSelected(new Set(unsent.slice(0, size).map(c => c.id)));
+  };
+
+  const handleBatchSizeChange = (newSize: number) => {
+    setBatchSize(newSize);
+    // Immediately re-select with new size
+    const unsent = candidates.filter(c => c.email && !sentIds.has(c.id));
+    setSelected(new Set(unsent.slice(0, newSize).map(c => c.id)));
+  };
+
   const handleSend = async () => {
     if (!selectedList.length) return;
     setSending(true);
     setDone(false);
     setSentCount(0);
     const token = getToken();
-    const batches = Math.ceil(selectedList.length / batchSize);
+    // Send all selected as one API call (backend handles batching)
+    const batches = Math.ceil(selectedList.length / 50); // internal sub-batches of 50
     setTotalBatches(batches);
+    let totalSent = 0;
+    const newSentIds = new Set(sentIds);
 
     for (let i = 0; i < batches; i++) {
       setCurrentBatch(i + 1);
-      const batch = selectedList.slice(i * batchSize, (i + 1) * batchSize);
+      const batch = selectedList.slice(i * 50, (i + 1) * 50);
       try {
         const res = await apiFetch(`${API_ENDPOINTS.RESUME_EMAIL}`, {
           method: 'POST',
@@ -1309,27 +1382,67 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
           body: JSON.stringify({ candidateIds: batch.map((c:any) => c.id), template, batchSize: batch.length })
         });
         const data = await res.json();
-        setSentCount(prev => prev + (data.sent || 0));
-        // Update local email status
+        const batchSent = data.sent || batch.length;
+        totalSent += batchSent;
+        setSentCount(prev => prev + batchSent);
+        batch.forEach((c: any) => newSentIds.add(c.id));
         setCandidates(prev => prev.map(c =>
           batch.find((b:any) => b.id === c.id) ? { ...c, emailStatus: 'Sent', emailSentAt: new Date().toISOString() } : c
         ));
       } catch {
         // continue next batch
       }
-      // 2 min delay between batches (120000ms), skip last
-      if (i < batches - 1) await new Promise(r => setTimeout(r, 120000));
+      if (i < batches - 1) await new Promise(r => setTimeout(r, 2000));
     }
+    setSentIds(newSentIds);
+    saveSentIds(newSentIds);
     setSending(false);
     setDone(true);
+    setLastSentCount(totalSent);
+    setShowSuccessModal(true);
+    setSelected(new Set()); // clear selection after send
   };
 
   const rawSelectedCount = candidates.filter(c => selected.has(c.id)).length;
   const dedupedCount = selectedList.length;
   const progress = dedupedCount > 0 ? Math.round((sentCount / dedupedCount) * 100) : 0;
+  const unsentCandidates = candidates.filter(c => c.email && !sentIds.has(c.id));
 
   return (
     <div className="space-y-5">
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-emerald-700/50 rounded-2xl w-full max-w-sm shadow-2xl p-8 text-center space-y-4">
+            <div className="w-16 h-16 bg-emerald-900/40 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-3xl">✅</span>
+            </div>
+            <h3 className="text-xl font-bold text-white">Emails Sent Successfully!</h3>
+            <p className="text-gray-400 text-sm">
+              <span className="text-emerald-400 font-semibold text-lg">{lastSentCount}</span> emails delivered successfully.
+            </p>
+            <div className="bg-gray-800 rounded-xl px-4 py-3 text-left space-y-1">
+              <p className="text-xs text-gray-400">📊 Total emailed so far: <span className="text-white font-semibold">{sentIds.size}</span></p>
+              <p className="text-xs text-gray-400">📭 Remaining unsent: <span className="text-orange-400 font-semibold">{unsentCandidates.length}</span></p>
+            </div>
+            {unsentCandidates.length > 0 && (
+              <button
+                onClick={() => { setShowSuccessModal(false); selectNextBatch(batchSize); }}
+                className="w-full py-2.5 bg-gradient-to-r from-blue-600 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity text-sm"
+              >
+                Select Next {Math.min(batchSize, unsentCandidates.length)} Unsent Candidates
+              </button>
+            )}
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 text-sm rounded-xl transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {rawSelectedCount > dedupedCount && (
         <div className="flex items-center gap-3 bg-orange-900/20 border border-orange-700/40 rounded-xl px-4 py-3">
           <Copy className="w-4 h-4 text-orange-400 shrink-0" />
@@ -1340,10 +1453,10 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
       )}
       <div className="grid grid-cols-4 gap-4">
         {[
-          { label: 'Total Candidates', val: candidates.length,   color: 'text-blue-400'    },
-          { label: 'Selected',         val: dedupedCount,          color: 'text-purple-400'  },
-          { label: 'Sent This Session',val: sentCount,                          color: 'text-emerald-400' },
-          { label: 'Remaining',        val: Math.max(0, dedupedCount - sentCount), color: 'text-orange-400' },
+          { label: 'Total Candidates',  val: candidates.length,        color: 'text-blue-400'    },
+          { label: 'Already Emailed',   val: sentIds.size,             color: 'text-emerald-400' },
+          { label: 'Unsent Remaining',  val: unsentCandidates.length,  color: 'text-orange-400'  },
+          { label: 'Selected Now',      val: dedupedCount,             color: 'text-purple-400'  },
         ].map((stat) => (
           <div key={stat.label} className="bg-gray-900 border border-gray-800 rounded-xl p-4 text-center">
             <p className={`text-2xl font-bold ${stat.color}`}>{stat.val}</p>
@@ -1354,8 +1467,18 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800">
-            <p className="text-sm font-semibold text-gray-200">Select Recipients</p>
+          <div className="flex items-center justify-between px-5 py-3 border-b border-gray-800 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-semibold text-gray-200">Select Recipients</p>
+              <button
+                onClick={() => selectNextBatch(batchSize)}
+                disabled={unsentCandidates.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1 bg-blue-600/20 hover:bg-blue-600/40 border border-blue-600/40 text-blue-300 text-xs font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Mail className="w-3 h-3" />
+                Select Next {Math.min(batchSize, unsentCandidates.length)} Unsent
+              </button>
+            </div>
             <input
               type="text"
               placeholder="Search..."
@@ -1383,7 +1506,9 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
                   <tr><td colSpan={4} className="text-center text-gray-500 py-8 text-sm">No candidates loaded.</td></tr>
                 ) : filtered.map(c => (
                   <tr key={c.id} className={`border-b border-gray-800 hover:bg-gray-800/40 transition-colors ${
-                    selected.has(c.id) ? 'bg-blue-900/10' : ''
+                    sentIds.has(c.id) || c.emailStatus === 'Sent'
+                      ? 'opacity-50'
+                      : selected.has(c.id) ? 'bg-blue-900/10' : ''
                   }`}>
                     <td className="px-4 py-2">
                       <input type="checkbox" checked={selected.has(c.id)}
@@ -1393,8 +1518,12 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
                     <td className="px-4 py-2 text-gray-400 text-xs">{c.email || '—'}</td>
                     <td className="px-4 py-2">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                        c.emailStatus === 'Sent' ? 'bg-emerald-900/40 text-emerald-400' : 'bg-gray-700 text-gray-400'
-                      }`}>{c.emailStatus || 'Not Sent'}</span>
+                        sentIds.has(c.id) || c.emailStatus === 'Sent'
+                          ? 'bg-emerald-900/40 text-emerald-400'
+                          : 'bg-gray-700 text-gray-400'
+                      }`}>
+                        {sentIds.has(c.id) || c.emailStatus === 'Sent' ? '✓ Sent' : 'Not Sent'}
+                      </span>
                     </td>
                   </tr>
                 ))}
@@ -1430,41 +1559,62 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
             <p className="text-sm font-semibold text-gray-200">Batch Settings</p>
             <div>
-              <label className="text-xs text-gray-400 mb-1 block">Emails per batch</label>
+              <label className="text-xs text-gray-400 mb-1 block">Select batch size</label>
               <select
                 value={batchSize}
-                onChange={e => setBatchSize(Number(e.target.value))}
+                onChange={e => handleBatchSizeChange(Number(e.target.value))}
                 className="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
               >
                 <option value={50}>50 per batch</option>
                 <option value={100}>100 per batch</option>
                 <option value={200}>200 per batch</option>
+                <option value={500}>500 per batch</option>
               </select>
             </div>
             <div className="text-xs text-gray-500 bg-gray-800/50 rounded-lg px-3 py-2 space-y-1">
-              <p>📦 {Math.ceil(selectedList.length / batchSize)} batch(es) for {selectedList.length} recipients</p>
-              <p>⏱ ~2 min delay between batches</p>
-              <p>📧 Safe limit: 500 emails/day</p>
+              <p>📦 {selectedList.length} selected to send now</p>
+              <p>📭 {unsentCandidates.length} total unsent remaining</p>
+              <p>✅ {sentIds.size} already emailed (tracked)</p>
             </div>
           </div>
 
+          <div className="bg-gray-900 border border-blue-800/40 rounded-xl p-5 space-y-3">
+            <p className="text-sm font-semibold text-gray-200">🧪 Send Test Email</p>
+            <p className="text-xs text-gray-500">Send the selected template to any email to preview exactly how it looks in inbox.</p>
+            <input
+              type="email"
+              placeholder="e.g. muthees@trinitetech.com"
+              value={testEmail}
+              onChange={e => { setTestEmail(e.target.value); setTestResult(null); }}
+              className="w-full bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+            {testResult && (
+              <p className={`text-xs font-medium ${testResult.ok ? 'text-emerald-400' : 'text-red-400'}`}>{testResult.msg}</p>
+            )}
+            <button
+              onClick={handleTestSend}
+              disabled={testSending || !testEmail.trim()}
+              className="w-full py-2 bg-blue-700 hover:bg-blue-600 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <Mail className="w-4 h-4" />
+              {testSending ? 'Sending...' : 'Send Test Email'}
+            </button>
+          </div>
+
           <button
-            onClick={handleSend}
-            disabled={sending || !selectedList.length || done}
+            disabled={sending || !selectedList.length}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             <Mail className="w-4 h-4" />
-            {sending ? `Sending batch ${currentBatch}/${totalBatches}...` : done ? '✅ All Sent!' : `Send to ${selectedList.length} Candidates`}
+            {sending ? `Sending ${sentCount}/${dedupedCount}...` : `Send to ${selectedList.length} Candidates`}
           </button>
         </div>
       </div>
 
-      {(sending || done) && (
+      {sending && (
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-5 space-y-3">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-300 font-medium">
-              {done ? '✅ Sending complete!' : `Batch ${currentBatch} of ${totalBatches} — sending...`}
-            </span>
+            <span className="text-gray-300 font-medium">Sending batch {currentBatch} of {totalBatches}...</span>
             <span className="text-gray-400">{sentCount} / {dedupedCount} sent ({progress}%)</span>
           </div>
           <div className="w-full bg-gray-800 rounded-full h-3">
@@ -1473,12 +1623,7 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
               style={{ width: `${progress}%` }}
             />
           </div>
-          {sending && (
-            <p className="text-xs text-gray-500">⏳ 2 minute delay between batches to stay within email limits.</p>
-          )}
-          {done && (
-            <p className="text-xs text-emerald-400">All emails sent successfully. Check Internal Candidates tab for updated status.</p>
-          )}
+          <p className="text-xs text-gray-500">⏳ Sending emails — please keep this tab open.</p>
         </div>
       )}
 
@@ -1491,49 +1636,74 @@ https://zyncjobs.com  |  support@zyncjobs.com`,
               <button onClick={() => setPreview(false)} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
             </div>
 
-            {/* Email mockup */}
-            <div className="p-6">
-              {/* Email client chrome */}
+            <div className="p-4">
               <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
                 {/* Subject bar */}
-                <div className="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                <div className="bg-gray-50 border-b border-gray-200 px-5 py-3">
                   <p className="text-xs text-gray-400 uppercase tracking-wide font-medium mb-0.5">Subject</p>
                   <p className="text-gray-800 text-sm font-semibold">{TEMPLATE_PREVIEWS[template].subject}</p>
                 </div>
 
-                {/* Email body */}
-                <div className="bg-white px-8 py-8">
-                  {/* Logo inside email body — top center */}
-                  <div className="flex justify-center mb-6 pb-6 border-b border-gray-100">
-                    <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-12 object-contain" />
+                {/* ── NEW BRAND DESIGN EMAIL BODY ── */}
+                {/* Outer bg */}
+                <div style={{ background: '#E9EBF0', padding: '20px 12px' }}>
+                  <div style={{ maxWidth: 620, margin: '0 auto', borderRadius: 20, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,0.10)' }}>
+
+                    {/* Header: blue gradient + logo + paper plane */}
+                    <div style={{ background: 'linear-gradient(175deg,#5C6BC8 0%,#4A58B8 50%,#6878D0 100%)', borderRadius: '20px 20px 0 0' }}>
+                      {/* Logo bar */}
+                      <div style={{ padding: '14px 24px 0', textAlign: 'center' }}>
+                        <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" style={{ height: 36, objectFit: 'contain' }} />
+                      </div>
+                      {/* Hero text + plane */}
+                      <div style={{ padding: '16px 28px 28px', textAlign: 'center', position: 'relative' }}>
+                        <div style={{ paddingRight: 44 }}>
+                          <p style={{ color: '#fff', fontSize: 18, fontWeight: 800, margin: '0 0 4px' }}>
+                            {template === 'invite' ? 'Welcome to Zync Jobs' : template === 'followup' ? 'Still Looking for Your Next Role?' : 'New Jobs Matching Your Profile'}
+                          </p>
+                          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, margin: 0 }}>
+                            {template === 'invite' ? 'Your Career Journey Starts here' : template === 'followup' ? 'New opportunities are waiting for you' : 'Act now before they are filled'}
+                          </p>
+                        </div>
+                        {/* Paper plane SVG */}
+                        <div style={{ position: 'absolute', right: 16, bottom: 16 }}>
+                          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" style={{ transform: 'rotate(-20deg)' }}>
+                            <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                        </div>
+                        {/* Decorative circle */}
+                        <div style={{ position: 'absolute', bottom: 8, right: 52, width: 32, height: 32, border: '2px solid rgba(255,255,255,0.2)', borderRadius: '50%', borderTopColor: 'transparent' }} />
+                      </div>
+                    </div>
+
+                {/* White body — matches actual email */}
+                    <div style={{ background: '#fff' }}
+                      dangerouslySetInnerHTML={{ __html: TEMPLATE_PREVIEWS[template].previewHtml }}
+                    />
+
+                    {/* Footer: dark navy */}
+                    <div style={{ background: '#1E2D5A', borderRadius: '0 0 20px 20px', padding: '18px 24px', textAlign: 'center' }}>
+                      <div style={{ marginBottom: 10 }}>
+                        <a href="https://zyncjobs.com" style={{ color: '#A0AABF', fontSize: 12, margin: '0 8px', textDecoration: 'none' }}>Home</a>
+                        <a href="https://zyncjobs.com/job-listings" style={{ color: '#A0AABF', fontSize: 12, margin: '0 8px', textDecoration: 'none' }}>Jobs</a>
+                        <a href="https://zyncjobs.com/privacy" style={{ color: '#A0AABF', fontSize: 12, margin: '0 8px', textDecoration: 'none' }}>Privacy</a>
+                        <a href="mailto:Admin@zyncjobs.com" style={{ color: '#A0AABF', fontSize: 12, margin: '0 8px', textDecoration: 'none' }}>Support</a>
+                      </div>
+                      <div style={{ borderTop: '1px solid #2E3F6E', paddingTop: 12 }}>
+                        <p style={{ color: '#6B7A9F', fontSize: 11, margin: '0 0 4px' }}>2026 ZyncJobs. All rights reserved.</p>
+                        <p style={{ fontSize: 11, margin: 0 }}>
+                          <span style={{ color: '#6B7A9F' }}>ZyncJobs · </span>
+                          <a href="mailto:Admin@zyncjobs.com" style={{ color: '#7B8FD4', textDecoration: 'none' }}>Admin@zyncjobs.com</a>
+                        </p>
+                      </div>
+                    </div>
+
                   </div>
-
-                  <pre className="text-gray-700 text-sm whitespace-pre-wrap font-sans leading-7">{TEMPLATE_PREVIEWS[template].body}</pre>
-
-                  {/* CTA button */}
-                  <div className="mt-8 text-center">
-                    <a
-                      href="https://zyncjobs.com/register"
-                      className="inline-block px-8 py-3 bg-gradient-to-r from-blue-600 to-orange-500 text-white text-sm font-semibold rounded-lg"
-                    >
-                      Get Started on ZyncJobs →
-                    </a>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="bg-gray-950 px-8 py-5 text-center space-y-2">
-                  <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-7 object-contain mx-auto opacity-60" />
-                  <p className="text-gray-500 text-xs">© {new Date().getFullYear()} ZyncJobs. All rights reserved.</p>
-                  <p className="text-gray-600 text-xs">
-                    <a href="https://zyncjobs.com" className="text-blue-400 hover:underline">zyncjobs.com</a>
-                    {' · '}
-                    <a href="mailto:support@zyncjobs.com" className="text-blue-400 hover:underline">support@zyncjobs.com</a>
-                  </p>
                 </div>
               </div>
 
-              <p className="text-xs text-gray-400 mt-4 text-center">💡 [Name] will be replaced with each candidate's actual name before sending.</p>
+              <p className="text-xs text-gray-400 mt-3 text-center">All candidates receive the same email with "Dear Candidate" greeting.</p>
             </div>
           </div>
         </div>
