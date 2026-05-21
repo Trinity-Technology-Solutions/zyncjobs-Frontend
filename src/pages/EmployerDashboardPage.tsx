@@ -41,9 +41,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [companyLogo, setCompanyLogo] = useState('');
   // Role-based access: Owner = full, Recruiter = post+manage, Viewer = read-only
   const [teamRole, setTeamRole] = useState<'Owner' | 'Recruiter' | 'Viewer' | null>(null);
-  const canPostJobs = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
-  const canManageApplications = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
-  const canInviteMembers = !teamRole || teamRole === 'Owner';
+  // null = original owner (no teamRole set) = full access
+  const isOwner = !teamRole || teamRole === 'Owner';
+  const isRecruiter = teamRole === 'Recruiter';
+  const isViewer = teamRole === 'Viewer';
+  const canPostJobs = isOwner || isRecruiter;
+  const canManageApplications = isOwner || isRecruiter;
+  const canInviteMembers = isOwner;
+  const canViewAnalytics = true; // all roles
+  const canAccessTeam = isOwner;
+  const canAccessSettings = isOwner;
+  const canAccessCredentialing = isOwner;
+  const canAccessAIRejection = isOwner;
+  const canAccessSavedCandidates = isOwner || isRecruiter;
+  const canAccessCandidateRanking = isOwner || isRecruiter;
+  const canAccessAIRecruiter = isOwner || isRecruiter;
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
@@ -209,7 +221,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       // Set team role for permission enforcement
       if (parsedUser.teamRole) setTeamRole(parsedUser.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
       // Fix: Use actual company name from registration, not generic 'Company'
-      const actualCompanyName = parsedUser.companyName || parsedUser.company || parsedUser.organizationName || 'Company';
+      // For team members, prefer the owner's companyName stored in their profile
+      const actualCompanyName = parsedUser.companyName || parsedUser.ownerCompanyName || parsedUser.company || parsedUser.organizationName || 'Company';
       console.log('Dashboard - Actual company name:', actualCompanyName);
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
@@ -240,6 +253,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         sessionStorage.removeItem('isFirstVisitAfterRegistration');
       }
       
+      // For team members: fetch data using the owner's employerId so they see the owner's jobs/apps
       fetchDashboardData(parsedUser);
     }
     
@@ -306,7 +320,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       // Get user ID - try different possible fields
       const userId = userData.id || userData._id || userData.userId;
+      // For team members: use the owner's employerId to fetch owner's data
+      const ownerEmployerId = userData.employerId; // set by backend when team member is created
       const userEmail = userData.email;
+      // ownerEmail: for team members this is the owner's email; for owners it's their own email
+      const ownerEmail = userData.ownerEmail || userData.employerEmail || userEmail;
       const userName = userData.name || userData.fullName;
       
       console.log('Using userId:', userId, 'userEmail:', userEmail, 'userName:', userName);
@@ -327,15 +345,24 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           const myEmployerId = storedUser.employerId;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
-            const email = userEmail?.toLowerCase().trim();
-            // Match own jobs
-            const matchesEmail = job.postedBy?.toLowerCase().trim() === email || job.employerEmail?.toLowerCase().trim() === email;
-            // If team member — also show all jobs posted under same employerId (owner + all team)
-            const matchesEmployerId = myEmployerId && (
+            const email = ownerEmail?.toLowerCase().trim();
+            const selfEmail = userEmail?.toLowerCase().trim();
+            // Match by owner email or self email
+            const matchesEmail = job.postedBy?.toLowerCase().trim() === email || 
+                                 job.employerEmail?.toLowerCase().trim() === email ||
+                                 job.postedBy?.toLowerCase().trim() === selfEmail || 
+                                 job.employerEmail?.toLowerCase().trim() === selfEmail;
+            // Match by employerId (owner's ID stored on team member)
+            const matchesEmployerId = ownerEmployerId && (
+              job.employerId === ownerEmployerId ||
+              job.postedByEmployerId === ownerEmployerId
+            );
+            // Also match by myEmployerId from stored user
+            const matchesMyEmployerId = myEmployerId && (
               job.employerId === myEmployerId ||
               job.postedByEmployerId === myEmployerId
             );
-            return matchesEmail || matchesEmployerId;
+            return matchesEmail || matchesEmployerId || matchesMyEmployerId;
           }) : [];
           console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
           setJobs(employerJobs);
@@ -396,12 +423,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           );
           
           employerApps = Array.isArray(appsWithJobDetails) ? appsWithJobDetails.filter((app: any) => {
-            const matchesEmail = app.employerEmail === userEmail;
+            const matchesOwnerEmail = app.employerEmail === ownerEmail;
+            const matchesSelfEmail = app.employerEmail === userEmail;
             // Team member — also show apps for jobs posted under same company
             const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
             const myEmployerId = storedUser.employerId;
-            const matchesEmployerId = myEmployerId && app.employerEmployerId === myEmployerId;
-            return matchesEmail || matchesEmployerId;
+            const matchesEmployerId = (ownerEmployerId && app.employerEmployerId === ownerEmployerId) ||
+                                      (myEmployerId && app.employerEmployerId === myEmployerId);
+            return matchesOwnerEmail || matchesSelfEmail || matchesEmployerId;
           }) : [];
           console.log('Dashboard - Filtered employer applications:', employerApps.length);
           setApplications(employerApps);
@@ -417,7 +446,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`);
+        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(ownerEmployerId || userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
@@ -696,6 +725,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   ];
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [accessDeniedModal, setAccessDeniedModal] = useState<{ show: boolean; feature: string; requiredRole: string }>({ show: false, feature: '', requiredRole: '' });
+
+  // Guard function: show popup if role doesn't have access
+  const withRoleCheck = (feature: string, requiredRole: 'Owner' | 'Recruiter', action: () => void) => {
+    if (isOwner) { action(); return; }
+    if (requiredRole === 'Recruiter' && isRecruiter) { action(); return; }
+    setAccessDeniedModal({ show: true, feature, requiredRole });
+  };
 
   if (viewingCandidateId) {
     return (
@@ -710,7 +747,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-gray-50" style={{height: 'calc(100vh - 64px)', overflow: 'hidden', maxWidth: '100vw'}}>
+    <div className="flex flex-col lg:flex-row bg-gray-50" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
@@ -730,8 +767,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar — fixed height, scrolls independently */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:relative top-0 left-0 h-screen lg:h-full ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', overflowY: 'auto', overflowX: 'hidden'}}>
+      {/* Sidebar — sticky, grows with content */}
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-stretch ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', overflowY: 'auto', overflowX: 'hidden', minHeight: '100vh'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -841,23 +878,36 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               )}
             </div>
 
+            {/* Role badge for team members */}
+            {teamRole && (
+              <div className="mx-3 mt-2 px-3 py-1.5 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2">
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  teamRole === 'Owner' ? 'bg-blue-400 text-white' :
+                  teamRole === 'Recruiter' ? 'bg-orange-400 text-white' :
+                  'bg-gray-400 text-white'
+                }`}>{teamRole}</span>
+                <span className="text-xs text-blue-200">access</span>
+              </div>
+            )}
+
             {/* Navigation */}
             <nav className="py-4 flex flex-col px-3 space-y-1">
               {([
-                { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard') },
-                ...(canPostJobs ? [{ key: 'job-management', label: 'Job Management', icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('job-management'), external: true }] : []),
-                { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => onNavigate('candidate-ranking'), external: true },
-                { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('ai-recruiter'), external: true },
-                ...(canManageApplications ? [{ key: 'applications', label: 'Applications', icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('applications'), badge: applications.length || null }] : []),
-                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('interviews'), badge: interviews.length || null },
-                ...(canPostJobs ? [{ key: 'posted-jobs', label: 'Posted Jobs', icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('my-jobs'), external: true, badge: jobs.length || null }] : []),
-                { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('team') },
-                { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('auto-rejection') },
-                { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('candidate-search'), external: true },
-                { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('saved-candidates') },
-                { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => setActiveMenu('credentialing') },
-                { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('settings'), external: true },
-              ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean }[]).map(item => {
+                { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
+                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
+                { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
+                { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
+                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
+                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
+                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+                { key: 'analytics',        label: 'Analytics',         icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true },
+                { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
+                { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
+                { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
+                { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
+                { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
+                { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
+              ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean; show: boolean }[]).filter(item => item.show).map(item => {
                 const isActive = activeMenu === item.key;
                 return (
                   <button key={item.key} onClick={item.action}
@@ -929,8 +979,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
       </div>
 
-      {/* Main Content — scrolls independently */}
-      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto h-full">
+      {/* Main Content */}
+      <div className="flex-1 bg-gray-50 min-w-0">
         {/* Top bar with Back Button */}
         <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
@@ -1021,6 +1071,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="mb-4 sm:mb-6">
                 <h1 className="hidden lg:block text-2xl sm:text-3xl font-bold text-gray-900">Employer Dashboard</h1>
                 <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
+                {isViewer && (
+                  <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg text-sm">
+                    <span className="text-base">👁️</span>
+                    <span>You have <strong>View Only</strong> access. Contact the Owner to request additional permissions.</span>
+                  </div>
+                )}
               </div>
               <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl shadow-md border-2 border-gray-200 p-3 sm:p-4 lg:p-6">
 
@@ -2017,7 +2073,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </>
           ) : activeMenu === 'team' ? (
-            <TeamSection employerEmail={user?.email} companyName={companyName} showToast={showToast} canInvite={canInviteMembers} />
+            <TeamSection
+              employerEmail={user?.employerId || user?.ownerEmail || user?.email}
+              currentUserEmail={user?.email}
+              companyName={companyName}
+              showToast={showToast}
+              canInvite={canInviteMembers}
+            />
           ) : activeMenu === 'auto-rejection' ? (
             <>
               <div className="mb-6">
@@ -2040,7 +2102,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
             </>
           ) : activeMenu === 'credentialing' ? (
-            <CandidateCredentialing employerEmail={user?.email || ''} showToast={showToast} />
+            canAccessCredentialing
+              ? <CandidateCredentialing employerEmail={user?.email || ''} showToast={showToast} />
+              : <AccessDenied role={teamRole} />
           ) : null}
           </div>
         </div>
@@ -2195,6 +2259,41 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         />
       )}
 
+      {/* Access Denied Modal */}
+      {accessDeniedModal.show && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4" onClick={() => setAccessDeniedModal({ show: false, feature: '', requiredRole: '' })}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col items-center text-center">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
+                <span className="text-3xl">🔒</span>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+              <p className="text-gray-500 text-sm mb-1">
+                <span className="font-semibold text-blue-600">{accessDeniedModal.feature}</span> requires
+              </p>
+              <p className="text-gray-500 text-sm mb-4">
+                <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
+                  accessDeniedModal.requiredRole === 'Owner' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                }`}>{accessDeniedModal.requiredRole}</span> access or higher.
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 w-full">
+                <p className="text-amber-800 text-xs">
+                  Your current role is <span className={`font-bold px-1.5 py-0.5 rounded-full ${
+                    teamRole === 'Recruiter' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+                  }`}>{teamRole}</span>. Contact the Owner to request access.
+                </p>
+              </div>
+              <button
+                onClick={() => setAccessDeniedModal({ show: false, feature: '', requiredRole: '' })}
+                className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Profile Completion Popup */}
       <ProfileCompletionPopup
         isOpen={showProfilePopup}
@@ -2228,6 +2327,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 };
 
 
+// ── Access Denied Component ──────────────────────────────────────────
+const AccessDenied: React.FC<{ role: string | null }> = ({ role }) => (
+  <div className="flex flex-col items-center justify-center py-24 text-center">
+    <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-4">
+      <span className="text-4xl">🔒</span>
+    </div>
+    <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
+    <p className="text-gray-500 text-sm max-w-xs">
+      Your <span className="font-semibold text-blue-600">{role}</span> role does not have permission to access this section.
+      Please contact the Owner to request access.
+    </p>
+  </div>
+);
+
 // ── Team Section Component ──────────────────────────────────────────────
 
 type TeamRole = 'Owner' | 'Recruiter' | 'Viewer';
@@ -2239,18 +2352,29 @@ const ROLE_PERMISSIONS: Record<TeamRole, string[]> = {
   Viewer: ['View Analytics'],
 };
 
-const TeamSection: React.FC<{ employerEmail: string; companyName: string; showToast: (message: string, type?: ToastType) => void; canInvite?: boolean }> = ({ employerEmail, companyName, showToast, canInvite = true }) => {
+const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; companyName: string; showToast: (message: string, type?: ToastType) => void; canInvite?: boolean }> = ({ employerEmail, currentUserEmail, companyName, showToast, canInvite = true }) => {
+  // currentUserEmail = logged-in user's own email (for "You" label)
+  // employerEmail = owner's email (used to query the team API)
   const API_BASE = import.meta.env.VITE_API_URL || '/api';
   const [members, setMembers] = React.useState<TeamMember[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [inviteEmail, setInviteEmail] = React.useState('');
   const [inviteRole, setInviteRole] = React.useState<TeamRole>('Recruiter');
   const [inviteName, setInviteName] = React.useState('');
+  const [invitePassword, setInvitePassword] = React.useState('');
+  const [showInvitePw, setShowInvitePw] = React.useState(false);
   const [showInvite, setShowInvite] = React.useState(false);
   const [selectedRole, setSelectedRole] = React.useState<TeamRole | null>(null);
   const [inviteSent, setInviteSent] = React.useState(false);
   const [inviting, setInviting] = React.useState(false);
   const [inviteToken, setInviteToken] = React.useState('');
+  const [inviteCredentials, setInviteCredentials] = React.useState<{ email: string; password: string; role: string } | null>(null);
+
+  // Generate a secure random password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
+    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  };
 
   const fetchMembers = React.useCallback(async () => {
     try {
@@ -2295,17 +2419,29 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
 
   const handleInvite = async () => {
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) { showToast('Enter a valid email address', 'error'); return; }
+    if (!invitePassword.trim() || invitePassword.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
     if (members.find(m => m.memberEmail === inviteEmail.trim())) { showToast('This email is already in the team', 'error'); return; }
     setInviting(true);
     try {
       const res = await apiFetch(`${API_BASE}/team`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employerId: employerEmail, memberEmail: inviteEmail.trim(), memberName: inviteName.trim() || inviteEmail.split('@')[0], role: inviteRole, companyName, inviteBaseUrl: `${window.location.origin}/team/accept` })
+        body: JSON.stringify({
+          employerId: employerEmail,
+          memberEmail: inviteEmail.trim(),
+          memberName: inviteName.trim() || inviteEmail.split('@')[0],
+          role: inviteRole,
+          password: invitePassword,
+          companyName,
+          emailType: 'credentials',
+          loginUrl: `${window.location.origin}/employer-login`,
+          inviteBaseUrl: `${window.location.origin}/team/accept`
+        })
       });
       if (res.ok) {
         const result = await res.json();
         setInviteToken(result.token || result.inviteToken || result.data?.token || '');
+        setInviteCredentials({ email: inviteEmail.trim(), password: invitePassword, role: inviteRole });
         await fetchMembers();
         setInviteSent(true);
       } else {
@@ -2323,6 +2459,8 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
     setInviteName('');
     setInviteRole('Recruiter');
     setInviteToken('');
+    setInvitePassword('');
+    setInviteCredentials(null);
   };
 
   const handleRoleChange = async (id: string, role: TeamRole) => {
@@ -2418,7 +2556,7 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                 }`}>
                   {member.status === 'pending' ? '⏳ Pending' : member.role}
                 </span>
-                {member.memberEmail !== employerEmail ? (
+                {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">
                     <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
                       className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white min-w-[100px]">
@@ -2426,21 +2564,12 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                       <option value="Viewer">Viewer</option>
                       <option value="Owner">Owner</option>
                     </select>
-                    <button onClick={(e) => {
+                    <button onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      openConfirm(
-                        'Remove Team Member', 
-                        'Are you sure you want to remove this team member? This action cannot be undone.', 
-                        async () => {
-                          try {
-                            await handleRemove(member.id);
-                          } catch (error) {
-                            console.error('Remove member error:', error);
-                          }
-                          closeConfirm();
-                        }
-                      );
+                      if (window.confirm('Are you sure you want to remove this team member?')) {
+                        await handleRemove(member.id);
+                      }
                     }}
                       className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
                       Remove
@@ -2465,40 +2594,68 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
               <button onClick={handleCloseInvite} className="text-gray-400 hover:text-gray-600 text-xl p-1">&times;</button>
             </div>
 
-            {inviteSent ? (
-              <div className="text-center py-4">
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl sm:text-3xl">🎉</span>
+            {inviteSent && inviteCredentials ? (
+              <div className="py-2">
+                <div className="flex flex-col items-center mb-5">
+                  <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                    <span className="text-3xl">🎉</span>
+                  </div>
+                  <h4 className="font-bold text-gray-900 text-base">Member Added!</h4>
+                  <p className="text-gray-500 text-xs mt-1 text-center">Share these credentials securely with the team member.</p>
                 </div>
-                <p className="text-gray-700 font-medium mb-1 text-sm sm:text-base">{inviteEmail}</p>
-                <p className="text-gray-500 text-xs sm:text-sm mb-4">
-                  Invited as <span className="font-semibold text-blue-600">{inviteRole}</span>.
-                  They will receive an email with a link to join.
+
+                {/* Credential Card */}
+                <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-xl p-4 mb-4 shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-white font-bold text-sm">🔐 Login Credentials</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                      inviteCredentials.role === 'Owner' ? 'bg-blue-400 text-white' :
+                      inviteCredentials.role === 'Recruiter' ? 'bg-orange-400 text-white' :
+                      'bg-gray-400 text-white'
+                    }`}>{inviteCredentials.role}</span>
+                  </div>
+                  <div className="space-y-2.5">
+                    <div className="bg-white/10 rounded-lg px-3 py-2">
+                      <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Login URL</p>
+                      <p className="text-white text-xs font-mono">{window.location.origin}/employer-login</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-3 py-2">
+                      <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Email</p>
+                      <p className="text-white text-sm font-mono">{inviteCredentials.email}</p>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-3 py-2 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Password</p>
+                        <p className="text-white text-sm font-mono">{inviteCredentials.password}</p>
+                      </div>
+                    </div>
+                    <div className="bg-white/10 rounded-lg px-3 py-2">
+                      <p className="text-blue-200 text-[10px] font-semibold uppercase tracking-wider mb-0.5">Access Level</p>
+                      <p className="text-white text-xs">{ROLE_PERMISSIONS[inviteCredentials.role as TeamRole].join(' · ')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Copy All button */}
+                <button
+                  onClick={() => {
+                    const text = `ZyncJobs Team Login\nURL: ${window.location.origin}/employer-login\nEmail: ${inviteCredentials.email}\nPassword: ${inviteCredentials.password}\nRole: ${inviteCredentials.role}\nAccess: ${ROLE_PERMISSIONS[inviteCredentials.role as TeamRole].join(', ')}`;
+                    navigator.clipboard.writeText(text);
+                    showToast('Credentials copied to clipboard!', 'success');
+                  }}
+                  className="w-full bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 transition-colors mb-3 flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                  Copy All Credentials
+                </button>
+
+                <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-4 text-center">
+                  ⚠️ Share these credentials privately. The member should change their password after first login.
                 </p>
-                <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex items-center gap-2 mb-4">
-                  <span className="text-xs text-gray-500 truncate flex-1">
-                    {inviteToken
-                      ? `${window.location.origin}/team/accept?token=${inviteToken}`
-                      : `${window.location.origin}/team/accept?token=...`}
-                  </span>
-                  <button
-                    onClick={() => {
-                      const link = inviteToken
-                        ? `${window.location.origin}/team/accept?token=${inviteToken}`
-                        : `${window.location.origin}/team/accept`;
-                      navigator.clipboard.writeText(link);
-                      showToast('Invite link copied!', 'success');
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap"
-                  >
-                    Copy Link
-                  </button>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button onClick={handleCloseInvite}
-                    className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Done</button>
-                  <button onClick={() => setInviteSent(false)}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Invite Another</button>
+
+                <div className="flex gap-3">
+                  <button onClick={handleCloseInvite} className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Done</button>
+                  <button onClick={() => { setInviteSent(false); setInviteCredentials(null); setInviteEmail(''); setInviteName(''); setInvitePassword(''); }} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700">Invite Another</button>
                 </div>
               </div>
             ) : (
@@ -2524,6 +2681,32 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                       <option value="Owner">Owner — Full access</option>
                     </select>
                   </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-sm font-medium text-gray-700">Login Password *</label>
+                      <button type="button" onClick={() => setInvitePassword(generatePassword())}
+                        className="text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors">
+                        ✨ Auto-generate
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        type={showInvitePw ? 'text' : 'password'}
+                        value={invitePassword}
+                        onChange={e => setInvitePassword(e.target.value)}
+                        placeholder="Min. 8 characters"
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 pr-10 text-sm focus:ring-2 focus:ring-blue-500 font-mono"
+                      />
+                      <button type="button" onClick={() => setShowInvitePw(!showInvitePw)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        {showInvitePw
+                          ? <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                          : <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                        }
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1">Member will use this password to login at the Employer Login page.</p>
+                  </div>
                   {/* Role permissions preview */}
                   <div className="bg-gray-50 rounded-lg p-3">
                     <p className="text-xs text-gray-500 font-medium mb-1.5">This person will be able to:</p>
@@ -2540,9 +2723,9 @@ const TeamSection: React.FC<{ employerEmail: string; companyName: string; showTo
                 <div className="flex flex-col sm:flex-row gap-3 mt-6">
                   <button onClick={handleCloseInvite}
                     className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-                  <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim()}
+                  <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || invitePassword.length < 8}
                     className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-                    {inviting ? 'Sending...' : 'Send Invite'}
+                    {inviting ? 'Creating...' : 'Create & Send Credentials'}
                   </button>
                 </div>
               </>
