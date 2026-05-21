@@ -100,6 +100,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
           reportingManager: extractReportingManager(description),
           workAuth: extractWorkAuth(description),
           noticePeriod: extractNoticePeriod(description),
+          urgentNote: extractUrgentNote(description),
           // Add confidence metadata for UI warnings
           _confidence: parserResult.confidence
         };
@@ -151,6 +152,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
           reportingManager: extractReportingManager(description),
           workAuth:         extractWorkAuth(description),
           noticePeriod:     extractNoticePeriod(description),
+          urgentNote:       extractUrgentNote(description),
         };
       }
     } catch {
@@ -215,6 +217,7 @@ ${description.slice(0, 2000)}`;
         reportingManager: extractReportingManager(description),
         workAuth:         extractWorkAuth(description),
         noticePeriod:     extractNoticePeriod(description),
+        urgentNote:       extractUrgentNote(description),
       };
     } catch {
       // Final fallback: pure regex
@@ -250,6 +253,7 @@ ${description.slice(0, 2000)}`;
       reportingManager: extractReportingManager(description),
       workAuth:         extractWorkAuth(description),
       noticePeriod:     extractNoticePeriod(description),
+      urgentNote:       extractUrgentNote(description),
     };
   };
 
@@ -332,25 +336,48 @@ ${description.slice(0, 2000)}`;
   // Extract salary from JD text only if actual numbers found — no defaults
   const extractSalaryIfNumeric = (text: string) => {
     const empty = { min: '', max: '', currency: 'INR', payRate: 'per year' };
-    const patterns = [
-      /([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?)/gi,
+    const currency = /₹|INR|lakh/i.test(text) ? 'INR' : /€|EUR/i.test(text) ? 'EUR' : /£|GBP/i.test(text) ? 'GBP' : 'USD';
+    const payRate = /per\s+month|monthly/i.test(text) ? 'per month' : /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
+
+    // Range patterns (25-35 lakhs, 25 to 35 LPA, 25-35 lks, etc.)
+    const rangePatterns = [
+      /([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?|lks?)/gi,
       /₹\s*([\d,]+(?:\.\d+)?)\s*[-–to]+\s*₹?\s*([\d,]+(?:\.\d+)?)/gi,
       /\$([\d,]+(?:\.\d+)?)\s*[-–to]+\s*\$?([\d,]+(?:\.\d+)?)/gi,
       /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)/gi,
     ];
-    for (const pattern of patterns) {
+    for (const pattern of rangePatterns) {
       const match = pattern.exec(text);
       if (match) {
         let min = parseFloat(match[1].replace(/,/g, ''));
         let max = parseFloat(match[2].replace(/,/g, ''));
-        if (/lpa|lakh/i.test(match[0])) { min *= 100000; max *= 100000; }
+        if (/lpa|lakh|lks?/i.test(match[0])) { min *= 100000; max *= 100000; }
         if (min > 0 && max > 0) {
-          const currency = /₹|INR|lakh/i.test(text) ? 'INR' : /€|EUR/i.test(text) ? 'EUR' : /£|GBP/i.test(text) ? 'GBP' : 'USD';
-          const payRate = /per\s+month|monthly/i.test(text) ? 'per month' : /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
           return { min: String(Math.round(min)), max: String(Math.round(max)), currency, payRate };
         }
       }
     }
+
+    // "Upto" / "up to" single-value patterns (upto 25 lakhs, up to 35 LPA, upto 45 lks)
+    const uptoPatterns = [
+      /up\s*to\s+([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?|lks?)/gi,
+      /up\s*to\s+₹\s*([\d,]+(?:\.\d+)?)/gi,
+      /up\s*to\s+\$([\d,]+(?:\.\d+)?)/gi,
+      /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*up\s*to\s+([\d,]+(?:\.\d+)?)/gi,
+      /(?:maximum|max)\s*(?:salary|ctc|pay)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?|lks?)/gi,
+    ];
+    for (const pattern of uptoPatterns) {
+      const match = pattern.exec(text);
+      if (match) {
+        let max = parseFloat(match[1].replace(/,/g, ''));
+        if (/lpa|lakh|lks?/i.test(match[0])) max *= 100000;
+        if (max > 0) {
+          const min = Math.round(max * 0.7);
+          return { min: String(min), max: String(Math.round(max)), currency, payRate };
+        }
+      }
+    }
+
     return empty;
   };
 
@@ -495,14 +522,19 @@ ${description.slice(0, 2000)}`;
   const extractLocation = (text: string): string => {
     // --- Priority 1: explicit label on its own line or after colon ---
     const labelPatterns = [
-      /^\s*(?:location|job\s+location|work\s+location|office\s+location)\s*[:\-]\s*([^\n\r,\(]{2,50})/im,
+      /^\s*(?:location|job\s+location|work\s+location|office\s+location)\s*[:\-]?\s*([^\n\r,\(]{2,50})/im,
       /(?:location|based\s+in|located\s+in|office\s+location)\s*[:\-]\s*([^\n\r,\(]{2,50})/i,
       /work\s+(?:location|place)\s*[:\-]\s*([^\n\r,\(]{2,50})/i,
     ];
     for (const p of labelPatterns) {
       const m = text.match(p);
       if (m?.[1]) {
-        const loc = m[1].trim().replace(/\s+/g, ' ');
+        // Strip work mode keywords that may bleed into the location value
+        let loc = m[1].trim()
+          .replace(/\s*(?:work\s+mode|work\s+type|employment\s+type|mode)[^\n]*/gi, '')
+          .replace(/\s*(hybrid|remote|on-?site|in-?person)\s*$/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
         // reject if it looks like a sentence (too many words or contains verbs)
         if (loc.length > 1 && loc.length < 50 && loc.split(/\s+/).length <= 5
             && !/\b(?:is|are|will|can|the|and|for|with|from|that|this|have|has)\b/i.test(loc)) {
@@ -511,10 +543,8 @@ ${description.slice(0, 2000)}`;
       }
     }
 
-    // --- Priority 2: work arrangement keywords ---
-    if (/\bremote\b/i.test(text) && /\bhybrid\b/i.test(text)) return 'Hybrid';
+    // --- Priority 2: work arrangement keywords (only if no city found above) ---
     if (/\bfully\s+remote\b|\b100%\s+remote\b|\bwork\s+from\s+home\b|\bwfh\b/i.test(text)) return 'Remote';
-    if (/\bhybrid\b/i.test(text)) return 'Hybrid';
 
     // --- Priority 3: known Indian cities (most JDs are Indian) ---
     const indianCities = [
@@ -1290,6 +1320,22 @@ ${description.slice(0, 2000)}`;
       .map(l => l.trim())
       .filter(l => l.length > 2 && l.length < 100)
       .slice(0, 10);
+  };
+
+  const extractUrgentNote = (text: string): string => {
+    const patterns = [
+      /urgent\s+note\s*[:\-]?\s*([^\n.]{5,120})/i,
+      /(?:urgent|immediate)\s+(?:requirement|opening|hiring|vacancy)[:\s-]*([^\n.]{5,120})/i,
+      /(?:immediate\s+joiners?\s+(?:only|preferred|required)[^\n.]{0,80})/i,
+      /(?:looking\s+for\s+immediate\s+joiners?[^\n.]{0,80})/i,
+      /(?:must\s+join\s+(?:immediately|within\s+\d+\s+days?)[^\n.]{0,60})/i,
+      /(?:asap\s+(?:joining|requirement|hire)[^\n.]{0,80})/i,
+    ];
+    for (const p of patterns) {
+      const m = text.match(p);
+      if (m) return (m[1] || m[0]).trim().replace(/[.\s]+$/, '');
+    }
+    return '';
   };
 
   const extractRequirements = (text: string): string[] => {
