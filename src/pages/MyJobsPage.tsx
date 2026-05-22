@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 
 
 interface MyJobsPageProps {
@@ -245,7 +246,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const fetchPostedJobs = async (page = 1, append = false) => {
     try {
       if (!append) setLoading(true);
-      const email = encodeURIComponent(user?.email || '');
+      const ownerEmail = getEffectiveEmployerEmail();
+      const email = encodeURIComponent(ownerEmail);
       console.log('Fetching posted jobs for email:', email);
       
       const response = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${email}`);
@@ -306,19 +308,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
   const fetchEmployerApplications = async () => {
     try {
-      console.log('Fetching applications for employer:', user?.email);
+      const ownerEmail = getEffectiveEmployerEmail();
+      console.log('Fetching applications for employer:', ownerEmail);
       
-      // First get all jobs posted by this employer
-      const jobsResponse = await fetch(API_ENDPOINTS.JOBS);
+      const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
       if (!jobsResponse.ok) {
         console.error('Failed to fetch jobs');
         return;
       }
       
-      const allJobs = await jobsResponse.json();
-      const employerJobs = allJobs.filter((job: any) => 
-        job.postedBy === user?.email || job.employerEmail === user?.email
-      );
+      const employerJobs = await jobsResponse.json();
       const employerJobIds = employerJobs.map((job: any) => getId(job));
       
       console.log('Employer jobs:', employerJobIds.length);

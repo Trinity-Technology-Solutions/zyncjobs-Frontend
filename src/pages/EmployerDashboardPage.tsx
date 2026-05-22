@@ -41,9 +41,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [companyLogo, setCompanyLogo] = useState('');
   // Role-based access: Owner = full, Recruiter = post+manage, Viewer = read-only
   const [teamRole, setTeamRole] = useState<'Owner' | 'Recruiter' | 'Viewer' | null>(null);
+  const [ownerEmailState, setOwnerEmailState] = useState<string>('');
+  // null = owner (registered before team system) — gets full access
+  // 'Owner' = full access, 'Recruiter' = post+manage, 'Viewer' = read-only
+  const isViewer = teamRole === 'Viewer';
   const canPostJobs = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
   const canManageApplications = !teamRole || teamRole === 'Owner' || teamRole === 'Recruiter';
   const canInviteMembers = !teamRole || teamRole === 'Owner';
+  const canDeleteRecords = !teamRole || teamRole === 'Owner';
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
@@ -206,8 +211,36 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       setUser(parsedUser);
       setEmployerName(parsedUser.name || 'Employer');
-      // Set team role for permission enforcement
-      if (parsedUser.teamRole) setTeamRole(parsedUser.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
+      // Live fetch team role from backend on every load
+      const _ue = parsedUser.email;
+      if (_ue) {
+        fetch(`${import.meta.env.VITE_API_URL || '/api'}/team/check?memberEmail=${encodeURIComponent(_ue)}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data?.hasInvite && data.role) {
+              const liveRole = data.role as 'Owner' | 'Recruiter' | 'Viewer';
+              setTeamRole(liveRole);
+              const resolvedOwner = data.employerId || _ue;
+              setOwnerEmailState(resolvedOwner);
+              const _s = JSON.parse(localStorage.getItem('user') || '{}');
+              _s.teamRole = liveRole;
+              _s.employerOwnerId = resolvedOwner;
+              localStorage.setItem('user', JSON.stringify(_s));
+              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, teamRole: liveRole });
+            } else {
+              setTeamRole('Owner');
+              setOwnerEmailState(_ue);
+              // Owner — fetch with own email
+              fetchDashboardData({ ...parsedUser, employerOwnerId: null });
+            }
+          })
+          .catch(() => {
+            if (parsedUser.teamRole) setTeamRole(parsedUser.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
+            const fallbackOwner = parsedUser.employerOwnerId || _ue;
+            setOwnerEmailState(fallbackOwner);
+            fetchDashboardData({ ...parsedUser, employerOwnerId: parsedUser.employerOwnerId || null });
+          });
+      }
       // Fix: Use actual company name from registration, not generic 'Company'
       const actualCompanyName = parsedUser.companyName || parsedUser.company || parsedUser.organizationName || 'Company';
       console.log('Dashboard - Actual company name:', actualCompanyName);
@@ -240,7 +273,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         sessionStorage.removeItem('isFirstVisitAfterRegistration');
       }
       
-      fetchDashboardData(parsedUser);
+      // fetchDashboardData called inside team/check callback with correct ownerEmail
     }
     
     // Listen for alerts navigation event from header
@@ -419,7 +452,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       try {
         const storedUserForStats = JSON.parse(localStorage.getItem('user') || '{}');
         const myCompanyForStats = storedUserForStats.companyName || storedUserForStats.company || '';
-        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}&companyName=${encodeURIComponent(myCompanyForStats)}`);
+        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}&userName=${encodeURIComponent(userName || '')}&companyName=${encodeURIComponent(myCompanyForStats)}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
           dashboardStats = { ...dashboardStats, ...stats };
@@ -431,7 +464,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Recent Activity (non-critical, fail silently)
       try {
-        const activityRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        const activityRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
         if (activityRes.ok) {
           const activity = await activityRes.json();
           recentActivity = activity;
@@ -677,7 +710,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="bg-gray-50 flex flex-col lg:flex-row" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
+    <div className="bg-gray-50 flex" style={{height: 'calc(100vh - 64px)', overflow: 'hidden'}}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
@@ -698,7 +731,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       )}
 
       {/* Sidebar */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-start ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', minHeight: '100%', overflowY: 'auto', overflowX: 'hidden'}}>
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:relative top-0 left-0 h-full ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', overflowY: 'auto', overflowX: 'hidden'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -897,7 +930,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-50 min-w-0">
+      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto h-full">
         {/* Top bar with Back Button */}
         <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
@@ -1416,7 +1449,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         </div>
 
                         <div className="flex flex-col gap-2 mt-3 sm:mt-0 sm:ml-4 flex-shrink-0 w-full sm:w-auto">
-                          <select
+                          {canManageApplications ? (<select
                             value={application.status}
                             onChange={async (e) => {
                               const newStatus = e.target.value;
@@ -1460,8 +1493,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <option value="shortlisted">Shortlisted</option>
                             <option value="rejected">Rejected</option>
                             <option value="hired">Hired</option>
-                          </select>
-                          {application.status !== 'rejected' && (
+                          </select>) : (<span className="px-4 py-2 border-2 border-gray-100 rounded-lg text-sm font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>)}
+                          {application.status !== 'rejected' && canManageApplications && (
                             <button 
                               onClick={() => {
                                 setSelectedApplication(application);
@@ -1489,7 +1522,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           >
                             View Profile
                           </button>
-                          <button 
+                          {canDeleteRecords && (<button 
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -1521,7 +1554,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           >
                             <Trash2 className="w-4 h-4" />
                             Delete
-                          </button>
+                          </button>)}
                         </div>
                       </div>
                     </div>
@@ -1637,7 +1670,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         </div>
 
                         <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
-                          <select
+                          {canManageApplications ? (<select
                             value={interview.status || 'scheduled'}
                             onChange={async (e) => {
                               const newStatus = e.target.value;
@@ -1670,8 +1703,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             <option value="scheduled">Scheduled</option>
                             <option value="completed">Completed</option>
                             <option value="cancelled">Cancelled</option>
-                          </select>
-                          <button 
+                          </select>) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
+                          {canDeleteRecords && (<button 
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
@@ -1702,7 +1735,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           >
                             <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                             <span className="hidden sm:inline">Delete</span>
-                          </button>
+                          </button>)}
                         </div>
                       </div>
                     </div>
@@ -1985,7 +2018,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'team' ? (
             <TeamSection 
-              employerEmail={user?.employerOwnerId || user?.email} 
+              employerEmail={ownerEmailState || user?.employerOwnerId || user?.email} 
               currentUserEmail={user?.email}
               companyName={companyName} 
               showToast={showToast} 

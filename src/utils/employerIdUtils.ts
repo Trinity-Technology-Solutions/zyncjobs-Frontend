@@ -3,6 +3,18 @@
 
 const EMPLOYER_ID_KEY = 'zyncjobs_employer_counter';
 
+// ── Team member support ──────────────────────────────────────────────
+// Returns the owner's email if logged-in user is a team member,
+// otherwise returns their own email. Use this everywhere jobs/apps are fetched.
+export const getEffectiveEmployerEmail = (): string => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    return user.employerOwnerId || user.email || '';
+  } catch {
+    return '';
+  }
+};
+// ─────────────────────────────────────────────────────────────────────
 export const generateEmployerId = (): string => {
   // Get current counter from localStorage
   let counter = parseInt(localStorage.getItem(EMPLOYER_ID_KEY) || '0', 10);

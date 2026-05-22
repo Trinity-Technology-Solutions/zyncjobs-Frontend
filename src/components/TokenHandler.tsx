@@ -97,8 +97,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
           }
 
           const userObj = { ...userData, userType: userRole, role: userRole, name: displayName };
-          localStorage.setItem('user', JSON.stringify(userObj));
-          onLogin({ name: displayName, type: userRole as 'candidate' | 'employer' | 'admin', email: userData.email });
+          onLogin({ ...userObj, type: userRole as 'candidate' | 'employer' | 'admin', email: userData.email });
           window.history.replaceState({}, document.title, window.location.pathname);
 
           if (accountIsEmployer && !userData.company && !userData.companyName) {

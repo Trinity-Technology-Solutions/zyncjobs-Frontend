@@ -145,25 +145,22 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
         if (!userEmail) return;
 
         if (user.type === 'employer') {
+          // For team members, use owner's email to show company-wide stats
+          const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+          const ownerEmail = storedUser.employerOwnerId || userEmail;
           const [jobsRes, appsRes] = await Promise.all([
-            apiFetch(`${API_ENDPOINTS.JOBS}?limit=1000`),
-            apiFetch(`${API_ENDPOINTS.APPLICATIONS}`),
+            apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`),
+            apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(ownerEmail)}`),
           ]);
           let jobsPosted = 0;
           let applicationsReceived = 0;
           if (jobsRes.ok) {
             const d = await jobsRes.json();
-            const allJobs = Array.isArray(d) ? d : d.jobs || [];
-            jobsPosted = allJobs.filter((j: any) =>
-              j.postedBy === userEmail || j.employerEmail === userEmail
-            ).length;
+            jobsPosted = (Array.isArray(d) ? d : d.jobs || []).length;
           }
           if (appsRes.ok) {
             const d = await appsRes.json();
-            const allApps = Array.isArray(d) ? d : d.applications || [];
-            applicationsReceived = allApps.filter((a: any) =>
-              a.employerEmail === userEmail
-            ).length;
+            applicationsReceived = (Array.isArray(d) ? d : d.applications || []).length;
           }
           setProfileMetrics(prev => ({ ...prev, jobsPosted, applicationsReceived }));
         } else {
