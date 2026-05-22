@@ -166,8 +166,19 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const analytics = useAnalytics(); // Initialize analytics
+  const analytics = useAnalytics();
   const [maintenance, setMaintenance] = useState(false);
+
+  // One-time cache bust on deploy
+  useEffect(() => {
+    const APP_VERSION = '2.1.0';
+    if (localStorage.getItem('app_version') !== APP_VERSION) {
+      localStorage.removeItem('user');
+      localStorage.removeItem('lastUserType');
+      localStorage.removeItem('accessToken');
+      localStorage.setItem('app_version', APP_VERSION);
+    }
+  }, []);
   const [user, setUser] = useState<UserType | null>(null);
   const [userLoading, setUserLoading] = useState(true);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -291,10 +302,11 @@ function App() {
     localStorage.setItem('lastUserType', userType);
     
     // Persist user to localStorage for fast restore on refresh
+    // IMPORTANT: preserve teamRole, employerOwnerId, employerId from team invite flow
     localStorage.setItem('user', JSON.stringify({
       ...userData,
       userType: userData.type,
-      role: userData.type,
+      role: userData.role || userData.type,
     }));
     const token = tokenStorage.getAccess();
     if (token && (userData.type === 'candidate' || userData.type === 'employer')) {
@@ -385,7 +397,15 @@ function App() {
         if (rawType === 'employer') fastType = 'employer';
         else if (rawType === 'admin') fastType = 'admin';
         else if (rawType === 'super_admin') fastType = 'super_admin';
-        setUser({ name: storedUser.name || storedUser.email?.split('@')[0] || 'User', type: fastType, email: storedUser.email });
+        setUser({
+          name: storedUser.name || storedUser.email?.split('@')[0] || 'User',
+          type: fastType,
+          email: storedUser.email,
+          // preserve team context
+          ...(storedUser.teamRole && { teamRole: storedUser.teamRole }),
+          ...(storedUser.employerOwnerId && { employerOwnerId: storedUser.employerOwnerId }),
+          ...(storedUser.employerId && { employerId: storedUser.employerId }),
+        } as any);
       }
 
       let token = tokenStorage.getAccess();
@@ -443,7 +463,17 @@ function App() {
           if (rawType === 'employer') userType = 'employer';
           else if (rawType === 'admin') userType = 'admin';
           else if (rawType === 'super_admin') userType = 'super_admin';
-          setUser({ name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User', type: userType, email: userData.email });
+          // Merge team fields from localStorage — getMe() returns raw DB record
+          // which doesn't include teamRole/employerOwnerId (those come from login join)
+          const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+          setUser({
+            name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
+            type: userType,
+            email: userData.email,
+            ...(stored.teamRole && { teamRole: stored.teamRole }),
+            ...(stored.employerOwnerId && { employerOwnerId: stored.employerOwnerId }),
+            ...(stored.employerId && { employerId: stored.employerId }),
+          } as any);
         }
       } catch {
         tokenStorage.clear();

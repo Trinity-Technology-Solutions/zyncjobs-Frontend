@@ -8,6 +8,7 @@ import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
 import { getId } from '../utils/getId';
+import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 
 interface Job {
   jobTitle: string;
@@ -72,16 +73,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const fetchEmployerJobs = async (userData: any) => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
+      const ownerEmail = getEffectiveEmployerEmail();
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
       if (response.ok) {
-        const allJobs = await response.json();
-        const employerJobs = allJobs.filter((job: any) => 
-          job.postedBy === userData.email ||
-          job.employerEmail === userData.email ||
-          (userData.email === 'muthees@trinitetech.com' && job.company?.toLowerCase().includes('trinity'))
-        );
-        
-        console.log('📋 Employer jobs found:', employerJobs.length);
+        const employerJobs = await response.json();
         
         // Fetch application counts for each job
         const jobsWithCounts = await Promise.all(
@@ -532,6 +527,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         </div>
                         <div className="text-xs text-gray-500">
                           {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
+                          {job.postedByName && job.postedByEmail !== job.employerEmail && (
+                            <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-medium">
+                              Posted by: {job.postedByName}
+                            </span>
+                          )}
                         </div>
                         
                         {/* Refresh Status Indicator */}

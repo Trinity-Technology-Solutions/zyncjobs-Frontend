@@ -77,10 +77,7 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
       .then(r => r.json())
       .then(data => {
         if (data.success) {
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('user', JSON.stringify(data.user));
           onLogin(data.user, data.accessToken);
-          // Ensure invite state is set for success screen
           if (inviteData) setInvite(inviteData);
           setStep('success');
           setTimeout(() => onNavigate('dashboard'), 2000);
@@ -109,8 +106,6 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
         onLogin(data.user, data.accessToken);
         setStep('success');
         setTimeout(() => onNavigate('dashboard'), 2000);

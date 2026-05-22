@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
+import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -127,14 +128,17 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
   const fetchData = async () => {
     setLoading(true);
     try {
-      const userEmail = user?.email;
-      const [jobsRes, appsRes] = await Promise.all([fetch(API_ENDPOINTS.JOBS), fetch(API_ENDPOINTS.APPLICATIONS)]);
+      const userEmail = getEffectiveEmployerEmail();
+      const [jobsRes, appsRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
+        fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
+      ]);
       const allJobs = jobsRes.ok ? await jobsRes.json() : [];
       const appsData = appsRes.ok ? await appsRes.json() : [];
       const allApps = appsData.applications || appsData || [];
-      const employerJobs = allJobs.filter((j: any) => j.postedBy?.toLowerCase() === userEmail?.toLowerCase() || j.employerEmail?.toLowerCase() === userEmail?.toLowerCase());
+      const employerJobs = allJobs;
       setJobs(employerJobs);
-      const employerApps = allApps.filter((a: any) => a.employerEmail === userEmail);
+      const employerApps = allApps;
       const enriched = await Promise.all(employerApps.map(async (app: any) => {
         try {
           const id = app.candidateId || app.userId || app.candidateUserId;

@@ -10,6 +10,7 @@ import { getCompanyLogo } from '../utils/logoUtils';
 import mistralAIService from '../services/mistralAIService';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
+import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 
 
 interface JobPostingPageProps {
@@ -3222,7 +3223,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       }),
       benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
-      employerEmail: user.email,
+      postedByEmail: user.email,
+      postedByName: user.name || user.email,
+      employerEmail: getEffectiveEmployerEmail(),
       employerName: user.name,
       employerCompany: user?.companyName || jobData.companyName || 'Your Company',
       employerId: user.employerId || 'EID0001',
