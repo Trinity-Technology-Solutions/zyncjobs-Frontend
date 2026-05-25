@@ -628,7 +628,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => setCandidates(Array.isArray(d) ? d : (d.candidates || [])))
+      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ ...c, id: c.id || c._id }))))
       .catch((err) => console.error('ExtractedPage fetch error:', err))
       .finally(() => setLoading(false));
   };
@@ -959,7 +959,7 @@ function InternalPage() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => setCandidates(Array.isArray(d) ? d : (d.candidates || [])))
+      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ ...c, id: c.id || c._id }))))
       .catch((err) => { console.error('InternalPage fetch error:', err); setCandidates([]); })
       .finally(() => setLoading(false));
   }, []);
@@ -1312,13 +1312,17 @@ function BulkEmailPage() {
       .then(d => {
         const all = (Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({
           ...c,
+          id: c.id || c._id,
           name: typeof c.name === 'object' ? (c.name?.name || c.name?.first || '') : c.name,
         }));
         setCandidates(all);
         if (queuedIds.length > 0) {
           setSelected(new Set(queuedIds));
+        } else {
+          // Auto-select first batch of unsent candidates so button is ready
+          const unsent = all.filter((c: any) => c.email && !persistedSentIds.has(c.id));
+          setSelected(new Set(unsent.slice(0, batchSize).map((c: any) => c.id)));
         }
-        // Don't auto-select all — let user pick batches manually
       })
       .catch(() => setCandidates([]));
     setSentIds(persistedSentIds);
@@ -1602,6 +1606,7 @@ function BulkEmailPage() {
           </div>
 
           <button
+            onClick={handleSend}
             disabled={sending || !selectedList.length}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >

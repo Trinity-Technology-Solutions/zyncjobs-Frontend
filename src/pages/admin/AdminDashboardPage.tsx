@@ -63,7 +63,6 @@ const navItems: NavItem[] = [
   { id: 'employers',     label: 'Employers',       icon: Building2,       section: 'users' },
   { id: 'verifications', label: 'Verifications',   icon: UserCheck,       section: 'users' },
   { id: 'jobs',          label: 'Jobs',            icon: Briefcase,       section: 'content' },
-  { id: 'analytics',     label: 'Analytics',       icon: BarChart2,       section: 'content' },
   { id: 'reports',       label: 'Reports',         icon: TrendingUp,      section: 'content' },
   { id: 'notifications', label: 'Notifications',   icon: Bell,            section: 'communication' },
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
