@@ -16,6 +16,10 @@ html, body {
 * {
   box-sizing: border-box;
   font-family: 'IBM Plex Sans', sans-serif !important;
+}
+
+/* Prevent overflow on layout containers only — NOT on form elements */
+*:not(input):not(button):not(select):not(textarea):not(svg):not(img) {
   max-width: 100%;
 }
 
@@ -48,10 +52,6 @@ body {
 
 /* Mobile-specific overrides */
 @media (max-width: 1024px) {
-  * {
-    max-width: 100vw;
-  }
-  
   body {
     max-width: 100vw;
     overflow-x: hidden !important;
