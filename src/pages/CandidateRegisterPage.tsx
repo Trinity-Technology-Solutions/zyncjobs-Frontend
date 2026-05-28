@@ -284,8 +284,8 @@ const CandidateRegisterPage: React.FC<CandidateRegisterPageProps> = ({ onNavigat
         {/* RIGHT PANEL */}
         <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-4 sm:px-6 py-8 sm:py-12 relative overflow-hidden min-h-screen lg:min-h-0">
           {/* Decorative Blobs */}
-          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15" />
-          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15" />
+          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
+          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
           
           <div className="w-full max-w-sm sm:max-w-md">
             <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg sm:shadow-xl p-4 sm:p-6 lg:p-8">

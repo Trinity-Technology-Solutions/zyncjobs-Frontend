@@ -24,17 +24,8 @@ export const getResumeByApplicationId = async (applicationId: string): Promise<R
 };
 
 export const getResumeByEmail = async (email: string): Promise<ResumeResponse> => {
-  try {
-    const res = await apiFetch(`${API_BASE}/resume/presigned?email=${encodeURIComponent(email)}`);
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ error: 'Failed to fetch resume' }));
-      return { error: error.error || error.message || 'Resume not found' };
-    }
-    return await res.json();
-  } catch (error) {
-    console.error('getResumeByEmail error:', error);
-    return { error: 'Network error while fetching resume' };
-  }
+  // Return the stream URL directly — ResumeModal will blob-fetch it for inline viewing
+  return { presignedUrl: `${API_BASE}/resume/presigned?email=${encodeURIComponent(email)}` };
 };
 
 export const downloadResumeByApplicationId = async (

@@ -96,28 +96,23 @@ function authHeaders() {
 }
 
 async function authFetch(url: string, options: RequestInit = {}, onUnauthorized?: () => void) {
-  try {
-    const response = await apiFetch(url, {
-      ...options,
-      headers: { ...authHeaders(), ...(options.headers || {}) }
-    });
+  const response = await apiFetch(url, {
+    ...options,
+    headers: { ...authHeaders(), ...(options.headers || {}) }
+  });
 
-    if (response.status === 401) {
-      tokenStorage.clear();
-      onUnauthorized?.();
-      throw new Error('UNAUTHORIZED');
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error: any) {
-    if (error.message === 'UNAUTHORIZED') throw error;
-    console.warn('Admin API error:', error.message);
-    return {};
+  if (response.status === 401) {
+    tokenStorage.clear();
+    onUnauthorized?.();
+    throw new Error('UNAUTHORIZED');
   }
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error || body.message || `HTTP ${response.status}`);
+  }
+
+  return await response.json();
 }
 
 export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props) {
@@ -699,16 +694,16 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
 
   useEffect(() => { load(); }, [load]);
 
-  const banUser = async (userId: string, isBanned: boolean) => {
+  const banUser = async (userId: string, currentlyActive: boolean) => {
     setActionLoading(userId);
     try {
       await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}/ban`, {
         method: 'PUT',
-        body: JSON.stringify({ ban: !isBanned }),
+        body: JSON.stringify({ ban: currentlyActive }),
       }, onUnauthorized);
-      setUsers(prev => prev.map(u => (u.id || u._id) === userId ? { ...u, isActive: isBanned } : u));
-    } catch {
-      setError('Failed to update user ban status.');
+      setUsers(prev => prev.map(u => (u.id || u._id) === userId ? { ...u, isActive: !currentlyActive } : u));
+    } catch (e: any) {
+      if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to update user ban status.');
     } finally {
       setActionLoading(null);
     }
@@ -722,8 +717,8 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
         body: JSON.stringify({ role: newRole }),
       }, onUnauthorized);
       setUsers(prev => prev.map(u => (u.id || u._id) === userId ? { ...u, role: newRole } : u));
-    } catch {
-      setError('Failed to update user role.');
+    } catch (e: any) {
+      if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to update user role.');
     } finally {
       setActionLoading(null);
     }
@@ -735,12 +730,10 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     
     setActionLoading(userId + 'delete');
     try {
-      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, {
-        method: 'DELETE',
-      }, onUnauthorized);
+      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE' }, onUnauthorized);
       setUsers(prev => prev.filter(u => (u.id || u._id) !== userId));
-    } catch {
-      setError('Failed to delete user.');
+    } catch (e: any) {
+      if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to delete user.');
     } finally {
       setActionLoading(null);
     }
@@ -840,7 +833,7 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
                           {userRole !== 'super_admin' && (
                             <>
                               <button
-                                onClick={() => banUser(id, !u.isActive)}
+                                onClick={() => banUser(id, u.isActive)}
                                 disabled={actionLoading === id}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50
                                   ${!u.isActive
@@ -930,14 +923,14 @@ function JobsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
   };
 
   const deleteJob = async (jobId: string) => {
-    const ok = await (window as any).confirmAsync('Delete this job posting permanently?');
+    const ok = confirm('Delete this job posting permanently?');
     if (!ok) return;
     setActionLoading(jobId + 'delete');
     try {
       await authFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' }, onUnauthorized);
       setJobs(prev => prev.filter(j => (j.id || j._id) !== jobId));
-    } catch {
-      setError('Failed to delete job.');
+    } catch (e: any) {
+      if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to delete job.');
     } finally {
       setActionLoading(null);
     }

@@ -9,6 +9,7 @@ import ProfilePhotoEditor from '../components/ProfilePhotoEditor';
 import CandidateNotificationBell from '../components/CandidateNotificationBell';
 import { useApplicationNotifications } from '../hooks/useApplicationNotifications';
 import { tokenStorage } from '../utils/tokenStorage';
+import { S3Service } from '../services/s3Service';
 
 const token = tokenStorage.getAccess();
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
@@ -373,7 +374,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               
               // Show resume popup for first-time users
               const popupKey = `resumePopupDismissed_${parsedUser.email}`;
-              if (!localStorage.getItem(popupKey) && !updatedUser.resume && !updatedUser.resumeUrl) {
+              const isNewUser = !updatedUser.resume && !updatedUser.resumeUrl;
+              if (!localStorage.getItem(popupKey) && isNewUser) {
+                localStorage.removeItem(popupKey); // ensure clean state
                 setTimeout(() => setShowResumePopup(true), 800);
               }
             } else {
@@ -382,7 +385,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               
               // Show resume popup for first-time users
               const popupKey = `resumePopupDismissed_${parsedUser.email}`;
-              if (!localStorage.getItem(popupKey) && !parsedUser.resume && !parsedUser.resumeUrl) {
+              const isNewUser = !parsedUser.resume && !parsedUser.resumeUrl;
+              if (!localStorage.getItem(popupKey) && isNewUser) {
+                localStorage.removeItem(popupKey);
                 setTimeout(() => setShowResumePopup(true), 800);
               }
             }
@@ -393,7 +398,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
             
             // Show resume popup for first-time users
             const popupKey = `resumePopupDismissed_${parsedUser.email}`;
-            if (!localStorage.getItem(popupKey) && !parsedUser.resume && !parsedUser.resumeUrl) {
+            const isNewUser = !parsedUser.resume && !parsedUser.resumeUrl;
+            if (!localStorage.getItem(popupKey) && isNewUser) {
+              localStorage.removeItem(popupKey);
               setTimeout(() => setShowResumePopup(true), 800);
             }
           }
@@ -1960,18 +1967,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               return;
                             }
                             try {
-                              const formData = new FormData();
-                              formData.append('resume', file);
-                              if (user?.id) formData.append('userId', user.id);
-                              if (user?.email) formData.append('userEmail', user.email);
-                                                            const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
-                                method: 'POST',
-                                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                                body: formData
-                              });
-                              const result = await uploadRes.json();
-                              if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                              const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? `/uploads/${result.filename}` : null);
+                              const s3Result = await S3Service.uploadResumeToS3(file);
+                              if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
+                              const fileUrl = s3Result.fileUrl;
                               const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
                               const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                               setUser(updatedUser);
@@ -2046,18 +2044,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             return;
                           }
                           try {
-                            const formData = new FormData();
-                            formData.append('resume', file);
-                            if (user?.id) formData.append('userId', user.id);
-                            if (user?.email) formData.append('userEmail', user.email);
-                                                        const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
-                              method: 'POST',
-                              headers: token ? { Authorization: `Bearer ${token}` } : {},
-                              body: formData
-                            });
-                            const result = await uploadRes.json();
-                            if (!uploadRes.ok) throw new Error(result.error || 'Upload failed');
-                            const fileUrl = result.fileUrl || result.url || result.path || (result.filename ? `/uploads/${result.filename}` : null);
+                            const s3Result = await S3Service.uploadResumeToS3(file);
+                            if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
+                            const fileUrl = s3Result.fileUrl;
                             const resumeData = { name: file.name, size: file.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
                             const updatedUser = { ...user, resume: resumeData, resumeUrl: fileUrl };
                             setUser(updatedUser);
@@ -2335,39 +2324,43 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       throw new Error(parseData.error || 'Parse failed');
                     }
                     const p = parseData.profileData;
+                    console.log('[ResumePopup] AI parsed profileData:', JSON.stringify(p, null, 2));
 
-                    // 2. Upload resume file
-                    const uploadForm = new FormData();
-                    uploadForm.append('resume', resumePopupFile);
-                    if (user?.id) uploadForm.append('userId', user.id);
-                    if (user?.email) uploadForm.append('userEmail', user.email);
-                                        const uploadRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
-                      method: 'POST',
-                      headers: token ? { Authorization: `Bearer ${token}` } : {},
-                      body: uploadForm
-                    });
-                    const uploadData = await uploadRes.json();
-                    const fileUrl = uploadData.fileUrl || uploadData.url || uploadData.path || '';
+                    // Sanitize AI name — reject section headings
+                    const SECTION_HEADINGS = new Set(['about me','about','summary','objective','profile','overview','experience','work experience','education','skills','projects','certifications','contact']);
+                    const isValidName = (n: string) => {
+                      if (!n || n.length < 2 || n.length > 60) return false;
+                      if (SECTION_HEADINGS.has(n.toLowerCase())) return false;
+                      if (/^[A-Z\s]+$/.test(n) && n.split(' ').length <= 2 && n.length < 20) return false;
+                      return /[a-zA-Z]/.test(n);
+                    };
+                    const cleanName = isValidName(p.name) ? p.name : '';
+                    // 2. Upload resume file to S3
+                    const s3Result = await S3Service.uploadResumeToS3(resumePopupFile);
+                    if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
+                    const fileUrl = s3Result.fileUrl || '';
                     const resumeData = { name: resumePopupFile.name, size: resumePopupFile.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
 
                     // 3. Merge parsed data into user profile
+                    const inferredJobTitle = p.title || p.jobTitle || p.workExperiences?.[0]?.jobTitle || '';
+                    const extractYear = (dateStr: string) => dateStr?.match(/\d{4}/)?.[0] || '';
                     const merged = {
                       ...user,
                       resume: resumeData,
                       resumeUrl: fileUrl,
-                      ...(p.name && !user?.name ? { name: p.name } : {}),
+                      ...(cleanName && !user?.name ? { name: cleanName } : {}),
                       ...(p.phone && !user?.phone ? { phone: p.phone } : {}),
                       ...(p.location && !user?.location ? { location: p.location } : {}),
                       ...(p.country && !user?.country ? { country: p.country } : {}),
-                      ...(p.summary ? { profileSummary: p.summary } : {}),
+                      ...((p.summary || p.profileSummary) ? { profileSummary: p.summary || p.profileSummary } : {}),
                       ...(p.skills?.length > 0 ? { skills: p.skills } : {}),
-                      ...(p.title && !user?.jobTitle ? { jobTitle: p.title } : {}),
+                      ...(inferredJobTitle && !user?.jobTitle ? { jobTitle: inferredJobTitle } : {}),
                       ...(p.educations?.length > 0 ? {
                         educationCollege: {
                           college: p.educations[0].school || '',
                           degree: p.educations[0].degree || '',
-                          passingYear: p.educations[0].date?.split('-').pop()?.trim() || '',
-                          percentage: p.educations[0].grade || ''
+                          passingYear: extractYear(p.educations[0].date || ''),
+                          percentage: p.educations[0].percentage || p.educations[0].grade || ''
                         }
                       } : {}),
                       ...(p.workExperiences?.length > 0 ? {
@@ -2375,13 +2368,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           companyName: w.company || '',
                           designation: w.jobTitle || '',
                           description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : (w.descriptions || ''),
-                          startYear: w.date?.split('-')[0]?.trim() || '',
-                          endYear: w.date?.split('-')[1]?.trim() || '',
+                          startYear: extractYear(w.date?.split('-')[0] || w.date || ''),
+                          endYear: extractYear(w.date?.split('-')[1] || ''),
+                          currentlyWorking: w.date?.toLowerCase().includes('present') || false,
                         }))
                       } : {}),
                       ...(p.projects?.length > 0 ? {
                         projects: p.projects.map((pr: any) => ({
-                          projectName: pr.name || '',
+                          projectName: pr.name || pr.projectName || '',
                           description: pr.description || ''
                         }))
                       } : {}),
