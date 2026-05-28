@@ -201,6 +201,11 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       return '/images/company-logos/nambikkai-logo.png';
     }
     
+    // Special handling for Inypeople
+    if (company.name.toLowerCase().includes('inypeople') || company.name.toLowerCase().includes('iny people')) {
+      return '/images/company-logos/inypeople-logo.png';
+    }
+    
     // Try multiple logo sources
     const logoSources = [
       company.logo,

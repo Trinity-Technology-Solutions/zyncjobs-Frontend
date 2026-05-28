@@ -70,6 +70,12 @@ export const shareToWhatsApp = (content: ReturnType<typeof generateJobShareConte
   window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
 };
 
+export const shareToFacebook = (content: ReturnType<typeof generateJobShareContent>) => {
+  const encodedUrl = encodeURIComponent(content.url);
+  const quote = encodeURIComponent(`${content.title} — ${content.description}`);
+  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${quote}`, '_blank', 'width=600,height=600,noopener,noreferrer');
+};
+
 export const copyToClipboard = async (url: string): Promise<boolean> => {
   try {
     await navigator.clipboard.writeText(url);

@@ -67,6 +67,9 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
     if (companyName.includes('nambikkai')) {
       return '/images/company-logos/nambikkai-logo.png';
     }
+    if (companyName.includes('inypeople') || companyName.includes('iny people')) {
+      return '/images/company-logos/inypeople-logo.png';
+    }
     if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) {
       return '/images/company-logos/growthpulss.png';
     }

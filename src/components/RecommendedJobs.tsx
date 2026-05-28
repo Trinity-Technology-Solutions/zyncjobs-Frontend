@@ -512,6 +512,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                               const companyName = company.toLowerCase();
                               // Priority 1: Local logos from logoUtils
                               const localLogo = (() => {
+                                if (companyName.includes('inypeople') || companyName.includes('iny people')) return '/images/company-logos/inypeople-logo.png';
                                 if (companyName.includes('nambikkai')) return '/images/company-logos/nambikkai-logo.png';
                                 if (companyName.includes('trinity')) return '/images/company-logos/trinity-logo.png';
                                 if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) return '/images/company-logos/growthpulss.png';
@@ -527,8 +528,8 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                               const safeLogo = getSafeCompanyLogo(job);
                               if (safeLogo) return safeLogo;
                               
-                              // Priority 4: UI Avatars fallback
-                              return `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
+                              // Priority 4: use central logo utils fallback
+                              return getCompanyLogo(company);
                             })()
                             }
                             alt={`${company} logo`}
