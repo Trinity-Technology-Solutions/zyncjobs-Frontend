@@ -1423,12 +1423,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </div>
                             )}
 
-                            {application.resumeUrl ? (
+                            {application.candidateEmail ? (
                               <div className="mb-3">
                                 <button
                                   onClick={() => {
-                                    const appId = application._id || application.id;
-                                    setSelectedResumeAppId(appId);
+                                    setSelectedResumeAppId(application._id || application.id || null);
                                     setSelectedResumeUrl(application.resumeUrl || null);
                                     setSelectedResumeCandidateName(application.candidateName || null);
                                     setSelectedResumeCandidateEmail(application.candidateEmail || null);

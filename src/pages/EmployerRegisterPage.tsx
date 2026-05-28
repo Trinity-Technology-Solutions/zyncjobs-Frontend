@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, AlertCircle, Clock, Target, FileText } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, Clock, Target, FileText } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -172,25 +172,27 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       const data = await res.json();
       if (res.ok && data.success) {
         const d = data.data || {};
+        const tradeName = d.trade_name || d.tradeName || '';
+        const legalName = d.legal_name || d.legalName || '';
         setGstVerification({
           verified: true,
-          legalName: d.legal_name || d.legalName || '',
-          tradeName: d.trade_name || d.tradeName || '',
+          legalName,
+          tradeName,
           status: d.gstin_status || d.status || 'Active',
           state: d.state || '',
         });
-        // Auto-fill company name if empty
-        if (!formData.companyName.trim()) {
-          setFormData(prev => ({ ...prev, companyName: d.trade_name || d.legal_name || prev.companyName }));
+        // Auto-fill company name from GST data
+        const autoName = tradeName || legalName;
+        if (autoName) {
+          setFormData(prev => ({ ...prev, companyName: autoName }));
         }
-        showToast('GST verified successfully!', 'success');
       } else {
         setGstVerification({ verified: false });
-        setError(data.message || 'GST verification failed. Please check the number and try again.');
+        setError(data.message || 'Invalid GST Number. Please check and try again.');
       }
     } catch {
       setGstVerification({ verified: false });
-      setError('GST verification service unavailable. You can still proceed — admin will verify manually.');
+      setError('GST verification service unavailable. Please try again later.');
     } finally {
       setGstLoading(false);
     }
@@ -254,6 +256,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       const data = await response.json();
       if (response.ok && data.verified) {
         setOtpVerified(true);
+        setError('');
         setStep(3);
         showToast('Email verified successfully!', 'success');
       } else {
@@ -308,22 +311,20 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       const employerId = generateEmployerId();
       
       // Prepare registration data with company verification
-      const registrationData = {
-        email: formData.email, 
-        password: formData.password, 
+      const registrationData: any = {
+        email: formData.email,
+        password: formData.password,
         name: formData.name,
-        companyName: formData.companyName, 
-        companyLogo, 
-        userType: 'employer' as const, 
+        companyName: formData.companyName,
+        companyLogo,
+        userType: 'employer' as const,
         employerId,
         gstNumber: formData.gstNumber.trim().toUpperCase(),
-        gstVerification,
-        verificationStatus: 'pending_admin',
-        domainVerification,
-        companyProfile: selectedCompanyProfile
       };
-      
-      console.log('Sending registration data:', registrationData);
+      // Only attach optional fields if they have values
+      if (gstVerification?.verified) registrationData.gstVerification = gstVerification;
+      if (domainVerification) registrationData.domainVerification = domainVerification;
+      if (selectedCompanyProfile) registrationData.companyProfile = selectedCompanyProfile;
       
       const response = await authAPI.register(registrationData);
       
@@ -428,8 +429,8 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
           {/* RIGHT PANEL */}
           <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
             {/* Decorative Blobs */}
-            <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15" />
-            <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15" />
+            <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
+            <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
             
             <div className="w-full max-w-md">
 
@@ -629,27 +630,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         </button>
                       </div>
                       {/* GST Verification Result */}
-                      {gstVerification && (
-                        <div className={`mt-2 p-3 rounded-lg border text-sm ${
-                          gstVerification.verified
-                            ? 'bg-green-50 border-green-200 text-green-700'
-                            : 'bg-red-50 border-red-200 text-red-700'
-                        }`}>
-                          <div className="flex items-center gap-2 font-medium">
-                            {gstVerification.verified ? (
-                              <><CheckCircle className="w-4 h-4" /> GST Verified</>
-                            ) : (
-                              <><AlertCircle className="w-4 h-4" /> Verification Failed</>
-                            )}
-                          </div>
-                          {gstVerification.verified && (
-                            <div className="mt-1 text-xs space-y-0.5 text-green-600">
-                              {gstVerification.legalName && <div>Legal Name: <strong>{gstVerification.legalName}</strong></div>}
-                              {gstVerification.tradeName && <div>Trade Name: <strong>{gstVerification.tradeName}</strong></div>}
-                              {gstVerification.state && <div>State: {gstVerification.state}</div>}
-                              <div>Status: <strong>{gstVerification.status}</strong></div>
-                            </div>
-                          )}
+                      {gstVerification?.verified && (
+                        <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
+                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                          GST Verified — Company details filled automatically
                         </div>
                       )}
                     </div>
@@ -832,7 +816,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setStep(1); setError(''); setFormData({ ...formData, otp: '' }); }}
+                      onClick={() => { setStep(1); setError(''); setSuccess(''); setFormData({ ...formData, otp: '' }); }}
                       className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all"
                     >
                       ← Back
@@ -897,7 +881,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       className="w-full h-12 sm:h-14 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]">
                       {loading ? 'Creating Account...' : 'Create Employer Account'}
                     </button>
-                    <button type="button" onClick={() => { setStep(1); setError(''); }}
+                    <button type="button" onClick={() => { setStep(2); setError(''); }}
                       className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all">
                       ← Back
                     </button>

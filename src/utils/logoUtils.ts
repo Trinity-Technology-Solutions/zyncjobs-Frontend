@@ -32,7 +32,11 @@ const getLocalCompanyLogo = (companyName: string): string => {
     'growthpulse solutions': '/images/company-logos/growthpulss.png',
     'growth pulse': '/images/company-logos/growthpulss.png',
     'growth pulse solutions': '/images/company-logos/growthpulss.png',
-    'growthpulss': '/images/company-logos/growthpulss.png'
+    'growthpulss': '/images/company-logos/growthpulss.png',
+    'inypeople': '/images/company-logos/inypeople-logo.png',
+    'inypeople jobs': '/images/company-logos/inypeople-logo.png',
+    'iny people': '/images/company-logos/inypeople-logo.png',
+    'iny people jobs': '/images/company-logos/inypeople-logo.png',
   };
   
   // Check for exact matches first

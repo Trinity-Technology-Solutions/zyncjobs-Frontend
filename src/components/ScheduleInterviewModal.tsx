@@ -41,7 +41,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const employerId = user.id || user._id;
     if (!employerId) return;
-    fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/google/meet/status?employerId=${employerId}`)
+    fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${employerId}`)
       .then(r => r.ok ? r.json() : null)
       .then(data => setGoogleConnected(!!data?.connected))
       .catch(() => setGoogleConnected(false));
@@ -92,11 +92,11 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     const user = JSON.parse(localStorage.getItem('user') || '{}');
     const employerId = user.id || user._id;
     if (!employerId) { setError('Please log in first'); return; }
-    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace('/api', '');
-    window.open(`${apiBase}/api/auth/google/meet/connect?employerId=${employerId}`, '_blank', 'width=500,height=600');
+    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+    window.open(`${apiBase}/api/meetings/google-meet/connect?employerId=${employerId}`, '_blank', 'width=500,height=600');
     // Poll for connection after window opens
     const poll = setInterval(() => {
-      fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/google/meet/status?employerId=${employerId}`)
+      fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${employerId}`)
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data?.connected) { setGoogleConnected(true); clearInterval(poll); } })
         .catch(() => {});

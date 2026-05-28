@@ -207,7 +207,11 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
                         <img 
-                          src={getCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job) || undefined} 
+                          src={
+                            companyLogos[(job.company || '').toLowerCase()] ||
+                            getCompanyLogo(job.company || '') ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`
+                          } 
                           alt={`${job.company} logo`}
                           className="w-10 h-10 object-contain"
                           onError={(e) => {
