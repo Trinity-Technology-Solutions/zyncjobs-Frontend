@@ -20,7 +20,7 @@ export const getCompanyLogo = (companyName: string): string => {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
 };
 
-const getLocalCompanyLogo = (companyName: string): string => {
+export const getLocalCompanyLogo = (companyName: string): string => {
   const name = companyName.toLowerCase();
   
   const localLogos: { [key: string]: string } = {

@@ -525,6 +525,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
 
     // 3. Nambikkai special case
+    // 3. Inypeople special case
+    const isInypeople = companyName?.toLowerCase().includes('inypeople') ||
+                       companyName?.toLowerCase().includes('iny people') ||
+                       employerName?.toLowerCase().includes('inypeople') ||
+                       employerName?.toLowerCase().includes('iny people');
+
+    if (isInypeople) {
+      console.log('Inypeople detected, using Inypeople logo');
+      return '/images/company-logos/inypeople-logo.png';
+    }
+
+    // 4. Nambikkai special case
     const isNambikkai = companyName?.toLowerCase().includes('nambikkai') ||
                        employerName?.toLowerCase().includes('nambikkai');
     
@@ -1069,6 +1081,68 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 })}
               </div>
 
+              {/* ── Top Active Jobs (moved up) ── */}
+              <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300 mb-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-sm font-bold text-gray-900">Top Active Jobs</h2>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">Last 30 days</span>
+                    {jobs.length > 0 && (
+                      <BulkJobRefresh
+                        selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
+                        selectedJobs={jobs.map(j => ({
+                          id: j.id || j._id,
+                          title: j.jobTitle || j.title,
+                          refreshCount: j.refreshCount || 0,
+                          lastRefreshedAt: j.lastRefreshedAt
+                        }))}
+                        userPlan="free"
+                        onRefreshComplete={() => {
+                          if (user) fetchDashboardData(user);
+                        }}
+                        className="text-xs px-2 py-1"
+                      />
+                    )}
+                  </div>
+                </div>
+                {topJobs.length === 0 ? (
+                  <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No jobs posted yet</div>
+                ) : (
+                  <div className="space-y-3">
+                    {topJobs.slice(0,5).map((job, i) => {
+                      const total = Math.max(job.applications, 1);
+                      const jobData = jobs.find(j => (j.jobTitle || j.title) === job.name);
+                      return (
+                        <div key={i}>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs font-medium text-gray-700 truncate flex-1 mr-2">{job.name}</p>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-gray-900">{job.applications}</span>
+                              {jobData && (
+                                <JobRefreshButton
+                                  jobId={jobData.id || jobData._id}
+                                  jobTitle={jobData.jobTitle || jobData.title}
+                                  refreshCount={jobData.refreshCount || 0}
+                                  lastRefreshedAt={jobData.lastRefreshedAt}
+                                  userPlan="free"
+                                  onRefreshSuccess={() => {
+                                    if (user) fetchDashboardData(user);
+                                  }}
+                                  className="text-xs px-2 py-1"
+                                />
+                              )}
+                            </div>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-violet-500" style={{width:`${(job.applications/total)*100}%`}} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* ── Row 1: Charts ── */}
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-4 sm:mb-5">
                 {/* Area chart */}
@@ -1171,68 +1245,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
               {/* ── Row 2: Bottom Cards ── */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
-                {/* Top Jobs with Refresh */}
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-bold text-gray-900">Top Active Jobs</h2>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-blue-500 font-semibold bg-blue-50 px-2 py-0.5 rounded-full">Last 30 days</span>
-                      {jobs.length > 0 && (
-                        <BulkJobRefresh
-                          selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
-                          selectedJobs={jobs.map(j => ({
-                            id: j.id || j._id,
-                            title: j.jobTitle || j.title,
-                            refreshCount: j.refreshCount || 0,
-                            lastRefreshedAt: j.lastRefreshedAt
-                          }))}
-                          userPlan="free"
-                          onRefreshComplete={() => {
-                            if (user) fetchDashboardData(user);
-                          }}
-                          className="text-xs px-2 py-1"
-                        />
-                      )}
-                    </div>
-                  </div>
-                  {topJobs.length === 0 ? (
-                    <div className="flex items-center justify-center h-32 text-gray-400 text-sm">No jobs posted yet</div>
-                  ) : (
-                    <div className="space-y-3">
-                      {topJobs.slice(0,5).map((job, i) => {
-                        const total = Math.max(job.applications, 1);
-                        const jobData = jobs.find(j => (j.jobTitle || j.title) === job.name);
-                        return (
-                          <div key={i}>
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-xs font-medium text-gray-700 truncate flex-1 mr-2">{job.name}</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-900">{job.applications}</span>
-                                {jobData && (
-                                  <JobRefreshButton
-                                    jobId={jobData.id || jobData._id}
-                                    jobTitle={jobData.jobTitle || jobData.title}
-                                    refreshCount={jobData.refreshCount || 0}
-                                    lastRefreshedAt={jobData.lastRefreshedAt}
-                                    userPlan="free"
-                                    onRefreshSuccess={() => {
-                                      if (user) fetchDashboardData(user);
-                                    }}
-                                    className="text-xs px-2 py-1"
-                                  />
-                                )}
-                              </div>
-                            </div>
-                            <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                              <div className="h-full rounded-full bg-violet-500" style={{width:`${(job.applications/total)*100}%`}} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-
                 {/* New Applicants */}
                 <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">
