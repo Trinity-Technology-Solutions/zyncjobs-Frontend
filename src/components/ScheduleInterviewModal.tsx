@@ -123,7 +123,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         interviewer: formData.interviewer,
         scheduledDate: formData.scheduledDate,
         duration: formData.duration,
-        type: formData.type,
+        // backend enum expects 'video' for video calls; map 'googlemeet' to 'video'
+        type: formData.type === 'googlemeet' ? 'video' : formData.type,
         meetingLink: formData.meetingLink,
         location: formData.location,
         notes: formData.notes
