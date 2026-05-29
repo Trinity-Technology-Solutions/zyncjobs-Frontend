@@ -1485,7 +1485,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                         </div>
                       </div>
                     ) : (
-                      <div className="text-center py-4 text-gray-500 text-sm">
+                      <div className="py-4 text-gray-500 text-sm">
                         <p>No education details added yet</p>
                       </div>
                     )}

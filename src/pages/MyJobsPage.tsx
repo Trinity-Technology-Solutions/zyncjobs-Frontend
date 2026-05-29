@@ -606,8 +606,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                 </button>
                 <button
                   onClick={() => {
-                    localStorage.setItem('selectedJob', JSON.stringify(job));
-                    onNavigate('job-application');
+                    const jobId = getId(job);
+                    if (jobId) {
+                      onNavigate('job-detail', { jobId, jobData: job });
+                    }
                   }}
                   className="bg-blue-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm text-center h-10"
                 >
