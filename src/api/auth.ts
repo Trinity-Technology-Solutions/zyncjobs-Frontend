@@ -65,6 +65,8 @@ export interface User {
   experience?: string;
   location?: string;
   employerId?: string;
+  // Account status field
+  status?: 'active' | 'suspended' | 'deleted';
   // New verification fields
   verificationStatus?: 'pending' | 'pending_admin' | 'verified' | 'rejected';
   companyDomain?: string;

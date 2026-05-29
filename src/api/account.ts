@@ -44,6 +44,13 @@ export const accountAPI = {
           const res = await apiFetch(`${API}/users/${userId}`);
           if (res.ok) {
             const dbUser = await res.json();
+            
+            // Check if account is deleted or suspended
+            if (dbUser.status === 'deleted' || dbUser.status === 'suspended') {
+              console.warn(`Account ${userId} has status: ${dbUser.status}. Invalidating session.`);
+              return null;
+            }
+            
             // Merge team context from stored login response
             return {
               ...dbUser,
