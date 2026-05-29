@@ -166,6 +166,9 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
     if (companyName.includes('nambikkai')) {
       return '/images/company-logos/nambikkai-logo.png';
     }
+    if (companyName.includes('inypeople') || companyName.includes('iny people')) {
+      return '/images/company-logos/inypeople-logo.png';
+    }
     if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) {
       return '/images/company-logos/growthpulss.png';
     }
@@ -407,11 +410,11 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       console.log('🔍 Raw companies response:', companiesData);
       
       // Debug: Log GrowthPulse companies specifically
-      const growthPulseCompanies = companiesWithJobCounts.filter(c => 
+      const growthPulseCompanies = companiesWithJobCounts.filter((c: { name: string; }) => 
         c.name.toLowerCase().includes('growthpulse') || c.name.toLowerCase().includes('growth pulse')
       );
       if (growthPulseCompanies.length > 0) {
-        console.log('🔍 GrowthPulse companies found:', growthPulseCompanies.map(c => ({
+        console.log('🔍 GrowthPulse companies found:', growthPulseCompanies.map((c: { name: string; }) => ({
           name: c.name,
           normalized: normalizeCompanyName(c.name),
           logo: getCompanyLogo(c.name)
