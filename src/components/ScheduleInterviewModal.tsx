@@ -273,7 +273,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 14.432c-.054.288-.288.432-.576.432H7.008c-.288 0-.522-.144-.576-.432L6.24 9.568c-.054-.288.09-.568.378-.568h10.764c.288 0 .432.28.378.568l-.192 4.864z"/></svg>Zoom</>
                   )}
                 </button>
-                <button type="button" onClick={() => generateMeetingLink('googlemeet')} disabled={meetLoading}
+                <button type="button" onClick={() => generateMeetingLink('googlemeet')} disabled={meetLoading || googleConnected !== true}
                   className="flex-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
                   {meetLoading && meetPlatform === 'googlemeet' ? (
                     <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Creating...</>

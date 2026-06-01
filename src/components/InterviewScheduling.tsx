@@ -16,7 +16,8 @@ const InterviewScheduling = () => {
     type: 'video',
     meetingLink: '',
     location: '',
-    notes: ''
+    notes: '',
+    candidateEmail: ''
   });
 
   useEffect(() => {
@@ -70,6 +71,7 @@ const InterviewScheduling = () => {
           ...formData,
           jobId: selectedApplication?.jobId,
           candidateId: selectedApplication?.candidateId,
+          candidateEmail: selectedApplication?.candidateId?.email || formData.candidateEmail,
           applicationId: selectedApplication?._id
         })
       });
@@ -83,7 +85,8 @@ const InterviewScheduling = () => {
           type: 'video',
           meetingLink: '',
           location: '',
-          notes: ''
+          notes: '',
+          candidateEmail: ''
         });
       }
     } catch (error) {
@@ -382,6 +385,16 @@ const InterviewScheduling = () => {
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="Additional information..."
                   className="w-full p-2 border rounded-lg h-20"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Candidate Email</label>
+                <input
+                  type="email"
+                  value={formData.candidateEmail}
+                  onChange={(e) => setFormData({ ...formData, candidateEmail: e.target.value })}
+                  placeholder="candidate@example.com"
+                  className="w-full p-2 border rounded-lg"
                 />
               </div>
             </div>

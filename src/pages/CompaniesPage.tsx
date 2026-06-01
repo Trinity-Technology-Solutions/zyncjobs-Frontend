@@ -396,7 +396,6 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
           // Ensure rating is always a number
           rating: typeof company.rating === 'number' ? company.rating : (Math.random() * 2 + 3),
           domain: company.domain,
-          website: company.website || company.companyWebsite,
         };
       });
       

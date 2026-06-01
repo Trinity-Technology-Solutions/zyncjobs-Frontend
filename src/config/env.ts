@@ -66,6 +66,7 @@ export const API_ENDPOINTS = {
   GENERATE_JOB_DESCRIPTION: `${config.API_URL}/generate-job-description`,
   SUGGEST_JOB_TITLES: `${config.API_URL}/suggest-job-titles`,
   SUGGEST_LOCATIONS: `${config.API_URL}/suggest-locations`,
+  AI_FLOW_SCORE_CANDIDATE: `${config.API_URL}/ai-flow/score-candidate`,
   
   // Meetings
   MEETINGS: `${config.API_URL}/meetings`,

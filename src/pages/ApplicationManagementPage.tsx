@@ -137,7 +137,8 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [selectedResumeApp, setSelectedResumeApp] = useState<any>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobSkills, setJobSkills] = useState<string[]>([]);
-  const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string }[] | null>(null);
+  const [jobDescription, setJobDescription] = useState<string>('');
+  const [aiPreview, setAiPreview] = useState<{ app: any; score: number; newStatus: string; recommendation?: string; aiSummary?: string; breakdown?: any }[] | null>(null);
   const [aiRunning, setAiRunning] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -156,7 +157,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       fetchApplications();
       fetch(`${API_ENDPOINTS.JOBS}/${jobId}`)
         .then(r => r.ok ? r.json() : null)
-        .then(job => { if (job?.skills) setJobSkills(job.skills); })
+        .then(job => {
+          if (job?.skills) setJobSkills(job.skills);
+          if (job?.jobDescription) setJobDescription(job.jobDescription);
+          else if (job?.description) setJobDescription(job.description);
+        })
         .catch(() => {});
     }
   }, [jobId]);
@@ -219,22 +224,103 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     } catch { setError('Failed to delete application'); }
   };
 
+  const normalizeSkillArray = (skills: any): string[] => {
+    if (!Array.isArray(skills)) return [];
+    return skills.map((skill: any) => String(skill || '').trim().toLowerCase()).filter(Boolean);
+  };
+
+  const profileCompletenessScore = (app: any) => {
+    const checks = [
+      !!app.candidateName,
+      !!app.candidateEmail,
+      !!app.candidatePhone,
+      !!app.resumeUrl,
+      !!app.candidateExperience,
+      !!app.candidateEducation,
+      Array.isArray(app.skills) && app.skills.length > 0,
+    ];
+    const score = Math.round((checks.filter(Boolean).length / checks.length) * 100);
+    return score;
+  };
+
+  const buildCandidateResumeText = (app: any) => {
+    const skills = normalizeSkillArray(app.skills || app.candidateSkills || []);
+    const details = [
+      app.candidateName ? `Name: ${app.candidateName}` : null,
+      app.candidateEmail ? `Email: ${app.candidateEmail}` : null,
+      app.candidatePhone ? `Phone: ${app.candidatePhone}` : null,
+      app.candidateExperience ? `Experience: ${app.candidateExperience}` : null,
+      app.candidateEducation ? `Education: ${app.candidateEducation}` : null,
+      skills.length ? `Skills: ${skills.join(', ')}` : null,
+      app.resumeUrl ? `Resume: ${app.resumeUrl}` : null,
+    ].filter(Boolean);
+    return details.join('\n');
+  };
+
   const computeScore = (app: any, skills: string[]) => {
-    if (!skills.length) return 50;
-    const cs = (app.skills || []).map((s: string) => s.toLowerCase());
-    const matched = skills.filter(js => cs.some((c: string) => c.includes(js.toLowerCase()) || js.toLowerCase().includes(c))).length;
-    return Math.round((matched / skills.length) * 100);
+    const candidateSkills = normalizeSkillArray(app.skills || app.candidateSkills || []);
+    if (!skills.length) return profileCompletenessScore(app);
+    const normalizedJobSkills = normalizeSkillArray(skills);
+    const matched = normalizedJobSkills.filter(js => candidateSkills.some(cs => cs.includes(js) || js.includes(cs))).length;
+    return Math.round((matched / Math.max(normalizedJobSkills.length, 1)) * 100);
   };
 
   const runAIShortlist = async () => {
+    if (!applications.length) return;
+    setAiRunning(true);
+
     let skills = jobSkills;
     if (!skills.length && jobId) {
-      try { const r = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`); const j = r.ok ? await r.json() : null; skills = j?.skills || []; if (skills.length) setJobSkills(skills); } catch {}
+      try {
+        const r = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+        const j = r.ok ? await r.json() : null;
+        skills = j?.skills || [];
+        if (skills.length) setJobSkills(skills);
+        if (j?.jobDescription) setJobDescription(j.jobDescription);
+        else if (j?.description) setJobDescription(j.description);
+      } catch {
+        skills = jobSkills;
+      }
     }
-    setAiPreview(applications.map(app => {
-      const score = computeScore(app, skills);
-      return { app, score, newStatus: score >= 50 ? 'shortlisted' : score < 30 ? 'rejected' : 'reviewed' };
+
+    const jobDesc = jobDescription || `Job skills: ${skills.join(', ')}`;
+    const preview = await Promise.all(applications.map(async (app: any) => {
+      let score = computeScore(app, skills);
+      let recommendation: string | undefined;
+      let aiSummary: string | undefined;
+      let breakdown: any;
+
+      try {
+        const response = await fetch(`${API_ENDPOINTS.AI_FLOW_SCORE_CANDIDATE}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jobDescription: jobDesc,
+            candidateResume: buildCandidateResumeText(app),
+            jobId,
+            candidateId: app.candidateId || app.id || app._id,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (typeof data.overallScore === 'number') {
+            score = data.overallScore;
+            recommendation = data.recommendation;
+            aiSummary = data.aiSummary;
+            breakdown = data.breakdown;
+          }
+        }
+      } catch (error) {
+        console.error('AI Auto-Shortlist preview failed', error);
+      }
+
+      const newStatus = score >= 50 ? 'shortlisted' : score < 30 ? 'rejected' : 'reviewed';
+      return { app, score, newStatus, recommendation, aiSummary, breakdown };
     }));
+
+    setAiPreview(preview);
+    setAiRunning(false);
   };
 
   const confirmAIShortlist = async () => {
@@ -375,10 +461,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                 </button>
                 <button
                   onClick={runAIShortlist}
-                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700"
+                  disabled={aiRunning}
+                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   <Zap className="w-4 h-4 text-yellow-300" />
-                  AI Auto-Shortlist
+                  {aiRunning ? 'Generating AI Preview...' : 'AI Auto-Shortlist'}
                 </button>
               </>
             )}
