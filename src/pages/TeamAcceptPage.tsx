@@ -34,32 +34,32 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
       return;
     }
 
-    console.log('🔑 Making API call to:', `${API}/team/invite-info/${token}`);
     fetch(`${API}/team/invite-info/${token}`)
-      .then(r => {
-        console.log('🔑 API response status:', r.status);
-        return r.json();
-      })
+      .then(r => r.json())
       .then(data => {
         console.log('🔑 API response data:', data);
         if (data.success) {
-          setInvite({
+          const inviteData = {
             name: data.memberName || data.email?.split('@')[0] || 'Team Member',
             email: data.memberEmail || data.email,
             role: data.role || 'Recruiter',
             companyName: data.companyName || 'your company',
-          });
-          // If member already has an account, skip password step
+          };
+          setInvite(inviteData);
           if (data.hasAccount) {
-            console.log('🔑 User has account, auto-accepting...');
-            acceptInvite(token);
+            // existing user — auto accept, no password needed
+            acceptInvite(token, inviteData);
           } else {
-            console.log('🔑 User needs to set password');
             setStep('set-password');
           }
         } else {
-          console.error('🔑 API error:', data.error);
-          setError(data.error || 'Invalid or expired invitation link.');
+          // Token already used (null) — show helpful message with login link
+          const alreadyUsed = data.error?.toLowerCase().includes('invalid') || data.error?.toLowerCase().includes('expired');
+          setError(
+            alreadyUsed
+              ? 'This invite link has already been used. Please login with your email and password.'
+              : (data.error || 'Invalid or expired invitation link.')
+          );
           setStep('error');
         }
       })
@@ -72,30 +72,21 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
   }, []);
 
   // Accept invite (for users who already have an account)
-  const acceptInvite = (tok: string) => {
-    console.log('🔑 Accepting invite with token:', tok);
+  const acceptInvite = (tok: string, inviteData?: { name: string; email: string; role: string; companyName: string }) => {
     fetch(`${API}/team/accept/${tok}`)
-      .then(r => {
-        console.log('🔑 Accept response status:', r.status);
-        return r.json();
-      })
+      .then(r => r.json())
       .then(data => {
-        console.log('🔑 Accept response data:', data);
         if (data.success) {
-          localStorage.setItem('accessToken', data.accessToken);
-          localStorage.setItem('user', JSON.stringify(data.user));
           onLogin(data.user, data.accessToken);
-          setInvite(prev => prev ? { ...prev, role: data.user?.teamRole || prev.role } : prev);
+          if (inviteData) setInvite(inviteData);
           setStep('success');
           setTimeout(() => onNavigate('dashboard'), 2000);
         } else {
-          console.error('🔑 Accept failed:', data.error);
           setError(data.error || 'Failed to accept invitation.');
           setStep('error');
         }
       })
-      .catch(err => { 
-        console.error('🔑 Accept network error:', err);
+      .catch(() => { 
         setError('Network error. Please try again.'); 
         setStep('error'); 
       });
@@ -115,8 +106,6 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
       });
       const data = await res.json();
       if (data.success) {
-        localStorage.setItem('accessToken', data.accessToken);
-        localStorage.setItem('user', JSON.stringify(data.user));
         onLogin(data.user, data.accessToken);
         setStep('success');
         setTimeout(() => onNavigate('dashboard'), 2000);
@@ -245,18 +234,24 @@ const TeamAcceptPage: React.FC<Props> = ({ onNavigate, onLogin }) => {
           </>
         )}
 
-        {/* Error */}
+        {/* Error — show login button with helpful message */}
         {step === 'error' && (
           <>
             <XCircle className="w-14 h-14 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Invitation Failed</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Invitation Issue</h2>
             <p className="text-gray-600 text-sm mb-6">{error}</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-4 text-left">
+              <p className="text-xs font-semibold text-blue-700 mb-1">🔑 Already accepted this invite?</p>
+              <p className="text-xs text-blue-600">
+                Go to <span className="font-semibold">Employer Login</span> and sign in with your email and the password you set when you accepted the invite.
+              </p>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => onNavigate('employer-login')}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium text-sm transition-colors"
               >
-                Go to Login
+                Go to Employer Login
               </button>
               <button
                 onClick={() => onNavigate('home')}

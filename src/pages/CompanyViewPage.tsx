@@ -4,6 +4,7 @@ import { MapPin, Users, Globe, Building, Briefcase } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 
 interface CompanyViewPageProps {
   onNavigate: (page: string) => void;
@@ -45,8 +46,8 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
     fetchCompanyData();
   }, [companyName]);
 
-  const getCompanyLogo = (name) => {
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=128&background=3b82f6&color=ffffff&bold=true`;
+  const getCompanyLogo = (name: string) => {
+    return getLogoFromUtils(name);
   };
 
   if (loading) {

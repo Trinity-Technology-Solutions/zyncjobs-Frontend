@@ -20,7 +20,7 @@ export const getCompanyLogo = (companyName: string): string => {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
 };
 
-const getLocalCompanyLogo = (companyName: string): string => {
+export const getLocalCompanyLogo = (companyName: string): string => {
   const name = companyName.toLowerCase();
   
   const localLogos: { [key: string]: string } = {
@@ -32,7 +32,11 @@ const getLocalCompanyLogo = (companyName: string): string => {
     'growthpulse solutions': '/images/company-logos/growthpulss.png',
     'growth pulse': '/images/company-logos/growthpulss.png',
     'growth pulse solutions': '/images/company-logos/growthpulss.png',
-    'growthpulss': '/images/company-logos/growthpulss.png'
+    'growthpulss': '/images/company-logos/growthpulss.png',
+    'inypeople': '/images/company-logos/inypeople-logo.png',
+    'inypeople jobs': '/images/company-logos/inypeople-logo.png',
+    'iny people': '/images/company-logos/inypeople-logo.png',
+    'iny people jobs': '/images/company-logos/inypeople-logo.png',
   };
   
   // Check for exact matches first

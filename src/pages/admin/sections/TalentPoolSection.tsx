@@ -628,7 +628,7 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => setCandidates(Array.isArray(d) ? d : (d.candidates || [])))
+      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ ...c, id: c.id || c._id }))))
       .catch((err) => console.error('ExtractedPage fetch error:', err))
       .finally(() => setLoading(false));
   };
@@ -959,7 +959,7 @@ function InternalPage() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then(d => setCandidates(Array.isArray(d) ? d : (d.candidates || [])))
+      .then(d => setCandidates((Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({ ...c, id: c.id || c._id }))))
       .catch((err) => { console.error('InternalPage fetch error:', err); setCandidates([]); })
       .finally(() => setLoading(false));
   }, []);
@@ -1244,7 +1244,7 @@ function BulkEmailPage() {
           <div style="border-bottom:1px solid #F3F4F6;padding:8px 0;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0;"><span style="background:#5C6BC8;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-block;text-align:center;line-height:22px;font-size:11px;font-weight:700;margin-right:8px;">2</span>Let AI find your matches</p><p style="color:#6B7280;font-size:11px;margin:2px 0 0 30px;">Our engine scans thousands of live roles and ranks the best fits for you</p></div>
           <div style="padding:8px 0;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0;"><span style="background:#5C6BC8;color:#fff;border-radius:50%;width:22px;height:22px;display:inline-block;text-align:center;line-height:22px;font-size:11px;font-weight:700;margin-right:8px;">3</span>Apply and track your progress</p><p style="color:#6B7280;font-size:11px;margin:2px 0 0 30px;">One click to apply, then watch your pipeline update in real time</p></div>
           <div style="text-align:center;margin:16px 0;">
-            <span style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;">Claim Your Free Account Now</span>
+            <a href="https://www.zyncjobs.com/role-selection" style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;text-decoration:none;">Claim Your Free Account Now</a>
           </div>
           <div style="background:#FFFBEB;border:1px solid #FCD34D;border-radius:10px;padding:10px 14px;margin:0 0 16px;">
             <p style="color:#92400E;font-size:11px;margin:0;display:flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#92400E" stroke-width="2"/><polyline points="12 6 12 12 16 14" stroke="#92400E" stroke-width="2" stroke-linecap="round"/></svg> <strong>Limited-time:</strong> Candidates who register this week get priority visibility to employers actively hiring right now.</p>
@@ -1268,7 +1268,7 @@ function BulkEmailPage() {
           </div>
           <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
           <div style="text-align:center;margin:0 0 16px;">
-            <span style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;">Join Now — It's Free</span>
+            <a href="https://www.zyncjobs.com/role-selection" style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;text-decoration:none;">Join Now — It's Free</a>
           </div>
           <div style="background:#F0F7FF;border-radius:10px;padding:12px 16px;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0 0 3px;">Need help getting started?</p><p style="color:#6B7280;font-size:12px;margin:0;">Admin@zyncjobs.com</p></div>
         </div>`
@@ -1294,7 +1294,7 @@ function BulkEmailPage() {
           </div>
           <hr style="border:none;border-top:1px solid #ECEEF5;margin:16px 0;"/>
           <div style="text-align:center;margin:0 0 16px;">
-            <span style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;">View Matching Jobs</span>
+            <a href="https://www.zyncjobs.com/job-listings" style="display:inline-block;padding:13px 36px;background:linear-gradient(135deg,#3D5568,#2C4455);color:#fff;font-size:14px;font-weight:800;border-radius:10px;text-decoration:none;">View Matching Jobs</a>
           </div>
           <div style="background:#F0F7FF;border-radius:10px;padding:12px 16px;"><p style="color:#1F2937;font-size:12px;font-weight:700;margin:0 0 3px;">Need help getting started?</p><p style="color:#6B7280;font-size:12px;margin:0;">Admin@zyncjobs.com</p></div>
         </div>`
@@ -1312,13 +1312,17 @@ function BulkEmailPage() {
       .then(d => {
         const all = (Array.isArray(d) ? d : (d.candidates || [])).map((c: any) => ({
           ...c,
+          id: c.id || c._id,
           name: typeof c.name === 'object' ? (c.name?.name || c.name?.first || '') : c.name,
         }));
         setCandidates(all);
         if (queuedIds.length > 0) {
           setSelected(new Set(queuedIds));
+        } else {
+          // Auto-select first batch of unsent candidates so button is ready
+          const unsent = all.filter((c: any) => c.email && !persistedSentIds.has(c.id));
+          setSelected(new Set(unsent.slice(0, batchSize).map((c: any) => c.id)));
         }
-        // Don't auto-select all — let user pick batches manually
       })
       .catch(() => setCandidates([]));
     setSentIds(persistedSentIds);
@@ -1602,6 +1606,7 @@ function BulkEmailPage() {
           </div>
 
           <button
+            onClick={handleSend}
             disabled={sending || !selectedList.length}
             className="w-full py-3 bg-gradient-to-r from-blue-600 to-orange-500 text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >

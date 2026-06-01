@@ -75,6 +75,14 @@ const QuickApplyButton: React.FC<QuickApplyButtonProps> = ({
       return;
     }
 
+    // Ensure token exists before applying
+    const { tokenStorage } = await import('../utils/tokenStorage');
+    if (!tokenStorage.getAccess()) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Your session has expired. Please login again." } }));
+      setTimeout(() => window.location.href = '/login', 1500);
+      return;
+    }
+
     setIsApplying(true);
     
     try {

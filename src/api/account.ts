@@ -34,12 +34,31 @@ export const accountAPI = {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (!payload || payload.exp * 1000 < Date.now()) return null;
 
-      // Try API first, fall back to JWT payload on any error
+      // Get stored user to preserve team fields (teamRole, employerOwnerId)
+      // that only come from the login response, not from GET /users/:id
+      const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+
       const userId = payload.userId || payload.id || payload._id || payload.sub;
       if (userId) {
         try {
           const res = await apiFetch(`${API}/users/${userId}`);
-          if (res.ok) return res.json();
+          if (res.ok) {
+            const dbUser = await res.json();
+            
+            // Check if account is deleted or suspended
+            if (dbUser.status === 'deleted' || dbUser.status === 'suspended') {
+              console.warn(`Account ${userId} has status: ${dbUser.status}. Invalidating session.`);
+              return null;
+            }
+            
+            // Merge team context from stored login response
+            return {
+              ...dbUser,
+              teamRole: stored.teamRole || dbUser.teamRole || null,
+              employerOwnerId: stored.employerOwnerId || dbUser.employerOwnerId || null,
+              employerId: stored.employerId || dbUser.employerId || null,
+            };
+          }
         } catch { /* fall through to payload */ }
       }
 
@@ -49,6 +68,9 @@ export const accountAPI = {
         name: payload.name,
         userType: payload.userType || payload.role || 'candidate',
         role: payload.role || payload.userType || 'candidate',
+        teamRole: stored.teamRole || null,
+        employerOwnerId: stored.employerOwnerId || null,
+        employerId: stored.employerId || null,
       };
     } catch {
       return null;

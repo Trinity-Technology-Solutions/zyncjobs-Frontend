@@ -85,24 +85,27 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
 
       setPresignedUrl(rawUrl);
 
-      // Step 2: fetch the file as a blob so the iframe renders it inline
-      // (S3 presigned URLs have Content-Disposition: attachment which causes download)
-      const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
-      if (!res.ok) throw new Error('Failed to fetch resume file');
+      const isBackendStream = rawUrl.startsWith('/') || rawUrl.includes('localhost') || rawUrl.includes(window.location.hostname);
 
-      const blob = await res.blob();
-      // Force PDF MIME type so browser renders it instead of downloading
-      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-      const url = URL.createObjectURL(pdfBlob);
-      prevBlobUrl.current = url;
-      setBlobUrl(url);
-    } catch {
-      // If blob fetch fails (e.g. CORS), fall back to presigned URL directly
-      if (presignedUrl) {
-        setBlobUrl(presignedUrl);
+      if (isBackendStream) {
+        // Backend stream URL — set directly on iframe, backend sends inline Content-Disposition
+        setBlobUrl(rawUrl);
       } else {
-        setError('Failed to load resume. Please try downloading it instead.');
+        // S3 direct URL — blob-fetch to override Content-Disposition: attachment
+        try {
+          const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
+          if (!res.ok) throw new Error('fetch failed');
+          const blob = await res.blob();
+          const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+          const url = URL.createObjectURL(pdfBlob);
+          prevBlobUrl.current = url;
+          setBlobUrl(url);
+        } catch {
+          setBlobUrl(rawUrl);
+        }
       }
+    } catch {
+      setError('Failed to load resume. Please try downloading it instead.');
     } finally {
       setLoading(false);
     }
@@ -211,7 +214,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
               </button>
 
               <button
-                onClick={() => window.open(presignedUrl, '_blank')}
+                onClick={handleDownload}
                 disabled={downloading}
                 className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
               >

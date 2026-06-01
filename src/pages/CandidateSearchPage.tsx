@@ -714,7 +714,7 @@ return (
               const scoreBarColor = score >= 75 ? 'bg-emerald-500' : score >= 50 ? 'bg-blue-500' : score >= 30 ? 'bg-amber-500' : 'bg-red-400';
               const fit = fitConfig[fitLabel];
               return (
-                <div key={candidate._id} className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200">
+                <div key={candidate._id} className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col">
                   {/* Top section */}
                   <div className="p-3 sm:p-4 md:p-5 flex items-start gap-2 sm:gap-3 md:gap-4">
                     {/* Avatar */}
@@ -776,7 +776,7 @@ return (
                   <div className="mx-3 sm:mx-4 md:mx-5 border-t border-gray-100" />
 
                   {/* Skills */}
-                  <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-3">
+                  <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-3 flex-grow">
                     <div className="flex flex-wrap gap-1 sm:gap-1.5">
                       {getCandidateSkills(candidate).slice(0, 5).map((skill, idx) => {
                         const isMatched = candidate.matchedSkills?.map(s => s.toLowerCase()).includes(skill.toLowerCase());
@@ -817,7 +817,7 @@ return (
                   )}
 
                   {/* Actions */}
-                  <div className="px-3 sm:px-4 md:px-5 pb-5 flex flex-col sm:flex-row gap-2">
+                  <div className="px-3 sm:px-4 md:px-5 pb-5 flex flex-col sm:flex-row gap-2 mt-auto">
                     <button
                       onClick={() => handleViewProfile(candidate)}
                       className="w-full sm:flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"

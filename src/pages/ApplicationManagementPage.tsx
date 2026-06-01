@@ -246,45 +246,30 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
   const downloadAllResumes = async () => {
     if (!filtered.length) { alert('No applications available.'); return; }
+    if (!jobId) { alert('No job selected.'); return; }
     setBulkDownloading(true);
-    let downloaded = 0;
-    for (const app of filtered) {
-      try {
-        // Try to get resume URL from profile first
-        let fileUrl: string | null = null;
-        if (app.candidateEmail) {
-          const profileRes = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(app.candidateEmail)}`);
-          if (profileRes.ok) {
-            const data = await profileRes.json();
-            const resume = data.resume || data.user?.resume;
-            if (resume?.url) fileUrl = resume.url;
-            else if (resume?.fileUrl) fileUrl = resume.fileUrl;
-            else if (resume?.filename) fileUrl = `/uploads/${resume.filename}`;
-            else if (resume?.path) fileUrl = resume.path;
-            else if (data.resumeUrl) fileUrl = data.resumeUrl;
-          }
-        }
-        // Fallback to application resumeUrl
-        if (!fileUrl && app.resumeUrl && app.resumeUrl !== 'resume_from_quick_apply') {
-          fileUrl = app.resumeUrl;
-        }
-        if (!fileUrl) continue;
-
-        const filenameMatch = fileUrl.match(/\/uploads\/resumes\/([^?#]+)/);
-        if (filenameMatch) {
-          const backendBase = API_ENDPOINTS.BASE_URL.replace('/api', '');
-          const name = (app.candidateName || 'candidate').replace(/\s+/g, '_');
-          const downloadUrl = `${backendBase}/uploads/download/${encodeURIComponent(filenameMatch[1])}?name=${encodeURIComponent(name)}`;
-          const a = document.createElement('a');
-          a.href = downloadUrl;
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          downloaded++;
-          await new Promise(r => setTimeout(r, 700));
-        }
-      } catch {}
+    try {
+      const jobTitle = sessionStorage.getItem('selectedJobTitle') || 'job';
+      const url = `${API_ENDPOINTS.BASE_URL}/applications/job/${jobId}/bulk-download-resumes`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || 'No resumes available to download.');
+        return;
+      }
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${jobTitle.replace(/\s+/g, '_')}_resumes.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (e) {
+      alert('Failed to download resumes. Please try again.');
+    } finally {
+      setBulkDownloading(false);
     }
-    setBulkDownloading(false);
-    if (downloaded === 0) alert('No resumes available to download.');
   };
 
   const filtered = useMemo(() =>
@@ -322,7 +307,9 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   };
 
   const onViewResume = (application: any) => {
-    setSelectedApplicationId(application.id || application._id);
+    // Don't pass applicationId since backend /applications/:id/resume has a DB error
+    // Use email-based stream directly which is more reliable
+    setSelectedApplicationId(null);
     setSelectedResumeApp(application);
     setShowResumeModal(true);
   };
@@ -384,7 +371,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                   className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
                 >
                   <Download className="w-4 h-4" />
-                  {bulkDownloading ? 'Downloading...' : 'Download Resumes'}
+                  {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
                 </button>
                 <button
                   onClick={runAIShortlist}

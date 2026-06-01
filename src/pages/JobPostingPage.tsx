@@ -10,6 +10,7 @@ import { getCompanyLogo } from '../utils/logoUtils';
 import mistralAIService from '../services/mistralAIService';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
+import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 
 
 interface JobPostingPageProps {
@@ -73,6 +74,8 @@ interface JobData {
 const formatSalary = (value: string): string => {
   const num = parseInt(value.replace(/,/g, ''));
   if (isNaN(num)) return value;
+  // If user enters small numbers (1-999), treat as Lakhs (LPA)
+  if (num < 1000) return `${num}L`;
   if (num >= 10000000) return `${(num / 10000000).toFixed(num % 10000000 === 0 ? 0 : 1)}Cr`;
   if (num >= 100000) return `${(num / 100000).toFixed(num % 100000 === 0 ? 0 : 1)}L`;
   if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}K`;
@@ -366,12 +369,10 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
              parsedData?.jobType ? [parsedData.jobType] : [],
     payType: (() => {
       if (editJob?.payType) return editJob.payType;
-      // If parsed salary has min=0 or min is auto-calculated (70% of max), treat as 'Maximum amount'
-      if (parsedData?.minSalary && parsedData?.maxSalary) {
-        const min = parseInt(parsedData.minSalary);
-        const max = parseInt(parsedData.maxSalary);
-        if (min > 0 && max > 0 && Math.round(min / max * 10) === 7) return 'Maximum amount';
-      }
+      // If parser explicitly flagged payType (e.g. 'Maximum amount' for "up to X LPA")
+      if (parsedData?.payType) return parsedData.payType;
+      // If only maxSalary is set (no minSalary), treat as 'Maximum amount'
+      if ((!parsedData?.minSalary || parseInt(parsedData.minSalary) === 0) && parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) return 'Maximum amount';
       return 'Range';
     })(),
     minSalary: getSalaryMin(editJob) || (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0 ? parsedData.minSalary : ''),
@@ -390,7 +391,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     goodToHaveSkills: parsedData?.goodToHaveSkills || [],
     educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || ''),
+    companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || '') || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.companyName || u.company || ''; } catch { return ''; } })() || (user?.companyName || user?.company || ''),
     companyLogo: editJob?.companyLogo || '',
     companyId: ''
   });
@@ -423,7 +424,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [salaryModified, setSalaryModified] = useState(() => {
     const min = getSalaryMin(editJob) || parsedData?.minSalary || parsedData?.salary?.min;
     const max = getSalaryMax(editJob) || parsedData?.maxSalary || parsedData?.salary?.max;
-    return !!(min && max && parseInt(String(min)) > 0 && parseInt(String(max)) > 0);
+    // Modified if range has both values, OR if only max is set (Maximum amount / upto)
+    return !!(max && parseInt(String(max)) > 0);
   });
   const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
 
@@ -541,8 +543,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
 
   // Set salaryModified if parsedData has actual salary values
   useEffect(() => {
-    if (parsedData?.minSalary && parsedData?.maxSalary &&
-        parseInt(parsedData.minSalary) > 0 && parseInt(parsedData.maxSalary) > 0) {
+    if (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0) {
       setSalaryModified(true);
     }
   }, [parsedData]);
@@ -2391,14 +2392,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           </div>
           <p className="text-gray-500 text-sm mb-6">You can skip this section or add pay information to attract more candidates.</p>
           
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-end">
-            <div>
+          <div className="flex flex-wrap gap-3 items-end">
+            <div style={{minWidth: '180px'}} className="flex-shrink-0">
               <label className="block text-gray-600 text-sm mb-2">Show pay by</label>
               <select
                 value={jobData.payType}
                 onChange={(e) => {
                   updateJobData('payType', e.target.value);
-                  // Clear irrelevant field when switching type
                   if (e.target.value === 'Maximum amount') updateJobData('minSalary', '');
                   if (e.target.value === 'Starting amount') updateJobData('maxSalary', '');
                   if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); }
@@ -2412,7 +2412,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </select>
             </div>
             
-            <div>
+            <div className="w-28">
               <label className="block text-gray-600 text-sm mb-2">Currency</label>
               <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 font-medium">
                 ₹ INR
@@ -2420,7 +2420,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             </div>
             
             {jobData.payType !== 'Maximum amount' && (
-              <div>
+              <div className="w-32">
                 <label className="block text-gray-600 text-sm mb-2">
                   {jobData.payType === 'Starting amount' ? 'Starting amount' : jobData.payType === 'Exact amount' ? 'Amount' : 'Minimum'}
                 </label>
@@ -2440,13 +2440,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             )}
             
             {jobData.payType === 'Range' && (
-              <div className="text-center">
+              <div className="flex items-end pb-2">
                 <span className="text-gray-500">to</span>
               </div>
             )}
             
             {jobData.payType !== 'Starting amount' && jobData.payType !== 'Exact amount' && (
-              <div>
+              <div className="w-32">
                 <label className="block text-gray-600 text-sm mb-2">
                   {jobData.payType === 'Maximum amount' ? 'Upto (Maximum)' : 'Maximum'}
                 </label>
@@ -3215,15 +3215,17 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       experienceRange: jobData.experienceRange || '',
       ...(shouldIncludeSalary && {
         salary: {
-          min: parseInt(jobData.minSalary.replace(/,/g, '')) || 0,
-          max: parseInt(jobData.maxSalary.replace(/,/g, '')) || 0,
+          min: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
+          max: (() => { const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
           currency: 'INR',
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
         }
       }),
       benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
-      employerEmail: user.email,
+      postedByEmail: user.email,
+      postedByName: user.name || user.email,
+      employerEmail: getEffectiveEmployerEmail(),
       employerName: user.name,
       employerCompany: user?.companyName || jobData.companyName || 'Your Company',
       employerId: user.employerId || 'EID0001',

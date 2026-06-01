@@ -1,11 +1,6 @@
 /**
-     * tokenStorage — Hybrid token storage (industry standard).
- *
- * accessToken  → sessionStorage  (short-lived, XSS-safe, cleared on tab close)
- * refreshToken → localStorage    (long-lived, enables silent re-login on next visit)
- * adminToken   → sessionStorage  (admin sessions always end on tab close)
- *
- * This matches the approach used by LinkedIn, Google, etc.
+ * tokenStorage — stores accessToken in localStorage so it survives
+ * page refreshes in production (sessionStorage is cleared on refresh).
  */
 
 const ACCESS_KEY = 'accessToken';
@@ -13,26 +8,28 @@ const REFRESH_KEY = 'refreshToken';
 const ADMIN_KEY = 'adminToken';
 
 export const tokenStorage = {
-  // Access token — sessionStorage only (short-lived, ~15min-1hr)
-  getAccess: () => sessionStorage.getItem(ACCESS_KEY),
-  setAccess: (token: string) => sessionStorage.setItem(ACCESS_KEY, token),
+  // Access token — localStorage (persists across page refreshes)
+  getAccess: () => localStorage.getItem(ACCESS_KEY) || sessionStorage.getItem(ACCESS_KEY),
+  setAccess: (token: string) => {
+    localStorage.setItem(ACCESS_KEY, token);
+    sessionStorage.setItem(ACCESS_KEY, token);
+  },
 
-  // Refresh token — localStorage (long-lived, 7-30 days, enables auto re-login)
+  // Refresh token — localStorage (long-lived, 7-30 days)
   getRefresh: () => localStorage.getItem(REFRESH_KEY),
   setRefresh: (token: string) => localStorage.setItem(REFRESH_KEY, token),
 
-  // Admin token — sessionStorage only (admin sessions must end on tab close)
+  // Admin token — sessionStorage only (admin sessions end on tab close)
   getAdmin: () => sessionStorage.getItem(ADMIN_KEY),
   setAdmin: (token: string) => sessionStorage.setItem(ADMIN_KEY, token),
 
   clear: () => {
-    sessionStorage.removeItem(ACCESS_KEY);
-    sessionStorage.removeItem(ADMIN_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    // also clear any legacy keys
     localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(REFRESH_KEY);
     localStorage.removeItem(ADMIN_KEY);
     localStorage.removeItem('token');
+    sessionStorage.removeItem(ACCESS_KEY);
+    sessionStorage.removeItem(ADMIN_KEY);
     sessionStorage.removeItem(REFRESH_KEY);
   },
 };

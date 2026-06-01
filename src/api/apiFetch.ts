@@ -81,7 +81,14 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     let body: any = {};
     try { body = await cloned.json(); } catch { /* ignore */ }
 
-    if (body?.code !== 'TOKEN_EXPIRED') return response;
+    if (body?.code !== 'TOKEN_EXPIRED') {
+      // If backend says token is missing/required, force logout
+      if (response.status === 401 && (body?.error?.toLowerCase().includes('token') || body?.message?.toLowerCase().includes('token'))) {
+        tokenStorage.clear();
+        window.dispatchEvent(new CustomEvent('zync:logout'));
+      }
+      return response;
+    }
 
     // Only one refresh at a time
     if (isRefreshing) {

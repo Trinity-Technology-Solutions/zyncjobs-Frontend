@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Video, X, Calendar, Clock, User, FileText, MapPin } from 'lucide-react';
+import { Video, X, Calendar, Clock, User, FileText, MapPin, ExternalLink } from 'lucide-react';
 
 interface ScheduleInterviewModalProps {
   application: any;
@@ -24,8 +24,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     interviewer: ''
   });
   const [loading, setLoading] = useState(false);
-  const [zoomLoading, setZoomLoading] = useState(false);
-  const [zoomGenerated, setZoomGenerated] = useState(false);
+  const [meetLoading, setMeetLoading] = useState(false);
+  const [meetGenerated, setMeetGenerated] = useState(false);
+  const [meetPlatform, setMeetPlatform] = useState<'zoom' | 'googlemeet'>('zoom');
+  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
   const [error, setError] = useState('');
   const [tempDate, setTempDate] = useState('');
   const [tempTime, setTempTime] = useState('');
@@ -35,24 +37,35 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     setFormData(prev => ({ ...prev, round: nextRound }));
   }, [existingRounds]);
 
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const employerId = user.id || user._id;
+    if (!employerId) return;
+    fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${employerId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setGoogleConnected(!!data?.connected))
+      .catch(() => setGoogleConnected(false));
+  }, []);
+
   const zyncAlert = (msg: string) =>
     window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: msg } }));
 
   const isDuplicateRound = existingRounds.includes(formData.round);
 
-  const generateZoomLink = async () => {
+  const generateMeetingLink = async (platform: 'zoom' | 'googlemeet') => {
     if (!formData.scheduledDate) {
-      setError('Please set a date & time first before generating a Zoom link');
+      setError(`Please set a date & time first before generating a ${platform === 'zoom' ? 'Zoom' : 'Google Meet'} link`);
       return;
     }
-    setZoomLoading(true);
+    setMeetLoading(true);
+    setMeetPlatform(platform);
     setError('');
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          platform: 'zoom',
+          platform,
           topic: `Interview - ${application.candidateName} (${formData.round} Round)`,
           start_time: formData.scheduledDate,
           duration: formData.duration,
@@ -60,17 +73,35 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         })
       });
       const result = await res.json();
-      if (result.success && result.meeting?.join_url) {
-        setFormData(prev => ({ ...prev, meetingLink: result.meeting.join_url }));
-        setZoomGenerated(true);
+      const joinUrl = result.meeting?.join_url || result.meeting?.joinUrl || result.meeting?.meetLink || result.meeting?.hangoutLink;
+      if (result.success && joinUrl) {
+        setFormData(prev => ({ ...prev, meetingLink: joinUrl }));
+        setMeetGenerated(true);
+        if (platform === 'googlemeet') setGoogleConnected(true);
       } else {
-        setError('Failed to create Zoom meeting: ' + (result.error || result.message || 'Unknown error'));
+        setError(`Failed to create ${platform === 'zoom' ? 'Zoom' : 'Google Meet'} meeting: ` + (result.error || result.message || 'Unknown error'));
       }
     } catch (err) {
-      setError('Network error creating Zoom meeting: ' + (err as Error).message);
+      setError('Network error: ' + (err as Error).message);
     } finally {
-      setZoomLoading(false);
+      setMeetLoading(false);
     }
+  };
+
+  const connectGoogleCalendar = () => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    const employerId = user.id || user._id;
+    if (!employerId) { setError('Please log in first'); return; }
+    const apiBase = (import.meta.env.VITE_API_URL || '/api').replace(/\/api\/?$/, '');
+    window.open(`${apiBase}/api/meetings/google-meet/connect?employerId=${employerId}`, '_blank', 'width=500,height=600');
+    // Poll for connection after window opens
+    const poll = setInterval(() => {
+      fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/google-meet/status?employerId=${employerId}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data?.connected) { setGoogleConnected(true); clearInterval(poll); } })
+        .catch(() => {});
+    }, 3000);
+    setTimeout(() => clearInterval(poll), 120000);
   };
 
   const scheduleInterview = async () => {
@@ -92,7 +123,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         interviewer: formData.interviewer,
         scheduledDate: formData.scheduledDate,
         duration: formData.duration,
-        type: formData.type,
+        // backend enum expects 'video' for video calls; map 'googlemeet' to 'video'
+        type: formData.type === 'googlemeet' ? 'video' : formData.type,
         meetingLink: formData.meetingLink,
         location: formData.location,
         notes: formData.notes
@@ -220,34 +252,54 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
               onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '' }))}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="video">Video Call (Zoom)</option>
+              <option value="googlemeet">Google Meet</option>
               <option value="phone">Phone Call</option>
               <option value="in-person">In Person</option>
             </select>
           </div>
 
           {/* Meeting Link */}
-          {formData.type === 'video' && (
+          {(formData.type === 'video' || formData.type === 'googlemeet') && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 <Video size={14} className="inline mr-1" />Meeting Link
               </label>
-              <div className="mb-2">
-                <button type="button" onClick={generateZoomLink} disabled={zoomLoading}
-                  className="w-full px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm">
-                  {zoomLoading ? (
-                    <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Creating Zoom Meeting...</>
+              <div className="flex gap-2 mb-2">
+                <button type="button" onClick={() => generateMeetingLink('zoom')} disabled={meetLoading}
+                  className="flex-1 px-3 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                  {meetLoading && meetPlatform === 'zoom' ? (
+                    <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Creating...</>
                   ) : (
-                    <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 14.432c-.054.288-.288.432-.576.432H7.008c-.288 0-.522-.144-.576-.432L6.24 9.568c-.054-.288.09-.568.378-.568h10.764c.288 0 .432.28.378.568l-.192 4.864z"/></svg>Generate Zoom Link</>
+                    <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 14.432c-.054.288-.288.432-.576.432H7.008c-.288 0-.522-.144-.576-.432L6.24 9.568c-.054-.288.09-.568.378-.568h10.764c.288 0 .432.28.378.568l-.192 4.864z"/></svg>Zoom</>
+                  )}
+                </button>
+                <button type="button" onClick={() => generateMeetingLink('googlemeet')} disabled={meetLoading}
+                  className="flex-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                  {meetLoading && meetPlatform === 'googlemeet' ? (
+                    <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Creating...</>
+                  ) : (
+                    <><svg className="w-4 h-4" viewBox="0 0 48 48"><path d="M44 24c0-1.3-.1-2.5-.3-3.7H24v7h11.3c-.5 2.6-2 4.8-4.2 6.3v5.2h6.8C41.5 35.3 44 30 44 24z" fill="#4285F4"/><path d="M24 44c5.6 0 10.3-1.9 13.8-5.1l-6.8-5.2c-1.9 1.3-4.3 2-7 2-5.4 0-9.9-3.6-11.5-8.5H5.4v5.4C8.9 39.9 16 44 24 44z" fill="#34A853"/><path d="M12.5 27.2c-.4-1.3-.7-2.7-.7-4.2s.2-2.9.7-4.2v-5.4H5.4C3.9 16.6 3 20.2 3 24s.9 7.4 2.4 10.6l7.1-5.4z" fill="#FBBC05"/><path d="M24 10.3c3 0 5.7 1 7.8 3l5.8-5.8C34.3 4.2 29.5 2 24 2 16 2 8.9 6.1 5.4 13.4l7.1 5.4c1.6-4.9 6.1-8.5 11.5-8.5z" fill="#EA4335"/></svg>Google Meet</>
                   )}
                 </button>
               </div>
 
-              {zoomGenerated && (
-                <p className="text-xs text-green-600 font-medium mb-2">✓ Zoom meeting created — link filled below</p>
+              {meetGenerated && (
+                <p className="text-xs text-green-600 font-medium mb-2">✓ {meetPlatform === 'zoom' ? 'Zoom' : 'Google Meet'} link {googleConnected && meetPlatform === 'googlemeet' ? '(real calendar event)' : meetPlatform === 'googlemeet' ? '(fallback — connect Google Calendar for real links)' : ''} created</p>
+              )}
+              {!googleConnected && meetPlatform === 'googlemeet' && !meetGenerated && (
+                <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
+                  <span className="text-xs text-amber-700">Connect Google Calendar for real Meet links</span>
+                  <button type="button" onClick={connectGoogleCalendar} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:underline">
+                    Connect <ExternalLink className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+              {googleConnected && (
+                <p className="text-xs text-green-600 font-medium mb-1">✓ Google Calendar connected — real Meet links enabled</p>
               )}
 
               <input type="url" value={formData.meetingLink}
-                onChange={e => { setFormData(prev => ({ ...prev, meetingLink: e.target.value })); setZoomGenerated(false); }}
+                onChange={e => { setFormData(prev => ({ ...prev, meetingLink: e.target.value })); setMeetGenerated(false); }}
                 placeholder="Or paste any meeting link here..."
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>

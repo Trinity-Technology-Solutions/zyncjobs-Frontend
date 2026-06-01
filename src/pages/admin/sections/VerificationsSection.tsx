@@ -147,42 +147,50 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-gray-200">{v.companyName || v.company || '—'}</p>
-                      
-                      {/* New Company indicator */}
                       {!isGenericEmail(v.email) && (
                         <span className="text-xs bg-purple-900/40 text-purple-400 px-2 py-0.5 rounded-full">
                           🆕 New Company
                         </span>
                       )}
-                      
                       {isGenericEmail(v.email) ? (
-                        <span className="text-xs bg-yellow-900/40 text-yellow-400 px-2 py-0.5 rounded-full">
-                          Personal Email
-                        </span>
+                        <span className="text-xs bg-yellow-900/40 text-yellow-400 px-2 py-0.5 rounded-full">Personal Email</span>
                       ) : (
-                        <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded-full">
-                          Corporate Email
-                        </span>
+                        <span className="text-xs bg-blue-900/40 text-blue-400 px-2 py-0.5 rounded-full">Corporate Email</span>
                       )}
                     </div>
                     <p className="text-sm text-gray-400">{v.employerName || v.name} · {v.email}</p>
                     {v.phone && <p className="text-xs text-gray-500 mt-0.5">📞 {v.phone}</p>}
                     {v.location && <p className="text-xs text-gray-500">📍 {v.location}</p>}
+
+                    {/* GST Verification Info */}
+                    {v.gstNumber && (
+                      <div className={`mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border ${
+                        v.gstVerification?.verified
+                          ? 'bg-emerald-900/30 border-emerald-700/50 text-emerald-300'
+                          : 'bg-yellow-900/30 border-yellow-700/50 text-yellow-300'
+                      }`}>
+                        {v.gstVerification?.verified ? (
+                          <CheckCircle className="w-3.5 h-3.5" />
+                        ) : (
+                          <AlertCircle className="w-3.5 h-3.5" />
+                        )}
+                        <span>
+                          GST: <strong>{v.gstNumber}</strong>
+                          {v.gstVerification?.verified && v.gstVerification.legalName && (
+                            <> · {v.gstVerification.legalName}</>
+                          )}
+                          {v.gstVerification?.verified
+                            ? ' — ✅ Surepass Verified'
+                            : ' — ⚠️ Not verified'}
+                        </span>
+                      </div>
+                    )}
+
                     {v.website && (
                       <a href={v.website} target="_blank" rel="noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-purple-400 hover:text-purple-300 mt-1">
                         <ExternalLink className="w-3 h-3" />{v.website}
                       </a>
-                    )}
-                    {v.documents?.length > 0 && (
-                      <div className="flex gap-2 mt-2">
-                        {v.documents.map((doc: string, i: number) => (
-                          <a key={i} href={doc} target="_blank" rel="noreferrer"
-                            className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded hover:bg-gray-700">
-                            Doc {i + 1}
-                          </a>
-                        ))}
-                      </div>
                     )}
                     <p className="text-xs text-gray-600 mt-1">
                       Submitted {v.createdAt ? new Date(v.createdAt).toLocaleDateString() : '—'}

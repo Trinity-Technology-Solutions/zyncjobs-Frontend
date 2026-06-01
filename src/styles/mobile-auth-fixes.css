@@ -1,5 +1,23 @@
 /* Mobile Authentication Pages Fixes */
 
+/* Guarantee form elements are never width-constrained on mobile */
+input, button, select, textarea {
+  max-width: none !important;
+  box-sizing: border-box;
+}
+
+/* Ensure full-width inputs fill their container */
+input[type="email"],
+input[type="password"],
+input[type="text"] {
+  width: 100%;
+}
+
+/* Ensure full-width buttons fill their container */
+button.w-full {
+  width: 100% !important;
+}
+
 /* Ensure proper touch targets for mobile */
 @media (max-width: 768px) {
   /* Improve button touch targets */

@@ -97,9 +97,13 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
           }
 
           const userObj = { ...userData, userType: userRole, role: userRole, name: displayName };
-          localStorage.setItem('user', JSON.stringify(userObj));
-          onLogin({ name: displayName, type: userRole as 'candidate' | 'employer' | 'admin', email: userData.email });
+          onLogin({ ...userObj, type: userRole as 'candidate' | 'employer' | 'admin', email: userData.email });
           window.history.replaceState({}, document.title, window.location.pathname);
+
+          // If new user with no resume, clear popup dismissed flag so popup shows
+          if (isNewUser && !userData.resumeUrl && !userData.resume) {
+            localStorage.removeItem(`resumePopupDismissed_${userData.email}`);
+          }
 
           if (accountIsEmployer && !userData.company && !userData.companyName) {
             onNavigate('employer-complete-profile');

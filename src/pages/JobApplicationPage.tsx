@@ -3,8 +3,8 @@ import { User, FileText, Send, CheckCircle, Upload, Briefcase, MapPin, Building2
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
-import { tokenStorage } from '../utils/tokenStorage';
 import { validateUserResume } from '../utils/resumeValidation';
+import { S3Service } from '../services/s3Service';
 import Header from '../components/Header';
 
 interface JobApplicationPageProps {
@@ -33,7 +33,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   })();
 
   useEffect(() => {
-    const token = tokenStorage.getAccess();
+    const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
     if (!token || !userData.email) { onNavigate('login'); return; }
     
     // Load profile and validate resume
@@ -61,24 +61,13 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
 
   const handleResumeUpload = async (file: File) => {
     try {
-      const formData = new FormData();
-      formData.append('resume', file);
-      if (userData.id) formData.append('userId', userData.id);
-      if (userData.email) formData.append('userEmail', userData.email);
-      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/upload/resume`, {
-        method: 'POST',
-        body: formData,
-      });
-      const result = await res.json();
-      if (res.ok) {
-        setResumeUrl(result.fileUrl || result.url || result.path || '');
-        setResumeFile(file);
-        setResumeFileName(file.name);
-      } else {
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Resume upload failed: ' + result.error } }));
-      }
-    } catch {
-      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Resume upload failed' } }));
+      const s3Result = await S3Service.uploadResumeToS3(file);
+      if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
+      setResumeUrl(s3Result.fileUrl || '');
+      setResumeFile(file);
+      setResumeFileName(file.name);
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: err.message || 'Resume upload failed' } }));
     }
   };
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
-import { generateJobShareContent, shareToTwitter, shareToWhatsApp, copyToClipboard } from '../utils/socialShare';
+import { generateJobShareContent, shareToFacebook, copyToClipboard } from '../utils/socialShare';
 
 interface JobShareModalProps {
   isOpen: boolean;
@@ -43,6 +43,10 @@ const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) =
   const handleWhatsAppShare = () => {
     const text = shareContent.text || `*${jobTitle}*\n\n${description}\n\nApply here: ${currentUrl}`;
     openTab(`https://wa.me/?text=${encodeURIComponent(text)}`);
+  };
+
+  const handleFacebookShare = () => {
+    shareToFacebook(shareContent);
   };
 
   const handleCopyLink = async () => {
@@ -93,6 +97,19 @@ const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) =
               </div>
             </button>
 
+            {/* Facebook */}
+            <button onClick={handleFacebookShare} className="w-full flex items-center space-x-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
+              <div className="w-10 h-10 bg-[#1877F2] rounded flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" className="w-5 h-5">
+                  <path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.879v-6.99H7.898v-2.89h2.54V9.797c0-2.507 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.242 0-1.63.772-1.63 1.562v1.875h2.773l-.443 2.89h-2.33v6.99C18.343 21.128 22 16.991 22 12z"/>
+                </svg>
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-medium text-gray-900">Facebook</p>
+                <p className="text-sm text-gray-600">Share on Facebook</p>
+              </div>
+            </button>
+
             {/* WhatsApp */}
             <button onClick={handleWhatsAppShare} className="w-full flex items-center space-x-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
               <div className="w-10 h-10 bg-[#25D366] rounded flex items-center justify-center">
@@ -105,8 +122,6 @@ const JobShareModal: React.FC<JobShareModalProps> = ({ isOpen, onClose, job }) =
                 <p className="text-sm text-gray-600">Share with contacts</p>
               </div>
             </button>
-
-            {/* Copy Link */}
             <button onClick={handleCopyLink} className="w-full flex items-center space-x-3 p-4 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors">
               <div className="w-10 h-10 bg-gray-600 rounded flex items-center justify-center">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">

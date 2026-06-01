@@ -66,6 +66,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       const response = await authAPI.login({ email, password });
       console.log('Login successful:', response);
       
+      // Check if account is deleted or suspended
+      const accountStatus = response.user.status as string | undefined;
+      if (accountStatus === 'deleted') {
+        setError('This account has been permanently deleted. You cannot log in.');
+        showToast('This account has been deleted.', 'error');
+        setLoading(false);
+        return;
+      }
+      
+      if (accountStatus === 'suspended') {
+        setError('This account has been suspended. Please contact support.');
+        showToast('This account is suspended.', 'error');
+        setLoading(false);
+        return;
+      }
+      
       // Check if this is an employer account - REJECT if so
       const apiUserType = response.user.userType as string;
       if (apiUserType === 'employer' || apiUserType === 'recruiter') {

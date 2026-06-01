@@ -20,6 +20,14 @@ export interface RegisterData {
   location?: string;
   employerId?: string;
   isTeamMember?: boolean;
+  gstNumber?: string;
+  gstVerification?: {
+    verified: boolean;
+    legalName?: string;
+    tradeName?: string;
+    status?: string;
+    state?: string;
+  } | null;
   // New company verification fields
   domainVerification?: {
     isValid: boolean;
@@ -57,8 +65,10 @@ export interface User {
   experience?: string;
   location?: string;
   employerId?: string;
+  // Account status field
+  status?: 'active' | 'suspended' | 'deleted';
   // New verification fields
-  verificationStatus?: 'pending' | 'verified' | 'rejected';
+  verificationStatus?: 'pending' | 'pending_admin' | 'verified' | 'rejected';
   companyDomain?: string;
   companyProfile?: {
     id?: string;

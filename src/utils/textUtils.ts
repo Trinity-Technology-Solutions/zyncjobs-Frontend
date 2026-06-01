@@ -118,6 +118,8 @@ export const formatSalary = (salary: any): string => {
       if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
       if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
       if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+      // Small numbers (1-999) are stored as LPA values
+      if (n > 0) return `${n}L`;
       return n.toString();
     };
 

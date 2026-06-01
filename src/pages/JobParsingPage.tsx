@@ -68,7 +68,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
       if (parserResult.confidence.overall > 0.4) {
         return {
           jobTitle: parserResult.title,
-          companyName: parserResult.company,
+          companyName: '',
           jobLocation: parserResult.location,
           country: await inferCountryFromCity(
             (import.meta.env.VITE_API_URL || 'http://localhost:5000').endsWith('/api') 
@@ -89,6 +89,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
           maxSalary: parserResult.salary.max,
           currency: parserResult.salary.currency,
           payRate: parserResult.salary.payRate,
+          payType: (parserResult.salary as any).payType,
           benefits: extractBenefits(description),
           educationLevel: extractEducation(description),
           jobDescription: description,
@@ -131,7 +132,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
         const country = d.country || await inferCountryFromCity(base, jobLocation);
         return {
           jobTitle:         d.jobTitle         || extractJobTitle(description),
-          companyName:      d.companyName      || extractCompanyName(description),
+          companyName:      '',
           jobLocation,
           country,
           jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
@@ -141,6 +142,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
           maxSalary:        backendSalary.max,
           currency:         backendSalary.currency,
           payRate:          backendSalary.payRate,
+          payType:          (backendSalary as any).payType,
           benefits:         extractBenefits(description),
           educationLevel:   d.educationLevel   || extractEducation(description),
           jobDescription:   d.description      || description,
@@ -196,7 +198,7 @@ ${description.slice(0, 2000)}`;
       const salary = extractSalaryIfNumeric(description);
       return {
         jobTitle:         d.jobTitle         || extractJobTitle(description),
-        companyName:      d.companyName      || extractCompanyName(description),
+        companyName:      d.companyName      || '',
         jobLocation:      d.jobLocation      || extractLocation(description),
         country:          '',
         jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
@@ -206,6 +208,7 @@ ${description.slice(0, 2000)}`;
         maxSalary:        d.maxSalary        || salary.max,
         currency:         d.currency         || salary.currency,
         payRate:          salary.payRate,
+        payType:          (salary as any).payType,
         benefits:         extractBenefits(description),
         educationLevel:   d.educationLevel   || extractEducation(description),
         jobDescription:   description,
@@ -232,7 +235,7 @@ ${description.slice(0, 2000)}`;
     const salary = extractSalaryIfNumeric(description);
     return {
       jobTitle:         extractJobTitle(description),
-      companyName:      extractCompanyName(description),
+      companyName:      '',
       jobLocation,
       country,
       jobType:          extractJobType(description),
@@ -242,6 +245,7 @@ ${description.slice(0, 2000)}`;
       maxSalary:        salary.max,
       currency:         salary.currency,
       payRate:          salary.payRate,
+      payType:          (salary as any).payType,
       benefits:         extractBenefits(description),
       educationLevel:   extractEducation(description),
       jobDescription:   description,
@@ -341,18 +345,34 @@ ${description.slice(0, 2000)}`;
 
     // Range patterns (25-35 lakhs, 25 to 35 LPA, 25-35 lks, etc.)
     const rangePatterns = [
-      /([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?|lks?)/gi,
-      /₹\s*([\d,]+(?:\.\d+)?)\s*[-–to]+\s*₹?\s*([\d,]+(?:\.\d+)?)/gi,
-      /\$([\d,]+(?:\.\d+)?)\s*[-–to]+\s*\$?([\d,]+(?:\.\d+)?)/gi,
-      /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*[-–to]+\s*([\d,]+(?:\.\d+)?)/gi,
+      // ₹2 LPA – ₹3 LPA (LPA after EACH number, any dash type)
+      /₹\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*₹?\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // 2 LPA – 3 LPA (no ₹, LPA after each)
+      /([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // ₹2 LPA – ₹3 LPA (with ₹ before each number, any dash type)
+      /₹\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*₹?\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // 2 LPA – 3 LPA (without ₹)
+      /([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // ₹2 – ₹3 (just rupee symbol)
+      /₹\s*([\d,]+(?:\.\d+)?)\s*[-–—to]+\s*₹?\s*([\d,]+(?:\.\d+)?)/gi,
+      // $2 - $3
+      /\$([\d,]+(?:\.\d+)?)\s*[-–—to]+\s*\$?([\d,]+(?:\.\d+)?)/gi,
+      // salary: 2-3 lakhs
+      /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*[-–—to]+\s*([\d,]+(?:\.\d+)?)/gi,
     ];
+    // deduplicate patterns (some are repeated above for clarity)
+    const seenPatterns = new Set<string>();
     for (const pattern of rangePatterns) {
+      const key = pattern.source;
+      if (seenPatterns.has(key)) continue;
+      seenPatterns.add(key);
+      pattern.lastIndex = 0;
       const match = pattern.exec(text);
       if (match) {
         let min = parseFloat(match[1].replace(/,/g, ''));
         let max = parseFloat(match[2].replace(/,/g, ''));
         if (/lpa|lakh|lks?/i.test(match[0])) { min *= 100000; max *= 100000; }
-        if (min > 0 && max > 0) {
+        if (min > 0 && max > 0 && max >= min) {
           return { min: String(Math.round(min)), max: String(Math.round(max)), currency, payRate };
         }
       }
@@ -372,8 +392,7 @@ ${description.slice(0, 2000)}`;
         let max = parseFloat(match[1].replace(/,/g, ''));
         if (/lpa|lakh|lks?/i.test(match[0])) max *= 100000;
         if (max > 0) {
-          const min = Math.round(max * 0.7);
-          return { min: String(min), max: String(Math.round(max)), currency, payRate };
+          return { min: '', max: String(Math.round(max)), currency, payRate, payType: 'Maximum amount' };
         }
       }
     }
@@ -1009,69 +1028,15 @@ ${description.slice(0, 2000)}`;
       }
     }
 
-    // Default salary ranges based on common patterns
-    if (!minSalary || !maxSalary) {
-      if (isCompetitive) {
-        // Set competitive salary ranges based on currency
-        switch (currency) {
-          case 'INR':
-            minSalary = '600000';
-            maxSalary = '1200000';
-            break;
-          case 'EUR':
-            minSalary = '45000';
-            maxSalary = '75000';
-            break;
-          case 'GBP':
-            minSalary = '40000';
-            maxSalary = '70000';
-            break;
-          default:
-            minSalary = '60000';
-            maxSalary = '100000';
-        }
-      } else {
-        // Default ranges
-        switch (currency) {
-          case 'INR':
-            minSalary = '500000';
-            maxSalary = '800000';
-            break;
-          case 'EUR':
-            minSalary = '40000';
-            maxSalary = '65000';
-            break;
-          case 'GBP':
-            minSalary = '35000';
-            maxSalary = '60000';
-            break;
-          default:
-            minSalary = '50000';
-            maxSalary = '80000';
-        }
-      }
-    }
-
-    // Validate and format salary values
+    // Validate and format salary values — return empty if nothing found
     const minNum = parseInt(minSalary);
     const maxNum = parseInt(maxSalary);
     
-    // Ensure reasonable salary ranges
     if (minNum > 0 && maxNum > 0 && minNum <= maxNum) {
-      return {
-        min: minSalary,
-        max: maxSalary,
-        currency,
-        payRate
-      };
+      return { min: minSalary, max: maxSalary, currency, payRate };
     }
 
-    return {
-      min: '50000',
-      max: '80000',
-      currency: 'USD',
-      payRate: 'per year'
-    };
+    return { min: '', max: '', currency: 'INR', payRate: 'per year' };
   };
 
   const extractBenefits = (text: string): string[] => {
@@ -1207,32 +1172,17 @@ ${description.slice(0, 2000)}`;
   const extractWorkAuth = (text: string): string[] => {
     const workAuth = [];
     
-    if (/us\s*citizen|citizenship\s*required/i.test(text)) {
-      workAuth.push('US Citizen');
-    }
-    if (/green\s*card|permanent\s*resident/i.test(text)) {
-      workAuth.push('Green Card Holder');
-    }
-    if (/h1b|h-1b/i.test(text)) {
-      workAuth.push('H1B Visa');
-    }
-    if (/l1|l-1/i.test(text)) {
-      workAuth.push('L1 Visa');
-    }
-    if (/opt|cpt|f1/i.test(text)) {
-      workAuth.push('OPT/CPT');
-    }
-    if (/tn\s*visa/i.test(text)) {
-      workAuth.push('TN Visa');
-    }
-    if (/no\s*sponsorship|sponsorship\s*not\s*available/i.test(text)) {
-      workAuth.push('No Sponsorship Required');
-    }
-    if (/will\s*sponsor|sponsorship\s*available|visa\s*sponsorship/i.test(text)) {
-      workAuth.push('Will Sponsor');
-    }
+    if (/us\s*citizen|citizenship\s*required/i.test(text)) workAuth.push('US Citizen');
+    if (/green\s*card|permanent\s*resident/i.test(text)) workAuth.push('Green Card Holder');
+    if (/h1b|h-1b/i.test(text)) workAuth.push('H1B Visa');
+    if (/l1|l-1/i.test(text)) workAuth.push('L1 Visa');
+    if (/opt|cpt|f1/i.test(text)) workAuth.push('OPT/CPT');
+    if (/tn\s*visa/i.test(text)) workAuth.push('TN Visa');
+    if (/no\s*sponsorship|sponsorship\s*not\s*available/i.test(text)) workAuth.push('No Sponsorship Required');
+    if (/will\s*sponsor|sponsorship\s*available|visa\s*sponsorship/i.test(text)) workAuth.push('Will Sponsor');
     
-    return workAuth.length > 0 ? workAuth : ['No Sponsorship Required'];
+    // Return empty array for Indian JDs (no US work auth keywords found)
+    return workAuth;
   };
 
   const extractJobDescription = (text: string): string => {
@@ -1468,13 +1418,13 @@ ${description.slice(0, 2000)}`;
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
-                placeholder={`Paste your job description here...\n\nExample:\nSoftware Engineer - Full Stack Developer\n\nWe are looking for a talented Full Stack Developer to join our growing team at TechCorp.\n\nRequirements:\n- 3-5 years of experience in web development\n- Proficiency in JavaScript, React, Node.js\n- Experience with databases (MongoDB, PostgreSQL)\n- Bachelor's degree in Computer Science\n\nBenefits:\n- Competitive salary $70,000 - $90,000\n- Health insurance\n- Remote work options`}
+                placeholder={`Paste your job description here...`}
                 className="w-full p-3 sm:p-4 min-h-[280px] sm:min-h-[360px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 text-sm leading-relaxed placeholder-gray-300 transition-colors"
               />
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 gap-3 sm:gap-0">
                 <p className="text-xs text-gray-400">
-                  {jobDescription.length > 0 ? `${jobDescription.length} characters` : 'Supports LinkedIn, Indeed, Naukri, and any job board format'}
+                  {jobDescription.length > 0 ? `${jobDescription.length} characters` : ''}
                 </p>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                   <button
