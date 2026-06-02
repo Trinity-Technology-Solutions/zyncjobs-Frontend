@@ -53,11 +53,12 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
   const fetchEmployerJobs = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(user?.email || '')}`);
       if (response.ok) {
-        const allJobs = await response.json();
-        const employerJobs = allJobs.filter((job: any) => 
-          job.postedBy === user?.email || job.employerEmail === user?.email
+        const employerJobs = await response.json();
+        // Sort by updatedAt descending so refreshed jobs appear at top
+        employerJobs.sort((a: any, b: any) =>
+          new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
         );
         setJobs(employerJobs);
       }

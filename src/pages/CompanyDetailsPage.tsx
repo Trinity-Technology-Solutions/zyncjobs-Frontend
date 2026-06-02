@@ -996,9 +996,9 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     </div>
                   ))}
                 </div>
-                {jobs.length > 5 && (
+                {jobs.length > 0 && (
                   <div className="mt-4 text-center">
-                    <button className="text-blue-600 hover:text-blue-700 font-medium">
+                    <button onClick={() => { setActiveTab('jobs'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-blue-600 hover:text-blue-700 font-medium">
                       View all {jobs.length} openings
                     </button>
                   </div>
@@ -1166,8 +1166,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                     ))}
                   </div>
                   
-                  <button className="w-full py-2 border border-blue-600 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50">
-                    View all openings
+                  <button onClick={() => { setActiveTab('jobs'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="w-full py-2 border border-blue-600 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-50">
+                    View all {jobs.length} openings
                   </button>
                 </div>
               )}

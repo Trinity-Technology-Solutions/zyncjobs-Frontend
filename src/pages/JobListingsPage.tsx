@@ -277,7 +277,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           if (contentType && contentType.includes('application/json')) {
             const jobsData = await response.json();
             const jobsArray = Array.isArray(jobsData) ? jobsData : (Array.isArray(jobsData?.jobs) ? jobsData.jobs : []);
-            const sortedJobs = jobsArray.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const sortedJobs = jobsArray.sort((a: any, b: any) => {
+              const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
+              const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
+              return bTime - aTime;
+            });
             if (append) {
               setJobs(prev => [...prev, ...sortedJobs]);
               setFilteredJobs(prev => [...prev, ...sortedJobs]);
@@ -415,7 +419,11 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         });
       });
     }
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    filtered.sort((a: any, b: any) => {
+      const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
+      const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
+      return bTime - aTime;
+    });
     setFilteredJobs(filtered);
     setCurrentPage(1);
     setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
