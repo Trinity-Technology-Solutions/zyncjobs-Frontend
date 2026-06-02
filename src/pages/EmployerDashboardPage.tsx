@@ -513,7 +513,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       // If no activity from API, create from local jobs
       if (recentActivity.length === 0 && employerJobs.length > 0) {
-        recentActivity = employerJobs.slice(0, 3).map(job => ({
+        recentActivity = employerJobs.slice(0, 3).map((job: any) => ({
           type: 'job',
           message: 'Job posted successfully',
           time: '1 day ago',
@@ -1000,8 +1000,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto h-full">
+      {/* Main Content — offset by sidebar width on desktop, independent scroll */}
+      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto" style={{height: '100%', marginLeft: '0', scrollBehavior: 'smooth'}}>
+        {/* Spacer for fixed sidebar on desktop */}
+        <div className="hidden lg:block" style={{width: '300px', flexShrink: 0, position: 'absolute'}} />
         {/* Top bar with Back Button */}
         <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
