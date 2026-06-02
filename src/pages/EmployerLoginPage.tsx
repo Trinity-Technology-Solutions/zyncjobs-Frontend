@@ -18,6 +18,14 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showChangePw, setShowChangePw] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPw, setConfirmNewPw] = useState('');
+  const [changePwLoading, setChangePwLoading] = useState(false);
+  const [changePwMsg, setChangePwMsg] = useState('');
+  const [loggedInUser, setLoggedInUser] = useState<any>(null);
+
+  const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 
 
@@ -28,28 +36,73 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
     try {
       const response = await authAPI.login({ email, password });
       const userType = response.user.userType || response.user.role;
-      if (userType !== 'employer') {
+      const isTeamMember = !!(response.user as any).teamRole;
+
+      if (userType !== 'employer' && !isTeamMember) {
         setError('This is a candidate account. Please use regular "Login" instead.');
         setLoading(false);
         return;
       }
-      // Check if employer account is pending admin verification
+
       const verificationStatus = (response.user as any).verificationStatus;
-      if (verificationStatus === 'pending' || verificationStatus === 'pending_admin') {
-        setError("Your account is pending admin verification. You'll receive an email once approved.");
-        setLoading(false);
-        return;
+
+      // Company verification bypass: if another user from the same company domain
+      // is already verified, skip verification for this user
+      if (!isTeamMember && verificationStatus === 'pending') {
+        try {
+          const emailDomain = email.split('@')[1];
+          const checkRes = await fetch(`${API_BASE}/users/company-verified?domain=${encodeURIComponent(emailDomain)}`);
+          if (checkRes.ok) {
+            const { verified } = await checkRes.json();
+            if (verified) {
+              // Auto-approve — patch this user's verification status
+              await fetch(`${API_BASE}/users/${response.user.id || (response.user as any)._id}/verify-company`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ verificationStatus: 'verified', autoApproved: true })
+              });
+              response.user.verificationStatus = 'verified';
+            } else {
+              setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
+              setLoading(false);
+              return;
+            }
+          } else {
+            setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
+            setLoading(false);
+            return;
+          }
+        } catch {
+          setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
+          setLoading(false);
+          return;
+        }
       }
-      if (verificationStatus === 'rejected') {
+
+      if (!isTeamMember && verificationStatus === 'rejected') {
         setError('Your employer account verification was rejected. Please contact support.');
         setLoading(false);
         return;
       }
+
       if (!response.user.employerId) response.user.employerId = generateEmployerId();
-      localStorage.setItem('user', JSON.stringify(response.user));
+      // For team members: store ownerEmail so dashboard fetches owner's data
+      const userToStore = {
+        ...response.user,
+        ownerEmail: response.user.ownerEmail || (isTeamMember ? response.user.employerId : null)
+      };
+      localStorage.setItem('user', JSON.stringify(userToStore));
       const displayName = response.user.name || response.user.companyName || response.user.company || response.user.fullName || response.user.email.split('@')[0];
-      // Pass full user object so handleLogin doesn't overwrite employerOwnerId/teamRole
-      onLogin({ ...response.user, name: displayName, type: 'employer' } as any);
+      onLogin({ name: displayName, type: 'employer', email: response.user.email, id: response.user.id } as any);
+
+      // If team member — show change password prompt before navigating
+      if (isTeamMember) {
+        setLoggedInUser(response.user);
+        setShowChangePw(true);
+        setLoading(false);
+        return;
+      }
+
       onNavigate('dashboard');
       if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome back! Login successful.' });
     } catch (err) {
@@ -61,9 +114,73 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
     }
   };
 
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) { setChangePwMsg('Password must be at least 6 characters.'); return; }
+    if (newPassword !== confirmNewPw) { setChangePwMsg('Passwords do not match.'); return; }
+    setChangePwLoading(true);
+    setChangePwMsg('');
+    try {
+      const userId = loggedInUser?.id || loggedInUser?._id;
+      const res = await fetch(`${API_BASE}/users/${userId}/change-password`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newPassword })
+      });
+      if (res.ok) {
+        onNavigate('dashboard');
+        if (onShowNotification) onShowNotification({ type: 'success', message: 'Password updated! Welcome to your dashboard.' });
+      } else {
+        setChangePwMsg('Failed to update password. You can change it later in Settings.');
+      }
+    } catch {
+      setChangePwMsg('Network error. You can change it later in Settings.');
+    } finally {
+      setChangePwLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header onNavigate={onNavigate} />
+
+      {/* Change Password Modal for team members after first login */}
+      {showChangePw && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div className="text-center mb-5">
+              <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <span className="text-2xl">🔐</span>
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Set Your Password</h2>
+              <p className="text-gray-500 text-sm mt-1">You're logged in! Set a personal password to secure your account.</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
+                <input type="password" value={confirmNewPw} onChange={e => setConfirmNewPw(e.target.value)}
+                  placeholder="Re-enter password"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                  onKeyDown={e => e.key === 'Enter' && handleChangePassword()} />
+              </div>
+              {changePwMsg && <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{changePwMsg}</p>}
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => { onNavigate('dashboard'); if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome! You can change your password later in Settings.' }); }}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm hover:bg-gray-50">Skip for now</button>
+              <button onClick={handleChangePassword} disabled={changePwLoading || !newPassword || !confirmNewPw}
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                {changePwLoading ? 'Saving...' : 'Save & Continue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-1">
 
