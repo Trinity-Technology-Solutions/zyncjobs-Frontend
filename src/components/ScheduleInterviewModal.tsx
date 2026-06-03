@@ -273,7 +273,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                     <><svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.568 14.432c-.054.288-.288.432-.576.432H7.008c-.288 0-.522-.144-.576-.432L6.24 9.568c-.054-.288.09-.568.378-.568h10.764c.288 0 .432.28.378.568l-.192 4.864z"/></svg>Zoom</>
                   )}
                 </button>
-                <button type="button" onClick={() => generateMeetingLink('googlemeet')} disabled={meetLoading || googleConnected !== true}
+                <button type="button" onClick={() => generateMeetingLink('googlemeet')} onTouchEnd={(e) => { e.preventDefault(); generateMeetingLink('googlemeet'); }} disabled={meetLoading}
                   className="flex-1 px-3 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
                   {meetLoading && meetPlatform === 'googlemeet' ? (
                     <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10"/></svg>Creating...</>
@@ -284,9 +284,9 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
               </div>
 
               {meetGenerated && (
-                <p className="text-xs text-green-600 font-medium mb-2">✓ {meetPlatform === 'zoom' ? 'Zoom' : 'Google Meet'} link {googleConnected && meetPlatform === 'googlemeet' ? '(real calendar event)' : meetPlatform === 'googlemeet' ? '(fallback — connect Google Calendar for real links)' : ''} created</p>
+                <p className="text-xs text-green-600 font-medium mb-2">✓ {meetPlatform === 'zoom' ? 'Zoom' : 'Google Meet'} link created successfully</p>
               )}
-              {!googleConnected && meetPlatform === 'googlemeet' && !meetGenerated && (
+              {!googleConnected && (
                 <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mb-2">
                   <span className="text-xs text-amber-700">Connect Google Calendar for real Meet links</span>
                   <button type="button" onClick={connectGoogleCalendar} className="flex items-center gap-1 text-xs text-blue-600 font-semibold hover:underline">
@@ -295,7 +295,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
                 </div>
               )}
               {googleConnected && (
-                <p className="text-xs text-green-600 font-medium mb-1">✓ Google Calendar connected — real Meet links enabled</p>
+                <p className="text-xs text-green-600 font-medium mb-1">✓ Google Calendar connected</p>
               )}
 
               <input type="url" value={formData.meetingLink}

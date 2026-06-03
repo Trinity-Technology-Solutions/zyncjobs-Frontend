@@ -24,7 +24,7 @@ export const getResumeByApplicationId = async (applicationId: string): Promise<R
 };
 
 export const getResumeByEmail = async (email: string): Promise<ResumeResponse> => {
-  // Return the stream URL directly — ResumeModal will blob-fetch it for inline viewing
+  // /api/resume/presigned streams the PDF directly — return it as the stream URL for iframe
   return { presignedUrl: `${API_BASE}/resume/presigned?email=${encodeURIComponent(email)}` };
 };
 
@@ -32,7 +32,7 @@ export const downloadResumeByApplicationId = async (
   applicationId: string,
   candidateName: string = 'candidate'
 ): Promise<void> => {
-  const res = await apiFetch(`${API_BASE}/applications/${applicationId}/resume/download`);
+  const res = await apiFetch(`${API_BASE}/resume-viewer/download/${applicationId}`);
   if (!res.ok) throw new Error('Download failed');
   const blob = await res.blob();
   triggerDownload(blob, candidateName);

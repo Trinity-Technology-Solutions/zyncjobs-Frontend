@@ -18,6 +18,9 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
     isVisible: boolean;
   }>({ type: 'success', message: '', isVisible: false });
 
+  const stripHtml = (html: string): string =>
+    html.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim();
+
   const handleStartParsing = async () => {
     if (!jobDescription.trim()) {
       setNotification({
@@ -30,8 +33,9 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => 
 
     setIsParsing(true);
     try {
+      const cleanDescription = stripHtml(jobDescription);
       // Parse job description using AI
-      const parsedData = await parseJobDescription(jobDescription);
+      const parsedData = await parseJobDescription(cleanDescription);
       
       setNotification({
         type: 'success',
@@ -1400,7 +1404,7 @@ ${description.slice(0, 2000)}`;
           </div>
 
           {/* Main Card */}
-          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h2 className="text-base font-semibold text-gray-900">Paste Job Description</h2>
@@ -1414,7 +1418,7 @@ ${description.slice(0, 2000)}`;
               </div>
             </div>
 
-            <div className="px-4 sm:px-6">
+            <div className="px-4 sm:px-6 pt-4 pb-6 sm:pb-8">
               <textarea
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}

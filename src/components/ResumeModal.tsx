@@ -74,7 +74,8 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
         if (result.presignedUrl) rawUrl = result.presignedUrl;
       }
 
-      if (!rawUrl && directResumeUrl && directResumeUrl !== 'resume_from_quick_apply' && directResumeUrl.startsWith('http')) {
+      // Fallback to direct S3 URL from application data
+      if (!rawUrl && directResumeUrl && directResumeUrl !== 'resume_from_quick_apply') {
         rawUrl = directResumeUrl;
       }
 
