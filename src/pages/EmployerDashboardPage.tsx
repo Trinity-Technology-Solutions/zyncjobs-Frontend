@@ -56,6 +56,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const canAccessSavedCandidates = isOwner || isRecruiter;
   const canAccessCandidateRanking = isOwner || isRecruiter;
   const canAccessAIRecruiter = isOwner || isRecruiter;
+  const canDeleteRecords = isOwner || isRecruiter;
   const [companyWebsite, setCompanyWebsite] = useState('');
   const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
@@ -352,10 +353,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       const ownerEmployerId = userData.employerId; // set by backend when team member is created
       const userEmail = userData.email;
       // ownerEmail: for team members this is the owner's email; for owners it's their own email
-      const ownerEmail = userData.ownerEmail || userData.employerEmail || userEmail;
       const userName = userData.name || userData.fullName;
       // For team members, use the owner's email/company to load shared company data
-      const ownerEmail = userData.employerOwnerId || userEmail;
+      const ownerEmail = userData.ownerEmail || userData.employerOwnerId || userData.employerEmail || userEmail;
       
       console.log('Using userId:', userId, 'userEmail:', userEmail, 'userName:', userName);
       
@@ -414,7 +414,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const response = await appsRes.json();
           const allApps = response.applications || response || [];
           // Enrich with job titles
-          employerApps = await Promise.all(
+          const appsWithJobDetails = await Promise.all(
             allApps.map(async (app: any) => {
               const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
               if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined') {
@@ -429,18 +429,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               return app;
             })
           );
-          
-          employerApps = Array.isArray(appsWithJobDetails) ? appsWithJobDetails.filter((app: any) => {
-            const matchesOwnerEmail = app.employerEmail === ownerEmail;
-            const matchesSelfEmail = app.employerEmail === userEmail;
-            // Team member — also show apps for jobs posted under same company
-            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-            const myEmployerId = storedUser.employerId;
-            const matchesEmployerId = (ownerEmployerId && app.employerEmployerId === ownerEmployerId) ||
-                                      (myEmployerId && app.employerEmployerId === myEmployerId);
-            return matchesOwnerEmail || matchesSelfEmail || matchesEmployerId;
-          }) : [];
-          console.log('Dashboard - Filtered employer applications:', employerApps.length);
+          employerApps = appsWithJobDetails;
           setApplications(employerApps);
           dashboardStats.applications = employerApps.length;
         } else {
@@ -745,7 +734,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
   ];
 
+  const [headerHeight, setHeaderHeight] = React.useState(96);
+
+  React.useLayoutEffect(() => {
+    const header = document.querySelector('header');
+    if (header) setHeaderHeight(header.getBoundingClientRect().height);
+  }, []);
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [_ownerEmailState, setOwnerEmailState] = useState<string>('');
   const [accessDeniedModal, setAccessDeniedModal] = useState<{ show: boolean; feature: string; requiredRole: string }>({ show: false, feature: '', requiredRole: '' });
 
   // Guard function: show popup if role doesn't have access
@@ -768,7 +765,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-gray-50" style={{minHeight: 'calc(100vh - 64px)', maxWidth: '100vw'}}>
+    <div className="bg-gray-50 flex" style={{height: `calc(100vh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
@@ -785,11 +782,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" style={{top: `${headerHeight}px`}} onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar — sticky, grows with content */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed lg:sticky top-0 left-0 h-screen lg:h-auto lg:self-stretch ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{width: '300px', overflowY: 'auto', overflowX: 'hidden', minHeight: '100vh'}}>
+      {/* Sidebar — fixed height, independent scroll */}
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{top: `${headerHeight}px`, width: '300px', height: `calc(100vh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth'}}>
             {/* Profile header - Enhanced */}
             <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
               <div className="flex items-center gap-3">
@@ -1001,10 +998,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Main Content — offset by sidebar width on desktop, independent scroll */}
-      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto" style={{height: '100%', marginLeft: '0', scrollBehavior: 'smooth'}}>
-        {/* Spacer for fixed sidebar on desktop */}
-        <div className="hidden lg:block" style={{width: '300px', flexShrink: 0, position: 'absolute'}} />
-        {/* Top bar with Back Button */}
+      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
+{/* Top bar with Back Button */}
         <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
             {/* Inline static menu toggle — mobile only */}
@@ -2391,6 +2386,8 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   const [inviting, setInviting] = React.useState(false);
   const [inviteToken, setInviteToken] = React.useState('');
   const [inviteCredentials, setInviteCredentials] = React.useState<{ email: string; password: string; role: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const closeConfirm = () => setConfirmDialog(c => ({ ...c, isOpen: false }));
 
   // Generate a secure random password
   const generatePassword = () => {

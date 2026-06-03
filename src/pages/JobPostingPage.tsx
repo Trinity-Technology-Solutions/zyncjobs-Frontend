@@ -380,7 +380,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     payRate: editJob?.salary?.period === 'monthly' ? 'per month' : editJob?.salary?.period === 'hourly' ? 'per hour' : parsedData?.payRate || 'per year',
     currency: parsedData?.currency || 'INR',
     benefits: editJob?.benefits || parsedData?.benefits || [],
-    jobDescription: editJob?.jobDescription || editJob?.description || parsedData?.jobDescription || '',
+    jobDescription: editJob?.jobDescription || editJob?.description || (parsedData?.jobDescription ? parsedData.jobDescription.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim() : ''),
     responsibilities: editJob?.responsibilities
       ? (Array.isArray(editJob.responsibilities) ? editJob.responsibilities : editJob.responsibilities.split('\n').filter(Boolean))
       : parsedData?.responsibilities || [],
@@ -3320,28 +3320,28 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       } else {
         const errorText = await response.text();
         console.error('Job posting failed with status:', response.status);
-        console.error('Error response:', errorText);
-        console.error('Request payload was:', JSON.stringify(jobPostData, null, 2));
-        
+
+        if (response.status === 401) {
+          setNotification({
+            type: 'error',
+            message: 'Session expired. Please log out and log back in, then try again.',
+            isVisible: true
+          });
+          return;
+        }
+
         let errorMessage = 'Failed to post job';
-        
         if (!errorText || errorText.trim() === '') {
-          // Empty response - likely backend issue
-          errorMessage = `Backend server error (${response.status}). Please check if the backend server is running and the /api/jobs endpoint is available.`;
+          errorMessage = `Backend server error (${response.status}). Please check if the backend server is running.`;
         } else {
           try {
             const errorJson = JSON.parse(errorText);
             errorMessage = errorJson.error || errorJson.message || errorMessage;
-          } catch (e) {
+          } catch {
             errorMessage = errorText || errorMessage;
           }
         }
-        
-        setNotification({
-          type: 'error',
-          message: `Job posting failed: ${errorMessage}`,
-          isVisible: true
-        });
+        setNotification({ type: 'error', message: `Job posting failed: ${errorMessage}`, isVisible: true });
       }
     } catch (error) {
       console.error('Error posting job:', error);

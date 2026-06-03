@@ -393,9 +393,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   };
 
   const onViewResume = (application: any) => {
-    // Don't pass applicationId since backend /applications/:id/resume has a DB error
-    // Use email-based stream directly which is more reliable
-    setSelectedApplicationId(null);
+    setSelectedApplicationId(application.id || application._id || null);
     setSelectedResumeApp(application);
     setShowResumeModal(true);
   };

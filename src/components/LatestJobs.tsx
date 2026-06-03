@@ -108,8 +108,12 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
       const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=6&sort=newest`);
       if (response.ok) {
         const data = await response.json();
-        // Ensure jobs are sorted by creation date (newest first)
-        const sortedJobs = data.sort((a: { createdAt: string | number | Date; }, b: { createdAt: string | number | Date; }) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        // Sort by lastRefreshedAt first (refreshed jobs bubble up), then createdAt
+        const sortedJobs = data.sort((a: any, b: any) => {
+          const aTime = Math.max(new Date(a.lastRefreshedAt || 0).getTime(), new Date(a.createdAt).getTime());
+          const bTime = Math.max(new Date(b.lastRefreshedAt || 0).getTime(), new Date(b.createdAt).getTime());
+          return bTime - aTime;
+        });
         setJobs(sortedJobs);
         fetchCompanyLogos(sortedJobs);
       } else {

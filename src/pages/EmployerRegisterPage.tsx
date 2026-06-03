@@ -21,7 +21,7 @@ const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'inf
   span.textContent = message;
   const btn = document.createElement('button');
   btn.className = 'ml-4 text-white hover:text-gray-200';
-  btn.textContent = '×';
+  btn.textContent = 'Ã—';
   btn.addEventListener('click', () => toast.remove());
   wrapper.appendChild(span);
   wrapper.appendChild(btn);
@@ -38,7 +38,7 @@ interface EmployerRegisterPageProps {
 
 const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate }) => {
   useEffect(() => {
-    // Handle Google OAuth invite-only block redirect — check this FIRST before dashboard redirect
+    // Handle Google OAuth invite-only block redirect â€” check this FIRST before dashboard redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get('blocked') === '1') {
       const cName = params.get('company') || 'This company';
@@ -214,13 +214,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       const response = await fetch(API_ENDPOINTS.OTP_SEND, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email: formData.email, 
-          name: formData.name, 
-          userType: 'employer',
-          companyName: formData.companyName,
-          domainVerification: domainVerification
-        })
+        body: JSON.stringify({ email: formData.email.trim(), name: formData.name.trim(), userType: 'employer' })
       });
       const data = await response.json();
       if (response.ok) {
@@ -241,10 +235,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   };
 
   const handleVerifyOTP = async () => {
-    if (!formData.otp || formData.otp.length !== 6) {
-      setError('Please enter the 6-digit code');
-      return;
-    }
+    if (formData.otp.length !== 6) return;
     setLoading(true);
     setError('');
     try {
@@ -328,11 +319,11 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       
       const response = await authAPI.register(registrationData);
       
-      const msg = '⏳ Registration successful! Your account is pending admin verification. You will receive an email once approved.';
+      const msg = 'â³ Registration successful! Your account is pending admin verification. You will receive an email once approved.';
       setSuccess(msg);
       showToast('Registration submitted! Awaiting admin approval.', 'info');
       
-      // Do NOT navigate to dashboard — account is pending
+      // Do NOT navigate to dashboard â€” account is pending
       setTimeout(() => onNavigate('employer-login'), 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
@@ -340,7 +331,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
         const companyMatch = msg.match(/^(.+?) already has an account/);
         const cName = companyMatch ? companyMatch[1] : formData.companyName || 'Your company';
         setError(`COMPANY_EXISTS:${cName}`);
-        showToast('Company already registered — joining as team member', 'warning');
+        showToast('Company already registered â€” joining as team member', 'warning');
       } else {
         setError(msg);
         showToast(msg, 'error');
@@ -449,7 +440,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                           isDone ? 'bg-green-500 text-white' : isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'
                         }`}>
-                          {isDone ? '✓' : num}
+                          {isDone ? 'âœ“' : num}
                         </div>
                         <span className={`text-xs font-medium ${isActive ? 'text-orange-500' : isDone ? 'text-green-500' : 'text-gray-400'}`}>{label}</span>
                       </div>
@@ -462,7 +453,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
               {error && !error.startsWith('COMPANY_EXISTS:') && (
                 <div className="mb-4 flex flex-col gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                   <div className="flex items-start gap-2">
-                    <span className="text-red-500 text-xs mt-0.5">⚠</span>
+                    <span className="text-red-500 text-xs mt-0.5">âš </span>
                     <span className="text-red-600 text-sm whitespace-pre-line">{error}</span>
                   </div>
                   {error.includes('Team Management') && (
@@ -471,7 +462,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       onClick={() => onNavigate('employer-login')}
                       className="self-start mt-1 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg transition"
                     >
-                      Go to Login instead →
+                      Go to Login instead â†’
                     </button>
                   )}
                 </div>
@@ -481,7 +472,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 return (
                   <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">🏢</span>
+                      <span className="text-lg">ðŸ¢</span>
                       <p className="font-semibold text-gray-900 text-sm leading-tight">
                         <span className="text-orange-600">{cName}</span> is already on ZyncJobs
                       </p>
@@ -493,7 +484,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         onClick={() => onNavigate('employer-login')}
                         className="h-9 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition"
                       >
-                        Login →
+                        Login â†’
                       </button>
                       <button
                         type="button"
@@ -520,7 +511,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                             // Set flag for first visit after registration
                             sessionStorage.setItem('isFirstVisitAfterRegistration', 'true');
                             
-                            setSuccess('✅ Registered as team member! Redirecting...');
+                            setSuccess('âœ… Registered as team member! Redirecting...');
                             setTimeout(() => onNavigate('dashboard'), 1500);
                           } catch (e2) {
                             setError((e2 instanceof Error ? e2.message : 'Registration failed'));
@@ -535,14 +526,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       </button>
                     </div>
                     {!formData.password && (
-                      <p className="text-xs text-amber-700 mt-2">⚠ Complete Step 3 first to join as team member.</p>
+                      <p className="text-xs text-amber-700 mt-2">âš  Complete Step 3 first to join as team member.</p>
                     )}
                   </div>
                 );
               })()}
               {success && (
                 <div className="mb-4 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-                  <span className="text-green-500 text-xs mt-0.5">✓</span>
+                  <span className="text-green-500 text-xs mt-0.5">âœ“</span>
                   <span className="text-green-600 text-sm">{success}</span>
                 </div>
               )}
@@ -633,7 +624,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       {gstVerification?.verified && (
                         <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
                           <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                          GST Verified — Company details filled automatically
+                          GST Verified â€” Company details filled automatically
                         </div>
                       )}
                     </div>
@@ -726,7 +717,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     <button type="button" onClick={handleStep1Next}
                       disabled={loading || verificationLoading}
                       className="w-full h-12 sm:h-14 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]">
-                      {loading ? 'Sending...' : 'Continue →'}
+                      {loading ? 'Sending...' : 'Continue â†’'}
                     </button>
                   </div>
 
@@ -819,7 +810,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       onClick={() => { setStep(1); setError(''); setSuccess(''); setFormData({ ...formData, otp: '' }); }}
                       className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all"
                     >
-                      ← Back
+                      â† Back
                     </button>
                   </div>
                 </div>
@@ -872,7 +863,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         <label htmlFor="declaration-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
                           I am an authorized representative of this company and agree to the{' '}
                           <button type="button" onClick={() => window.open('/terms#employer-declaration', '_blank')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Employer Declaration</button>
-                          {' '}— including posting accurate jobs and lawful use of candidate data.
+                          {' '}â€” including posting accurate jobs and lawful use of candidate data.
                         </label>
                       </div>
                     </div>
@@ -883,7 +874,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     </button>
                     <button type="button" onClick={() => { setStep(2); setError(''); }}
                       className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all">
-                      ← Back
+                      â† Back
                     </button>
                   </div>
                 </form>
@@ -899,3 +890,4 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 };
 
 export default EmployerRegisterPage;
+

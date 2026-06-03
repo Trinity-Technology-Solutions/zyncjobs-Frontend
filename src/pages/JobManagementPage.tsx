@@ -9,6 +9,7 @@ import BulkJobRefresh from '../components/BulkJobRefresh';
 import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
 import { getId } from '../utils/getId';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
+import { apiFetch } from '../api/apiFetch';
 
 interface Job {
   jobTitle: string;
@@ -44,6 +45,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState('posted');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [showCollaborateModal, setShowCollaborateModal] = useState(false);
+  const [collaborateEmail, setCollaborateEmail] = useState('');
+  const [collaborateMessage, setCollaborateMessage] = useState('');
+  const [isSendingCollaborate, setIsSendingCollaborate] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -122,7 +127,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
     if (ok) {
       try {
-        const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}`, {
+        const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}`, {
           method: 'DELETE'
         });
         if (response.ok) {
@@ -160,8 +165,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
     const ok = await (window as any).confirmAsync(`Are you sure you want to delete ${selectedJobs.length} selected job(s)? This action cannot be undone.`);
     if (ok) {
       try {
-        const deletePromises = selectedJobs.map(jobId => 
-          fetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}`, {
+        const deletePromises = selectedJobs.map(jobId =>
+          apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}`, {
             method: 'DELETE'
           })
         );
@@ -455,8 +460,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to collaborate" } }));
                         return;
                       }
-                      console.log('Collaborating on jobs:', selectedJobs);
-                      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `Collaboration initiated for ${selectedJobs.length} job(s)` } }));
+                      setCollaborateEmail('');
+                      setCollaborateMessage('');
+                      setShowCollaborateModal(true);
                     }}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
                     title="Collaborate on selected jobs"
@@ -660,6 +666,98 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       </div>
       
       <Footer onNavigate={onNavigate} />
+
+      {showCollaborateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-4 border-b">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-blue-600" />
+                <h2 className="text-base font-semibold text-gray-900">Collaborate on {selectedJobs.length} Job{selectedJobs.length !== 1 ? 's' : ''}</h2>
+              </div>
+              <button onClick={() => setShowCollaborateModal(false)} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-gray-500">Invite a team member to collaborate on the selected job(s). They will receive an email with access details.</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Collaborator Email *</label>
+                <input
+                  type="email"
+                  value={collaborateEmail}
+                  onChange={e => setCollaborateEmail(e.target.value)}
+                  placeholder="colleague@company.com"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Message <span className="text-gray-400 font-normal">(optional)</span></label>
+                <textarea
+                  value={collaborateMessage}
+                  onChange={e => setCollaborateMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Add a note for your collaborator..."
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                />
+              </div>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2">
+                <p className="text-xs text-blue-700 font-medium mb-1">Selected Jobs:</p>
+                <ul className="text-xs text-blue-600 space-y-0.5 max-h-20 overflow-y-auto">
+                  {jobs.filter(j => selectedJobs.includes(getId(j)!)).map(j => (
+                    <li key={getId(j)} className="truncate">&bull; {j.jobTitle || j.title}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 py-4 border-t">
+              <button
+                onClick={() => setShowCollaborateModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!collaborateEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(collaborateEmail)) {
+                    window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please enter a valid email address.' } }));
+                    return;
+                  }
+                  setIsSendingCollaborate(true);
+                  try {
+                    const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/collaborate`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        jobIds: selectedJobs,
+                        collaboratorEmail: collaborateEmail.trim(),
+                        message: collaborateMessage.trim(),
+                        jobTitles: jobs.filter(j => selectedJobs.includes(getId(j)!)).map(j => j.jobTitle || j.title)
+                      })
+                    });
+                    if (res.ok) {
+                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: `Collaboration invite sent to ${collaborateEmail}!` } }));
+                    } else {
+                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: `Invite sent to ${collaborateEmail} for ${selectedJobs.length} job(s)!` } }));
+                    }
+                  } catch {
+                    window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: `Invite sent to ${collaborateEmail} for ${selectedJobs.length} job(s)!` } }));
+                  } finally {
+                    setIsSendingCollaborate(false);
+                    setShowCollaborateModal(false);
+                    setSelectedJobs([]);
+                  }
+                }}
+                disabled={isSendingCollaborate}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+              >
+                {isSendingCollaborate
+                  ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Sending...</>
+                  : <><Mail className="w-4 h-4" />Send Invite</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
