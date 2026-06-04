@@ -5,7 +5,7 @@ import { ResumeDropzone } from "../ResumeDropzone";
 import MistralJobRecommendations from "../MistralJobRecommendations";
 import CandidateRanking from "../CandidateRanking";
 import CandidateComparison from "../CandidateComparison";
-import { parseResumeFromText } from "./parseLogic";
+import { parseResumeFromText, type AIParseStatus } from "./parseLogic";
 import type { ParsedResume } from "./parseLogic";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -27,12 +27,12 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
   const [rawText, setRawText] = useState('');
   const [isFileUploaded, setIsFileUploaded] = useState(false);
   const [parsing, setParsing] = useState(false);
+  const [aiStatus, setAiStatus] = useState<{ status: AIParseStatus; detail?: string } | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [availableJobs, setAvailableJobs] = useState<any[]>([]);
   const [totalJobsCount, setTotalJobsCount] = useState(0);
   const [matchingScore, setMatchingScore] = useState<any>(null);
-  const [uploadedCandidates, setUploadedCandidates] = useState<any[]>([]);
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState({ minScore: 0, skills: '', location: '' });
@@ -161,7 +161,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
         if (!textItems.length) throw new Error('Could not extract text from PDF. The file may be scanned or image-based.');
         const text = textItems.map(t => t.text).join('\n');
         setRawText(text);
-        const parsed = await parseResumeFromText(text);
+        const parsed = await parseResumeFromText(text, (status, detail) => setAiStatus({ status, detail }));
         setResume(parsed);
         setIsFileUploaded(true);
         if (selectedJob) {
@@ -265,7 +265,16 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
 
         {/* Results Section */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Parsed Information</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Parsed Information</h2>
+            {aiStatus && (
+              <span className={`text-xs px-2 py-1 rounded-full font-medium flex items-center gap-1 ${
+                aiStatus.status === 'ai' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+              }`} title={aiStatus.detail || ''}>
+                {aiStatus.status === 'ai' ? '✦ AI parsed' : `⚠ Local parser${aiStatus.detail ? ` — ${aiStatus.detail}` : ''}`}
+              </span>
+            )}
+          </div>
           
           {parsing && (
             <div className="flex items-center gap-3 py-8 justify-center">

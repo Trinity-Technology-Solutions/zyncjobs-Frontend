@@ -13,6 +13,14 @@ export interface ParsedResume {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import { tokenStorage } from '../../utils/tokenStorage';
+import { getCached, setCached, cacheKey } from '../../services/aiCache';
+
+const RESUME_CACHE_TTL = 30 * 60 * 1000;
+
+async function hashText(text: string): Promise<string> {
+  const buffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Common resume section headings — never treat these as a person's name
 const SECTION_HEADINGS = new Set([
@@ -30,14 +38,21 @@ function isLikelyName(line: string): boolean {
   const l = line.trim();
   if (!l || l.length < 2 || l.length > 60) return false;
   if (SECTION_HEADINGS.has(l.toLowerCase())) return false;
-  // Reject lines that look like headings (all caps short words) or contain special chars
   if (/[@|•\-_=*#/\\]/.test(l)) return false;
-  if (/\d{4}/.test(l)) return false; // contains year
+  if (/\d{4}/.test(l)) return false;
   if (/^(http|www)/i.test(l)) return false;
-  // A name should have at least one letter and look like words
   if (!/[a-zA-Z]/.test(l)) return false;
-  // Reject if it's a single ALL-CAPS word that's a common heading
-  if (/^[A-Z\s]+$/.test(l) && l.split(' ').length <= 2 && l.length < 20) return false;
+  // Must look like a name: 1-4 words, each starting with capital or all-caps
+  const words = l.split(/\s+/);
+  if (words.length < 1 || words.length > 4) return false;
+  // Each word should be capitalised (proper name) or all-caps short word
+  const allWordsCapitalised = words.every(w => /^[A-Z][a-zA-Z]*$/.test(w) || /^[A-Z]+$/.test(w));
+  if (!allWordsCapitalised) return false;
+  // Reject common single-word all-caps section headings
+  if (words.length <= 2 && /^[A-Z\s]+$/.test(l) && l.length < 15) {
+    // Allow only if it looks like a real name (has both first + last name feel)
+    if (words.length < 2) return false;
+  }
   return true;
 }
 
@@ -61,16 +76,16 @@ function parseResumeLocally(text: string): ParsedResume {
   const phoneMatch = text.match(/(\+?[\d][\d\s\-(). ]{7,}\d)/);
   const locationMatch = text.match(/\b(Chennai|Mumbai|Delhi|Bangalore|Hyderabad|Pune|Kolkata|Ahmedabad|Jaipur|Surat|[A-Z][a-z]+,\s*[A-Z]{2})\b/);
 
-  // Name: first line that looks like a real name (not a heading)
-  const name = lines.find(isLikelyName) || '';
+  // Name: search only in first 10 lines to avoid picking up section body text
+  const name = lines.slice(0, 10).find(isLikelyName) || '';
 
-  // --- Skills ---
-  const skillsSection = extractSection(lines, /^(technical\s+)?skills?$/i);
+  // --- Skills --- (match various heading forms: "Skills", "Key Skills", "Technical Skills", etc.)
+  const skillsSection = extractSection(lines, /^(key\s+|technical\s+|core\s+|hard\s+)?skills?$/i);
   const skillsText = skillsSection.join(' ');
   const skills = skillsText
     .split(/[,|•\n\/]/)
     .map(s => s.replace(/^\s*[-–]\s*/, '').trim())
-    .filter(s => s.length > 1 && s.length < 50 && /[a-zA-Z]/.test(s));
+    .filter(s => s.length > 1 && s.length < 50 && /[a-zA-Z]/.test(s) && !SECTION_HEADINGS.has(s.toLowerCase()));
 
   // --- Work Experience ---
   const expSection = extractSection(lines, /^(work\s+)?(experience|employment|history|professional\s+experience)$/i);
@@ -105,19 +120,33 @@ function parseResumeLocally(text: string): ParsedResume {
   const educations: ParsedResume['educations'] = [];
   if (eduSection.length > 0) {
     const yearPattern = /\b(19|20)\d{2}\b/;
+    // Group lines into entries: an entry starts with a school/degree line (non-year, length > 10)
+    // and ends before the next school-like line or year-only line
     let currentEdu: { degree: string; school: string; date: string } | null = null;
     for (const line of eduSection) {
-      if (yearPattern.test(line)) {
-        if (currentEdu) educations.push(currentEdu);
-        currentEdu = { degree: '', school: '', date: line.match(yearPattern)?.[0] || line };
-      } else if (currentEdu) {
-        if (!currentEdu.degree) currentEdu.degree = line;
-        else if (!currentEdu.school) currentEdu.school = line;
-      } else {
-        currentEdu = { degree: line, school: '', date: '' };
+      const hasYear = yearPattern.test(line);
+      const isYearOnly = /^\s*(19|20)\d{2}\s*$/.test(line);
+      if (isYearOnly) {
+        // Bare year line — attach to current entry as date
+        if (currentEdu && !currentEdu.date) currentEdu.date = line.trim();
+        continue;
+      }
+      if (!currentEdu) {
+        // First line of a new entry
+        currentEdu = { degree: '', school: line, date: hasYear ? (line.match(yearPattern)?.[0] || '') : '' };
+      } else if (!currentEdu.degree && line.length > 5) {
+        // Second line = degree/course info
+        currentEdu.degree = line.replace(yearPattern, '').trim();
+        if (hasYear && !currentEdu.date) currentEdu.date = line.match(yearPattern)?.[0] || '';
+      } else if (line.length > 10 && !hasYear) {
+        // Looks like a new school entry
+        if (currentEdu.school || currentEdu.degree) educations.push(currentEdu);
+        currentEdu = { degree: '', school: line, date: '' };
+      } else if (hasYear && !currentEdu.date) {
+        currentEdu.date = line.match(yearPattern)?.[0] || '';
       }
     }
-    if (currentEdu && (currentEdu.degree || currentEdu.school)) educations.push(currentEdu);
+    if (currentEdu && (currentEdu.school || currentEdu.degree)) educations.push(currentEdu);
   }
 
   // --- Projects ---
@@ -126,7 +155,12 @@ function parseResumeLocally(text: string): ParsedResume {
   if (projSection.length > 0) {
     let currentProj: { name: string; description: string } | null = null;
     for (const line of projSection) {
-      if (line.length < 80 && !/^[•\-–]/.test(line) && (!currentProj || currentProj.description)) {
+      const isBullet = /^[•\-–]/.test(line);
+      // A project name: not a bullet, not too long, doesn't look like a description sentence
+      const looksLikeName = !isBullet && line.length < 100 && line.length > 3
+        && !/^(developed|built|created|analyzed|implemented|designed|completed|worked|gained)/i.test(line)
+        && (!currentProj || currentProj.description.length > 0);
+      if (looksLikeName) {
         if (currentProj) projects.push(currentProj);
         currentProj = { name: line, description: '' };
       } else if (currentProj) {
@@ -191,11 +225,20 @@ function mergeResults(ai: ParsedResume, local: ParsedResume, rawText: string): P
   };
 }
 
-export async function parseResumeFromText(text: string): Promise<ParsedResume> {
-  // Always run local parser as baseline
+export type AIParseStatus = 'ai' | 'local' | 'ai_empty' | 'ai_error';
+
+export async function parseResumeFromText(
+  text: string,
+  onStatus?: (status: AIParseStatus, detail?: string) => void
+): Promise<ParsedResume> {
   const localResult = parseResumeLocally(text);
 
   try {
+    const textHash = await hashText(text);
+    const cKey = cacheKey('resume-parse', textHash);
+    const cached = getCached<ParsedResume>(cKey);
+    if (cached) { onStatus?.('ai'); return cached; }
+
     const token = tokenStorage.getAccess();
     const res = await fetch(`${API_BASE_URL}/resume/parse-profile`, {
       method: 'POST',
@@ -207,18 +250,18 @@ export async function parseResumeFromText(text: string): Promise<ParsedResume> {
     });
 
     if (!res.ok) {
-      console.warn(`parse-profile API returned ${res.status}, using local parser`);
+      const errText = await res.text().catch(() => '');
+      onStatus?.('ai_error', `API ${res.status}: ${errText.slice(0, 120)}`);
       return localResult;
     }
 
     const json = await res.json();
-    console.log('parse-profile raw response:', JSON.stringify(json));
 
-    const p = json.profileData || json.data || json;
+    // Handle various backend response shapes
+    const p = json.profileData || json.data?.profileData || json.data || json;
 
-    // If AI returned nothing at all, use local
-    if (!p || (!p.name && !p.email && !p.skills?.length)) {
-      console.warn('AI returned empty profile, using local parser');
+    if (!p || typeof p !== 'object' || (!p.name && !p.email && !(p.skills?.length > 0) && !p.workExperiences?.length)) {
+      onStatus?.('ai_empty', 'AI returned no usable data — using local parser');
       return localResult;
     }
 
@@ -230,26 +273,26 @@ export async function parseResumeFromText(text: string): Promise<ParsedResume> {
         location: p.location || '',
       },
       skills: {
-        featuredSkills: (p.skills || []).map((s: string) => ({ skill: s })),
+        featuredSkills: (p.skills || []).map((s: any) => ({ skill: typeof s === 'string' ? s : s?.skill || '' })).filter((s: any) => s.skill),
       },
-      workExperiences: (p.workExperiences || []).map((e: any) => ({
-        jobTitle: e.jobTitle || '',
-        company: e.company || '',
+      workExperiences: (p.workExperiences || p.experience || []).map((e: any) => ({
+        jobTitle: e.jobTitle || e.title || '',
+        company: e.company || e.companyName || '',
         date: e.date || '',
-        descriptions: Array.isArray(e.descriptions) ? e.descriptions : [],
+        descriptions: Array.isArray(e.descriptions) ? e.descriptions : (e.description ? [e.description] : []),
       })),
-      educations: (p.educations || []).map((e: any) => ({
+      educations: (p.educations || p.education || []).map((e: any) => ({
         degree: e.degree || '',
-        school: e.school || '',
-        date: e.date || '',
+        school: e.school || e.college || '',
+        date: e.date || e.endYear || e.passingYear || '',
       })),
       projects: (p.projects || []).map((pr: any) => ({
-        name: pr.name || '',
+        name: pr.name || pr.projectName || '',
         description: pr.description || '',
       })),
       competitions: p.competitions || [],
       certifications: (p.certifications || []).map((c: any) => ({
-        name: c.name || '',
+        name: c.name || c.certificationName || '',
         provider: c.provider || '',
         date: c.date || '',
       })),
@@ -258,10 +301,12 @@ export async function parseResumeFromText(text: string): Promise<ParsedResume> {
       summary: p.summary || p.profileSummary || '',
     };
 
-    // Merge: AI fills what it can, local fills the gaps
-    return mergeResults(aiResult, localResult, text);
-  } catch (e) {
-    console.warn('parse-profile API failed, using local parser:', e);
+    const merged = mergeResults(aiResult, localResult, text);
+    setCached(cKey, merged, RESUME_CACHE_TTL);
+    onStatus?.('ai');
+    return merged;
+  } catch (e: any) {
+    onStatus?.('ai_error', e?.message || 'Network error');
     return localResult;
   }
 }

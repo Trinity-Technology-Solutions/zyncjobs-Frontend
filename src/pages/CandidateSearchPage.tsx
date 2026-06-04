@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot, Download } from 'lucide-react';
 import { tokenStorage } from '../utils/tokenStorage';
@@ -9,6 +9,8 @@ import Footer from '../components/Footer';
 import CandidateProfileView from './CandidateProfileView';
 import { apiFetch } from '../api/apiFetch';
 import { searchAccuracy } from '../utils/searchAccuracy';
+import { computeMatchScore, extractSkillsFromText } from '../services/jobMatchEngine';
+import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
 
 interface Candidate {
   _id: string;
@@ -91,93 +93,94 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           (j.employerEmail || '').toLowerCase() === email
         );
         setEmployerJobs(mine);
-        if (mine.length > 0) setSelectedJob(mine[0]);
       })
       .catch(() => {});
   }, [user]);
 
-  // AI scoring function — pure frontend, no extra API call
-  const computeAIScore = (candidate: Candidate, job: any | null): { aiScore: number; matchedSkills: string[]; missingSkills: string[]; fitLabel: Candidate['fitLabel'] } => {
+  // AI scoring — profile skills first, fallback to resume PDF
+  const computeAIScore = async (candidate: Candidate, job: any | null): Promise<{ aiScore: number; matchedSkills: string[]; missingSkills: string[]; fitLabel: Candidate['fitLabel'] }> => {
     try {
+      // Step 1: get skills from profile
+      let skills: string[] = Array.isArray(candidate.skills) && candidate.skills.length > 0
+        ? candidate.skills
+        : [];
+
+      // Step 2: fallback — parse resume if no profile skills
+      if (skills.length === 0 && candidate.resumeUrl) {
+        try {
+          const textItems = await readPdf(candidate.resumeUrl);
+          const resumeText = textItems.map((t: any) => t.text).join(' ');
+          skills = extractSkillsFromText(resumeText);
+        } catch {}
+      }
+
       if (!job) {
+        // No job selected: profile completeness score
         const fields = ['skills', 'experience', 'location', 'profileSummary', 'education', 'employment', 'certifications', 'languages'];
         const filled = fields.filter(f => {
           const v = (candidate as any)[f];
           return v && (Array.isArray(v) ? v.length > 0 : String(v).trim().length > 0);
         }).length;
-        const score = Math.round((filled / fields.length) * 100);
+        // boost if we got skills from resume
+        const bonus = skills.length > 0 && (candidate.skills || []).length === 0 ? 1 : 0;
+        const score = Math.round(((filled + bonus) / fields.length) * 100);
         return { aiScore: score, matchedSkills: [], missingSkills: [], fitLabel: score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : score >= 30 ? 'Fair' : 'Low' };
       }
 
-      const rawJobSkills: string[] = Array.isArray(job.skills) ? job.skills : [];
-      const candSkills: string[] = (Array.isArray(candidate.skills) ? candidate.skills : []).map(s => String(s || '').toLowerCase().trim()).filter(Boolean);
-
-      const origMatched: string[] = [];
-      const origMissing: string[] = [];
-
-      rawJobSkills.forEach((js: string) => {
-        const jsLower = String(js || '').toLowerCase().trim();
-        if (!jsLower) return;
-        const isMatch = candSkills.some(cs => cs.includes(jsLower) || jsLower.includes(cs));
-        if (isMatch) origMatched.push(js);
-        else origMissing.push(js);
-      });
-
-      const skillScore = rawJobSkills.length > 0 ? (origMatched.length / rawJobSkills.length) * 70 : 35;
-      const profileFields = ['experience', 'location', 'profileSummary', 'education'];
-      const profileScore = profileFields.filter(f => {
-        const v = (candidate as any)[f];
-        return v && String(v).trim().length > 0;
-      }).length / profileFields.length * 30;
-
-      const total = Math.round(skillScore + profileScore);
-      const fitLabel: Candidate['fitLabel'] = total >= 75 ? 'Excellent' : total >= 50 ? 'Good' : total >= 30 ? 'Fair' : 'Low';
-
-      return { aiScore: total, matchedSkills: origMatched, missingSkills: origMissing, fitLabel };
+      const title = candidate.jobTitle || candidate.title || '';
+      const location = candidate.location || '';
+      const breakdown = computeMatchScore(skills, title, location, job);
+      const fitLabel: Candidate['fitLabel'] = breakdown.overall >= 75 ? 'Excellent' : breakdown.overall >= 50 ? 'Good' : breakdown.overall >= 30 ? 'Fair' : 'Low';
+      return { aiScore: breakdown.overall, matchedSkills: breakdown.matchedSkills, missingSkills: breakdown.missingSkills, fitLabel };
     } catch {
       return { aiScore: 0, matchedSkills: [], missingSkills: [], fitLabel: 'Low' };
     }
   };
 
   // Client-side filtered + scored + sorted candidates
-  const scoredCandidates = useMemo(() => {
-    try {
-      const q = searchTerm.toLowerCase().trim();
-      const skillQ = selectedSkill.toLowerCase().trim();
-      const locQ = selectedLocation.toLowerCase().trim();
+  const [scoredCandidates, setScoredCandidates] = useState<(Candidate & { aiScore: number; matchedSkills: string[]; missingSkills: string[]; fitLabel: Candidate['fitLabel'] })[]>([]);
 
-      const filtered = candidates.filter(c => {
-        const name = (c.fullName || c.name || '').toLowerCase();
-        const title = (c.jobTitle || c.title || '').toLowerCase();
-        const email = (c.email || '').toLowerCase();
-        const summary = (c.profileSummary || '').toLowerCase();
-        const skills = (c.skills || []).map((s: string) => s.toLowerCase());
-        const location = (c.location || '').toLowerCase();
-        const experience = (c.experience || '').toLowerCase();
-        const availability = (c.availability || '').toLowerCase();
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const q = searchTerm.toLowerCase().trim();
+        const skillQ = selectedSkill.toLowerCase().trim();
+        const locQ = selectedLocation.toLowerCase().trim();
 
-        if (q && !name.includes(q) && !title.includes(q) && !email.includes(q) && !summary.includes(q) && !skills.some((s: string) => s.includes(q)))
-          return false;
-        if (skillQ && !skills.some((s: string) => s.includes(skillQ) || skillQ.includes(s)))
-          return false;
-        if (locQ && !location.includes(locQ))
-          return false;
-        if (experienceFilter && !experience.includes(experienceFilter.toLowerCase()))
-          return false;
-        if (availabilityFilter && !availability.includes(availabilityFilter.toLowerCase()))
-          return false;
-        return true;
-      });
+        const filtered = candidates.filter(c => {
+          const name = (c.fullName || c.name || '').toLowerCase();
+          const title = (c.jobTitle || c.title || '').toLowerCase();
+          const email = (c.email || '').toLowerCase();
+          const summary = (c.profileSummary || '').toLowerCase();
+          const skills = (c.skills || []).map((s: string) => s.toLowerCase());
+          const location = (c.location || '').toLowerCase();
+          const experience = (c.experience || '').toLowerCase();
+          const availability = (c.availability || '').toLowerCase();
 
-      const withScores = filtered.map(c => ({ ...c, ...computeAIScore(c, selectedJob) }));
-      if (sortBy === 'ai_score') return [...withScores].sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
-      if (sortBy === 'skills') return [...withScores].sort((a, b) => (b.matchedSkills?.length ?? 0) - (a.matchedSkills?.length ?? 0));
-      return [...withScores].sort((a, b) =>
-        (getCandidateName(a) || '').localeCompare(getCandidateName(b) || '')
-      );
-    } catch {
-      return candidates;
-    }
+          if (q && !name.includes(q) && !title.includes(q) && !email.includes(q) && !summary.includes(q) && !skills.some((s: string) => s.includes(q))) return false;
+          if (skillQ && !skills.some((s: string) => s.includes(skillQ) || skillQ.includes(s))) return false;
+          if (locQ && !location.includes(locQ)) return false;
+          if (experienceFilter && !experience.includes(experienceFilter.toLowerCase())) return false;
+          if (availabilityFilter && !availability.includes(availabilityFilter.toLowerCase())) return false;
+          return true;
+        });
+
+        const withScores = await Promise.all(filtered.map(async c => ({ ...c, ...await computeAIScore(c, selectedJob) })));
+        if (cancelled) return;
+
+        let sorted;
+        if (sortBy === 'ai_score') sorted = [...withScores].sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
+        else if (sortBy === 'skills') sorted = [...withScores].sort((a, b) => (b.matchedSkills?.length ?? 0) - (a.matchedSkills?.length ?? 0));
+        else sorted = [...withScores].sort((a, b) => (getCandidateName(a) || '').localeCompare(getCandidateName(b) || ''));
+
+        setScoredCandidates(sorted);
+      } catch {
+        setScoredCandidates(candidates as any);
+      }
+    };
+    run();
+    return () => { cancelled = true; };
   }, [candidates, searchTerm, selectedSkill, selectedLocation, experienceFilter, availabilityFilter, selectedJob, sortBy]);
 
   useEffect(() => {

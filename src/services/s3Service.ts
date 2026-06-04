@@ -1,6 +1,17 @@
 import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 
+// Fix SSL error caused by dotted bucket names (e.g. zyncjobs.com.s3.amazonaws.com).
+// AWS wildcard cert *.s3.amazonaws.com doesn't cover dots-in-bucket virtual-hosted URLs.
+// Rewrite to path-style: https://s3.amazonaws.com/bucket/key
+function fixS3Url(url: string): string {
+  if (!url) return url;
+  // Match virtual-hosted style: https://BUCKET.s3.REGION.amazonaws.com/KEY
+  const match = url.match(/^https?:\/\/([^.]+(?:\.[^.]+)*)\.s3[^.]*\.amazonaws\.com\/(.+)$/);
+  if (match) return `https://s3.amazonaws.com/${match[1]}/${match[2]}`;
+  return url;
+}
+
 export interface S3UploadResponse {
   success: boolean;
   fileUrl?: string;
@@ -48,7 +59,7 @@ export class S3Service {
 
       return { 
         success: true, 
-        fileUrl: result.fileUrl || result.file?.url 
+        fileUrl: fixS3Url(result.fileUrl || result.file?.url) 
       };
     } catch (error) {
       return { 
@@ -84,7 +95,7 @@ export class S3Service {
         return { success: false, error: result.error || 'Upload failed' };
       }
 
-      const fileUrl = result.fileUrl || result.file?.url;
+      const fileUrl = fixS3Url(result.fileUrl || result.file?.url);
 
       // 4. Cache the result for this session
       if (fileUrl) uploadCache.set(fileHash, fileUrl);

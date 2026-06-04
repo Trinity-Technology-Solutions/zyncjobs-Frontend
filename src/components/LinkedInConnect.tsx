@@ -144,7 +144,11 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({
     if (!isLinkedin) return; // returned without linkedin param — just reset silently
 
     if (linkedinError || !token) {
-      setErrorMsg('LinkedIn connection was cancelled or failed. Please try again.');
+      setErrorMsg(
+        linkedinError === 'access_denied'
+          ? 'LinkedIn access was denied. Please allow permissions and try again.'
+          : 'LinkedIn connection failed. Please try again.'
+      );
       setStatus('error');
       return;
     }
@@ -161,11 +165,37 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({
   const fetchLinkedInProfile = async (token: string) => {
     setStatus('loading');
     try {
-      const res = await fetch(`${API_BASE}/auth/linkedin/profile`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) throw new Error('Failed to fetch LinkedIn profile');
-      const data: LinkedInProfile = await res.json();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      let res: Response;
+      try {
+        res = await fetch(`${API_BASE}/auth/linkedin/profile`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+      } catch (fetchErr: any) {
+        if (fetchErr?.name === 'AbortError') throw new Error('LinkedIn request timed out. Please try again.');
+        throw new Error('Could not connect to server. Please check your connection.');
+      } finally {
+        clearTimeout(timeoutId);
+      }
+      if (!res.ok) {
+        const errBody = await res.text().catch(() => '');
+        console.error('LinkedIn profile fetch failed:', res.status, errBody);
+        throw new Error(
+          res.status === 401 ? 'LinkedIn session expired. Please try again.' :
+          res.status === 404 ? 'LinkedIn profile endpoint not configured. Please contact support.' :
+          `LinkedIn import failed (${res.status})`
+        );
+      }
+      const rawText = await res.text();
+      let data: LinkedInProfile;
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        console.error('LinkedIn profile response is not valid JSON:', rawText);
+        throw new Error('LinkedIn returned unexpected data. Please try again.');
+      }
       setProfile(data);
       setStatus(mode === 'modal' ? 'preview' : 'success');
       if (mode === 'button') onImport(data);
