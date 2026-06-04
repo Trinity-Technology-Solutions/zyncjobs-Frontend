@@ -1,4 +1,5 @@
 import { API_ENDPOINTS } from '../config/env';
+import { tokenStorage } from '../utils/tokenStorage';
 
 export interface S3UploadResponse {
   success: boolean;
@@ -21,11 +22,9 @@ const uploadCache = new Map<string, string>();
 
 export class S3Service {
   private static getAuthHeaders(extra?: Record<string, string>) {
-    const token = sessionStorage.getItem('adminToken') || 
-                  sessionStorage.getItem('accessToken') || 
-                  localStorage.getItem('accessToken');
+    const token = tokenStorage.getAccess() || sessionStorage.getItem('adminToken');
     return {
-      'Authorization': `Bearer ${token}`,
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       ...extra,
     };
   }
