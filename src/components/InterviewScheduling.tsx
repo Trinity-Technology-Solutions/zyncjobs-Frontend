@@ -4,6 +4,7 @@ import BackButton from './BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { getAuthHeaders, getApiHeaders } from '../utils/authUtils';
 import { apiFetch } from '../api/apiFetch';
+import { tokenStorage } from '../utils/tokenStorage';
 
 const InterviewScheduling = () => {
   const [interviews, setInterviews] = useState<any[]>([]);
@@ -105,7 +106,9 @@ const InterviewScheduling = () => {
         body: JSON.stringify({
           platform: 'zoom',
           topic: 'Interview Meeting',
-          start_time: formData.scheduledDate,
+          start_time: /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
+            ? new Date(formData.scheduledDate + ':00').toISOString()
+            : new Date(formData.scheduledDate).toISOString(),
           duration: formData.duration,
           description: 'Interview meeting scheduled via ZyncJobs'
         })

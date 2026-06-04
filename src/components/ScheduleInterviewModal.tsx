@@ -61,13 +61,17 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     setMeetPlatform(platform);
     setError('');
     try {
+      // Normalize to full ISO string (datetime-local gives '2025-07-01T10:00')
+      const normalizedStart = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
+        ? new Date(formData.scheduledDate + ':00').toISOString()
+        : new Date(formData.scheduledDate).toISOString();
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform,
           topic: `Interview - ${application.candidateName} (${formData.round} Round)`,
-          start_time: formData.scheduledDate,
+          start_time: normalizedStart,
           duration: formData.duration,
           description: `${formData.round} round interview via ZyncJobs`
         })
@@ -112,6 +116,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
     setError('');
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
+      // Normalize scheduledDate to full ISO string
+      const normalizedDate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
+        ? new Date(formData.scheduledDate + ':00').toISOString()
+        : new Date(formData.scheduledDate).toISOString();
       const payload = {
         applicationId: application._id,
         candidateEmail: application.candidateEmail,
@@ -121,7 +129,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
         jobId: application.jobId?._id || application.jobId,
         round: formData.round,
         interviewer: formData.interviewer,
-        scheduledDate: formData.scheduledDate,
+        scheduledDate: normalizedDate,
         duration: formData.duration,
         // backend enum expects 'video' for video calls; map 'googlemeet' to 'video'
         type: formData.type === 'googlemeet' ? 'video' : formData.type,

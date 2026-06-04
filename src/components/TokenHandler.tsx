@@ -25,6 +25,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
+    const refreshToken = urlParams.get('refreshToken');
     const intendedPortal = (urlParams.get('portal') || urlParams.get('type') || 'candidate') as string;
     const isLinkedinImport = urlParams.get('linkedin') === '1';
     // accountRole is now sent directly from backend — the actual DB role of the user
@@ -38,6 +39,7 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
     if (isLinkedinImport && !token) return;
 
     tokenStorage.setAccess(token);
+    if (refreshToken) tokenStorage.setRefresh(refreshToken);
 
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
