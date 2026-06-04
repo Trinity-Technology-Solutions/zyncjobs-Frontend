@@ -2288,7 +2288,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </button>
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
-              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more.</p>
+              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more. Existing data will be updated with parsed info.</p>
 
               {resumePopupError && (
                 <p className="text-red-500 text-sm mb-3">{resumePopupError}</p>
@@ -2395,13 +2395,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                       ...user,
                       resume: resumeData,
                       resumeUrl: fileUrl,
-                      ...(cleanName && !user?.name ? { name: cleanName } : {}),
-                      ...(p.phone && !user?.phone ? { phone: p.phone } : {}),
-                      ...(p.location && !user?.location ? { location: p.location } : {}),
-                      ...(p.country && !user?.country ? { country: p.country } : {}),
+                      ...(cleanName ? { name: cleanName } : {}),
+                      ...(p.phone ? { phone: p.phone } : {}),
+                      ...(p.location ? { location: p.location } : {}),
+                      ...(p.country ? { country: p.country } : {}),
                       ...((p.summary || p.profileSummary) ? { profileSummary: p.summary || p.profileSummary } : {}),
                       ...(normalizedSkills.length > 0 ? { skills: normalizedSkills } : {}),
-                      ...(inferredJobTitle && !user?.jobTitle ? { jobTitle: inferredJobTitle } : {}),
+                      ...(inferredJobTitle ? { jobTitle: inferredJobTitle } : {}),
                       ...(eduArr.length > 0 ? {
                         educationCollege: {
                           college: eduArr[0].school || eduArr[0].college || '',
