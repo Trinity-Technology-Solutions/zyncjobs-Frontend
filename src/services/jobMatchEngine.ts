@@ -193,6 +193,25 @@ export function computeMatchScore(
   };
 }
 
+// ─── Extract Skills from Raw Resume Text ────────────────────────────────────
+// Scans resume text against every canonical skill + alias in SKILL_GRAPH
+export function extractSkillsFromText(text: string): string[] {
+  if (!text) return [];
+  const lower = text.toLowerCase();
+  const found = new Set<string>();
+  Object.entries(SKILL_GRAPH).forEach(([canonical, aliases]) => {
+    const terms = [canonical, ...aliases];
+    if (terms.some(t => {
+      // word-boundary check: surrounded by non-alphanumeric chars
+      const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return new RegExp(`(?<![a-z0-9])${escaped}(?![a-z0-9])`, 'i').test(lower);
+    })) {
+      found.add(canonical);
+    }
+  });
+  return Array.from(found);
+}
+
 // ─── Rank Jobs ────────────────────────────────────────────────────────────────
 export function rankJobs(
   jobs: any[],

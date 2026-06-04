@@ -70,13 +70,12 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
       console.log('Upload response status:', response.status);
       
       let result;
+      const rawText = await response.text();
       try {
-        result = await response.json();
+        result = JSON.parse(rawText);
       } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError);
-        const textResponse = await response.text();
-        console.error('Raw response:', textResponse);
-        throw new Error(`Server returned ${response.status}: ${textResponse || 'Unknown error'}`);
+        console.error('Failed to parse response as JSON. Raw response:', rawText);
+        throw new Error(`Server returned ${response.status}: ${rawText || 'Unknown error'}`);
       }
 
       console.log('Upload result:', result);
@@ -109,26 +108,18 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
         // Parse resume for profile data if onProfileUpdate is provided
         if (onProfileUpdate) {
           try {
-            const reader = new FileReader();
-            reader.onload = async (e) => {
-              const fileContent = e.target?.result as string;
-              let resumeText = file.type === 'application/pdf' 
-                ? `Resume content from ${file.name}` 
-                : fileContent.substring(0, 2000);
-              
-              const parseResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/parse-profile`, {
-                method: 'POST',
-                headers: getApiHeaders(),
-                body: JSON.stringify({ resumeText })
-              });
-              
-              const parseResult = await parseResponse.json();
-              if (parseResponse.ok) {
-                setParsedProfile(parseResult.profileData);
-                setShowProfilePreview(true);
-              }
-            };
-            reader.readAsText(file);
+            const formData2 = new FormData();
+            formData2.append('resume', file);
+            const parseResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
+              method: 'POST',
+              headers: getAuthHeaders(),
+              body: formData2
+            });
+            const parseResult = await parseResponse.json();
+            if (parseResponse.ok && parseResult.profileData) {
+              setParsedProfile(parseResult.profileData);
+              setShowProfilePreview(true);
+            }
           } catch (parseError) {
             console.log('Profile parsing failed:', parseError);
           }

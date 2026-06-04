@@ -1,5 +1,5 @@
 import React from 'react';
-import { FileText, MessageSquare, Compass, CheckSquare } from 'lucide-react';
+import { FileText, MessageSquare, Compass, CheckSquare, Instagram, Linkedin, Facebook, Globe } from 'lucide-react';
 
 interface FooterProps {
   onNavigate?: (page: string, topic?: string) => void;
@@ -66,7 +66,20 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           <p className="text-gray-600 mb-6 leading-relaxed max-w-2xl">
             The smart platform connecting job seekers and employers across every field and industry. Find jobs, hire talent, and grow your career.
           </p>
-
+          <div className="flex items-center gap-4">
+            <a href="https://www.zyncjobs.com" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 transition-colors" aria-label="Website">
+              <Globe className="w-5 h-5" />
+            </a>
+            <a href="https://www.instagram.com/zyncjobs" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-pink-600 transition-colors" aria-label="Instagram">
+              <Instagram className="w-5 h-5" />
+            </a>
+            <a href="https://www.facebook.com/profile.php?id=61590278558520" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-600 transition-colors" aria-label="Facebook">
+              <Facebook className="w-5 h-5" />
+            </a>
+            <a href="https://www.linkedin.com/company/zyncjobs-com/?viewAsMember=true" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-blue-700 transition-colors" aria-label="LinkedIn">
+              <Linkedin className="w-5 h-5" />
+            </a>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">

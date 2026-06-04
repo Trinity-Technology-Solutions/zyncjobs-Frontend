@@ -342,7 +342,10 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                 </button>
               )}
               {candidate.resumeUrl && (
-                <a href={candidate.resumeUrl} download={`${candidate.name.replace(/\s+/g, '_')}_Resume.pdf`}
+                <a
+                  href={`${import.meta.env.VITE_API_URL || '/api'}/resume/proxy-download?email=${encodeURIComponent(candidate.email)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[100px] min-h-[40px]">
                   <Download className="w-4 h-4 flex-shrink-0" />Resume
                 </a>

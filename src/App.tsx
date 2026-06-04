@@ -95,6 +95,7 @@ const ProfileVisibilityToggle = lazy(() => import('./components/ProfileVisibilit
 const PrivacySettingsPage = lazy(() => import('./pages/PrivacySettingsPage'));
 const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -862,6 +863,12 @@ function App() {
           <Route path="/search-appearances" element={
             <AuthGuard user={user}>
               <SearchAppearancesPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+            </AuthGuard>
+          } />
+
+          <Route path="/analytics" element={
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+              <AnalyticsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
             </AuthGuard>
           } />
 
