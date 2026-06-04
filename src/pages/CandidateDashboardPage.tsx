@@ -1966,6 +1966,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               setNotification({ type: 'error', message: 'File size must be less than 2MB', isVisible: true });
                               return;
                             }
+                            const userEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+                            if (!userEmail) { setNotification({ type: 'error', message: 'Please log in again to upload your resume.', isVisible: true }); return; }
                             try {
                               const s3Result = await S3Service.uploadResumeToS3(file);
                               if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
@@ -1978,11 +1980,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
+                                body: JSON.stringify({ email: userEmail, resume: resumeData, resumeUrl: fileUrl })
                               });
                               setNotification({ type: 'success', message: 'Resume updated successfully!', isVisible: true });
                             } catch (error: any) {
-                              setNotification({ type: 'error', message: error.message || 'Failed to upload resume', isVisible: true });
+                              setNotification({ type: 'error', message: error.message || 'Failed to upload resume. Please try again.', isVisible: true });
                             }
                           }}
                         />
@@ -2043,6 +2045,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             setNotification({ type: 'error', message: 'File size must be less than 2MB', isVisible: true });
                             return;
                           }
+                          const userEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+                          if (!userEmail) { setNotification({ type: 'error', message: 'Please log in again to upload your resume.', isVisible: true }); return; }
                           try {
                             const s3Result = await S3Service.uploadResumeToS3(file);
                             if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
@@ -2055,11 +2059,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ email: user?.email, resume: resumeData, resumeUrl: fileUrl })
+                              body: JSON.stringify({ email: userEmail, resume: resumeData, resumeUrl: fileUrl })
                             });
                             setNotification({ type: 'success', message: 'Resume uploaded successfully!', isVisible: true });
                           } catch (error: any) {
-                            setNotification({ type: 'error', message: error.message || 'Failed to upload resume', isVisible: true });
+                            setNotification({ type: 'error', message: error.message || 'Failed to upload resume. Please try again.', isVisible: true });
                           }
                         }}
                       />
@@ -2385,11 +2389,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     calculateProfileCompletion(merged);
 
                     // 4. Save to backend
+                    const saveEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+                    if (saveEmail) {
                     await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ email: user?.email, ...merged })
+                      body: JSON.stringify({ email: saveEmail, ...merged })
                     });
+                    }
 
                     localStorage.setItem(`resumePopupDismissed_${user?.email}`, '1');
                     setShowResumePopup(false);

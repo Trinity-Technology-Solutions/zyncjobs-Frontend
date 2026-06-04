@@ -224,7 +224,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                 const sc = statusConfig[interview.status] || statusConfig.scheduled;
                 const tc = typeConfig[interview.interviewType] || typeConfig.video;
                 const isUpcoming = interview.status === 'scheduled' || interview.status === 'rescheduled';
-                const countdown = isUpcoming ? getCountdown(interview.interviewDate, interview.interviewTime) : '';
+                const countdown = isUpcoming ? getCountdown(interview.interviewDate || '', interview.interviewTime || '') : '';
                 const isHot = countdown.includes('🔥');
                 const companyName = interview.jobId?.company || '';
                 const logoSrc = companyLogos[companyName.toLowerCase()] || getSafeCompanyLogo({ company: companyName });
@@ -294,11 +294,13 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                             <span className="flex items-center gap-1.5">
                               <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                              {new Date(interview.interviewDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {interview.interviewDate
+                                ? new Date(interview.interviewDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : 'Date TBD'}
                             </span>
                             <span className="flex items-center gap-1.5">
                               <Clock className="w-3.5 h-3.5 text-gray-400" />
-                              {interview.interviewTime}
+                              {interview.interviewTime || 'Time TBD'}
                             </span>
                           </div>
                         </div>
@@ -339,7 +341,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                       {/* Divider */}
                       <div className="border-t border-gray-100 mt-4 pt-3 flex items-center justify-between gap-3">
                         <span className="text-xs text-gray-400">
-                          Scheduled on {new Date(interview.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          Scheduled on {interview.createdAt ? new Date(interview.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                         </span>
 
                         {/* CTA Buttons */}
