@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Award, Briefcase, CheckCircle, Clock, XCircle, Search, RefreshCw, TrendingUp, Users, Star } from 'lucide-react';
+import { Trophy, Award, Briefcase, CheckCircle, Search, RefreshCw, TrendingUp, Users, Star } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
+import { computeMatchScore, extractSkillsFromText } from '../services/jobMatchEngine';
+import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
@@ -38,81 +40,25 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
 };
 
-const norm = (s: string) => String(s || '').toLowerCase().trim();
+// Resolve candidate skills: profile skills array first, fallback to resume PDF parsing
+async function resolveSkills(app: any): Promise<string[]> {
+  const profileSkills: string[] =
+    Array.isArray(app?.candidateSkills) && app.candidateSkills.length > 0 ? app.candidateSkills :
+    Array.isArray(app?.skills) && app.skills.length > 0 ? app.skills : [];
 
-const scoreCandidate = (app: any, job: any): { score: number; reasons: string[] } => {
-  const reasons: string[] = [];
+  if (profileSkills.length > 0) return profileSkills;
 
-  // 1. Skill match (45%)
-  const jobSkills: string[] = Array.isArray(job?.skills) ? job.skills.map(norm) : [];
-  const candidateSkills: string[] = Array.isArray(app?.candidateSkills) ? app.candidateSkills.map(norm) : [];
-  let skillScore = 0;
-  if (jobSkills.length > 0 && candidateSkills.length > 0) {
-    const matched = jobSkills.filter(js => candidateSkills.some(cs => cs.includes(js) || js.includes(cs)));
-    skillScore = Math.round((matched.length / jobSkills.length) * 100);
-    if (matched.length > 0) reasons.push(`${matched.length}/${jobSkills.length} skills matched`);
-    else reasons.push('No skill overlap');
+  // Fallback: parse resume PDF and extract skills from text
+  const resumeUrl = app?.resumeUrl || app?.resume?.url || app?.resume?.fileUrl || '';
+  if (!resumeUrl) return [];
+  try {
+    const textItems = await readPdf(resumeUrl);
+    const resumeText = textItems.map((t: any) => t.text).join(' ');
+    return extractSkillsFromText(resumeText);
+  } catch {
+    return [];
   }
-
-  // 2. Role match (20%)
-  const jobTitle = norm(job?.jobTitle || job?.title || '');
-  const candidateTitle = norm(app?.candidateJobTitle || app?.currentTitle || '');
-  let roleScore = 0;
-  if (jobTitle && candidateTitle) {
-    const jWords = jobTitle.split(/\s+/).filter((w: string) => w.length > 2);
-    const cWords = candidateTitle.split(/\s+/).filter((w: string) => w.length > 2);
-    const common = jWords.filter((w: string) => cWords.some((cw: string) => cw.includes(w) || w.includes(cw)));
-    roleScore = jWords.length > 0 ? Math.round((common.length / jWords.length) * 100) : 0;
-    if (roleScore > 0) reasons.push('Role title match');
-  }
-
-  // 3. Experience match (15%)
-  const expRange = norm(job?.experienceRange || job?.experience || '');
-  const candidateExp = norm(app?.candidateExperience || '');
-  let experienceScore = 0;
-  if (expRange && candidateExp) {
-    const req = parseInt(expRange.match(/(\d+)/)?.[1] || '0');
-    const has = parseInt(candidateExp.match(/(\d+)/)?.[1] || '0');
-    if (has >= req) { experienceScore = 100; reasons.push(`${has} yrs meets requirement`); }
-    else if (req > 0 && has >= req - 1) { experienceScore = 70; reasons.push('Near-match experience'); }
-    else if (req > 0) { experienceScore = Math.max(0, Math.round((has / req) * 60)); }
-  } else if (candidateExp) {
-    experienceScore = 60;
-  }
-
-  // 4. Location match (10%)
-  const jobLoc = norm(job?.location || '');
-  const candidateLoc = norm(app?.candidateLocation || '');
-  let locationScore = 0;
-  if (jobLoc && candidateLoc) {
-    if (jobLoc.includes('remote') || candidateLoc.includes('remote')) { locationScore = 100; reasons.push('Remote friendly'); }
-    else if (jobLoc.includes(candidateLoc) || candidateLoc.includes(jobLoc)) { locationScore = 100; reasons.push('Location match'); }
-    else { locationScore = 20; }
-  }
-
-  // 5. Education match (10%)
-  const edu = norm(app?.candidateEducation || '');
-  let educationScore = 0;
-  if (edu.includes('phd') || edu.includes('doctorate')) { educationScore = 100; reasons.push('PhD / Doctorate'); }
-  else if (edu.includes('master') || edu.includes('mba') || edu.includes('m.tech')) { educationScore = 90; reasons.push('Master\'s degree'); }
-  else if (edu.includes('bachelor') || edu.includes('b.tech') || edu.includes('b.e') || edu.includes('degree')) { educationScore = 75; reasons.push('Bachelor\'s degree'); }
-  else if (edu.includes('diploma') || edu.includes('associate')) { educationScore = 55; }
-  else if (edu) { educationScore = 40; }
-
-  // Bonus signals
-  if (app?.resumeUrl) { reasons.push('Resume attached'); }
-  if (app?.coverLetter && app.coverLetter.length > 50 && app.coverLetter !== 'No cover letter') { reasons.push('Cover letter included'); }
-
-  const overall = Math.round(
-    skillScore * 0.45 +
-    roleScore * 0.20 +
-    experienceScore * 0.15 +
-    locationScore * 0.10 +
-    educationScore * 0.10
-  );
-
-  return { score: Math.min(Math.max(overall, 0), 100), reasons };
-};
+}
 
 const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate, user }) => {
   const [jobs, setJobs] = useState<any[]>([]);
@@ -145,14 +91,32 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           let profile: any = null;
           if (id) { const r = await fetch(`${API_ENDPOINTS.USERS}/${id}`); if (r.ok) profile = await r.json(); }
           if (!profile && app.candidateEmail) { const r = await fetch(`${API_ENDPOINTS.USERS}/by-email/${encodeURIComponent(app.candidateEmail)}`); if (r.ok) profile = await r.json(); }
-          if (profile) return { ...app, candidateSkills: app.candidateSkills?.length ? app.candidateSkills : (profile.skills || []), candidateExperience: app.candidateExperience || profile.experience || '', candidateEducation: app.candidateEducation || profile.education || '', candidateProfilePicture: app.candidateProfilePicture || profile.profilePicture || '', candidateName: app.candidateName || profile.name || app.candidateEmail };
+          const merged = profile ? {
+            ...app,
+            candidateSkills: app.candidateSkills?.length ? app.candidateSkills : (profile.skills || []),
+            candidateExperience: app.candidateExperience || app.experience || profile.experience || '',
+            candidateEducation: app.candidateEducation || app.education || profile.education || '',
+            candidateLocation: app.candidateLocation || app.location || profile.location || '',
+            candidateJobTitle: app.candidateJobTitle || app.jobTitle || profile.jobTitle || profile.title || '',
+            candidateProfilePicture: app.candidateProfilePicture || profile.profilePicture || profile.profilePhoto || '',
+            candidateName: app.candidateName || profile.fullName || profile.name || app.candidateEmail,
+            resumeUrl: app.resumeUrl || profile.resumeUrl || '',
+          } : app;
+          // Combined approach: use profile skills, fallback to resume parsing
+          const resolvedSkills = await resolveSkills(merged);
+          return { ...merged, candidateSkills: resolvedSkills };
         } catch {}
         return app;
       }));
       const scored: RankedCandidate[] = enriched.map((app: any) => {
         const job = employerJobs.find((j: any) => String(j._id || j.id) === String(app.jobId?._id || app.jobId?.id || app.jobId));
-        const { score, reasons } = scoreCandidate(app, job);
-        return { id: app._id || app.id, name: app.candidateName || app.candidateEmail || 'Candidate', email: app.candidateEmail || '', rank: 0, score, jobTitle: app.jobTitle || job?.jobTitle || job?.title || 'Position', jobId: String(app.jobId?._id || app.jobId?.id || app.jobId || ''), skills: Array.isArray(app.candidateSkills) ? app.candidateSkills : [], experience: app.candidateExperience || 'Not specified', education: app.candidateEducation || 'Not specified', interviewStatus: (app.status === 'hired' ? 'hired' : app.status === 'rejected' ? 'rejected' : app.status === 'interviewed' ? 'completed' : app.status === 'shortlisted' ? 'scheduled' : 'not_scheduled') as RankedCandidate['interviewStatus'], appliedAt: app.createdAt || '', profilePicture: app.candidateProfilePicture || '', matchReasons: reasons };
+        const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
+        const title = app.candidateJobTitle || app.jobTitle || job?.jobTitle || '';
+        const location = app.candidateLocation || app.location || '';
+        const breakdown = computeMatchScore(skills, title, location, job || {});
+        const reasons = breakdown.explanation.map(e => e.replace(/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*/u, ''));
+        if (app.resumeUrl) reasons.push('Resume attached');
+        return { id: app._id || app.id, name: app.candidateName || app.candidateEmail || 'Candidate', email: app.candidateEmail || '', rank: 0, score: breakdown.overall, jobTitle: app.jobTitle || job?.jobTitle || job?.title || 'Position', jobId: String(app.jobId?._id || app.jobId?.id || app.jobId || ''), skills, experience: app.candidateExperience || 'Not specified', education: app.candidateEducation || 'Not specified', interviewStatus: (app.status === 'hired' ? 'hired' : app.status === 'rejected' ? 'rejected' : app.status === 'interviewed' ? 'completed' : app.status === 'shortlisted' ? 'scheduled' : 'not_scheduled') as RankedCandidate['interviewStatus'], appliedAt: app.createdAt || '', profilePicture: app.candidateProfilePicture || '', matchReasons: reasons };
       });
       const groups: Record<string, RankedCandidate[]> = {};
       scored.forEach(c => { if (!groups[c.jobId]) groups[c.jobId] = []; groups[c.jobId].push(c); });

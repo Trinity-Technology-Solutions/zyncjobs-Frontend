@@ -106,9 +106,17 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   useEffect(() => {
     if (user?.name) {
       loadSavedJobsFromBackend();
+      // Also load from localStorage for immediate display
+      const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+      const userKey = userData?.email || user.name || 'guest';
+      const localKey = `savedJobs_${userKey}`;
+      const saved = localStorage.getItem(localKey);
+      if (saved) setSavedJobs(JSON.parse(saved));
     } else {
-      const userKey = `savedJobs_${user?.name || 'guest'}`;
-      const saved = localStorage.getItem(userKey);
+      const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+      const userKey = userData?.email || 'guest';
+      const localKey = `savedJobs_${userKey}`;
+      const saved = localStorage.getItem(localKey);
       if (saved) setSavedJobs(JSON.parse(saved));
     }
   }, [user]);
@@ -134,21 +142,30 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   }, [user]);
 
   const loadSavedJobsFromBackend = async () => {
+    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const userKey = userData?.email || user?.name || 'user';
+    const localKey = `savedJobs_${userKey}`;
+
+    // Always load localStorage first so UI is instant
+    const localSaved = localStorage.getItem(localKey);
+    if (localSaved) {
+      try { setSavedJobs(JSON.parse(localSaved)); } catch {}
+    }
+
+    const token = tokenStorage.getAccess();
+    if (!token) return;
+
     try {
-      const token = tokenStorage.getAccess();
-      if (!token) {
-        const userKey = `savedJobs_${user?.name}`;
-        const saved = localStorage.getItem(userKey);
-        if (saved) setSavedJobs(JSON.parse(saved));
-        return;
-      }
       const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`);
-      if (res.ok) {
-        const data = await res.json();
-        setSavedJobs(data.jobIds || []);
-      }
-    } catch (error) {
-      console.error('Error loading saved jobs from backend:', error);
+      if (!res.ok) return; // keep localStorage data on any backend failure
+      const data = await res.json();
+      // Support both { jobIds: [...] } and flat array responses
+      const jobIds: string[] = Array.isArray(data) ? data : (data.jobIds || data.ids || []);
+      if (jobIds.length === 0) return; // backend returned empty — trust localStorage
+      setSavedJobs(jobIds);
+      localStorage.setItem(localKey, JSON.stringify(jobIds));
+    } catch {
+      // network error — localStorage already applied above, do nothing
     }
   };
 
@@ -666,7 +683,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         
         // If we got results, enhance them with client-side scoring
         if (jobsArray.length > 0 && searchQuery) {
-          jobsArray = jobsArray.map(job => {
+          jobsArray = jobsArray.map((job: any) => {
             let score = 0;
             const queryLower = searchQuery.toLowerCase();
             const jobTitleLower = (job.title || job.jobTitle || '').toLowerCase();
@@ -905,9 +922,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     // Optimistic UI update
     setSavedJobs(prev => isAlreadySaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
 
+    // Get user email from localStorage user object
+    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const userKey = userData?.email || user.name || 'user';
+    
     // Always sync localStorage so MyJobsPage can read saved job details
-    const idsKey = `savedJobs_${user.name}`;
-    const detailsKey = `savedJobDetails_${user.name}`;
+    const idsKey = `savedJobs_${userKey}`;
+    const detailsKey = `savedJobDetails_${userKey}`;
     const savedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem(idsKey) || '[]'); } catch { return []; } })();
     const savedDetails: any[] = (() => { try { return JSON.parse(localStorage.getItem(detailsKey) || '[]'); } catch { return []; } })();
     if (isAlreadySaved) {
@@ -917,6 +938,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       localStorage.setItem(idsKey, JSON.stringify([...savedIds, jobId]));
       localStorage.setItem(detailsKey, JSON.stringify([...savedDetails, job]));
     }
+    
+    // Dispatch event to notify MyJobsPage
+    window.dispatchEvent(new CustomEvent('zync:savedJobsUpdated', { detail: { jobId, action: isAlreadySaved ? 'removed' : 'added' } }));
 
     try {
       const token = tokenStorage.getAccess();

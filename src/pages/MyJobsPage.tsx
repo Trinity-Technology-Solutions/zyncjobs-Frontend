@@ -29,41 +29,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
   };
   
-  // Add a function to check localStorage contents
-  const debugLocalStorage = () => {
-    const userKey = user?.email || user?.name || 'user';
-    const detailsKey = `savedJobDetails_${userKey}`;
-    const idsKey = `savedJobs_${userKey}`;
-    
-    console.log('=== LocalStorage Debug ===');
-    console.log('User Key:', userKey);
-    console.log('Details Key:', detailsKey);
-    console.log('IDs Key:', idsKey);
-    
-    const details = localStorage.getItem(detailsKey);
-    const ids = localStorage.getItem(idsKey);
-    
-    console.log('Details Value:', details);
-    console.log('IDs Value:', ids);
-    
-    // Check all localStorage keys that might be related
-    const allKeys = Object.keys(localStorage).filter(key => 
-      key.includes('savedJob') || key.includes(userKey)
-    );
-    console.log('Related localStorage keys:', allKeys);
-    
-    allKeys.forEach(key => {
-      console.log(`${key}:`, localStorage.getItem(key));
-    });
-    
-    console.log('=== End Debug ===');
-  };
-  // Add this to the useEffect
-  useEffect(() => {
-    if (user?.type === 'candidate' && activeTab === 'Saved') {
-      debugLocalStorage();
-    }
-  }, [activeTab, user]);
 
   const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
@@ -136,25 +101,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   }, [user]);
 
   const loadSavedJobs = () => {
-    const userKey = user?.email || user?.name || 'user';
+    // Get user email from localStorage user object for consistency
+    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const userKey = userData?.email || user?.name || 'user';
     const detailsKey = `savedJobDetails_${userKey}`;
     const idsKey = `savedJobs_${userKey}`;
-    
-    console.log('Loading saved jobs for user:', userKey);
-    console.log('Details key:', detailsKey);
-    console.log('IDs key:', idsKey);
-    
+
     try {
-      // First try to load from the details key (preferred)
       const savedDetails = localStorage.getItem(detailsKey);
-      console.log('Saved details from localStorage:', savedDetails);
-      
       if (savedDetails) {
         const jobs = JSON.parse(savedDetails);
-        console.log('Parsed saved jobs:', jobs);
-        
         if (Array.isArray(jobs) && jobs.length > 0) {
-          // Deduplicate by job id
           const seen = new Set<string>();
           const unique = jobs.filter((j: any) => {
             const id = j._id || j.id;
@@ -162,32 +119,19 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             seen.add(id);
             return true;
           });
-          
-          console.log('Unique saved jobs:', unique.length);
           setSavedJobs(unique);
-          
-          if (unique.length > 0) {
-            fetchCompanyLogos(unique);
-          }
+          if (unique.length > 0) fetchCompanyLogos(unique);
           return;
         }
       }
-      
-      // Fallback: try to load from IDs key and fetch job details
+      // Fallback: load from IDs and fetch full details
       const savedIds = localStorage.getItem(idsKey);
-      console.log('Saved IDs from localStorage:', savedIds);
-      
       if (savedIds) {
         const ids = JSON.parse(savedIds);
-        console.log('Parsed saved IDs:', ids);
-        
         if (Array.isArray(ids) && ids.length > 0) {
-          // Try to fetch job details for these IDs
           fetchJobDetailsByIds(ids);
         }
       }
-      
-      console.log('No saved jobs found in localStorage');
     } catch (error) {
       console.error('Error loading saved jobs:', error);
     }
@@ -216,7 +160,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         fetchCompanyLogos(jobs);
         
         // Update localStorage with full job details
-        const userKey = user?.email || user?.name || 'user';
+        const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+        const userKey = userData?.email || user?.name || 'user';
         const detailsKey = `savedJobDetails_${userKey}`;
         localStorage.setItem(detailsKey, JSON.stringify(jobs));
       }
@@ -484,9 +429,13 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const handleRemoveSavedJob = (jobId: string) => {
     const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
     setSavedJobs(updatedJobs);
-    const userKey = user?.email || user?.name || 'user';
+    
+    // Get user email from localStorage user object for consistency
+    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const userKey = userData?.email || user?.name || 'user';
     const detailsKey = `savedJobDetails_${userKey}`;
     const idsKey = `savedJobs_${userKey}`;
+    
     localStorage.setItem(detailsKey, JSON.stringify(updatedJobs));
     try {
       const ids = JSON.parse(localStorage.getItem(idsKey) || '[]');

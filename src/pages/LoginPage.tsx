@@ -40,8 +40,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       
       // Track successful login
       analytics.userAnalytics.login('candidate');
-      
-      localStorage.setItem('user', JSON.stringify(response.user));
+
+      // Fetch full profile from DB and merge so saved data survives logout/login
+      let fullUser = { ...response.user };
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || '/api';
+        const profileRes = await fetch(`${API_BASE}/profile/${encodeURIComponent(response.user.email)}`);
+        if (profileRes.ok) {
+          const profileData = await profileRes.json();
+          if (profileData && typeof profileData === 'object') {
+            fullUser = { ...response.user, ...profileData, email: response.user.email, id: response.user.id };
+          }
+        }
+      } catch { /* silent — use auth response as fallback */ }
+
+      localStorage.setItem('user', JSON.stringify(fullUser));
       const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
       const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
       onLogin({ name: displayName, type: userType, email: response.user.email, id: response.user.id } as any);

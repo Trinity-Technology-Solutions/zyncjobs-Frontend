@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { TrendingUp, Star, Edit, FileText, Search, X, Lightbulb, BarChart3, Flame, CheckCircle } from 'lucide-react';
+import { TrendingUp, Star, Edit, FileText, Search, X, Lightbulb, BarChart3, Flame, CheckCircle, Sparkles } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/constants';
 import { apiFetch } from '../api/apiFetch';
 import Notification from '../components/Notification';
@@ -11,10 +11,10 @@ import { useApplicationNotifications } from '../hooks/useApplicationNotification
 import { tokenStorage } from '../utils/tokenStorage';
 import { S3Service } from '../services/s3Service';
 
-const token = tokenStorage.getAccess();
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 import ProfileVisibilityToggle from '../components/ProfileVisibilityToggle';
 import CoverPhotoCropModal from '../components/CoverPhotoCropModal';
+import { AIFeatureLoader } from '../components/AIProgressLoader';
 
 interface CandidateDashboardPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -290,19 +290,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         try {
           const parsedUser = JSON.parse(userData);
           let finalUser = parsedUser;
-// Fetch fresh data from database
+          // Fetch fresh data from database
           try {
-            const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
-            if (response.ok) {
-              const profileData = await response.json();
-              console.log('Dashboard - Fetched profile data:', {
-                hasInternships: !!profileData.internships,
-                hasLanguages: !!profileData.languages,
-                hasEmployment: !!profileData.employment,
-                internships: profileData.internships,
-                languages: profileData.languages,
-                coverPhoto: profileData.coverPhoto,
-              });
+            let profileData: any = null;
+            try {
+              const profileRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
+              if (profileRes.ok) profileData = await profileRes.json();
+            } catch { /* silent */ }
+            const _uid = parsedUser._id || parsedUser.id;
+            if (_uid && (!profileData || (!profileData.skills?.length && !profileData.employment && !profileData.educationCollege))) {
+              try {
+                const userRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/${_uid}`);
+                if (userRes.ok) {
+                  const userRecord = await userRes.json();
+                  profileData = profileData ? { ...userRecord, ...profileData } : userRecord;
+                }
+              } catch { /* silent */ }
+            }
+            const response = { ok: !!profileData };
+            if (profileData && response.ok) {
+              console.log('Dashboard loaded, skills:', profileData.skills?.length, 'employment:', !!profileData.employment);
               // Merge database data with localStorage data, prioritizing database data
               const normalizePhotoUrl = (url: string) => {
                 if (!url) return '';
@@ -331,6 +338,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               const updatedUser = { 
                 ...parsedUser, 
                 ...profileData,
+                // All fields use pick() so DB empty values never overwrite good localStorage values
+                name: pick(profileData.name, parsedUser.name),
                 profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
                 coverPhoto: normalizePhotoUrl(profileData.coverPhoto || parsedUser.coverPhoto || ''),
                 profileFrame: pick(profileData.profileFrame, parsedUser.profileFrame, 'none'),
@@ -350,7 +359,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 email: parsedUser.email,
                 id: parsedUser.id,
                 role: parsedUser.role,
-                birthday: (() => { const d = new Date(profileData.birthday || parsedUser.birthday || ''); return isNaN(d.getTime()) ? '' : (profileData.birthday || parsedUser.birthday || ''); })(),
+                birthday: pick(profileData.birthday, parsedUser.birthday),
                 location: pick(profileData.location, parsedUser.location),
                 phone: pick(profileData.phone, parsedUser.phone),
                 jobTitle: pick(profileData.jobTitle, parsedUser.jobTitle),
@@ -806,17 +815,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               profileSummary: profile.summary || user?.profileSummary,
                               profilePhoto: profile.profilePhoto || user?.profilePhoto,
                               skills: profile.skills.length > 0 ? profile.skills : (user?.skills || []),
-                              employment: profile.experience[0] ? {
-                                companyName: profile.experience[0].company,
-                                designation: profile.experience[0].title,
-                                description: profile.experience[0].description,
-                                currentlyWorking: profile.experience[0].current,
-                              } : user?.employment,
-                              educationCollege: profile.education[0] ? {
-                                college: profile.education[0].school,
-                                degree: profile.education[0].degree,
-                                passingYear: profile.education[0].endYear,
-                              } : user?.educationCollege,
+                              ...(profile.experience.length > 0 ? {
+                                employment: profile.experience.map(exp => ({
+                                  companyName: exp.company,
+                                  designation: exp.title,
+                                  description: exp.description,
+                                  currentlyWorking: exp.current,
+                                  startYear: exp.startDate?.match(/\d{4}/)?.[0] || '',
+                                  endYear: exp.endDate?.match(/\d{4}/)?.[0] || '',
+                                }))
+                              } : {}),
+                              ...(profile.education.length > 0 ? {
+                                educationCollege: {
+                                  college: profile.education[0].school,
+                                  degree: profile.education[0].degree,
+                                  passingYear: profile.education[0].endYear || '',
+                                }
+                              } : {}),
                               linkedInImported: true,
                             };
                             setUser(merged);
@@ -1329,7 +1344,23 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                               <span>{user?.email || 'Add Email'}</span>
                             </button>
                           </div>
-                          {/* Action Links */}
+                          {/* Complete Your Profile Button */}
+                          {!readOnly && (
+                            <div className="mt-3 mb-2">
+                              <button
+                                onClick={() => {
+                                  setResumePopupFile(null);
+                                  setResumePopupError('');
+                                  setShowResumePopup(true);
+                                }}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-full shadow hover:from-blue-700 hover:to-indigo-700 transition-all"
+                              >
+                                <Sparkles className="w-4 h-4" />
+                                Complete Your Profile
+                              </button>
+                            </div>
+                          )}
+                    {/* Action Links */}
                           <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm">
                             <button 
                               onClick={() => {
@@ -2250,8 +2281,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       {/* First-time Resume Upload Popup */}
       {showResumePopup && !readOnly && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-            <div className="p-6">
+          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="p-5">
               <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <FileText className="w-6 h-6 text-blue-600" />
@@ -2266,8 +2297,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
-              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more.</p>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
+              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more. Existing data will be updated with parsed info.</p>
 
               {resumePopupError && (
                 <p className="text-red-500 text-sm mb-3">{resumePopupError}</p>
@@ -2298,6 +2329,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </label>
               )}
 
+              {resumePopupParsing && (
+                <div className="mb-4">
+                  <AIFeatureLoader
+                    title="Parsing your resume"
+                    subtitle="AI is extracting your skills, experience & education"
+                    icon="document"
+                    steps={[
+                      'Reading PDF content',
+                      'Extracting text & structure',
+                      'Identifying skills & experience',
+                      'Parsing education details',
+                      'Running AI analysis',
+                      'Building your profile',
+                    ]}
+                  />
+                </div>
+              )}
+
               <button
                 disabled={!resumePopupFile || resumePopupParsing}
                 onClick={async () => {
@@ -2305,13 +2354,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   setResumePopupParsing(true);
                   setResumePopupError('');
                   try {
-                    // 1. Parse resume
+                    // 1. Parse resume — use plain fetch with explicit token + 60s timeout
                     const formData = new FormData();
                     formData.append('resume', resumePopupFile);
-                    const parseRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
-                      method: 'POST',
-                      body: formData
-                    });
+                    const accessToken = tokenStorage.getAccess();
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 60000);
+                    let parseRes: Response;
+                    try {
+                      parseRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, {
+                        method: 'POST',
+                        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+                        body: formData,
+                        signal: controller.signal,
+                      });
+                    } catch (fetchErr: any) {
+                      if (fetchErr?.name === 'AbortError') throw new Error('Request timed out. Please try again.');
+                      throw new Error('Could not connect to server. Please check your connection.');
+                    } finally {
+                      clearTimeout(timeoutId);
+                    }
 
                     // Handle non-JSON or empty responses
                     const rawText = await parseRes.text();
@@ -2346,36 +2408,48 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const resumeData = { name: resumePopupFile.name, size: resumePopupFile.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
 
                     // 3. Merge parsed data into user profile
-                    const inferredJobTitle = p.title || p.jobTitle || p.workExperiences?.[0]?.jobTitle || '';
-                    const extractYear = (dateStr: string) => dateStr?.match(/\d{4}/)?.[0] || '';
+                    // Normalize backend field name variations
+                    const workExps = p.workExperiences || p.experience || p.workExperience || [];
+                    const educations = p.educations || p.education || [];
+                    const eduArr = Array.isArray(educations) ? educations : (educations && typeof educations === 'object' ? [educations] : []);
+                    const expArr = Array.isArray(workExps) ? workExps : [];
+                    const inferredJobTitle = p.title || p.jobTitle || expArr[0]?.jobTitle || expArr[0]?.title || '';
+                    const extractYear = (dateStr: string) => String(dateStr || '').match(/\d{4}/)?.[0] || '';
+                    // Normalize skills — backend may return string[] or {skill:string}[]
+                    const rawSkillsArr: any[] = Array.isArray(p.skills) ? p.skills : [];
+                    const normalizedSkills: string[] = rawSkillsArr
+                      .map((s: any) => (typeof s === 'string' ? s : s?.skill || s?.name || '')).filter(Boolean);
                     const merged = {
                       ...user,
                       resume: resumeData,
                       resumeUrl: fileUrl,
-                      ...(cleanName && !user?.name ? { name: cleanName } : {}),
-                      ...(p.phone && !user?.phone ? { phone: p.phone } : {}),
-                      ...(p.location && !user?.location ? { location: p.location } : {}),
-                      ...(p.country && !user?.country ? { country: p.country } : {}),
+                      ...(cleanName ? { name: cleanName } : {}),
+                      ...(p.phone ? { phone: p.phone } : {}),
+                      ...(p.location ? { location: p.location } : {}),
+                      ...(p.country ? { country: p.country } : {}),
                       ...((p.summary || p.profileSummary) ? { profileSummary: p.summary || p.profileSummary } : {}),
-                      ...(p.skills?.length > 0 ? { skills: p.skills } : {}),
-                      ...(inferredJobTitle && !user?.jobTitle ? { jobTitle: inferredJobTitle } : {}),
-                      ...(p.educations?.length > 0 ? {
+                      ...(normalizedSkills.length > 0 ? { skills: normalizedSkills } : {}),
+                      ...(inferredJobTitle ? { jobTitle: inferredJobTitle } : {}),
+                      ...(eduArr.length > 0 ? {
                         educationCollege: {
-                          college: p.educations[0].school || '',
-                          degree: p.educations[0].degree || '',
-                          passingYear: extractYear(p.educations[0].date || ''),
-                          percentage: p.educations[0].percentage || p.educations[0].grade || ''
+                          college: eduArr[0].school || eduArr[0].college || '',
+                          degree: eduArr[0].degree || '',
+                          passingYear: extractYear(eduArr[0].endYear || eduArr[0].passingYear || eduArr[0].date || ''),
+                          percentage: eduArr[0].percentage || eduArr[0].grade || ''
                         }
                       } : {}),
-                      ...(p.workExperiences?.length > 0 ? {
-                        employment: p.workExperiences.map((w: any) => ({
-                          companyName: w.company || '',
-                          designation: w.jobTitle || '',
-                          description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : (w.descriptions || ''),
-                          startYear: extractYear(w.date?.split('-')[0] || w.date || ''),
-                          endYear: extractYear(w.date?.split('-')[1] || ''),
-                          currentlyWorking: w.date?.toLowerCase().includes('present') || false,
-                        }))
+                      ...(expArr.length > 0 ? {
+                        employment: expArr.map((w: any) => {
+                          const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
+                          return {
+                            companyName: w.company || w.companyName || '',
+                            designation: w.jobTitle || w.title || w.designation || '',
+                            description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : (w.description || w.descriptions || ''),
+                            startYear: extractYear(dateParts[0] || w.startDate || ''),
+                            endYear: extractYear(dateParts[1] || w.endDate || ''),
+                            currentlyWorking: /present|current/i.test(w.date || w.endDate || '') || !!w.current,
+                          };
+                        })
                       } : {}),
                       ...(p.projects?.length > 0 ? {
                         projects: p.projects.map((pr: any) => ({
@@ -2410,7 +2484,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {resumePopupParsing ? (
-                  <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /><span>Parsing with AI...</span></>
+                  <><span>Parsing with AI...</span></>
                 ) : (
                   <><FileText className="w-4 h-4" /><span>Parse Resume & Fill Profile</span></>
                 )}
@@ -4474,4 +4548,5 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 };
 
 export default CandidateDashboardPage;
+
 
