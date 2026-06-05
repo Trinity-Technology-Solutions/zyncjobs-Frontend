@@ -1556,79 +1556,67 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 ) : (
                 <div className="space-y-4">
                   {filtered.map((application) => (
-                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-600 font-semibold text-sm">
-                              {application.candidateName?.charAt(0).toUpperCase() || 'C'}
-                            </span>
+                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-xl p-4 sm:p-6 hover:shadow-md transition-shadow duration-200">
+                      {/* Top: avatar + name + status */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-11 h-11 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          <span className="text-gray-600 font-bold text-base">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-0.5">
+                            <h3 className="text-base font-bold text-gray-900 truncate">{application.candidateName || application.candidateEmail}</h3>
+                            <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              application.status === 'applied' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              application.status === 'reviewed' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
+                              application.status === 'shortlisted' ? 'bg-green-50 text-green-700 border border-green-200' :
+                              application.status === 'hired' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                              application.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
+                              'bg-gray-50 text-gray-600 border border-gray-200'
+                            }`}>{application.status.charAt(0).toUpperCase() + application.status.slice(1)}</span>
                           </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h3 className="text-base font-bold text-gray-900 truncate">
-                                {application.candidateName || application.candidateEmail}
-                              </h3>
-                              <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                application.status === 'applied' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                application.status === 'reviewed' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                                application.status === 'shortlisted' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                application.status === 'hired' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                                application.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                'bg-gray-50 text-gray-600 border border-gray-200'
-                              }`}>
-                                {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                              </span>
-                            </div>
-                            <p className="text-xs text-blue-700 font-semibold flex items-center gap-1 overflow-hidden">
-                              <Briefcase className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate">Applied for: {application.jobTitle || 'Job Position'}</span>
-                            </p>
+                          <p className="text-xs text-blue-700 font-semibold flex items-center gap-1 mb-1">
+                            <Briefcase className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">Applied for: {application.jobTitle || 'Job Position'}</span>
+                          </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                            <span className="text-xs text-gray-500 break-all">{application.candidateEmail}</span>
+                            <span className="text-xs text-gray-400 whitespace-nowrap">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                           </div>
                         </div>
+                      </div>
 
-                        <div className="ml-12">
-                            
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
-                              <span className="text-xs text-gray-500 truncate max-w-full">{application.candidateEmail}</span>
-                              <span className="text-xs text-gray-500 whitespace-nowrap">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                            </div>
+                      {/* Cover letter */}
+                      {application.coverLetter && application.coverLetter !== 'No cover letter' && (
+                        <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg mb-3 border-l-2 border-gray-300">
+                          <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 120 ? `${application.coverLetter.substring(0, 120)}...` : application.coverLetter}
+                        </div>
+                      )}
 
-                            {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded mb-2 border-l-2 border-gray-300">
-                                <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 100 ? 
-                                  `${application.coverLetter.substring(0, 100)}...` : 
-                                  application.coverLetter
-                                }
-                              </div>
-                            )}
+                      {/* View Resume */}
+                      <div className="mb-4">
+                        {application.candidateEmail ? (
+                          <button
+                            onClick={() => {
+                              setSelectedResumeAppId(application._id || application.id || null);
+                              setSelectedResumeUrl(application.resumeUrl || null);
+                              setSelectedResumeCandidateName(application.candidateName || null);
+                              setSelectedResumeCandidateEmail(application.candidateEmail || null);
+                              setShowResumeModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-semibold inline-flex items-center gap-1.5 bg-blue-100 px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                          >
+                            <FileText className="w-4 h-4" />
+                            View Resume
+                          </button>
+                        ) : (
+                          <span className="text-gray-500 text-xs bg-gray-100 px-3 py-2 rounded-lg inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Resume not available</span>
+                        )}
+                      </div>
 
-                            {application.candidateEmail ? (
-                              <div className="mb-2">
-                                <button
-                                  onClick={() => {
-                                    setSelectedResumeAppId(application._id || application.id || null);
-                                    setSelectedResumeUrl(application.resumeUrl || null);
-                                    setSelectedResumeCandidateName(application.candidateName || null);
-                                    setSelectedResumeCandidateEmail(application.candidateEmail || null);
-                                    setShowResumeModal(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 text-xs font-semibold inline-flex items-center gap-1 bg-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors"
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                  <span>View Resume</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="mb-2">
-                                <span className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Resume not available</span>
-                              </div>
-                            )}
-                          </div>
-
-                        <div className="flex flex-row flex-wrap gap-2 ml-0">
-                          {canManageApplications ? (<select
+                      {/* Action buttons: 2-col grid on mobile, 4-col on sm+ */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {canManageApplications ? (
+                          <select
                             value={application.status}
                             onChange={async (e) => {
                               const newStatus = e.target.value;
@@ -1639,102 +1627,66 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({ status: newStatus }),
                                 });
-                                
                                 if (response.ok) {
-                                  setApplications(prev => 
-                                    prev.map(app => 
-                                      (app._id || app.id) === appId ? { ...app, status: newStatus } : app
-                                    )
-                                  );
-                                  
-                                  const statusMessages: Record<string, string> = {
-                                    pending: 'Application marked as pending',
-                                    reviewed: 'Application marked as reviewed',
-                                    shortlisted: 'Candidate shortlisted!',
-                                    rejected: 'Application rejected',
-                                    hired: 'Candidate hired!',
-                                  };
-                                  showToast(statusMessages[newStatus] || 'Status updated', 'success');
-                                } else {
-                                  throw new Error(`Failed to update status: ${response.status}`);
-                                }
-                              } catch (error) {
-                                console.error('Error updating status:', error);
-                                showToast('Failed to update application status. Please try again.', 'error');
+                                  setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: newStatus } : app));
+                                  const msgs: Record<string, string> = { pending: 'Marked as pending', reviewed: 'Marked as reviewed', shortlisted: 'Candidate shortlisted!', rejected: 'Application rejected', hired: 'Candidate hired!' };
+                                  showToast(msgs[newStatus] || 'Status updated', 'success');
+                                } else { throw new Error(); }
+                              } catch {
+                                showToast('Failed to update status. Please try again.', 'error');
                                 e.target.value = application.status;
                               }
                             }}
-                            className="px-3 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
-                            title="Update application status"
+                            className="col-span-2 sm:col-span-1 w-full px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white cursor-pointer"
                           >
                             <option value="pending">Pending</option>
                             <option value="reviewed">Reviewed</option>
                             <option value="shortlisted">Shortlisted</option>
                             <option value="rejected">Rejected</option>
                             <option value="hired">Hired</option>
-                          </select>) : (<span className="px-3 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>)}
-                          {application.status !== 'rejected' && canManageApplications && (
-                            <button 
-                              onClick={() => {
-                                setSelectedApplication(application);
-                                setShowScheduleModal(true);
-                              }}
-                              className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-xs shadow-md"
-                            >
-                              Schedule Interview
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => {
-                              const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
-                              if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
-                              sessionStorage.setItem('viewCandidateId', String(cid));
-                              sessionStorage.setItem('viewCandidateData', JSON.stringify({
-                                name: application.candidateName || '',
-                                email: application.candidateEmail || '',
-                                phone: application.candidatePhone || '',
-                                skills: application.candidateSkills || application.skills || [],
-                              }));
-                              setViewingCandidateId(String(cid));
-                            }}
-                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs shadow-md"
+                          </select>
+                        ) : (
+                          <span className="col-span-2 sm:col-span-1 w-full px-3 py-2 border-2 border-gray-100 rounded-lg text-sm font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
+                        )}
+                        {application.status !== 'rejected' && canManageApplications ? (
+                          <button
+                            onClick={() => { setSelectedApplication(application); setShowScheduleModal(true); }}
+                            className="w-full bg-emerald-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-sm"
                           >
-                            View Profile
+                            Schedule Interview
                           </button>
-                          {canDeleteRecords && (<button 
+                        ) : <div className="hidden sm:block" />}
+                        <button
+                          onClick={() => {
+                            const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
+                            if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
+                            sessionStorage.setItem('viewCandidateId', String(cid));
+                            sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
+                            setViewingCandidateId(String(cid));
+                          }}
+                          className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          View Profile
+                        </button>
+                        {canDeleteRecords ? (
+                          <button
                             onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
+                              e.preventDefault(); e.stopPropagation();
                               const appId = application._id || application.id;
-                              openConfirm(
-                                'Delete Application', 
-                                'Are you sure you want to delete this application? This action cannot be undone.', 
-                                async () => {
-                                  try {
-                                    const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
-                                      method: 'DELETE',
-                                      headers: { 'Content-Type': 'application/json' },
-                                    });
-                                    if (response.ok) {
-                                      setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
-                                      showToast('Application deleted successfully!', 'success');
-                                    } else {
-                                      showToast('Failed to delete application', 'error');
-                                    }
-                                  } catch (error) {
-                                    console.error('Delete error:', error);
-                                    showToast('Failed to delete application', 'error');
-                                  }
-                                  closeConfirm();
-                                }
-                              );
+                              openConfirm('Delete Application', 'Are you sure you want to delete this application? This action cannot be undone.', async () => {
+                                try {
+                                  const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+                                  if (response.ok) { setApplications(prev => prev.filter(app => (app._id || app.id) !== appId)); showToast('Application deleted successfully!', 'success'); }
+                                  else { showToast('Failed to delete application', 'error'); }
+                                } catch { showToast('Failed to delete application', 'error'); }
+                                closeConfirm();
+                              });
                             }}
-                            className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs shadow-md inline-flex items-center gap-1"
+                            className="w-full bg-red-600 text-white px-3 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm inline-flex items-center justify-center gap-1"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                          </button>)}
-                        </div>
+                            <Trash2 className="w-3.5 h-3.5" /> Delete
+                          </button>
+                        ) : <div />}
                       </div>
                     </div>
                   ))}

@@ -164,24 +164,51 @@ function MaintenancePage({ onRetry }: { onRetry: () => void }) {
   );
 }
 
+// One-time cache bust — runs synchronously before first render so it never causes a re-render
+;(() => {
+  const APP_VERSION = '2.1.0';
+  if (localStorage.getItem('app_version') !== APP_VERSION) {
+    localStorage.removeItem('accessToken');
+    sessionStorage.removeItem('accessToken');
+    localStorage.setItem('app_version', APP_VERSION);
+  }
+})();
+
+// Synchronously read user from localStorage BEFORE first render — eliminates flicker
+function getInitialUser(): UserType | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem('user') || '{}');
+    if (!stored.email || (!stored.userType && !stored.role)) return null;
+    const rawType = stored.userType || stored.role || 'candidate';
+    let type: UserType['type'] = 'candidate';
+    if (rawType === 'employer') type = 'employer';
+    else if (rawType === 'admin') type = 'admin';
+    else if (rawType === 'super_admin') type = 'super_admin';
+    return {
+      name: stored.name || stored.email.split('@')[0] || 'User',
+      type,
+      email: stored.email,
+      ...(stored.teamRole && { teamRole: stored.teamRole }),
+      ...(stored.employerOwnerId && { employerOwnerId: stored.employerOwnerId }),
+      ...(stored.employerId && { employerId: stored.employerId }),
+    } as any;
+  } catch { return null; }
+}
+
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const analytics = useAnalytics();
   const [maintenance, setMaintenance] = useState(false);
 
-  // One-time cache bust on deploy
-  useEffect(() => {
-    const APP_VERSION = '2.1.0';
-    if (localStorage.getItem('app_version') !== APP_VERSION) {
-      localStorage.removeItem('user');
-      localStorage.removeItem('lastUserType');
-      localStorage.removeItem('accessToken');
-      localStorage.setItem('app_version', APP_VERSION);
-    }
-  }, []);
-  const [user, setUser] = useState<UserType | null>(null);
-  const [userLoading, setUserLoading] = useState(true);
+  const [user, setUser] = useState<UserType | null>(getInitialUser);
+  // If we already have user from localStorage and no refresh token, skip loading state
+  const [userLoading, setUserLoading] = useState(() => {
+    const hasRefreshToken = !!tokenStorage.getRefresh();
+    const hasAccessToken = !!tokenStorage.getAccess();
+    // Only show loading if we have tokens that need verification
+    return hasRefreshToken || hasAccessToken;
+  });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
@@ -277,21 +304,9 @@ function App() {
     localStorage.removeItem('user');
     localStorage.removeItem('lastUserType');
     
-    // Small delay to ensure state is cleared before navigation
-    setTimeout(() => {
-      // Navigate based on user type
-      if (userType === 'employer') {
-        console.log('🚪 Redirecting employer to /employer-login');
-        window.location.href = '/employer-login'; // Force full page navigation
-      } else if (userType === 'admin' || userType === 'super_admin') {
-        console.log('🚪 Redirecting admin to /admin/login');
-        window.location.href = '/admin/login'; // Force full page navigation
-      } else {
-        // Candidate or unknown user type
-        console.log('🚪 Redirecting candidate to /login');
-        window.location.href = '/login'; // Force full page navigation
-      }
-    }, 50); // Small delay to ensure state update
+    if (userType === 'employer') navigate('/employer-login');
+    else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
+    else navigate('/login');
   }, [navigate, user?.type]);
 
   const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {
@@ -360,26 +375,14 @@ function App() {
       sessionStorage.clear();
       localStorage.removeItem('lastUserType');
       
-      // Small delay to ensure state is cleared before navigation
-      setTimeout(() => {
-        // Navigate based on user type
-        if (userType === 'employer') {
-          console.log('🚪 Force redirecting employer to /employer-login');
-          window.location.href = '/employer-login'; // Force full page navigation
-        } else if (userType === 'admin' || userType === 'super_admin') {
-          console.log('🚪 Force redirecting admin to /admin/login');
-          window.location.href = '/admin/login'; // Force full page navigation
-        } else {
-          // Candidate or unknown user type
-          console.log('🚪 Force redirecting candidate to /login');
-          window.location.href = '/login'; // Force full page navigation
-        }
-      }, 50); // Small delay to ensure state update
+      if (userType === 'employer') navigate('/employer-login');
+      else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
+      else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
 
     const restoreSession = async () => {
-      // Clean up any base64 images stored in localStorage (they cause quota errors)
+      // Clean up any base64 images stored in localStorage
       try {
         const stored = localStorage.getItem('user');
         if (stored) {
@@ -390,29 +393,11 @@ function App() {
           if (cleaned) localStorage.setItem('user', JSON.stringify(parsed));
         }
       } catch { /* silent */ }
-      // Fast restore: use localStorage user data immediately to prevent wrong dashboard flash
-      const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-      if (storedUser.email && (storedUser.userType || storedUser.role)) {
-        const rawType = storedUser.userType || storedUser.role || 'candidate';
-        let fastType: UserType['type'] = 'candidate';
-        if (rawType === 'employer') fastType = 'employer';
-        else if (rawType === 'admin') fastType = 'admin';
-        else if (rawType === 'super_admin') fastType = 'super_admin';
-        setUser({
-          name: storedUser.name || storedUser.email?.split('@')[0] || 'User',
-          type: fastType,
-          email: storedUser.email,
-          // preserve team context
-          ...(storedUser.teamRole && { teamRole: storedUser.teamRole }),
-          ...(storedUser.employerOwnerId && { employerOwnerId: storedUser.employerOwnerId }),
-          ...(storedUser.employerId && { employerId: storedUser.employerId }),
-        } as any);
-      }
 
+      // user is already set synchronously from getInitialUser()
+      // Now just verify/refresh the token in the background
       let token = tokenStorage.getAccess();
 
-      // No access token in sessionStorage (e.g. after page refresh)
-      // Try to silently restore using refreshToken from localStorage
       if (!token) {
         const refreshToken = tokenStorage.getRefresh();
         if (!refreshToken) { setUserLoading(false); return; }
@@ -427,22 +412,9 @@ function App() {
             tokenStorage.setAccess(data.accessToken);
             if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
             token = data.accessToken;
-            // If refresh response includes user role, restore immediately
-            if (data.user?.role || data.user?.userType) {
-              const rawType = data.user.role || data.user.userType || 'candidate';
-              let userType: UserType['type'] = 'candidate';
-              if (rawType === 'employer') userType = 'employer';
-              else if (rawType === 'admin') userType = 'admin';
-              else if (rawType === 'super_admin') userType = 'super_admin';
-              // Store for getMe() to confirm, but set early to prevent wrong dashboard
-              const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-              if (storedUser.email) {
-                setUser({ name: storedUser.name || storedUser.email?.split('@')[0] || 'User', type: userType, email: storedUser.email });
-              }
-            }
           } else {
-            // Refresh token expired/invalid — clear and stay logged out
             tokenStorage.clear();
+            setUser(null);
             setUserLoading(false);
             return;
           }
@@ -452,7 +424,7 @@ function App() {
         }
       }
 
-      // Now fetch user with valid token
+      // Verify token silently — only update state if data actually changed
       try {
         const userData = await accountAPI.getMe();
         if (!userData) {
@@ -464,17 +436,19 @@ function App() {
           if (rawType === 'employer') userType = 'employer';
           else if (rawType === 'admin') userType = 'admin';
           else if (rawType === 'super_admin') userType = 'super_admin';
-          // Merge team fields from localStorage — getMe() returns raw DB record
-          // which doesn't include teamRole/employerOwnerId (those come from login join)
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-          setUser({
-            name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
-            type: userType,
-            email: userData.email,
-            ...(stored.teamRole && { teamRole: stored.teamRole }),
-            ...(stored.employerOwnerId && { employerOwnerId: stored.employerOwnerId }),
-            ...(stored.employerId && { employerId: stored.employerId }),
-          } as any);
+          // Only update if type or email changed to avoid unnecessary re-render
+          setUser(prev => {
+            if (prev?.type === userType && prev?.email === userData.email) return prev;
+            return {
+              name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
+              type: userType,
+              email: userData.email,
+              ...(stored.teamRole && { teamRole: stored.teamRole }),
+              ...(stored.employerOwnerId && { employerOwnerId: stored.employerOwnerId }),
+              ...(stored.employerId && { employerId: stored.employerId }),
+            } as any;
+          });
         }
       } catch {
         tokenStorage.clear();
@@ -521,17 +495,20 @@ function App() {
     );
   }
   
-  // Always show loader for protected routes until session is fully restored
+  // Always show loader for protected routes AND auth routes until session is fully restored
   if (userLoading) {
-    const protectedPaths = ['/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
+    const waitForSessionPaths = [
+      '/login', '/employer-login',
+      '/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
       '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
       '/resume-score', '/resume-parser', '/skill-assessment', '/career-coach', '/career-roadmap',
       '/job-application', '/candidate-messages', '/interviews', '/alerts', '/privacy-settings',
       '/application-management', '/candidate-profile-view', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
       '/recruiter-actions', '/search-appearances',
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
-      '/admin/dashboard', '/admin/login'];
-    if (protectedPaths.some(p => location.pathname.startsWith(p))) {
+      '/admin/dashboard', '/admin/login'
+    ];
+    if (waitForSessionPaths.some(p => location.pathname.startsWith(p))) {
       return <LoadingFallback />;
     }
   }
@@ -714,7 +691,7 @@ function App() {
 
           <Route path="/interviews" element={
             <AuthGuard user={user} userLoading={userLoading}>
-              {userLoading ? <LoadingFallback /> : user?.type === 'candidate' ? (
+              {user?.type === 'candidate' ? (
                 <CandidateInterviewsPage {...nav} />
               ) : (
                 <WithLayout {...nav}><InterviewScheduling /></WithLayout>
