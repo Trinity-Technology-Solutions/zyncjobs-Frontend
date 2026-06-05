@@ -51,6 +51,12 @@ export const accountAPI = {
               return null;
             }
             
+            // Sync localStorage with latest DB data so fields persist across logout/login
+            try {
+              const merged = { ...stored, ...dbUser, teamRole: stored.teamRole || dbUser.teamRole || null, employerOwnerId: stored.employerOwnerId || dbUser.employerOwnerId || null, employerId: stored.employerId || dbUser.employerId || null };
+              localStorage.setItem('user', JSON.stringify(merged));
+            } catch { /* ignore storage errors */ }
+
             // Merge team context from stored login response
             return {
               ...dbUser,

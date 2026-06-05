@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, CheckCircle, XCircle, BookOpen, TrendingUp, Loader, Zap, Brain, Target } from 'lucide-react';
+import { AIFeatureLoader } from '../components/AIProgressLoader';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -372,8 +373,9 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                               </button>
                             )}
                             {loadingResources[skill] && (
-                              <span className="flex items-center gap-1 text-sm text-gray-400">
-                                <Loader className="w-3 h-3 animate-spin" /> Loading
+                              <span className="flex items-center gap-1.5 text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+                                <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                                Fetching resources...
                               </span>
                             )}
                           </div>
@@ -419,9 +421,12 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
                     <TrendingUp className="w-5 h-5 text-yellow-300" /> AI Career Path
                   </h3>
                   {loadingCareerPath && (
-                    <div className="flex items-center gap-2 text-sm text-blue-200">
-                      <Loader className="w-4 h-4 animate-spin" /> Generating your career path...
-                    </div>
+                    <AIFeatureLoader
+                      title="Generating career path"
+                      subtitle="AI is analyzing your role & skills"
+                      icon="chart"
+                      steps={['Analyzing your skills', 'Mapping career progression', 'Building roadmap']}
+                    />
                   )}
                   {!loadingCareerPath && careerPath && (
                     <div className="space-y-3">

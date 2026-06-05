@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Target, TrendingUp, Loader, ChevronRight, BookOpen, Zap, RotateCcw } from 'lucide-react';
+import { AIFeatureLoader } from '../components/AIProgressLoader';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -227,15 +228,21 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
           >
             {loading ? (
-              <><Loader className="w-4 h-4 animate-spin" /> Generating your roadmap...</>
+              <><Zap className="w-4 h-4 animate-pulse" /> Generating roadmap...</>
             ) : (
               <><Zap className="w-4 h-4" /> Generate My Career Roadmap</>
             )}
           </button>
         </div>
 
-        {/* Roadmap Result */}
-        {roadmap && (
+          {loading ? (
+            <AIFeatureLoader
+              title="Generating your roadmap"
+              subtitle={`${resolvedCurrent} to ${resolvedTarget}`}
+              icon="chart"
+              steps={['Analyzing your current role', 'Mapping skill requirements', 'Building progression steps', 'Calculating timeframes', 'Finalizing roadmap']}
+            />
+          ) : roadmap ? (
           <div className="space-y-6">
 
             {/* Summary Card */}
@@ -396,7 +403,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Empty state */}
         {!roadmap && !loading && (

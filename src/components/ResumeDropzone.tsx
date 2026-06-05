@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Upload, Linkedin } from 'lucide-react';
 
 interface ResumeDropzoneProps {
-  onFileUrlChange: (fileUrl: string | null) => void;
+  onFileUrlChange: (fileUrl: string | null, file?: File) => void;
   playgroundView?: boolean;
 }
 
@@ -13,7 +13,7 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
   const handleFileUpload = (file: File) => {
     if (file && file.type === 'application/pdf') {
       const url = URL.createObjectURL(file);
-      onFileUrlChange(url);
+      onFileUrlChange(url, file);
     }
   };
 

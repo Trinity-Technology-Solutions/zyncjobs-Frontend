@@ -293,3 +293,14 @@ h6 { font-size: 1rem; }
   font-weight: 600 !important;
   color: #111827 !important;
 }
+
+/* AI loading bar animation */
+@keyframes loading-bar {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+.animate-loading-bar {
+  animation: loading-bar 1.6s ease-in-out infinite;
+  width: 60%;
+}
