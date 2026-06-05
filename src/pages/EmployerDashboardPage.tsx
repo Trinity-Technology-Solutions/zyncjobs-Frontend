@@ -644,56 +644,32 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return Object.entries(map).map(([name, value]) => ({ name, value }));
   }, [applications]);
 
-  const topJobs = useMemo(() => {
-    return jobs
-      .map(j => {
-        const jId = String(j.id || j._id || '');
-        return {
-          name: (j.jobTitle || j.title || 'Job').substring(0, 22),
-          applications: applications.filter(a => {
-            const aJobId = typeof a.jobId === 'object'
-              ? String(a.jobId?._id || a.jobId?.id || '')
-              : String(a.jobId || '');
-            return aJobId && jId && aJobId === jId;
-          }).length
-        };
-      })
-      .sort((a, b) => b.applications - a.applications)
-      .slice(0, 5);
-  }, [jobs, applications]);
+  const [chartFilterJobId, setChartFilterJobId] = useState<string>('tab:top');
 
-  // Per-job application stats for last 30 days with percentage share
-  // Disambiguate duplicate job titles with #N suffix
-  const jobApplicationStats = useMemo(() => {
-    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    // Count title occurrences to add #N suffix for duplicates
-    const titleCount: Record<string, number> = {};
-    const titleSeen: Record<string, number> = {};
-    jobs.forEach(j => {
-      const t = j.jobTitle || j.title || 'Job';
-      titleCount[t] = (titleCount[t] || 0) + 1;
-    });
-    const raw = jobs.map(j => {
+  // ── Job Performance Score (ATS-style) ──────────────────────────────
+  const jobPerformanceStats = useMemo(() => {
+    const now = Date.now();
+    return jobs.map(j => {
       const jId = String(j.id || j._id || '');
-      const baseTitle = j.jobTitle || j.title || 'Job';
-      titleSeen[baseTitle] = (titleSeen[baseTitle] || 0) + 1;
-      const displayTitle = titleCount[baseTitle] > 1 ? `${baseTitle} #${titleSeen[baseTitle]}` : baseTitle;
-      const count = applications.filter(a => {
-        const aJobId = typeof a.jobId === 'object'
-          ? String(a.jobId?._id || a.jobId?.id || '')
-          : String(a.jobId || '');
-        const date = new Date(a.createdAt || a.appliedAt || 0);
-        return aJobId === jId && date >= cutoff;
+      const jobApps = applications.filter(a => {
+        const aJobId = typeof a.jobId === 'object' ? String(a.jobId?._id || a.jobId?.id || '') : String(a.jobId || '');
+        return aJobId === jId;
+      });
+      const appCount = jobApps.length;
+      const shortlisted = jobApps.filter(a => ['shortlisted','hired'].includes(a.status)).length;
+      const interviewCount = interviews.filter(i => {
+        const iJobId = typeof i.jobId === 'object' ? String(i.jobId?._id || i.jobId?.id || '') : String(i.jobId || '');
+        return iJobId === jId;
       }).length;
-      return { id: jId, label: displayTitle.substring(0, 30), fullName: displayTitle, count, jobData: j };
+      const profileViews = j.views || j.profileViews || 0;
+      const score = (appCount * 40) + (profileViews * 20) + (shortlisted * 25) + (interviewCount * 15);
+      const target = j.targetApplications || 20;
+      const progressPct = Math.min(Math.round((appCount / target) * 100), 100);
+      const postedDaysAgo = j.createdAt ? Math.floor((now - new Date(j.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const title = j.jobTitle || j.title || 'Job';
+      return { id: jId, title, appCount, shortlisted, interviewCount, score, target, progressPct, postedDaysAgo, jobData: j };
     });
-    const total = raw.reduce((s, j) => s + j.count, 0);
-    return raw
-      .map(j => ({ ...j, percentage: total > 0 ? Math.round((j.count / total) * 100) : 0 }))
-      .sort((a, b) => b.count - a.count);
-  }, [jobs, applications]);
-
-  const [chartFilterJobId, setChartFilterJobId] = useState<string>('view:with');
+  }, [jobs, applications, interviews]);
 
 
   const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
@@ -1176,35 +1152,43 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 })}
               </div>
 
-              {/* ── Recruitment Analytics ── */}
+              {/* ── Recruitment Analytics (ATS Job Performance) ── */}
               {(() => {
-                const BAR_COLORS = ['#6366f1','#3b82f6','#06b6d4','#8b5cf6','#f59e0b','#10b981','#ef4444','#ec4899','#f97316','#14b8a6'];
-                const totalAll = jobApplicationStats.reduce((s, j) => s + j.count, 0);
-                const jobsWithApps = jobApplicationStats.filter(j => j.count > 0).length;
-                const jobsZeroApps = jobApplicationStats.filter(j => j.count === 0).length;
-                const avgApps = jobs.length > 0 ? (totalAll / jobs.length).toFixed(1) : '0';
-                const cutoffThisMonth = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-                const newJobsThisMonth = jobs.filter(j => new Date(j.createdAt || 0) >= cutoffThisMonth).length;
+                const activeTab = chartFilterJobId.startsWith('tab:') ? chartFilterJobId.replace('tab:', '') : 'top';
+                const needsAttention = jobPerformanceStats.filter(j => j.appCount === 0 && j.postedDaysAgo >= 5);
+                const topPerforming = [...jobPerformanceStats].sort((a, b) => b.score - a.score).slice(0, 10);
+                const mostApplied = [...jobPerformanceStats].sort((a, b) => b.appCount - a.appCount).slice(0, 10);
+                const recentlyPosted = [...jobPerformanceStats].sort((a, b) => a.postedDaysAgo - b.postedDaysAgo).slice(0, 10);
 
-                // View filter: 'with' (default) | 'zero'
-                const viewFilter = chartFilterJobId.startsWith('view:') ? chartFilterJobId.replace('view:', '') : 'with';
-                const roleFilter = chartFilterJobId.startsWith('view:') ? 'all' : chartFilterJobId;
-                const jobsWithAppsOnly = jobApplicationStats.filter(j => j.count > 0).sort((a, b) => b.count - a.count);
-                const jobsZeroOnly = jobApplicationStats.filter(j => j.count === 0);
+                const tabData: Record<string, typeof jobPerformanceStats> = {
+                  top: topPerforming,
+                  applied: mostApplied,
+                  recent: recentlyPosted,
+                  attention: needsAttention,
+                };
+                const visibleJobs = tabData[activeTab] || topPerforming;
 
-                const visibleJobs = (() => {
-                  if (viewFilter === 'zero') return jobsZeroOnly;
-                  const base = jobsWithAppsOnly;
-                  if (roleFilter !== 'all') return base.filter(j => j.id === roleFilter);
-                  return base.slice(0, 8);
-                })();
+                const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
+                  if (pct >= 80) return { bar: '#10b981', label: '🔥 Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
+                  if (pct >= 40) return { bar: '#f59e0b', label: '📈 Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200' };
+                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '' };
+                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
+                  return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
+                };
+
+                const tabs = [
+                  { key: 'top',       label: 'Top Performing', count: topPerforming.length },
+                  { key: 'applied',   label: 'Most Applied',   count: mostApplied.length },
+                  { key: 'recent',    label: 'Recently Posted',count: recentlyPosted.length },
+                  { key: 'attention', label: 'Needs Attention', count: needsAttention.length, red: true },
+                ];
 
                 return (
                   <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-5 overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-gray-50">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 gap-3">
                       <div>
-                        <h2 className="text-base font-bold text-gray-900">Recruitment Analytics</h2>
+                        <h2 className="text-base font-bold text-gray-900">Job Performance Score</h2>
                         <p className="text-xs text-gray-400 mt-0.5">{companyName} · Applications overview</p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -1220,112 +1204,42 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       </div>
                     </div>
 
-                    {/* Stat mini-cards */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-px bg-gray-100 border-b border-gray-100">
-                      {[
-                        { label: 'Total jobs posted', value: String(jobs.length), sub: newJobsThisMonth > 0 ? `↑ ${newJobsThisMonth} this month` : 'No new jobs', subColor: newJobsThisMonth > 0 ? 'text-emerald-600' : 'text-gray-400' },
-                        { label: 'Total applications', value: String(totalAll), sub: 'Across all jobs', subColor: 'text-gray-400' },
-                        { label: 'Avg. apps / job', value: avgApps, sub: `${jobsWithApps} job${jobsWithApps !== 1 ? 's' : ''} with apps`, subColor: 'text-gray-400' },
-                        { label: 'Interviews scheduled', value: String(interviews.length), sub: `Pending ${interviews.filter(i => i.status === 'scheduled').length}`, subColor: 'text-gray-400' },
-                        { label: 'Jobs with 0 apps', value: String(jobsZeroApps), sub: jobs.length > 0 ? `${Math.round((jobsZeroApps / jobs.length) * 100)}% of postings` : '—', subColor: jobsZeroApps > 0 ? 'text-red-400' : 'text-gray-400', valueColor: jobsZeroApps > 0 ? 'text-red-500' : 'text-gray-900' },
-                      ].map((card, i) => (
-                        <div key={i} className="bg-white px-4 py-4">
-                          <p className="text-[11px] text-gray-400 font-medium mb-1 leading-tight">{card.label}</p>
-                          <p className={`text-2xl font-bold leading-none mb-1 ${(card as any).valueColor || 'text-gray-900'}`}>{card.value}</p>
-                          <p className={`text-[11px] font-medium ${card.subColor}`}>{card.sub}</p>
-                        </div>
+                    {/* Tabs */}
+                    <div className="flex overflow-x-auto border-b border-gray-100 px-4 gap-1 pt-2">
+                      {tabs.map(t => (
+                        <button key={t.key} onClick={() => setChartFilterJobId(`tab:${t.key}`)}
+                          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${
+                            activeTab === t.key
+                              ? t.red ? 'border-red-500 text-red-600' : 'border-blue-600 text-blue-700'
+                              : 'border-transparent text-gray-500 hover:text-gray-700'
+                          }`}>
+                          {t.label}
+                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            activeTab === t.key
+                              ? t.red ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'
+                              : 'bg-gray-100 text-gray-500'
+                          }`}>{t.count}</span>
+                        </button>
                       ))}
                     </div>
 
-                    {/* Controls row */}
-                    <div className="px-6 pt-4 pb-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                      {/* View toggle */}
-                      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                        {([['with', 'Top Jobs'], ['zero', '0 Applications']] as const).map(([v, label]) => (
-                          <button
-                            key={v}
-                            onClick={() => setChartFilterJobId(`view:${v}`)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all duration-150 ${
-                              viewFilter === v
-                                ? v === 'zero' ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm'
-                                : 'text-gray-500 hover:text-gray-700'
-                            }`}
-                          >
-                            {label}
-                            <span className={`ml-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                              viewFilter === v
-                                ? v === 'zero' ? 'bg-red-400 text-white' : 'bg-blue-100 text-blue-700'
-                                : 'bg-gray-200 text-gray-500'
-                            }`}>
-                              {v === 'zero' ? jobsZeroApps : jobsWithApps}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {/* Role dropdown — only when showing top jobs */}
-                      {viewFilter === 'with' && jobsWithAppsOnly.length > 1 && (
-                        <div className="relative flex-1 max-w-xs">
-                          <select
-                            value={roleFilter}
-                            onChange={e => setChartFilterJobId(e.target.value === 'all' ? 'view:with' : e.target.value)}
-                            className="w-full appearance-none bg-white border-2 border-blue-500 rounded-xl px-4 py-2.5 pr-10 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer transition-colors"
-                          >
-                            <option value="all">All roles</option>
-                            {jobsWithAppsOnly.map(job => (
-                              <option key={job.id} value={job.id}>
-                                {job.fullName} ({job.count} app{job.count !== 1 ? 's' : ''})
-                              </option>
-                            ))}
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                            <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
+                    {/* Job Cards */}
+                    <div className="px-6 py-4">
+                      {visibleJobs.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                          <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
+                          <p className="text-xs">{activeTab === 'attention' ? '🎉 All jobs are getting applications!' : 'No data yet'}</p>
                         </div>
-                      )}
-                    </div>
-
-                    {/* Bars */}
-                    {visibleJobs.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-32 text-gray-400 pb-6">
-                        <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
-                        <p className="text-xs">{viewFilter === 'zero' ? 'All jobs have applications 🎉' : 'No applications received yet'}</p>
-                      </div>
-                    ) : (
-                      <div className="px-6 pb-4 space-y-2.5">
-                        {visibleJobs.map((job, idx) => {
-                          const colorIdx = jobApplicationStats.findIndex(j => j.id === job.id);
-                          const color = viewFilter === 'zero' ? '#ef4444' : BAR_COLORS[colorIdx % BAR_COLORS.length];
-                          const maxCount = visibleJobs[0]?.count || 1;
-                          const pct = maxCount > 0 ? Math.round((job.count / maxCount) * 100) : 0;
-                          const sharePct = totalAll > 0 ? Math.round((job.count / totalAll) * 100) : 0;
-                          const rank = idx + 1;
-                          return (
-                            <div key={job.id} className="flex items-center gap-3">
-                              {/* Rank badge */}
-                              <div className="flex-shrink-0 w-7 flex items-center justify-center">
-                                {rank === 1 && viewFilter === 'with' ? (
-                                  <span className="text-base" title="#1">🏆</span>
-                                ) : (
-                                  <span className="text-[11px] font-bold text-gray-400">#{rank}</span>
-                                )}
+                      ) : activeTab === 'attention' ? (
+                        /* Needs Attention: special card layout */
+                        <div className="space-y-3">
+                          {visibleJobs.map(job => (
+                            <div key={job.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
+                                <p className="text-xs text-red-500 mt-0.5">0 Applications · Posted {job.postedDaysAgo} day{job.postedDaysAgo !== 1 ? 's' : ''} ago</p>
                               </div>
-                              <div className="flex items-center gap-2 w-40 flex-shrink-0">
-                                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
-                                <span className="text-xs text-gray-700 font-medium truncate" title={job.fullName}>{job.fullName}</span>
-                              </div>
-                              <div className="flex-1 bg-gray-100 rounded-full h-6 relative overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all duration-500 flex items-center px-3"
-                                  style={{ width: `${Math.max(pct, 6)}%`, background: `linear-gradient(90deg,${color}e0,${color}88)` }}
-                                >
-                                  {job.count > 0 && <span className="text-[11px] font-bold text-white whitespace-nowrap">{sharePct}%</span>}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1.5 flex-shrink-0 w-24 justify-end">
-                                <span className="text-xs font-bold tabular-nums" style={{ color }}>{job.count} app{job.count !== 1 ? 's' : ''}</span>
+                              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
                                 {job.jobData && (
                                   <JobRefreshButton
                                     jobId={job.jobData.id || job.jobData._id}
@@ -1334,21 +1248,63 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     lastRefreshedAt={job.jobData.lastRefreshedAt}
                                     userPlan="free"
                                     onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
-                                    className="text-[10px] px-1.5 py-0.5"
+                                    className="text-[10px] px-2 py-1"
                                   />
                                 )}
                               </div>
                             </div>
-                          );
-                        })}
-                        {/* Footer note */}
-                        {viewFilter === 'with' && jobsZeroApps > 0 && (
-                          <p className="text-[11px] text-gray-400 pt-2 border-t border-gray-50">
-                            {jobsZeroApps} job{jobsZeroApps !== 1 ? 's' : ''} with 0 applications hidden · <button className="text-blue-500 hover:underline" onClick={() => setChartFilterJobId('view:zero')}>View them</button>
-                          </p>
-                        )}
-                      </div>
-                    )}
+                          ))}
+                        </div>
+                      ) : (
+                        /* Top/Applied/Recent: performance card layout */
+                        <div className="space-y-4">
+                          {visibleJobs.map((job, idx) => {
+                            const { bar, label, labelCls } = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
+                            return (
+                              <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                                <div className="flex items-start justify-between gap-3 mb-2">
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[11px] font-bold text-gray-400">#{idx + 1}</span>
+                                      <p className="text-sm font-bold text-gray-900 truncate">{job.title}</p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mt-1.5">
+                                      <span className="text-xs text-gray-500">{job.appCount} / {job.target} Applications</span>
+                                      <span className="text-xs text-cyan-600">{job.shortlisted} Shortlisted</span>
+                                      <span className="text-xs text-purple-600">{job.interviewCount} Interviews</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                    {label && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>{label}</span>}
+                                  </div>
+                                </div>
+                                {/* Progress bar */}
+                                <div className="flex items-center gap-2">
+                                  <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                    <div className="h-full rounded-full transition-all duration-500"
+                                      style={{ width: `${Math.max(job.progressPct, 3)}%`, background: bar }} />
+                                  </div>
+                                  <span className="text-[11px] font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
+                                  {job.jobData && (
+                                    <JobRefreshButton
+                                      jobId={job.jobData.id || job.jobData._id}
+                                      jobTitle={job.jobData.jobTitle || job.jobData.title}
+                                      refreshCount={job.jobData.refreshCount || 0}
+                                      lastRefreshedAt={job.jobData.lastRefreshedAt}
+                                      userPlan="free"
+                                      onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
+                                      className="text-[10px] px-1.5 py-0.5"
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+
+                    </div>
                   </div>
                 );
               })()}

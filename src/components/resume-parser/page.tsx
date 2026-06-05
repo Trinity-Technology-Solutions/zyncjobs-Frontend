@@ -7,6 +7,7 @@ import CandidateRanking from "../CandidateRanking";
 import CandidateComparison from "../CandidateComparison";
 import { parseResumeFromText, type AIParseStatus } from "./parseLogic";
 import type { ParsedResume } from "./parseLogic";
+import { AIProgressLoader } from "../AIProgressLoader";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 interface ResumeParserProps {
@@ -23,6 +24,7 @@ const emptyResume: ParsedResume = {
 
 export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {}) {
   const [fileUrl, setFileUrl] = useState('');
+  const [currentFileName, setCurrentFileName] = useState('');
   const [resume, setResume] = useState<ParsedResume>(emptyResume);
   const [rawText, setRawText] = useState('');
   const [isFileUploaded, setIsFileUploaded] = useState(false);
@@ -36,6 +38,8 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const [filterCriteria, setFilterCriteria] = useState({ minScore: 0, skills: '', location: '' });
+  const [uploadedCandidates, setUploadedCandidates] = useState<any[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (user?.type === 'employer') {
@@ -177,7 +181,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
   }, [fileUrl]);
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-screen-2xl mx-auto p-6">
       <div className="mb-8 flex flex-col items-center text-center">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-100 mb-3">
           <svg className="w-3.5 h-3.5 text-blue-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
@@ -255,16 +259,17 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           
           <div className="mt-3">
             <ResumeDropzone
-              onFileUrlChange={(fileUrl) =>
-                setFileUrl(fileUrl || '')
-              }
+              onFileUrlChange={(fileUrl, file?: File) => {
+                if (file) setCurrentFileName(file.name);
+                setFileUrl(fileUrl || '');
+              }}
               playgroundView={true}
             />
           </div>
         </div>
 
         {/* Results Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="bg-white rounded-lg border border-gray-200 p-6 overflow-y-auto" style={{ maxHeight: '90vh' }}>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Parsed Information</h2>
             {aiStatus && (
@@ -277,10 +282,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           </div>
           
           {parsing && (
-            <div className="flex items-center gap-3 py-8 justify-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <span className="text-gray-600">Parsing your resume...</span>
-            </div>
+            <AIProgressLoader fileName={currentFileName} />
           )}
 
           {parseError && (
@@ -699,82 +701,117 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                   View All Recommended Jobs
                 </button>
                 <button 
+                  disabled={saving}
                   onClick={async () => {
                     const userData = localStorage.getItem('user');
                     const currentUser = userData ? JSON.parse(userData) : {};
+                    const userId = currentUser._id || currentUser.id;
 
-                    const firstExp = resume.workExperiences[0] as any;
+                    if (!userId) {
+                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Please log in to save your profile.', type: 'error' } }));
+                      return;
+                    }
+
+                    const extractYear = (s: string) => String(s || '').match(/\d{4}/)?.[0] || '';
+
+                    // Build employment as an array (dashboard expects Array.isArray)
+                    const employment: any[] = resume.workExperiences.length > 0
+                      ? resume.workExperiences.map((exp: any) => {
+                          const dateParts = String(exp.date || '').split(/\s*[-–]\s*/);
+                          return {
+                            companyName: exp.company || '',
+                            designation: exp.jobTitle || '',
+                            description: Array.isArray(exp.descriptions) ? exp.descriptions.join(' ') : '',
+                            startMonth: '',
+                            startYear: extractYear(dateParts[0] || ''),
+                            endMonth: '',
+                            endYear: extractYear(dateParts[1] || ''),
+                            currentlyWorking: /present|current/i.test(exp.date || ''),
+                          };
+                        })
+                      : (Array.isArray(currentUser.employment)
+                          ? currentUser.employment
+                          : currentUser.employment ? [currentUser.employment] : []);
+
                     const firstEdu = resume.educations[0] as any;
-
-                    // Map to proper structured fields used by dashboard
-                    const employment = firstExp ? {
-                      companyName: firstExp.company || '',
-                      designation: firstExp.jobTitle || '',
-                      description: firstExp.descriptions?.join('\n') || '',
-                      startMonth: firstExp.date?.split(' ')[0] || '',
-                      startYear: firstExp.date?.split(' ').slice(-1)[0] || '',
-                      endMonth: '',
-                      endYear: '',
-                      currentlyWorking: firstExp.date?.toLowerCase().includes('present') || false
-                    } : currentUser.employment;
-
-                    const educationCollege = firstEdu ? {
-                      college: firstEdu.school || '',
-                      degree: firstEdu.degree || '',
-                      passingYear: firstEdu.date?.match(/\d{4}/)?.[0] || firstEdu.date || '',
-                      courseType: 'Full Time',
-                      percentage: ''
-                    } : currentUser.educationCollege;
+                    const educationCollege = firstEdu
+                      ? {
+                          college: firstEdu.school || '',
+                          degree: firstEdu.degree || '',
+                          passingYear: extractYear(firstEdu.date || ''),
+                          courseType: 'Full Time',
+                          percentage: ''
+                        }
+                      : currentUser.educationCollege;
 
                     const skills = resume.skills.featuredSkills.map((s: any) => s.skill);
 
-                    const profileSummary = resume.workExperiences.length > 0
-                      ? resume.workExperiences.map((exp: any) =>
-                          `${exp.jobTitle} at ${exp.company}${exp.date ? ` (${exp.date})` : ''}`
-                        ).join(' | ')
-                      : currentUser.profileSummary;
+                    const profileSummary = (resume as any).summary?.trim()
+                      || (resume.workExperiences.length > 0
+                          ? resume.workExperiences.map((exp: any) =>
+                              `${exp.jobTitle} at ${exp.company}${exp.date ? ` (${exp.date})` : ''}`
+                            ).join(' | ')
+                          : currentUser.profileSummary);
+
+                    const firstExp = employment[0];
 
                     const updatedUser = {
                       ...currentUser,
                       name: resume.profile.name || currentUser.name,
                       phone: resume.profile.phone || currentUser.phone,
                       location: resume.profile.location || currentUser.location,
-                      jobTitle: firstExp?.jobTitle || currentUser.jobTitle,
+                      jobTitle: firstExp?.designation || currentUser.jobTitle,
                       skills: skills.length > 0 ? skills : (currentUser.skills || []),
                       employment,
                       educationCollege,
                       profileSummary,
+                      // Ensure these critical fields are always present
+                      email: currentUser.email,
+                      userType: currentUser.userType || currentUser.role || 'candidate',
+                      role: currentUser.role || currentUser.userType || 'candidate',
                     };
 
                     localStorage.setItem('user', JSON.stringify(updatedUser));
 
-                    // Also save to backend
+                    setSaving(true);
                     try {
-                      await fetch(`${API_BASE_URL}/profile/save`, {
+                      const { apiFetch } = await import('../../api/apiFetch');
+
+                      // Save to /profile/save (what dashboard reads)
+                      const res = await apiFetch(`${API_BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          email: currentUser.email,
-                          name: updatedUser.name,
-                          phone: updatedUser.phone,
-                          location: updatedUser.location,
-                          jobTitle: updatedUser.jobTitle,
-                          skills: updatedUser.skills,
-                          employment,
-                          educationCollege,
-                          profileSummary,
-                        })
+                        body: JSON.stringify({ email: currentUser.email, ...updatedUser })
                       });
-                    } catch (e) {
-                      console.error('Save error:', e);
-                    }
+                      if (!res.ok) {
+                        const err = await res.json().catch(() => ({}));
+                        throw new Error(err.error || `Server error: ${res.status}`);
+                      }
 
-                    window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Profile saved successfully!" } }));
-                    onNavigate && onNavigate('dashboard');
+                      // Also sync to /users/:id so login response has fresh data
+                      const userId = currentUser._id || currentUser.id;
+                      if (userId) {
+                        const { _id, id, password, __v, ...safePayload } = updatedUser as any;
+                        await apiFetch(`${API_BASE_URL}/users/${userId}`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify(safePayload)
+                        }).catch(() => { /* non-critical */ });
+                      }
+
+                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Profile saved successfully!' } }));
+                      onNavigate && onNavigate('dashboard');
+                    } catch (e: any) {
+                      console.error('Save error:', e);
+                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: e?.message || 'Failed to save profile. Please try again.', type: 'error' } }));
+                    } finally {
+                      setSaving(false);
+                    }
                   }}
-                  className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  className="bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Save Profile
+                  {saving ? 'Saving...' : 'Save Profile'}
                 </button>
               </>
             )}

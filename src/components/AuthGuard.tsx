@@ -20,8 +20,11 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, red
   // Wait for session restore before redirecting
   if (userLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
+          <p className="text-gray-500 text-sm">Loading...</p>
+        </div>
       </div>
     );
   }

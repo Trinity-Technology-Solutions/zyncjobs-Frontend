@@ -98,7 +98,7 @@ const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 
 const LoadingFallback = () => (
-  <div className="min-h-screen flex items-center justify-center">
+  <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
     <div className="text-center">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
       <p className="text-gray-600">Loading...</p>
@@ -228,7 +228,7 @@ function App() {
     if (page.startsWith('job-detail/')) { const id = page.replace('job-detail/', ''); navigate(`/job-detail?id=${id}`); return; }
     if (page === 'privacy-settings') { navigate('/privacy-settings'); return; }
     if (page === 'login') { navigate('/login'); return; }
-    if (page === 'dashboard') { navigate('/dashboard'); return; }
+    if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
     const target = `/${page}`;
     if (currentPath !== target) { navigate(target); window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -583,15 +583,19 @@ function App() {
 
           {/* -- Auth -- */}
           <Route path="/login" element={
-            (user && !userLoading)
-              ? <Navigate to="/dashboard" replace />
-              : <LoginPage onNavigate={handleNavigation} onLogin={handleLogin} />
+            userLoading
+              ? <LoadingFallback />
+              : user
+                ? <Navigate to="/dashboard" replace />
+                : <LoginPage onNavigate={handleNavigation} onLogin={handleLogin} />
           } />
           <Route path="/employer-login" element={
-            (user && !userLoading)
-              ? <Navigate to="/dashboard" replace />
-              : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
-                  onShowNotification={n => showNotification(n.message, n.type)} />
+            userLoading
+              ? <LoadingFallback />
+              : user
+                ? <Navigate to="/dashboard" replace />
+                : <EmployerLoginPage onNavigate={handleNavigation} onLogin={handleLogin}
+                    onShowNotification={n => showNotification(n.message, n.type)} />
           } />
           <Route path="/candidate-register" element={<CandidateRegisterPage onNavigate={handleNavigation} />} />
           <Route path="/employer-register" element={<EmployerRegisterPage onNavigate={handleNavigation} onLogin={handleLogin} />} />
@@ -637,9 +641,10 @@ function App() {
 
           {/* -- Protected: any logged-in user -- */}
           <Route path="/dashboard" element={
-            <AuthGuard user={user} userLoading={userLoading}>
+            userLoading ? <LoadingFallback /> :
+            <AuthGuard user={user} userLoading={false}>
               <Notification {...notification} onClose={() => setNotification(n => ({ ...n, isVisible: false }))} />
-              {userLoading ? null : user?.type === 'admin' || user?.type === 'super_admin' ? (
+              {user?.type === 'admin' || user?.type === 'super_admin' ? (
                 <Navigate to="/admin/dashboard" replace />
               ) : user?.type === 'employer' ? (
                 <>
@@ -709,7 +714,7 @@ function App() {
 
           <Route path="/interviews" element={
             <AuthGuard user={user} userLoading={userLoading}>
-              {userLoading ? null : user?.type === 'candidate' ? (
+              {userLoading ? <LoadingFallback /> : user?.type === 'candidate' ? (
                 <CandidateInterviewsPage {...nav} />
               ) : (
                 <WithLayout {...nav}><InterviewScheduling /></WithLayout>

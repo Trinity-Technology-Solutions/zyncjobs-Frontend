@@ -14,6 +14,7 @@ import { S3Service } from '../services/s3Service';
 import LinkedInConnect, { type LinkedInProfile } from '../components/LinkedInConnect';
 import ProfileVisibilityToggle from '../components/ProfileVisibilityToggle';
 import CoverPhotoCropModal from '../components/CoverPhotoCropModal';
+import { AIFeatureLoader } from '../components/AIProgressLoader';
 
 interface CandidateDashboardPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -289,19 +290,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
         try {
           const parsedUser = JSON.parse(userData);
           let finalUser = parsedUser;
-// Fetch fresh data from database
+          // Fetch fresh data from database
           try {
-            const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
-            if (response.ok) {
-              const profileData = await response.json();
-              console.log('Dashboard - Fetched profile data:', {
-                hasInternships: !!profileData.internships,
-                hasLanguages: !!profileData.languages,
-                hasEmployment: !!profileData.employment,
-                internships: profileData.internships,
-                languages: profileData.languages,
-                coverPhoto: profileData.coverPhoto,
-              });
+            let profileData: any = null;
+            try {
+              const profileRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${parsedUser.email}`);
+              if (profileRes.ok) profileData = await profileRes.json();
+            } catch { /* silent */ }
+            const _uid = parsedUser._id || parsedUser.id;
+            if (_uid && (!profileData || (!profileData.skills?.length && !profileData.employment && !profileData.educationCollege))) {
+              try {
+                const userRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/${_uid}`);
+                if (userRes.ok) {
+                  const userRecord = await userRes.json();
+                  profileData = profileData ? { ...userRecord, ...profileData } : userRecord;
+                }
+              } catch { /* silent */ }
+            }
+            const response = { ok: !!profileData };
+            if (profileData && response.ok) {
+              console.log('Dashboard loaded, skills:', profileData.skills?.length, 'employment:', !!profileData.employment);
               // Merge database data with localStorage data, prioritizing database data
               const normalizePhotoUrl = (url: string) => {
                 if (!url) return '';
@@ -330,6 +338,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
               const updatedUser = { 
                 ...parsedUser, 
                 ...profileData,
+                // All fields use pick() so DB empty values never overwrite good localStorage values
+                name: pick(profileData.name, parsedUser.name),
                 profilePhoto: normalizePhotoUrl(profileData.profilePhoto || parsedUser.profilePhoto || ''),
                 coverPhoto: normalizePhotoUrl(profileData.coverPhoto || parsedUser.coverPhoto || ''),
                 profileFrame: pick(profileData.profileFrame, parsedUser.profileFrame, 'none'),
@@ -349,7 +359,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 email: parsedUser.email,
                 id: parsedUser.id,
                 role: parsedUser.role,
-                birthday: (() => { const d = new Date(profileData.birthday || parsedUser.birthday || ''); return isNaN(d.getTime()) ? '' : (profileData.birthday || parsedUser.birthday || ''); })(),
+                birthday: pick(profileData.birthday, parsedUser.birthday),
                 location: pick(profileData.location, parsedUser.location),
                 phone: pick(profileData.phone, parsedUser.phone),
                 jobTitle: pick(profileData.jobTitle, parsedUser.jobTitle),
@@ -2271,8 +2281,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
       {/* First-time Resume Upload Popup */}
       {showResumePopup && !readOnly && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl">
-            <div className="p-6">
+          <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl max-h-[85vh] overflow-y-auto">
+            <div className="p-5">
               <div className="flex justify-between items-start mb-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                   <FileText className="w-6 h-6 text-blue-600" />
@@ -2287,7 +2297,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
               <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more. Existing data will be updated with parsed info.</p>
 
               {resumePopupError && (
@@ -2317,6 +2327,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     }}
                   />
                 </label>
+              )}
+
+              {resumePopupParsing && (
+                <div className="mb-4">
+                  <AIFeatureLoader
+                    title="Parsing your resume"
+                    subtitle="AI is extracting your skills, experience & education"
+                    icon="document"
+                    steps={[
+                      'Reading PDF content',
+                      'Extracting text & structure',
+                      'Identifying skills & experience',
+                      'Parsing education details',
+                      'Running AI analysis',
+                      'Building your profile',
+                    ]}
+                  />
+                </div>
               )}
 
               <button
@@ -2456,7 +2484,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
               >
                 {resumePopupParsing ? (
-                  <><div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" /><span>Parsing with AI...</span></>
+                  <><span>Parsing with AI...</span></>
                 ) : (
                   <><FileText className="w-4 h-4" /><span>Parse Resume & Fill Profile</span></>
                 )}
@@ -4520,4 +4548,5 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
 };
 
 export default CandidateDashboardPage;
+
 

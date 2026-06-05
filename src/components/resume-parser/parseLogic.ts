@@ -240,14 +240,19 @@ export async function parseResumeFromText(
     if (cached) { onStatus?.('ai'); return cached; }
 
     const token = tokenStorage.getAccess();
+    const truncatedText = text.length > 3000 ? text.slice(0, 3000) : text;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
     const res = await fetch(`${API_BASE_URL}/resume/parse-profile`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ resumeText: text }),
+      body: JSON.stringify({ resumeText: truncatedText }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
@@ -306,7 +311,8 @@ export async function parseResumeFromText(
     onStatus?.('ai');
     return merged;
   } catch (e: any) {
-    onStatus?.('ai_error', e?.message || 'Network error');
+    const isTimeout = e?.name === 'AbortError';
+    onStatus?.('ai_error', isTimeout ? 'AI timeout — using local parser' : (e?.message || 'Network error'));
     return localResult;
   }
 }
