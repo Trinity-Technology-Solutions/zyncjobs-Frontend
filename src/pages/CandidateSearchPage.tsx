@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot, Download } from 'lucide-react';
+import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot } from 'lucide-react';
 import { tokenStorage } from '../utils/tokenStorage';
 import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
@@ -258,11 +258,17 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
               : c.resume) || '';
           // Normalize skills from any possible field name into a single `skills` array
           const rawSkills = c.skills || c.skillSet || c.skill_set || c.keySkills || c.tags || [];
-          const skills: string[] = Array.isArray(rawSkills)
-            ? rawSkills.map((s: any) => (typeof s === 'object' ? s.name || s.label || String(s) : String(s))).filter(Boolean)
-            : typeof rawSkills === 'string'
-              ? rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean)
-              : [];
+          let skills: string[] = [];
+          if (Array.isArray(rawSkills)) {
+            skills = rawSkills.map((s: any) => (typeof s === 'object' && s !== null ? s.name || s.label || String(s) : String(s))).filter(Boolean);
+          } else if (typeof rawSkills === 'string' && rawSkills.trim()) {
+            // Handle JSON stringified array: '["React","Node.js"]'
+            if (rawSkills.trim().startsWith('[')) {
+              try { skills = JSON.parse(rawSkills).map((s: any) => String(s)).filter(Boolean); } catch { skills = rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean); }
+            } else {
+              skills = rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean);
+            }
+          }
           return { ...c, _id: c._id || c.id, profilePhoto, resumeUrl, skills };
         });
       setCandidates(filtered);
@@ -799,24 +805,18 @@ return (
                   {/* Skills */}
                   <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-3 flex-grow">
                     <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                      {getCandidateSkills(candidate).length === 0 ? (
-                        <span className="text-xs text-gray-400 italic">No skills listed</span>
-                      ) : (
-                        <>
-                          {getCandidateSkills(candidate).slice(0, 5).map((skill, idx) => {
-                            const isMatched = candidate.matchedSkills?.map(s => s.toLowerCase()).includes(skill.toLowerCase());
-                            return (
-                              <span key={idx} className={`text-xs px-2.5 py-1 rounded-full font-medium ${
-                                isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                {isMatched && <span className="mr-0.5">✓</span>}{skill}
-                              </span>
-                            );
-                          })}
-                          {getCandidateSkills(candidate).length > 5 && (
-                            <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-400">+{getCandidateSkills(candidate).length - 5}</span>
-                          )}
-                        </>
+                      {getCandidateSkills(candidate).slice(0, 5).map((skill, idx) => {
+                        const isMatched = candidate.matchedSkills?.map(s => s.toLowerCase()).includes(skill.toLowerCase());
+                        return (
+                          <span key={idx} className={`text-xs px-2.5 py-1 rounded-full font-medium ${
+                            isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {isMatched && <span className="mr-0.5">✓</span>}{skill}
+                          </span>
+                        );
+                      })}
+                      {getCandidateSkills(candidate).length > 5 && (
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-gray-100 text-gray-400">+{getCandidateSkills(candidate).length - 5}</span>
                       )}
                     </div>
                   </div>
@@ -836,12 +836,9 @@ return (
                             <div className={`h-1.5 rounded-full ${scoreBarColor}`} style={{ width: `${score}%` }} />
                           </div>
                           <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 text-xs">
-                            {(candidate.matchedSkills?.length ?? 0) > 0
-                              ? <span className="text-emerald-600 font-medium">✓ {candidate.matchedSkills!.length} matched</span>
-                              : getCandidateSkills(candidate).length === 0
-                                ? <span className="text-gray-400 font-medium">No skills on profile</span>
-                                : <span className="text-amber-600 font-medium">No skill overlap with job</span>
-                            }
+                            {(candidate.matchedSkills?.length ?? 0) > 0 && (
+                              <span className="text-emerald-600 font-medium">✓ {candidate.matchedSkills!.length} matched</span>
+                            )}
                             {getCandidateSkills(candidate).length > 0 && (candidate.missingSkills?.length ?? 0) > 0 && (
                               <span className="text-red-500 font-medium">✗ {candidate.missingSkills!.length} missing</span>
                             )}
@@ -859,19 +856,7 @@ return (
                     >
                       View Profile
                     </button>
-                    {candidate.resumeUrl && (
-                      <a
-                        href={candidate.resumeUrl}
-                        download={`${getCandidateName(candidate).replace(/\s+/g, '_')}_Resume.pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-1.5 border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 text-gray-700 text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors flex-shrink-0"
-                        title="Download Resume"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span className="sm:hidden">Resume</span>
-                      </a>
-                    )}
+
                     <div className="relative w-full sm:w-auto" data-contact-menu>
                       <button
                         onClick={() => setOpenContactMenu(openContactMenu === candidate._id ? null : candidate._id)}

@@ -476,7 +476,7 @@ function App() {
       }
       return res;
     };
-    return () => { window.fetch = orig; };
+    // Do not restore on unmount — App lives for the entire session
   }, []);
 
   // Early returns AFTER all hooks
@@ -511,7 +511,7 @@ function App() {
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
       '/bulk-job-import',
       '/admin/dashboard', '/admin/login'];
-    if (protectedPaths.some(p => location.pathname.startsWith(p))) {
+    if (waitForSessionPaths.some(p => location.pathname.startsWith(p))) {
       return <LoadingFallback />;
     }
   }
@@ -561,6 +561,19 @@ function App() {
                 <Footer onNavigate={handleNavigation} user={user as any} />
                 <ChatWidget />
               </div>
+            } />
+
+            <Route path="/candidate-messages" element={
+              <AuthGuard user={user} userLoading={userLoading}>
+                <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+                  <div style={{ flexShrink: 0 }}>
+                    <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex' }}>
+                    <CandidateMessagesPage onNavigate={handleNavigation} />
+                  </div>
+                </div>
+              </AuthGuard>
             } />
 
             {/* -- Auth -- */}

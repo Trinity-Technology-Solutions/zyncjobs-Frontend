@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Send, X, MessageCircle, Paperclip } from 'lucide-react';
+import { Send, X, MessageCircle, Paperclip, Trash2 } from 'lucide-react';
 
 interface DirectMessageProps {
   candidateId: string;       // may be UUID or email
@@ -26,6 +26,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [resolvedCandidateId, setResolvedCandidateId] = useState('');
+  const [hoveredMsgId, setHoveredMsgId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -198,6 +199,14 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
     }
   };
 
+  const deleteMessage = async (msgId: string) => {
+    try {
+      const res = await fetch(`${API_ENDPOINTS.MESSAGES}/delete/${msgId}?userId=${encodeURIComponent(employerId)}`, { method: 'DELETE' });
+      if (res.ok) setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
+      else setError('Failed to delete message');
+    } catch { setError('Error deleting message'); }
+  };
+
   const sendMessage = async () => {
     if (!newMessage.trim()) return;
     await doSend(newMessage.trim());
@@ -299,8 +308,21 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
           ) : (
             messages.map((msg, i) => {
               const isOwn = msg.senderId === employerId;
+              const msgId = msg.id || msg._id || String(i);
               return (
-                <div key={msg.id || msg._id || i} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2`}>
+                <div key={msgId} className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-2 group`}
+                  onMouseEnter={() => isOwn && setHoveredMsgId(msgId)}
+                  onMouseLeave={() => setHoveredMsgId(null)}
+                >
+                  {isOwn && hoveredMsgId === msgId && (
+                    <button
+                      onClick={() => deleteMessage(msgId)}
+                      className="self-center mr-1 p-1 text-gray-400 hover:text-red-500 rounded transition-colors"
+                      title="Delete message"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   <div className={`max-w-[80%] px-3 py-2 rounded-2xl shadow-sm ${
                     isOwn ? 'bg-blue-600 text-white rounded-br-md' : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
                   }`}>
