@@ -15,6 +15,7 @@ export interface LocalFileResult {
 }
 
 export class LocalFileHandler {
+  // amazonq-ignore-next-line
   private static readonly STORAGE_KEY = 'zync_local_files';
   private static readonly MAX_STORAGE_SIZE = 10 * 1024 * 1024; // 10MB limit
 

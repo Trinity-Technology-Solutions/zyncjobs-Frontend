@@ -55,7 +55,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
   ];
 
   return (
-    <footer className="bg-white text-gray-900 border-t border-gray-200">
+    <footer className="bg-white text-gray-900 border-t border-gray-200" role="contentinfo" aria-label="Site footer">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="mb-12">
           <img 
@@ -84,13 +84,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h4 className="text-lg font-semibold mb-6">For Job Seekers</h4>
-            <ul className="space-y-3">
+            <h4 className="text-lg font-semibold mb-6" id="footer-jobseekers">For Job Seekers</h4>
+            <ul className="space-y-3" aria-labelledby="footer-jobseekers">
               {jobSeekerLinks.map((link, index) => (
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     {link.name}
                   </button>
@@ -101,13 +101,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           
           {/* Always show employer section, but redirect to login if not logged in as employer */}
           <div>
-            <h4 className="text-lg font-semibold mb-6">For Employers</h4>
-            <ul className="space-y-3">
+            <h4 className="text-lg font-semibold mb-6" id="footer-employers">For Employers</h4>
+            <ul className="space-y-3" aria-labelledby="footer-employers">
               {employerLinks.map((link, index) => (
                 <li key={index}>
                   <button
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     {link.name}
                   </button>
@@ -118,13 +118,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           
           {resourceLinks.length > 0 && (
           <div>
-            <h4 className="text-lg font-semibold mb-6">Resources</h4>
-            <ul className="space-y-3">
+            <h4 className="text-lg font-semibold mb-6" id="footer-resources">Resources</h4>
+            <ul className="space-y-3" aria-labelledby="footer-resources">
               {resourceLinks.map((link, index) => (
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     <link.icon className="w-4 h-4 flex-shrink-0" />
                     {link.name}
@@ -136,13 +136,13 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
           )}
           
           <div>
-            <h4 className="text-lg font-semibold mb-6">Company</h4>
-            <ul className="space-y-3">
+            <h4 className="text-lg font-semibold mb-6" id="footer-company">Company</h4>
+            <ul className="space-y-3" aria-labelledby="footer-company">
               {companyLinks.map((link, index) => (
                 <li key={index}>
                   <button 
                     onClick={link.action}
-                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer"
+                    className="text-gray-600 hover:text-gray-900 transition-colors text-left cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                   >
                     {link.name}
                   </button>
@@ -162,7 +162,7 @@ const Footer: React.FC<FooterProps> = ({ onNavigate, user }) => {
                 <button
                   key={index}
                   onClick={link.onClick}
-                  className="text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
+                  className="text-gray-500 hover:text-gray-900 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
                 >
                   {link.name}
                 </button>

@@ -9,7 +9,7 @@ interface JobParsingPageProps {
   user?: any;
 }
 
-const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate, user }) => {
+const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   const [jobDescription, setJobDescription] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [notification, setNotification] = useState<{
@@ -506,41 +506,6 @@ ${description.slice(0, 2000)}`;
     return 'Software Developer';
   };
 
-  const extractCompanyName = (text: string): string => {
-    // Strip everything from interview/recruitment section onwards to avoid false matches
-    const cleanText = text.replace(
-      /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open)[\s\S]*/gi,
-      ''
-    ).trim();
-
-    const companyPatterns = [
-      /(?:company\s+(?:name)?|organisation|employer)\s*[:\-]\s*([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})/i,
-      /(?:at|for|with|join)\s+([A-Z][a-zA-Z0-9\s&\.\-,']{2,35})(?:\s*[,\.!]|\s+(?:is|are|we|our|the|in|as|to|for|and|or|team|today|where|located|based))/,
-      /^([A-Z][a-zA-Z0-9\s&\.\-,']{2,40})\s*[-–—]\s*[A-Z][a-z]/m,
-    ];
-
-    const invalidWords = [
-      'interview', 'mode', 'face', 'weekend', 'hiring', 'drive', 'recruitment',
-      'handle', 'post', 'location', 'salary', 'experience', 'notice', 'priority',
-      'summary', 'responsibilities', 'skills', 'candidate', 'process', 'round'
-    ];
-
-    for (const pattern of companyPatterns) {
-      const match = cleanText.match(pattern);
-      if (match && match[1]) {
-        let company = match[1].trim()
-          .replace(/[\-\|–—].*$/g, '')
-          .replace(/[,\.!]+$/, '')
-          .trim();
-        const hasInvalid = invalidWords.some(w => company.toLowerCase().includes(w));
-        if (!hasInvalid && company.length >= 3 && company.length <= 40) {
-          return company;
-        }
-      }
-    }
-
-    return '';
-  };
 
   const extractLocation = (text: string): string => {
     // --- Priority 1: explicit label on its own line or after colon ---
@@ -778,7 +743,6 @@ ${description.slice(0, 2000)}`;
     ];
 
     const foundSkills = new Set<string>();
-    const lowerText = text.toLowerCase();
 
     // Enhanced skill detection with context awareness
     for (const skill of commonSkills) {
@@ -897,151 +861,6 @@ ${description.slice(0, 2000)}`;
     return sortedSkills.length > 0 ? sortedSkills.slice(0, 12) : ['JavaScript', 'React', 'Node.js', 'Python', 'SQL'];
   };
 
-  const extractSalary = (text: string) => {
-    const salaryPatterns = [
-      // Enhanced range patterns with better currency detection
-      /(?:salary|compensation|pay|wage|income|package)\s*[:\-]?\s*\$?([\d,]+(?:\.\d{2})?)\s*[-–—to]\s*\$?([\d,]+(?:\.\d{2})?)\s*(?:k|thousand)?\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      /\$([\d,]+(?:\.\d{2})?)\s*[-–—to]\s*\$?([\d,]+(?:\.\d{2})?)\s*(?:k|thousand)?\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      /([\d,]+(?:\.\d{2})?)\s*[-–—to]\s*([\d,]+(?:\.\d{2})?)\s*(?:USD|INR|EUR|GBP|CAD|AUD|SGD)\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      // K notation patterns
-      /\$?([\d,]+(?:\.\d{1,2})?)k\s*[-–—to]\s*\$?([\d,]+(?:\.\d{1,2})?)k\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      // LPA patterns (Lakhs Per Annum) - Indian salary format
-      /([\d.]+)\s*[-–—to]\s*([\d.]+)\s*(?:lpa|lakhs?\s+per\s+annum|lakhs?)/gi,
-      /([\d.]+)\s*(?:lpa|lakhs?\s+per\s+annum|lakhs?)/gi,
-      // CTC patterns (Cost to Company) - Indian format
-      /(?:ctc|cost\s+to\s+company)\s*[:\-]?\s*₹?([\d,]+(?:\.\d{2})?)\s*[-–—to]\s*₹?([\d,]+(?:\.\d{2})?)\s*(?:lpa|lakhs?)?/gi,
-      // Single amount patterns
-      /(?:salary|compensation|pay|wage|income|package)\s*[:\-]?\s*\$([\d,]+(?:\.\d{2})?)\s*(?:k|thousand)?\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      /\$([\d,]+(?:\.\d{2})?)\s*(?:k|thousand)?\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      /([\d,]+(?:\.\d{2})?)\s*(?:USD|INR|EUR|GBP|CAD|AUD|SGD)\s*(per\s+year|annually|yearly|per\s+month|monthly|per\s+hour|hourly|pa|p\.a\.)?/gi,
-      // Up to patterns
-      /up\s+to\s+\$?([\d,]+(?:\.\d{2})?)\s*(?:k|thousand)?/gi,
-      // Starting from patterns
-      /starting\s+(?:from|at)\s+\$?([\d,]+(?:\.\d{2})?)\s*(?:k|thousand)?/gi,
-      // Competitive salary indicators
-      /competitive\s+(?:salary|compensation|package)/gi
-    ];
-
-    let minSalary = '';
-    let maxSalary = '';
-    let currency = 'USD';
-    let payRate = 'per year';
-    let isCompetitive = false;
-
-    // Check for competitive salary first
-    if (/competitive\s+(?:salary|compensation|package)/gi.test(text)) {
-      isCompetitive = true;
-    }
-
-    for (const pattern of salaryPatterns) {
-      const matches = [...text.matchAll(pattern)];
-      for (const match of matches) {
-        if (match[0].toLowerCase().includes('competitive')) {
-          continue; // Skip competitive salary matches for now
-        }
-
-        if (match[1] && match[2]) {
-          // Range found
-          let min = parseFloat(match[1].replace(/,/g, ''));
-          let max = parseFloat(match[2].replace(/,/g, ''));
-          
-          // Handle K notation
-          if (match[0].toLowerCase().includes('k') || match[0].toLowerCase().includes('thousand')) {
-            min *= 1000;
-            max *= 1000;
-          }
-          
-          // Handle LPA (Lakhs Per Annum)
-          if (match[0].toLowerCase().includes('lpa') || match[0].toLowerCase().includes('lakh')) {
-            currency = 'INR';
-            min *= 100000;
-            max *= 100000;
-          }
-          
-          // Ensure min is less than max
-          if (min > max) {
-            [min, max] = [max, min];
-          }
-          
-          minSalary = min.toString();
-          maxSalary = max.toString();
-          
-          // Determine pay rate
-          if (match[3]) {
-            const rate = match[3].toLowerCase();
-            if (rate.includes('month')) payRate = 'per month';
-            else if (rate.includes('hour')) payRate = 'per hour';
-            else payRate = 'per year';
-          }
-          break;
-        } else if (match[1]) {
-          // Single amount
-          let amount = parseFloat(match[1].replace(/,/g, ''));
-          
-          // Handle K notation
-          if (match[0].toLowerCase().includes('k') || match[0].toLowerCase().includes('thousand')) {
-            amount *= 1000;
-          }
-          
-          // Handle LPA
-          if (match[0].toLowerCase().includes('lpa') || match[0].toLowerCase().includes('lakh')) {
-            currency = 'INR';
-            amount *= 100000;
-          }
-          
-          // Create range from single amount
-          if (match[0].toLowerCase().includes('up to')) {
-            minSalary = (amount * 0.7).toString();
-            maxSalary = amount.toString();
-          } else if (match[0].toLowerCase().includes('starting')) {
-            minSalary = amount.toString();
-            maxSalary = (amount * 1.3).toString();
-          } else {
-            minSalary = (amount * 0.9).toString();
-            maxSalary = (amount * 1.1).toString();
-          }
-          
-          // Determine pay rate
-          if (match[2]) {
-            const rate = match[2].toLowerCase();
-            if (rate.includes('month')) payRate = 'per month';
-            else if (rate.includes('hour')) payRate = 'per hour';
-            else payRate = 'per year';
-          }
-          break;
-        }
-      }
-      if (minSalary && maxSalary) break;
-    }
-
-    // Enhanced currency detection
-    const currencyPatterns = [
-      { pattern: /₹|INR|rupees?|lakhs?|crores?/i, currency: 'INR' },
-      { pattern: /€|EUR|euros?/i, currency: 'EUR' },
-      { pattern: /£|GBP|pounds?/i, currency: 'GBP' },
-      { pattern: /CAD|canadian\s+dollars?/i, currency: 'CAD' },
-      { pattern: /AUD|australian\s+dollars?/i, currency: 'AUD' },
-      { pattern: /SGD|singapore\s+dollars?/i, currency: 'SGD' },
-      { pattern: /\$|USD|dollars?/i, currency: 'USD' }
-    ];
-
-    for (const { pattern, currency: curr } of currencyPatterns) {
-      if (pattern.test(text)) {
-        currency = curr;
-        break;
-      }
-    }
-
-    // Validate and format salary values — return empty if nothing found
-    const minNum = parseInt(minSalary);
-    const maxNum = parseInt(maxSalary);
-    
-    if (minNum > 0 && maxNum > 0 && minNum <= maxNum) {
-      return { min: minSalary, max: maxSalary, currency, payRate };
-    }
-
-    return { min: '', max: '', currency: 'INR', payRate: 'per year' };
-  };
 
   const extractBenefits = (text: string): string[] => {
     const benefits = [];
@@ -1084,7 +903,6 @@ ${description.slice(0, 2000)}`;
   };
 
   const extractJobCategory = (text: string): string => {
-    const lowerText = text.toLowerCase();
     
     if (/software|developer|engineer|programming|coding|frontend|backend|fullstack/i.test(text)) {
       return 'Software Development';
@@ -1189,20 +1007,6 @@ ${description.slice(0, 2000)}`;
     return workAuth;
   };
 
-  const extractJobDescription = (text: string): string => {
-    // Remove responsibilities and requirements sections to get clean description
-    let cleanDescription = text;
-    
-    // Remove common section headers and their content
-    cleanDescription = cleanDescription.replace(/(?:key\s+)?responsibilities?[:\s]*[\s\S]*?(?=(?:requirements?|qualifications?|skills?|benefits?|about\s+(?:us|the\s+role)|$))/gi, '');
-    cleanDescription = cleanDescription.replace(/(?:job\s+)?requirements?[:\s]*[\s\S]*?(?=(?:responsibilities?|qualifications?|skills?|benefits?|about\s+(?:us|the\s+role)|$))/gi, '');
-    cleanDescription = cleanDescription.replace(/qualifications?[:\s]*[\s\S]*?(?=(?:responsibilities?|requirements?|skills?|benefits?|about\s+(?:us|the\s+role)|$))/gi, '');
-    
-    // Clean up extra whitespace and newlines
-    cleanDescription = cleanDescription.replace(/\n{3,}/g, '\n\n').trim();
-    
-    return cleanDescription || text.substring(0, 500) + '...';
-  };
 
   const extractResponsibilities = (text: string): string[] => {
     const responsibilities: string[] = [];

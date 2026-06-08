@@ -6,6 +6,20 @@ interface JobPostingSelectionPageProps {
   user?: any;
 }
 
+const bulkSteps = [
+  'Upload CSV, PDFs, DOCX, or ZIP',
+  'AI parses every JD automatically',
+  'Preview, edit & validate all jobs',
+  'Bulk publish in one click',
+  'Jobs go live instantly',
+];
+
+const bulkFeatures = [
+  'Parse 100+ JDs in minutes',
+  'AI extracts title, skills, salary & more',
+  'Edit & fix any job before publishing',
+];
+
 const manualSteps = [
   'Fill in job title, location & company',
   'Set job type, pay & benefits',
@@ -122,7 +136,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
         </div>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto items-stretch anim-fade-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto items-stretch anim-fade-3">
 
           {/* Manual Creation — purple theme */}
           <div onClick={() => onNavigate('job-posting', { mode: 'manual' })}
@@ -171,7 +185,7 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
 
           {/* Parse Job Details — orange theme */}
           <div onClick={() => onNavigate('job-parsing')}
-            className="card-ai card-float rounded-2xl p-7 cursor-pointer flex flex-col">
+            className="card-ai card-float rounded-2xl p-6 cursor-pointer flex flex-col">
 
             <div className="flex items-center gap-4 mb-5">
               <div className="w-14 h-14 flex items-center justify-center rounded-xl flex-shrink-0 shadow-lg"
@@ -209,6 +223,54 @@ const JobPostingSelectionPage: React.FC<JobPostingSelectionPageProps> = ({ onNav
             <div className="mt-auto flex items-center justify-between pt-2">
               <span className="text-xs text-orange-100/80 uppercase tracking-wider font-medium">Fastest Way</span>
               <button className="bg-white text-orange-600 font-semibold text-sm px-5 py-2 rounded-lg flex items-center gap-1.5 hover:bg-orange-50 transition-colors">
+                Get Started
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Bulk Import — green theme */}
+          <div onClick={() => onNavigate('bulk-job-import')}
+            className="card-float rounded-2xl p-6 cursor-pointer flex flex-col"
+            style={{ background: 'linear-gradient(145deg, #16a34a 0%, #22c55e 60%, #4ade80 100%)', border: 'none', transition: 'box-shadow 0.3s, transform 0.3s' }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 40px rgba(22,163,74,0.45)'; (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = ''; (e.currentTarget as HTMLElement).style.transform = ''; }}
+          >
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-14 h-14 flex items-center justify-center rounded-xl flex-shrink-0 shadow-lg"
+                style={{ background: 'rgba(255,255,255,0.2)', boxShadow: '0 0 16px rgba(255,255,255,0.15)' }}>
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-white">Bulk Import</h3>
+                  <span style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.5)', color: '#fff' }} className="text-xs px-2 py-0.5 rounded-full font-semibold">NEW</span>
+                </div>
+                <p className="text-green-100 text-sm mt-0.5">Import 100s of jobs at once</p>
+              </div>
+            </div>
+            <div className="space-y-2.5 mb-5">
+              {bulkSteps.map((text, i) => (
+                <div key={i} className="flex items-center gap-3 min-h-[24px]">
+                  <span style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.5)', color: '#fff' }} className="w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                  <span className="text-sm text-slate-200">{text}</span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-white/20 pt-4 space-y-1.5 mb-5">
+              {bulkFeatures.map(f => (
+                <div key={f} className="flex items-center gap-2 text-xs text-green-50">
+                  <span className="text-white">✓</span><span>{f}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-auto flex items-center justify-between pt-2">
+              <span className="text-xs text-green-100/80 uppercase tracking-wider font-medium">Recruiters & Agencies</span>
+              <button className="bg-white text-green-700 font-semibold text-sm px-5 py-2 rounded-lg flex items-center gap-1.5 hover:bg-green-50 transition-colors">
                 Get Started
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

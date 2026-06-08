@@ -137,11 +137,11 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({
 
     if (!isLinkedin && !wasPending) return;
 
-    // Clean up
+    // Clean up URL
     window.history.replaceState({}, document.title, window.location.pathname);
     sessionStorage.removeItem('linkedin_oauth_pending');
 
-    if (!isLinkedin) return; // returned without linkedin param — just reset silently
+    if (!isLinkedin) return;
 
     if (linkedinError || !token) {
       setErrorMsg(
@@ -153,6 +153,8 @@ const LinkedInConnect: React.FC<LinkedInConnectProps> = ({
       return;
     }
 
+    // Store the LinkedIn token so apiFetch can use it for the profile save
+    sessionStorage.setItem('linkedin_token', token);
     fetchLinkedInProfile(token);
   }, []);
 

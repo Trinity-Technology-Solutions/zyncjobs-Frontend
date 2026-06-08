@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle, IndianRupee, Calendar, Users, Award, Target, Code, Zap, MessageSquare } from 'lucide-react';
+import { MapPin, Briefcase, Clock, Building, Share2, CheckCircle } from 'lucide-react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { getSafeCompanyLogo, getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/constants';
-import { formatJobDescription, formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
-import { decodeHtmlEntities, htmlToFormattedText } from '../utils/htmlUtils';
+import { formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
 

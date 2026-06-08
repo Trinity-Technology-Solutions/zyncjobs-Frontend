@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Target, TrendingUp, Loader, ChevronRight, BookOpen, Zap, RotateCcw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Target, TrendingUp, ChevronRight, BookOpen, Zap, RotateCcw } from 'lucide-react';
 import { AIFeatureLoader } from '../components/AIProgressLoader';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { callAIWithFallback, generateCareerRoadmap } from '../services/aiChatService';
+import { generateCareerRoadmap } from '../services/aiChatService';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -60,7 +60,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
   const [experience, setExperience] = useState('');
   const [loading, setLoading] = useState(false);
   const [roadmap, setRoadmap] = useState<Roadmap | null>(null);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
   const [expandedStep, setExpandedStep] = useState<number | null>(0);
 
   // Pre-fill from localStorage
@@ -115,7 +115,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
     }
   };
 
-  const buildFallback = (current: string, target: string, exp: string): Roadmap => ({
+  const buildFallback = (current: string, target: string, _exp: string): Roadmap => ({
     currentRole: current,
     targetRole: target,
     totalTimeframe: '2-3 years',
