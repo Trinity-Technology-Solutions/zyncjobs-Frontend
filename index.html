@@ -1,16 +1,16 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/favicon_io/favicon.ico" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicon_io/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicon_io/favicon-16x16.png" />
-    <link rel="apple-touch-icon" href="/favicon_io/apple-touch-icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon_io/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon_io/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon_io/favicon-16x16.png">
+    <link rel="apple-touch-icon" href="/favicon_io/apple-touch-icon.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5">
     <title>ZyncJobs | AI-Powered Job Portal for Job Seekers and Employers</title>
-    <meta name="description" content="Discover jobs faster with ZyncJobs, an AI-powered job portal and job search platform. Search job openings, browse jobs, and post jobs with ease." />
-    <meta name="google-site-verification" content="REXs0aHgtN2uzuPnDEyXj7QbMhYcx4OY-q7hLvV0w_w" />
-    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    <meta name="description" content="Discover jobs faster with ZyncJobs, an AI-powered job portal and job search platform. Search job openings, browse jobs, and post jobs with ease.">
+    <meta name="google-site-verification" content="REXs0aHgtN2uzuPnDEyXj7QbMhYcx4OY-q7hLvV0w_w">
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml">
 
     <!-- Schema.org: Organization -->
     <script type="application/ld+json">
@@ -143,20 +143,20 @@
     </script>
 
     <!-- Open Graph / WhatsApp / LinkedIn -->
-    <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="ZyncJobs" />
-    <meta property="og:title" content="ZyncJobs | AI-Powered Job Portal for Job Seekers and Employers" />
-    <meta property="og:description" content="Discover jobs faster with ZyncJobs, an AI-powered job portal and job search platform. Search job openings, browse jobs, and post jobs with ease." />
-    <meta property="og:image" content="https://www.zyncjobs.com/images/zyncjobs-logo.png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:url" content="https://www.zyncjobs.com" />
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="ZyncJobs">
+    <meta property="og:title" content="ZyncJobs | AI-Powered Job Portal for Job Seekers and Employers">
+    <meta property="og:description" content="Discover jobs faster with ZyncJobs, an AI-powered job portal and job search platform. Search job openings, browse jobs, and post jobs with ease.">
+    <meta property="og:image" content="https://www.zyncjobs.com/images/zyncjobs-logo.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:url" content="https://www.zyncjobs.com">
     <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="ZyncJobs | AI-Powered Job Portal" />
-    <meta name="twitter:description" content="Discover jobs faster with ZyncJobs. Search job openings, browse jobs, and post jobs with ease." />
-    <meta name="twitter:image" content="https://www.zyncjobs.com/images/zyncjobs-logo.png" />
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ZyncJobs | AI-Powered Job Portal">
+    <meta name="twitter:description" content="Discover jobs faster with ZyncJobs. Search job openings, browse jobs, and post jobs with ease.">
+    <meta name="twitter:image" content="https://www.zyncjobs.com/images/zyncjobs-logo.png">
     
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#dc2626">
@@ -167,12 +167,18 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
     
+    <!-- Preload LCP hero image -->
+    <link rel="preload" as="image" href="/images/women.png" fetchpriority="high">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
+    <style>#root{background-color:#f9fafb;min-height:100vh;} body{font-family:'IBM Plex Sans',system-ui,sans-serif;}</style>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>#root{background-color:#f9fafb;min-height:100vh;}</style>
-    <script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.10/dist/dotlottie-wc.js" type="module"></script>
+    <!-- dotlottie deferred -->
+    <script defer src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.10/dist/dotlottie-wc.js" type="module"></script>
   </head>
   <body style="font-family: 'IBM Plex Sans', sans-serif !important; background-color: #f9fafb;">
     <div id="root"></div>

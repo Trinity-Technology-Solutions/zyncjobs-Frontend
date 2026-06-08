@@ -4,11 +4,6 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import GlobalAlert from './components/GlobalAlert';
 import NewHero from './components/NewHero';
-import JobCategories from './components/JobCategories';
-import LatestJobs from './components/LatestJobs';
-import HowItWorks from './components/HowItWorks';
-import TalentedPeople from './components/TalentedPeople';
-import CallToAction from './components/CallToAction';
 import OfflineIndicator from './components/OfflineIndicator';
 import Notification from './components/Notification';
 import ChatWidget from './components/ChatWidget';
@@ -18,6 +13,12 @@ import TokenHandler from './components/TokenHandler';
 import ErrorBoundary from './components/ErrorBoundary';
 import CookieConsentBanner from './components/CookieConsentBanner';
 import SEOHead from './components/SEOHead';
+// Lazy-load below-fold home page sections
+const JobCategories = lazy(() => import('./components/JobCategories'));
+const LatestJobs = lazy(() => import('./components/LatestJobs'));
+const HowItWorks = lazy(() => import('./components/HowItWorks'));
+const TalentedPeople = lazy(() => import('./components/TalentedPeople'));
+const CallToAction = lazy(() => import('./components/CallToAction'));
 import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
@@ -96,6 +97,7 @@ const PrivacySettingsPage = lazy(() => import('./pages/PrivacySettingsPage'));
 const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -230,6 +232,7 @@ function App() {
     if (page === 'login') { navigate('/login'); return; }
     if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
+    if (page === 'bulk-job-import') { navigate('/bulk-job-import'); return; }
     const target = `/${page}`;
     if (currentPath !== target) { navigate(target); window.scrollTo({ top: 0, behavior: 'smooth' }); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -530,6 +533,7 @@ function App() {
       '/application-management', '/candidate-profile-view', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
       '/recruiter-actions', '/search-appearances',
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
+      '/bulk-job-import',
       '/admin/dashboard', '/admin/login'];
     if (protectedPaths.some(p => location.pathname.startsWith(p))) {
       return <LoadingFallback />;
@@ -553,6 +557,7 @@ function App() {
 
   return (
     <>
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded focus:font-medium">Skip to main content</a>
       <GlobalAlert />
       <SEOHead />
       <OfflineIndicator />
@@ -565,6 +570,7 @@ function App() {
       />
 
       <Suspense fallback={<LoadingFallback />}>
+        <main id="main-content">
         <Routes>
           {/* -- Public home -- */}
           <Route path="/" element={
@@ -820,6 +826,12 @@ function App() {
             </AuthGuard>
           } />
 
+          <Route path="/bulk-job-import" element={
+            <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+              <BulkJobImportPage onNavigate={handleNavigation} user={user as any} />
+            </AuthGuard>
+          } />
+
           {/* -- Protected: employer only -- */}
           <Route path="/job-posting" element={
             <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}><WithLayout {...nav}><JobPostingPage {...nav} mode={location.state?.mode || (()=>{try{const s=JSON.parse(sessionStorage.getItem('parsedJobData')||'{}');if(s?.parsedData){sessionStorage.removeItem('parsedJobData');return s.mode;}return undefined;}catch{return undefined;}})()} parsedData={location.state?.parsedData || (()=>{try{const s=JSON.parse(sessionStorage.getItem('parsedJobData')||'{}');return s?.parsedData||undefined;}catch{return undefined;}})()} /></WithLayout></AuthGuard>
@@ -1001,6 +1013,7 @@ function App() {
             </WithLayout>
           } />
         </Routes>
+        </main>
       </Suspense>
 
       {/* Global modals */}

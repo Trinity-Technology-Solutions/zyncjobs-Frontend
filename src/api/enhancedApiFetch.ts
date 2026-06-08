@@ -3,7 +3,6 @@
  */
 
 import { tokenStorage } from '../utils/tokenStorage';
-import { handleApiError } from '../utils/errorHandler';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -26,12 +25,13 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
   retryOn5xx: true
 };
 
-function assertSafeUrl(url: string): void {
-  if (url.startsWith('/')) return;
-  const base = API_BASE.startsWith('http') ? API_BASE : window.location.origin + API_BASE;
-  if (!url.startsWith(base)) {
+function resolveSafeUrl(url: string): string {
+  const base = (API_BASE.startsWith('http') ? API_BASE : window.location.origin + API_BASE).replace(/\/$/, '');
+  const resolved = url.startsWith('/') ? window.location.origin + url : url;
+  if (!resolved.replace(/\/$/, '').startsWith(base)) {
     throw new Error(`Blocked request to disallowed URL: ${url}`);
   }
+  return resolved;
 }
 
 let isRefreshing = false;
@@ -90,13 +90,13 @@ export async function apiFetch(
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  assertSafeUrl(url);
-  
+  const safeUrl = resolveSafeUrl(url);
+
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
     try {
-      const response = await fetch(url, { ...options, headers });
+      const response = await fetch(safeUrl, { ...options, headers });
       
       // Handle 5xx errors with retry logic
       if (response.status >= 500 && response.status < 600) {
@@ -134,7 +134,7 @@ export async function apiFetch(
           return new Promise(resolve => {
             refreshQueue.push(async (newToken: string) => {
               headers.set('Authorization', `Bearer ${newToken}`);
-              resolve(fetch(url, { ...options, headers }));
+              resolve(fetch(safeUrl, { ...options, headers }));
             });
           });
         }
@@ -147,7 +147,7 @@ export async function apiFetch(
 
         onRefreshed(newToken);
         headers.set('Authorization', `Bearer ${newToken}`);
-        return fetch(url, { ...options, headers });
+        return fetch(safeUrl, { ...options, headers });
       }
 
       // Success - return response
@@ -166,7 +166,7 @@ export async function apiFetch(
   }
 
   // All retries exhausted
-  console.error(`API call failed after ${config.maxRetries + 1} attempts:`, lastError);
+  console.error(`API call failed after ${config.maxRetries + 1} attempts:`, lastError?.message?.replace(/[\r\n]/g, '') ?? 'Unknown error');
   return new Response(JSON.stringify({ 
     error: 'Network error',
     message: 'Unable to connect to server. Please check your connection and try again.',

@@ -32,34 +32,23 @@ export default {
         'float': 'float 6s ease-in-out infinite',
         'glow': 'glow 2s ease-in-out infinite alternate',
         'shimmer': 'shimmer 2s linear infinite',
-        'border-beam': 'border-beam 3s linear infinite',
       },
       keyframes: {
         gradient: {
-          '0%, 100%': {
-            'background-size': '200% 200%',
-            'background-position': 'left center',
-          },
-          '50%': {
-            'background-size': '200% 200%',
-            'background-position': 'right center',
-          },
+          '0%, 100%': { 'background-position': 'left center' },
+          '50%': { 'background-position': 'right center' },
         },
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-10px)' },
         },
         glow: {
-          '0%': { 'box-shadow': '0 0 5px rgba(59, 130, 246, 0.5), 0 0 10px rgba(59, 130, 246, 0.3)' },
-          '100%': { 'box-shadow': '0 0 20px rgba(59, 130, 246, 0.8), 0 0 30px rgba(59, 130, 246, 0.5)' },
+          '0%': { 'box-shadow': '0 0 5px rgba(59,130,246,0.5)' },
+          '100%': { 'box-shadow': '0 0 20px rgba(59,130,246,0.8)' },
         },
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
           '100%': { transform: 'translateX(100%)' },
-        },
-        'border-beam': {
-          '0%': { 'offset-distance': '0%' },
-          '100%': { 'offset-distance': '100%' },
         },
         fadeIn: {
           '0%': { opacity: '0', transform: 'translateY(8px)' },
@@ -67,14 +56,11 @@ export default {
         },
       },
       boxShadow: {
-        'glow-sm': '0 0 10px rgba(59, 130, 246, 0.3)',
-        'glow': '0 0 20px rgba(59, 130, 246, 0.4)',
-        'glow-lg': '0 0 30px rgba(59, 130, 246, 0.5)',
-        'neon': '0 0 5px theme(colors.blue.400), 0 0 20px theme(colors.blue.600)',
+        'glow-sm': '0 0 10px rgba(59,130,246,0.3)',
+        'glow': '0 0 20px rgba(59,130,246,0.4)',
+        'glow-lg': '0 0 30px rgba(59,130,246,0.5)',
       },
     },
   },
-  plugins: [
-    require('@tailwindcss/line-clamp'),
-  ],
+  plugins: [],
 };

@@ -743,11 +743,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
   ];
 
-  const [headerHeight, setHeaderHeight] = React.useState(96);
+  const [headerHeight, setHeaderHeight] = React.useState(0);
 
   React.useLayoutEffect(() => {
-    const header = document.querySelector('header');
-    if (header) setHeaderHeight(header.getBoundingClientRect().height);
+    const measure = () => {
+      const header = document.querySelector('header');
+      if (header) setHeaderHeight(header.getBoundingClientRect().height);
+    };
+    measure();
+    // Retry after a tick in case header isn't in DOM yet on first render
+    const t = setTimeout(measure, 50);
+    window.addEventListener('resize', measure);
+    return () => { clearTimeout(t); window.removeEventListener('resize', measure); };
   }, []);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);

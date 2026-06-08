@@ -1078,22 +1078,24 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           <div className="flex justify-center space-x-1 mb-6 flex-wrap gap-2">
             <button 
               onClick={() => setActiveTab('search')}
-              className={`px-6 py-3 rounded-full font-medium flex items-center space-x-2 transition-all ${
+              className={`px-6 py-3 rounded-full font-semibold flex items-center space-x-2 transition-all ${
                 activeTab === 'search' 
                   ? 'bg-white text-gray-900 shadow-lg' 
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  : 'text-white bg-white/20 hover:bg-white/30 border border-white/40'
               }`}
+              aria-pressed={activeTab === 'search'}
             >
               <Search className="w-4 h-4" />
               <span>Search Jobs</span>
             </button>
             <button 
               onClick={() => setActiveTab('recommended')}
-              className={`px-6 py-3 rounded-full font-medium flex items-center space-x-2 transition-all ${
+              className={`px-6 py-3 rounded-full font-semibold flex items-center space-x-2 transition-all ${
                 activeTab === 'recommended' 
                   ? 'bg-white text-gray-900 shadow-lg' 
-                  : 'text-white/80 hover:text-white hover:bg-white/10'
+                  : 'text-white bg-white/20 hover:bg-white/30 border border-white/40'
               }`}
+              aria-pressed={activeTab === 'recommended'}
             >
               <TrendingUp className="w-4 h-4" />
               <span>Recommended Jobs</span>
@@ -1104,7 +1106,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           {activeTab === 'search' && (
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
               <div className="flex-1">
+                <label htmlFor="job-search-input" className="sr-only">Job title, skill, company or keyword</label>
                 <EnhancedSearchInput
+                  id="job-search-input"
                   placeholder="Job title, skill, company, keyword"
                   value={searchTerm}
                   onChange={setSearchTerm}
@@ -1118,7 +1122,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 />
               </div>
               <div className="flex-1">
+                <label htmlFor="location-search-input" className="sr-only">Location</label>
                 <EnhancedSearchInput
+                  id="location-search-input"
                   placeholder="Location (ex. Denver, remote)"
                   value={location}
                   onChange={setLocation}
@@ -1131,7 +1137,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 />
               </div>
             <div className="flex gap-2">
+              <label htmlFor="radius-select" className="sr-only">Search radius in kilometres</label>
               <select
+                id="radius-select"
                 value={radius}
                 onChange={(e) => {
                   const newRadius = Number(e.target.value);
@@ -1186,10 +1194,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             )}
             <button
               onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
-              className={`px-3 py-1 rounded-full text-sm border ${
+              className={`px-3 py-1 rounded-full text-sm border font-medium ${
                 activeQuickFilter === '24h'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-400 text-blue-800'
+                  : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
               }`}
             >
               <Clock className="w-3 h-3 inline mr-1" />
@@ -1197,10 +1205,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             </button>
             <button
               onClick={() => handleQuickFilter('7d', 'freshness', '7d')}
-              className={`px-3 py-1 rounded-full text-sm border ${
+              className={`px-3 py-1 rounded-full text-sm border font-medium ${
                 activeQuickFilter === '7d'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-100 border-blue-400 text-blue-800'
+                  : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
               }`}
             >
               <Clock className="w-3 h-3 inline mr-1" />
@@ -1208,10 +1216,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             </button>
             <button
               onClick={() => handleQuickFilter('remote', 'workMode', 'Remote')}
-              className={`px-3 py-1 rounded-full text-sm border ${
+              className={`px-3 py-1 rounded-full text-sm border font-medium ${
                 activeQuickFilter === 'remote'
-                  ? 'bg-blue-100 border-blue-300 text-blue-700 shadow-sm'
-                  : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
+                  ? 'bg-blue-100 border-blue-400 text-blue-800 shadow-sm'
+                  : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50 hover:border-gray-500'
               }`}
             >
               <MapPin className="w-3 h-3 inline mr-1" />

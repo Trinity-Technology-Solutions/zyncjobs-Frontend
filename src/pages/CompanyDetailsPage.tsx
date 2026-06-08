@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Star, MapPin, IndianRupee, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
-import { getCompanyLogo } from '../utils/logoUtils';
-import { companyDataService, EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
+import { EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
 
 interface Company {
   _id: string;
@@ -80,12 +79,12 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [activeTab, setActiveTab] = useState<'overview' | 'jobs' | 'reviews'>('overview');
   
   // Dynamic data states
-  const [enhancedData, setEnhancedData] = useState<EnhancedCompanyData | null>(null);
+  const [_enhancedData, setEnhancedData] = useState<EnhancedCompanyData | null>(null);
   const [benefits, setBenefits] = useState<CompanyBenefit[]>([]);
-  const [departments, setDepartments] = useState<CompanyDepartment[]>([]);
-  const [salaries, setSalaries] = useState<EmployeeSalary[]>([]);
-  const [reviewBreakdown, setReviewBreakdown] = useState<any>(null);
-  const [similarCompanies, setSimilarCompanies] = useState<any[]>([]);
+  const [departments, _setDepartments] = useState<CompanyDepartment[]>([]);
+  const [salaries, _setSalaries] = useState<EmployeeSalary[]>([]);
+  const [_reviewBreakdown, _setReviewBreakdown] = useState<any>(null);
+  const [_similarCompanies, _setSimilarCompanies] = useState<any[]>([]);
 
   const isCandidate = user?.role === 'candidate' || user?.userType === 'candidate' || user?.type === 'candidate';
   const isEmployer = user?.role === 'employer' || user?.userType === 'employer' || user?.type === 'employer';

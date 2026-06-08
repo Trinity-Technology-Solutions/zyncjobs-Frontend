@@ -20,8 +20,12 @@ Sentry.init({
 // Setup global error handling
 setupGlobalErrorHandler();
 
-// Start backend monitoring
-backendMonitor.startMonitoring();
+// Start backend monitoring after page load (don't block initial render)
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => {
+    setTimeout(() => backendMonitor.startMonitoring(), 3000);
+  });
+}
 
 
 // Suppress browser extension errors

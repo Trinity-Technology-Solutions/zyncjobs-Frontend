@@ -10,13 +10,13 @@ import { tokenStorage } from '../utils/tokenStorage';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
-function assertSafeUrl(url: string): void {
-  if (url.startsWith('/')) return;
+function resolveSafeUrl(url: string): string {
   const base = (API_BASE.startsWith('http') ? API_BASE : window.location.origin + API_BASE).replace(/\/$/, '');
-  const normalizedUrl = url.replace(/\/$/, '');
-  if (!normalizedUrl.startsWith(base)) {
+  const resolved = url.startsWith('/') ? window.location.origin + url : url;
+  if (!resolved.replace(/\/$/, '').startsWith(base)) {
     throw new Error(`Blocked request to disallowed URL: ${url}`);
   }
+  return resolved;
 }
 
 let isRefreshing = false;
@@ -59,14 +59,14 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
-  assertSafeUrl(url);
-  
+  const safeUrl = resolveSafeUrl(url);
+
   try {
-    const response = await fetch(url, { ...options, headers });
+    const response = await fetch(safeUrl, { ...options, headers });
     
     // Handle 502 errors gracefully
     if (response.status === 502) {
-      console.warn(`Backend unavailable: ${url}`);
+      console.warn(`Backend unavailable: ${url.replace(/[\r\n]/g, '')}`);
       return new Response(JSON.stringify({ error: 'Service temporarily unavailable' }), {
         status: 502,
         headers: { 'Content-Type': 'application/json' }
@@ -90,7 +90,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
         if (newToken) {
           onRefreshed(newToken);
           headers.set('Authorization', `Bearer ${newToken}`);
-          return fetch(url, { ...options, headers });
+          return fetch(safeUrl, { ...options, headers });
         }
       }
       // Refresh failed or token truly invalid — force logout
@@ -104,7 +104,7 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
       return new Promise(resolve => {
         refreshQueue.push(async (newToken: string) => {
           headers.set('Authorization', `Bearer ${newToken}`);
-          resolve(fetch(url, { ...options, headers })); // url already validated above
+          resolve(fetch(safeUrl, { ...options, headers }));
         });
       });
     }
@@ -122,9 +122,9 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
 
     // Retry original request with new token
     headers.set('Authorization', `Bearer ${newToken}`);
-    return fetch(url, { ...options, headers }); // url already validated above
+    return fetch(safeUrl, { ...options, headers });
   } catch (error) {
-    console.warn(`Network error for ${url}:`, error);
+    console.warn(`Network error for ${url.replace(/[\r\n]/g, '')}:`, error);
     return new Response(JSON.stringify({ error: 'Network error' }), {
       status: 502,
       headers: { 'Content-Type': 'application/json' }
