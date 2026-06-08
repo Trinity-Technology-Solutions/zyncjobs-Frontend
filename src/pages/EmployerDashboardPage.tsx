@@ -21,6 +21,9 @@ import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 
+// Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
+const _missingJobIds = new Set<string>();
+
 interface EmployerDashboardPageProps {
   onNavigate: (page: string, params?: any) => void;
   onLogout?: () => void;
@@ -105,7 +108,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             const otherId = msg.senderId === userId ? msg.receiverId : msg.senderId;
             try {
               const uRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/${otherId}`);
-              const uData = uRes.ok ? await uRes.json() : {};
+              const uData = (uRes.ok) ? await uRes.json() : {};
               return {
                 ...c,
                 otherName: uData.name || uData.fullName || 'Candidate',
@@ -165,11 +168,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
           
-          console.log('Fetching dynamic notifications for:', userEmail);
-          
-          // Use the notification service to fetch dynamic notifications
           const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
-          console.log('Dynamic notifications received:', dynamicNotifications);
           setNotifications(dynamicNotifications);
         }
       } catch (error) {
@@ -181,13 +180,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     
     const createFallbackNotifications = () => {
       // Use the notification service to create fallback notifications
-      const fallbackNotifications = NotificationService.createFallbackNotifications(
-        applications, 
-        interviews, 
-        jobs
-      );
-      
-      console.log('Using fallback notifications:', fallbackNotifications.length);
+      const fallbackNotifications = NotificationService.createFallbackNotifications(applications, interviews, jobs);
       setNotifications(fallbackNotifications);
     };
     
@@ -200,17 +193,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return () => {
       clearInterval(notificationInterval);
     };
-  }, [applications, interviews, jobs]); // Depend on real data
+  }, []); // Run once on mount only
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
       const parsedUser = JSON.parse(userData);
-      console.log('Dashboard - User data:', parsedUser);
-      console.log('Dashboard - Company name:', parsedUser.companyName);
-      console.log('Dashboard - Email:', parsedUser.email);
-      
-      // Force clear any cached state that might interfere
       setJobs([]);
       setApplications([]);
       setInterviews([]);
@@ -252,7 +240,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       // Fix: Use actual company name from registration, not generic 'Company'
       // For team members, prefer the owner's companyName stored in their profile
       const actualCompanyName = parsedUser.companyName || parsedUser.ownerCompanyName || parsedUser.company || parsedUser.organizationName || 'Company';
-      console.log('Dashboard - Actual company name:', actualCompanyName);
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
       
@@ -287,16 +274,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     }
     
     // Listen for alerts navigation event from header
-    const handleShowAlerts = () => {
-      console.log('Show alerts event received');
-      setActiveMenu('alerts');
-    };
-    
-    // Listen for applications navigation event from header
-    const handleShowApplications = () => {
-      console.log('Show applications event received');
-      setActiveMenu('applications');
-    };
+    const handleShowAlerts = () => setActiveMenu('alerts');
+    const handleShowApplications = () => setActiveMenu('applications');
     
     window.addEventListener('showAlerts', handleShowAlerts);
     window.addEventListener('showApplications', handleShowApplications);
@@ -326,12 +305,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   useEffect(() => {
     const handleFocus = () => {}; // removed aggressive refetch
     
-    const handleJobDeleted = () => {
-      if (user) {
-        console.log('Job deleted event received, refreshing dashboard data...');
-        fetchDashboardData(user);
-      }
-    };
+    const handleJobDeleted = () => { if (user) fetchDashboardData(user); };
     
     window.addEventListener('focus', handleFocus);
     window.addEventListener('jobDeleted', handleJobDeleted);
@@ -345,9 +319,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const fetchDashboardData = async (userData: any) => {
     try {
       setError(null);
-      console.log('Fetching dashboard data for user:', userData);
-      
-      // Get user ID - try different possible fields
       const userId = userData.id || userData._id || userData.userId;
       // For team members: use the owner's employerId to fetch owner's data
       const ownerEmployerId = userData.employerId; // set by backend when team member is created
@@ -357,9 +328,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       // For team members, use the owner's email/company to load shared company data
       const ownerEmail = userData.ownerEmail || userData.employerOwnerId || userData.employerEmail || userEmail;
       
-      console.log('Using userId:', userId, 'userEmail:', userEmail, 'userName:', userName);
-      
-      // Fetch data with individual error handling for each endpoint
       let employerJobs = [];
       let employerApps = [];
       let dashboardStats = { activeJobs: 0, applications: 0, interviews: 0, hired: 0 };
@@ -370,7 +338,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const jobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
-          console.log('Dashboard - All jobs:', allJobs.length);
           const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
           const myEmployerId = storedUser.employerId;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
@@ -393,7 +360,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             );
             return matchesEmail || matchesEmployerId || matchesMyEmployerId;
           }) : [];
-          console.log('Dashboard - Filtered employer jobs:', employerJobs.length);
           setJobs(employerJobs);
           dashboardStats.activeJobs = employerJobs.length;
         } else {
@@ -417,13 +383,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           const appsWithJobDetails = await Promise.all(
             allApps.map(async (app: any) => {
               const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
-              if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined') {
+              // Skip enrichment if jobId missing, non-string, already has title, or known 404
+              if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined' && !app.jobTitle && !_missingJobIds.has(appJobId)) {
                 try {
-                  const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
+                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
                     return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Job Position' };
                   }
+                  _missingJobIds.add(appJobId);
                 } catch { /* non-critical */ }
               }
               return app;
@@ -442,7 +410,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(ownerEmployerId || userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
+        // Only send employerId if it's a valid non-numeric ID (UUID/ObjectId)
+        const isValidId = (id: any) => id && typeof id === 'string' && !/^\d+$/.test(id);
+        const interviewEmployerId = isValidId(ownerEmployerId) ? ownerEmployerId : isValidId(userId) ? userId : '';
+        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
@@ -527,52 +498,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
 
   const getDisplayLogo = () => {
-    console.log('getDisplayLogo called with:', {
-      companyLogo,
-      companyName,
-      employerName,
-      userEmail: user?.email
-    });
-    
-    // 1. Use stored logo from profile/localStorage (set during complete-profile or register)
-    if (companyLogo && companyLogo.trim() !== '') {
-      console.log('Using stored company logo:', companyLogo);
-      return companyLogo;
-    }
+    if (companyLogo && companyLogo.trim() !== '') return companyLogo;
 
-    // 2. Trinity special case - try webp first, then png
-    const isTrinity = user?.email?.includes('@trinitetech') || 
-                     user?.email?.includes('trinity') ||
-                     companyName?.toLowerCase().includes('trinity') ||
-                     employerName?.toLowerCase().includes('trinity');
-    
-    if (isTrinity) {
-      console.log('Trinity detected, using Trinity logo');
-      return '/images/trinity-logo.webp'; // Try webp first since it exists
-    }
+    const isTrinity = user?.email?.includes('@trinitetech') || user?.email?.includes('trinity') ||
+                     companyName?.toLowerCase().includes('trinity') || employerName?.toLowerCase().includes('trinity');
+    if (isTrinity) return '/images/trinity-logo.webp';
 
-    // 3. Nambikkai special case
-    // 3. Inypeople special case
-    const isInypeople = companyName?.toLowerCase().includes('inypeople') ||
-                       companyName?.toLowerCase().includes('iny people') ||
-                       employerName?.toLowerCase().includes('inypeople') ||
-                       employerName?.toLowerCase().includes('iny people');
+    const isInypeople = companyName?.toLowerCase().includes('inypeople') || companyName?.toLowerCase().includes('iny people') ||
+                       employerName?.toLowerCase().includes('inypeople') || employerName?.toLowerCase().includes('iny people');
+    if (isInypeople) return '/images/company-logos/inypeople-logo.png';
 
-    if (isInypeople) {
-      console.log('Inypeople detected, using Inypeople logo');
-      return '/images/company-logos/inypeople-logo.png';
-    }
+    const isNambikkai = companyName?.toLowerCase().includes('nambikkai') || employerName?.toLowerCase().includes('nambikkai');
+    if (isNambikkai) return '/images/company-logos/nambikkai-logo.png';
 
-    // 4. Nambikkai special case
-    const isNambikkai = companyName?.toLowerCase().includes('nambikkai') ||
-                       employerName?.toLowerCase().includes('nambikkai');
-    
-    if (isNambikkai) {
-      console.log('Nambikkai detected, using Nambikkai logo');
-      return '/images/company-logos/nambikkai-logo.png';
-    }
-
-    // 4. Use logo.dev with guessed domain
     const domainMap: Record<string, string> = {
       zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
       google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
@@ -581,26 +519,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     };
     const n = (companyName || '').toLowerCase();
     for (const [key, domain] of Object.entries(domainMap)) {
-      if (n.includes(key)) {
-        console.log('Using logo.dev for:', domain);
-        return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
-      }
+      if (n.includes(key)) return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
     }
 
-    // 5. Try email domain (non-generic)
     if (user?.email?.includes('@')) {
       const emailDomain = user.email.split('@')[1];
       if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain)) {
-        console.log('Using email domain logo:', emailDomain);
         return `https://img.logo.dev/${emailDomain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
       }
     }
 
-    // 6. Letter avatar fallback - return a proper circular SVG
     const displayName = companyName && companyName !== 'Company' ? companyName : employerName;
     const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
-    console.log('Using letter avatar fallback for:', displayName, 'initials:', initials);
-    
     return `data:image/svg+xml,${encodeURIComponent(
       `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
         <circle cx="32" cy="32" r="32" fill="#1e40af"/>
@@ -813,15 +743,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       onError={(e) => {
                         const img = e.target as HTMLImageElement;
                         const displayName = companyName || employerName;
-                        console.log('Logo error for:', displayName, 'Current src:', img.src);
-                        
-                        // Try Trinity logo first if it's Trinity related
                         if ((displayName.toLowerCase().includes('trinity') || 
                              user?.email?.includes('trinity') || 
                              user?.email?.includes('@trinitetech')) && 
                             !img.src.includes('trinity-logo')) {
-                          console.log('Trying Trinity logo...');
-                          // Try both .png and .webp versions
                           if (!img.src.includes('trinity-logo.webp')) {
                             img.src = '/images/trinity-logo.webp';
                           } else {
@@ -829,27 +754,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           }
                           return;
                         }
-                        
-                        // Try Nambikkai logo
-                        if (displayName.toLowerCase().includes('nambikkai') && 
-                            !img.src.includes('nambikkai-logo.png')) {
+                        if (displayName.toLowerCase().includes('nambikkai') && !img.src.includes('nambikkai-logo.png')) {
                           img.src = '/images/company-logos/nambikkai-logo.png';
                           return;
                         }
-                        
-                        // Generate initials fallback with proper styling
                         const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
                         const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
-                          `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-                            <circle cx="32" cy="32" r="32" fill="#1e40af"/>
-                            <text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text>
-                          </svg>`
+                          `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#1e40af"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text></svg>`
                         )}`;
-                        
-                        if (img.src !== fallbackUrl) {
-                          console.log('Using initials fallback:', initials);
-                          img.src = fallbackUrl;
-                        }
+                        if (img.src !== fallbackUrl) img.src = fallbackUrl;
                       }}
                     />
                   </div>
@@ -1563,184 +1476,132 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 ) : (
                 <div className="space-y-4">
                   {filtered.map((application) => (
-                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow duration-200">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-600 font-semibold text-sm">
-                              {application.candidateName?.charAt(0).toUpperCase() || 'C'}
-                            </span>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2 mb-1">
-                              <h3 className="text-base font-bold text-gray-900 truncate">
-                                {application.candidateName || application.candidateEmail}
-                              </h3>
-                              <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                application.status === 'applied' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                application.status === 'reviewed' ? 'bg-yellow-50 text-yellow-700 border border-yellow-200' :
-                                application.status === 'shortlisted' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                application.status === 'hired' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
-                                application.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                'bg-gray-50 text-gray-600 border border-gray-200'
-                              }`}>
-                                {application.status.charAt(0).toUpperCase() + application.status.slice(1)}
-                              </span>
+                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
+                      {/* Mobile: stacked layout | Desktop: side-by-side */}
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        {/* Candidate info */}
+                        <div className="flex-1 min-w-0">
+                          {/* Avatar + name row */}
+                          <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                            <div className="hidden sm:flex w-12 h-12 bg-gray-100 rounded-full items-center justify-center flex-shrink-0">
+                              <span className="text-gray-600 font-bold text-lg">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
                             </div>
-                            <p className="text-xs text-blue-700 font-semibold flex items-center gap-1 overflow-hidden">
-                              <Briefcase className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate">Applied for: {application.jobTitle || 'Job Position'}</span>
-                            </p>
+                            <div className="flex sm:hidden w-8 h-8 bg-gray-100 rounded-full items-center justify-center flex-shrink-0 mt-0.5">
+                              <span className="text-gray-600 font-bold text-sm">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                              <p className="text-xs text-blue-700 font-semibold flex items-start gap-1 mt-0.5 leading-snug">
+                                <Briefcase className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                <span>Applied for: {application.jobTitle || 'Job Position'}</span>
+                              </p>
+                            </div>
                           </div>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2">
+                            <span className="text-xs text-gray-500 break-all">{application.candidateEmail}</span>
+                            <span className="text-xs text-gray-400">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                          </div>
+                          {application.coverLetter && application.coverLetter !== 'No cover letter' && (
+                            <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg mb-3 border-l-2 border-gray-300">
+                              <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 100 ? `${application.coverLetter.substring(0, 100)}...` : application.coverLetter}
+                            </div>
+                          )}
+                          {application.candidateEmail ? (
+                            <button
+                              onClick={() => {
+                                setSelectedResumeAppId(application._id || application.id || null);
+                                setSelectedResumeUrl(application.resumeUrl || null);
+                                setSelectedResumeCandidateName(application.candidateName || null);
+                                setSelectedResumeCandidateEmail(application.candidateEmail || null);
+                                setShowResumeModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                            >
+                              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                              View Resume
+                            </button>
+                          ) : (
+                            <span className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Not available</span>
+                          )}
                         </div>
 
-                        <div className="ml-12">
-                            
-                            <div className="flex flex-wrap gap-x-3 gap-y-1 mb-2">
-                              <span className="text-xs text-gray-500 truncate max-w-full">{application.candidateEmail}</span>
-                              <span className="text-xs text-gray-500 whitespace-nowrap">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                            </div>
-
-                            {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                              <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded mb-2 border-l-2 border-gray-300">
-                                <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 100 ? 
-                                  `${application.coverLetter.substring(0, 100)}...` : 
-                                  application.coverLetter
+                        {/* Action buttons: on mobile - status full width on its own row, then 3 buttons in a row; on desktop - vertical column */}
+                        <div className="flex flex-col gap-2 sm:flex-shrink-0 sm:items-stretch sm:min-w-[140px]">
+                          {canManageApplications ? (
+                            <select
+                              value={application.status}
+                              onChange={async (e) => {
+                                const newStatus = e.target.value;
+                                const appId = application._id || application.id;
+                                try {
+                                  const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ status: newStatus }),
+                                  });
+                                  if (response.ok) {
+                                    setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: newStatus } : app));
+                                    const msgs: Record<string, string> = { pending: 'Marked as pending', reviewed: 'Marked as reviewed', shortlisted: 'Candidate shortlisted!', rejected: 'Application rejected', hired: 'Candidate hired!' };
+                                    showToast(msgs[newStatus] || 'Status updated', 'success');
+                                  } else { throw new Error(); }
+                                } catch {
+                                  showToast('Failed to update status. Please try again.', 'error');
+                                  e.target.value = application.status;
                                 }
-                              </div>
+                              }}
+                              className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white cursor-pointer"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="reviewed">Reviewed</option>
+                              <option value="shortlisted">Shortlisted</option>
+                              <option value="rejected">Rejected</option>
+                              <option value="hired">Hired</option>
+                            </select>
+                          ) : (
+                            <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
+                          )}
+                          {/* 3 action buttons in a row on mobile, stacked on desktop */}
+                          <div className="flex flex-row sm:flex-col gap-2">
+                            <button
+                              onClick={() => {
+                                const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
+                                if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
+                                sessionStorage.setItem('viewCandidateId', String(cid));
+                                sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
+                                setViewingCandidateId(String(cid));
+                              }}
+                              className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                            >
+                              View Profile
+                            </button>
+                            {application.status !== 'rejected' && canManageApplications && (
+                              <button
+                                onClick={() => { setSelectedApplication(application); setShowScheduleModal(true); }}
+                                className="flex-1 sm:flex-none sm:w-full bg-emerald-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                              >
+                                Schedule
+                              </button>
                             )}
-
-                            {application.candidateEmail ? (
-                              <div className="mb-2">
-                                <button
-                                  onClick={() => {
-                                    setSelectedResumeAppId(application._id || application.id || null);
-                                    setSelectedResumeUrl(application.resumeUrl || null);
-                                    setSelectedResumeCandidateName(application.candidateName || null);
-                                    setSelectedResumeCandidateEmail(application.candidateEmail || null);
-                                    setShowResumeModal(true);
-                                  }}
-                                  className="text-blue-600 hover:text-blue-800 text-xs font-semibold inline-flex items-center gap-1 bg-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-200 transition-colors"
-                                >
-                                  <FileText className="w-3.5 h-3.5" />
-                                  <span>View Resume</span>
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="mb-2">
-                                <span className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> Resume not available</span>
-                              </div>
+                            {canDeleteRecords && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault(); e.stopPropagation();
+                                  const appId = application._id || application.id;
+                                  openConfirm('Delete Application', 'Are you sure you want to delete this application? This action cannot be undone.', async () => {
+                                    try {
+                                      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+                                      if (response.ok) { setApplications(prev => prev.filter(app => (app._id || app.id) !== appId)); showToast('Application deleted successfully!', 'success'); }
+                                      else { showToast('Failed to delete application', 'error'); }
+                                    } catch { showToast('Failed to delete application', 'error'); }
+                                    closeConfirm();
+                                  });
+                                }}
+                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm inline-flex items-center justify-center gap-1 whitespace-nowrap"
+                              >
+                                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Delete
+                              </button>
                             )}
                           </div>
-
-                        <div className="flex flex-row flex-wrap gap-2 ml-0">
-                          {canManageApplications ? (<select
-                            value={application.status}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value;
-                              const appId = application._id || application.id;
-                              try {
-                                const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ status: newStatus }),
-                                });
-                                
-                                if (response.ok) {
-                                  setApplications(prev => 
-                                    prev.map(app => 
-                                      (app._id || app.id) === appId ? { ...app, status: newStatus } : app
-                                    )
-                                  );
-                                  
-                                  const statusMessages: Record<string, string> = {
-                                    pending: 'Application marked as pending',
-                                    reviewed: 'Application marked as reviewed',
-                                    shortlisted: 'Candidate shortlisted!',
-                                    rejected: 'Application rejected',
-                                    hired: 'Candidate hired!',
-                                  };
-                                  showToast(statusMessages[newStatus] || 'Status updated', 'success');
-                                } else {
-                                  throw new Error(`Failed to update status: ${response.status}`);
-                                }
-                              } catch (error) {
-                                console.error('Error updating status:', error);
-                                showToast('Failed to update application status. Please try again.', 'error');
-                                e.target.value = application.status;
-                              }
-                            }}
-                            className="px-3 py-1.5 border-2 border-gray-300 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white"
-                            title="Update application status"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="reviewed">Reviewed</option>
-                            <option value="shortlisted">Shortlisted</option>
-                            <option value="rejected">Rejected</option>
-                            <option value="hired">Hired</option>
-                          </select>) : (<span className="px-3 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>)}
-                          {application.status !== 'rejected' && canManageApplications && (
-                            <button 
-                              onClick={() => {
-                                setSelectedApplication(application);
-                                setShowScheduleModal(true);
-                              }}
-                              className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-xs shadow-md"
-                            >
-                              Schedule Interview
-                            </button>
-                          )}
-                          <button 
-                            onClick={() => {
-                              const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
-                              if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
-                              sessionStorage.setItem('viewCandidateId', String(cid));
-                              sessionStorage.setItem('viewCandidateData', JSON.stringify({
-                                name: application.candidateName || '',
-                                email: application.candidateEmail || '',
-                                phone: application.candidatePhone || '',
-                                skills: application.candidateSkills || application.skills || [],
-                              }));
-                              setViewingCandidateId(String(cid));
-                            }}
-                            className="bg-blue-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs shadow-md"
-                          >
-                            View Profile
-                          </button>
-                          {canDeleteRecords && (<button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              const appId = application._id || application.id;
-                              openConfirm(
-                                'Delete Application', 
-                                'Are you sure you want to delete this application? This action cannot be undone.', 
-                                async () => {
-                                  try {
-                                    const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, {
-                                      method: 'DELETE',
-                                      headers: { 'Content-Type': 'application/json' },
-                                    });
-                                    if (response.ok) {
-                                      setApplications(prev => prev.filter(app => (app._id || app.id) !== appId));
-                                      showToast('Application deleted successfully!', 'success');
-                                    } else {
-                                      showToast('Failed to delete application', 'error');
-                                    }
-                                  } catch (error) {
-                                    console.error('Delete error:', error);
-                                    showToast('Failed to delete application', 'error');
-                                  }
-                                  closeConfirm();
-                                }
-                              );
-                            }}
-                            className="bg-red-600 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs shadow-md inline-flex items-center gap-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            Delete
-                          </button>)}
                         </div>
                       </div>
                     </div>
@@ -2377,7 +2238,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               const u = JSON.parse(userData);
               const userId = u.id || u._id;
               const userEmail = u.email;
-              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(userEmail || '')}`)
+              const safeId = userId && typeof userId === 'string' && !/^\d+$/.test(userId) ? userId : '';
+              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(safeId)}&employerEmail=${encodeURIComponent(userEmail || '')}`)
                 .then(r => r.ok ? r.json() : [])
                 .then((data: any[]) => {
                   setInterviews(Array.isArray(data) ? data : []);

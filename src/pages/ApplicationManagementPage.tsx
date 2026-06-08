@@ -7,6 +7,7 @@ import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
 import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, Download } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -143,7 +144,8 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [searchQuery, setSearchQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
-  const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({}); 
+  const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
+  const [confirm, setConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null }); 
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -215,8 +217,14 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     } catch { setError('Failed to update status'); }
   };
 
-  const deleteApplication = async (id: string) => {
-    if (!window.confirm('Delete this application?')) return;
+  const deleteApplication = (id: string) => {
+    setConfirm({ isOpen: true, id });
+  };
+
+  const confirmDelete = async () => {
+    const id = confirm.id;
+    setConfirm({ isOpen: false, id: null });
+    if (!id) return;
     try {
       const res = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error();
@@ -336,7 +344,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     setBulkDownloading(true);
     try {
       const jobTitle = sessionStorage.getItem('selectedJobTitle') || 'job';
-      const url = `${API_ENDPOINTS.BASE_URL}/applications/job/${jobId}/bulk-download-resumes`;
+      const url = `${API_ENDPOINTS.APPLICATIONS}/job/${jobId}/bulk-download-resumes`;
       const res = await fetch(url);
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -567,6 +575,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       )}
 
       <Footer onNavigate={onNavigate} />
+
+      <ConfirmDialog
+        isOpen={confirm.isOpen}
+        title="Delete Application"
+        message="Delete this application? This action cannot be undone."
+        confirmLabel="OK"
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirm({ isOpen: false, id: null })}
+      />
       </>)}
     </div>
   );

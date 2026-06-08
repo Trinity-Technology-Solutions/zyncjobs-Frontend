@@ -67,62 +67,53 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
       const userEmail = user.email;
-      
       if (!userEmail) return;
-      
-      // Fetch all applications for this employer
+
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`);
       if (!response.ok) return;
-      
+
       const allApplications = await response.json();
       const applications = Array.isArray(allApplications) ? allApplications : allApplications.applications || [];
-      
-      // Filter applications for this employer
-      const employerApplications = applications.filter((app: any) => 
+
+      const employerApplications = applications.filter((app: any) =>
         app.employerEmail === userEmail
       );
 
-      // Resolve job titles for applications that don't have jobTitle directly
-      const appsWithTitles = await Promise.all(
+      // Fetch job details only (not candidate profile — use application data directly)
+      const appsWithData = await Promise.all(
         employerApplications.map(async (app: any) => {
-          if (app.jobTitle) return app;
           const jobId = app.jobId?._id || app.jobId?.id || (typeof app.jobId === 'string' ? app.jobId : null);
-          if (!jobId) return app;
-          try {
-            const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
-            if (jobRes.ok) {
-              const jobData = await jobRes.json();
-              return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Unknown Position' };
-            }
-          } catch { /* ignore */ }
-          return app;
+          let jobData: any = app.jobId && typeof app.jobId === 'object' ? app.jobId : {};
+
+          // Fetch full job if skills/experienceRange are missing
+          if (jobId && (!Array.isArray(jobData.skills) || !jobData.experienceRange)) {
+            try {
+              const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
+              if (jobRes.ok) jobData = await jobRes.json();
+            } catch { /* ignore */ }
+          }
+
+          return { ...app, _jobData: jobData };
         })
       );
-      
-      // Process applications to add AI scores and rejection status
-      const processedCandidates = appsWithTitles.map((app: any) => {
-        // Calculate AI scores based on application data
+
+      const processedCandidates = appsWithData.map((app: any) => {
         const skillsMatch = calculateSkillsMatch(app);
         const experienceMatch = calculateExperienceMatch(app);
-        const overallScore = (skillsMatch + experienceMatch) / 2;
-        
-        // Determine if should be auto-rejected based on current settings
+        const overallScore = Math.round((skillsMatch + experienceMatch) / 2);
+
         const shouldReject = settings.autoReject && (
           skillsMatch < settings.minSkillsMatch ||
           experienceMatch < settings.minExperienceMatch ||
           overallScore < settings.minOverallScore
         );
-        
-        // Determine rejection reason
+
         let rejectionReason = null;
         if (shouldReject) {
-          if (skillsMatch < settings.minSkillsMatch) {
-            rejectionReason = 'skillsMismatch';
-          } else if (experienceMatch < settings.minExperienceMatch) {
-            rejectionReason = 'insufficientExperience';
-          }
+          if (skillsMatch < settings.minSkillsMatch) rejectionReason = 'skillsMismatch';
+          else if (experienceMatch < settings.minExperienceMatch) rejectionReason = 'insufficientExperience';
         }
-        
+
         return {
           id: app._id,
           name: app.candidateName || 'Unknown Candidate',
@@ -133,19 +124,17 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           experienceMatch,
           overallScore,
           appliedAt: app.createdAt,
-          jobTitle: app.jobTitle || 'Unknown Position'
+          jobTitle: app._jobData?.jobTitle || app._jobData?.title || app.jobTitle || 'Unknown Position'
         };
       });
-      
+
       setCandidateDetails(processedCandidates);
-      
-      // Update analytics based on real data — these are PREVIEW counts only, no DB change
+
       const totalApps = processedCandidates.length;
-      // "wouldReject" = candidates who WOULD be flagged IF employer runs AI Auto-Shortlist
       const wouldReject = processedCandidates.filter((c: any) => c.status === 'auto-rejected').length;
       const skillsIssues = processedCandidates.filter((c: any) => c.reason === 'skillsMismatch').length;
       const experienceIssues = processedCandidates.filter((c: any) => c.reason === 'insufficientExperience').length;
-      
+
       setAnalytics({
         totalApplications: totalApps,
         autoRejected: wouldReject,
@@ -156,44 +145,95 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
           locationMismatch: 0
         }
       });
-      
     } catch (error) {
       console.error('Error loading candidate data:', error);
     }
   };
   
   const calculateSkillsMatch = (application: any) => {
-    // Simple skills matching algorithm
-    // In a real implementation, this would use NLP/AI to match skills
-    const candidateSkills = application.skills || [];
-    const requiredSkills = application.jobId?.skills || [];
-    
-    if (requiredSkills.length === 0) return 75; // Default if no required skills
-    
-    const matchedSkills = candidateSkills.filter((skill: string) => 
-      requiredSkills.some((reqSkill: string) => 
-        skill.toLowerCase().includes(reqSkill.toLowerCase()) ||
-        reqSkill.toLowerCase().includes(skill.toLowerCase())
-      )
-    );
-    
-    return Math.min(100, Math.round((matchedSkills.length / requiredSkills.length) * 100));
-  };
-  
-  const calculateExperienceMatch = (application: any) => {
-    // Simple experience matching
-    const candidateExp = application.experience || 0;
-    const requiredExp = application.jobId?.experienceRange || '0-1 years';
-    
-    // Extract minimum required experience
-    const minExpMatch = requiredExp.match(/(\d+)/);
-    const minExp = minExpMatch ? parseInt(minExpMatch[1]) : 0;
-    
-    if (candidateExp >= minExp) {
-      return Math.min(100, 80 + (candidateExp - minExp) * 5);
-    } else {
-      return Math.max(0, (candidateExp / minExp) * 80);
+    const jobData = application._jobData || {};
+
+    // Candidate skills — check all possible fields stored on the application
+    const rawCandSkills =
+      application.skills ||
+      application.candidateSkills ||
+      application.candidateProfile?.skills ||
+      [];
+    const candidateSkills = (Array.isArray(rawCandSkills)
+      ? rawCandSkills
+      : String(rawCandSkills).split(','))
+      .map((s: any) => String(s).toLowerCase().trim())
+      .filter(Boolean);
+
+    // Job required skills
+    const rawJobSkills = jobData.skills || jobData.requiredSkills || [];
+    const requiredSkills = (Array.isArray(rawJobSkills)
+      ? rawJobSkills
+      : String(rawJobSkills).split(','))
+      .map((s: any) => String(s).toLowerCase().trim())
+      .filter(Boolean);
+
+    if (requiredSkills.length === 0) {
+      // No JD skills — score by how many skills candidate listed
+      const count = candidateSkills.length;
+      if (count === 0) return 0;
+      if (count >= 10) return 90;
+      return Math.round((count / 10) * 90);
     }
+
+    if (candidateSkills.length === 0) return 0;
+
+    const matched = requiredSkills.filter(req =>
+      candidateSkills.some(cs => cs.includes(req) || req.includes(cs))
+    ).length;
+
+    return Math.round((matched / requiredSkills.length) * 100);
+  };
+
+  const calculateExperienceMatch = (application: any) => {
+    const jobData = application._jobData || {};
+
+    // Candidate experience — check all possible fields
+    const rawExp =
+      application.experience ??
+      application.candidateExperience ??
+      application.yearsOfExperience ??
+      application.candidateProfile?.experience ??
+      '';
+
+    const parseYears = (val: any): number => {
+      if (typeof val === 'number') return val;
+      const str = String(val || '');
+      const match = str.match(/(\d+\.?\d*)/);
+      return match ? parseFloat(match[1]) : 0;
+    };
+
+    const candidateYears = parseYears(rawExp);
+
+    const expRange: string =
+      jobData.experienceRange || jobData.experience || jobData.minExperience || '';
+
+    if (!expRange) {
+      if (candidateYears === 0) return 20;
+      if (candidateYears >= 3) return 100;
+      return Math.round((candidateYears / 3) * 100);
+    }
+
+    const rangeMatch = expRange.match(/(\d+)\s*[-–]\s*(\d+)/);
+    const plusMatch = expRange.match(/(\d+)\+/);
+    const singleMatch = expRange.match(/(\d+)/);
+
+    let minExp = 0, maxExp = 0;
+    if (rangeMatch) { minExp = parseInt(rangeMatch[1]); maxExp = parseInt(rangeMatch[2]); }
+    else if (plusMatch) { minExp = parseInt(plusMatch[1]); maxExp = minExp + 5; }
+    else if (singleMatch) { minExp = parseInt(singleMatch[1]); maxExp = minExp; }
+
+    if (minExp === 0 && maxExp === 0) return candidateYears >= 1 ? 80 : 40;
+
+    if (candidateYears >= minExp) {
+      return Math.min(100, 80 + Math.round(((candidateYears - minExp) / Math.max(maxExp - minExp + 1, 1)) * 20));
+    }
+    return Math.max(0, Math.round((candidateYears / minExp) * 70));
   };
 
   const showCandidateList = (type: string) => {
@@ -520,8 +560,8 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {modalData.candidates.map((candidate: any) => (
-                    <div key={candidate.id} className="bg-gray-50 rounded-lg p-3 sm:p-4 border">
+                  {modalData.candidates.map((candidate: any, idx: number) => (
+                    <div key={candidate.id || idx} className="bg-gray-50 rounded-lg p-3 sm:p-4 border">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
