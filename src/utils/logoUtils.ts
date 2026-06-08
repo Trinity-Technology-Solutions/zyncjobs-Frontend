@@ -9,11 +9,10 @@ export const getCompanyLogo = (companyName: string): string => {
     return localLogo;
   }
 
-  // Known domain map — try multiple logo services
+  // Known domain map — use logo.dev (Clearbit blocked on many networks)
   const domain = getCompanyDomain(companyName);
   if (domain) {
-    // Try Clearbit first (most reliable for company logos)
-    return `https://logo.clearbit.com/${domain}`;
+    return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
   }
 
   // If no domain mapping, return UI avatars directly
@@ -496,8 +495,6 @@ export const getLogoWithFallbacks = (companyName: string, website?: string): str
   }
   
   if (domain) {
-    // Multiple logo services as fallbacks - reordered for better reliability
-    logos.push(`https://logo.clearbit.com/${domain}`);
     logos.push(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`);
     logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=64`);
   }
