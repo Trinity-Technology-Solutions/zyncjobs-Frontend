@@ -713,9 +713,33 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                     }
 
                     const extractYear = (s: string) => String(s || '').match(/\d{4}/)?.[0] || '';
+                    const isEmpty = (v: any) => !v || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && v.length === 0);
 
-                    // Build employment as an array (dashboard expects Array.isArray)
-                    const employment: any[] = resume.workExperiences.length > 0
+                    // phone — only fill if profile is empty
+                    const phone = isEmpty(currentUser.phone) && resume.profile.phone
+                      ? resume.profile.phone : currentUser.phone;
+
+                    // location — only fill if profile is empty
+                    const location = isEmpty(currentUser.location) && resume.profile.location
+                      ? resume.profile.location : currentUser.location;
+
+                    // name — only fill if profile is empty
+                    const name = isEmpty(currentUser.name) && resume.profile.name
+                      ? resume.profile.name : currentUser.name;
+
+                    // skills — only fill if profile has no skills
+                    const parsedSkills = resume.skills.featuredSkills.map((s: any) => s.skill).filter(Boolean);
+                    const skills = isEmpty(currentUser.skills) && parsedSkills.length > 0
+                      ? parsedSkills : (currentUser.skills || []);
+
+                    // profileSummary — only fill if profile is empty
+                    const parsedSummary = (resume as any).summary?.trim() || '';
+                    const profileSummary = isEmpty(currentUser.profileSummary) && parsedSummary
+                      ? parsedSummary : currentUser.profileSummary;
+
+                    // employment — only fill if profile has no employment
+                    const hasExistingEmployment = !isEmpty(currentUser.employment);
+                    const employment: any[] = !hasExistingEmployment && resume.workExperiences.length > 0
                       ? resume.workExperiences.map((exp: any) => {
                           const dateParts = String(exp.date || '').split(/\s*[-–]\s*/);
                           return {
@@ -733,8 +757,15 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                           ? currentUser.employment
                           : currentUser.employment ? [currentUser.employment] : []);
 
+                    // jobTitle — only fill if profile is empty (derive from first parsed experience)
+                    const parsedJobTitle = resume.workExperiences[0]?.jobTitle || '';
+                    const jobTitle = isEmpty(currentUser.jobTitle) && parsedJobTitle
+                      ? parsedJobTitle : currentUser.jobTitle;
+
+                    // educationCollege — only fill if profile has no college education
+                    const hasExistingEdu = currentUser.educationCollege?.college || currentUser.educationCollege?.degree;
                     const firstEdu = resume.educations[0] as any;
-                    const educationCollege = firstEdu
+                    const educationCollege = !hasExistingEdu && firstEdu
                       ? {
                           college: firstEdu.school || '',
                           degree: firstEdu.degree || '',
@@ -744,28 +775,16 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                         }
                       : currentUser.educationCollege;
 
-                    const skills = resume.skills.featuredSkills.map((s: any) => s.skill);
-
-                    const profileSummary = (resume as any).summary?.trim()
-                      || (resume.workExperiences.length > 0
-                          ? resume.workExperiences.map((exp: any) =>
-                              `${exp.jobTitle} at ${exp.company}${exp.date ? ` (${exp.date})` : ''}`
-                            ).join(' | ')
-                          : currentUser.profileSummary);
-
-                    const firstExp = employment[0];
-
                     const updatedUser = {
                       ...currentUser,
-                      name: resume.profile.name || currentUser.name,
-                      phone: resume.profile.phone || currentUser.phone,
-                      location: resume.profile.location || currentUser.location,
-                      jobTitle: firstExp?.designation || currentUser.jobTitle,
-                      skills: skills.length > 0 ? skills : (currentUser.skills || []),
+                      name,
+                      phone,
+                      location,
+                      jobTitle,
+                      skills,
                       employment,
                       educationCollege,
                       profileSummary,
-                      // Ensure these critical fields are always present
                       email: currentUser.email,
                       userType: currentUser.userType || currentUser.role || 'candidate',
                       role: currentUser.role || currentUser.userType || 'candidate',
@@ -777,7 +796,6 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                     try {
                       const { apiFetch } = await import('../../api/apiFetch');
 
-                      // Save to /profile/save (what dashboard reads)
                       const res = await apiFetch(`${API_BASE_URL}/profile/save`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -788,19 +806,17 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                         throw new Error(err.error || `Server error: ${res.status}`);
                       }
 
-                      // Also sync to /users/:id so login response has fresh data
-                      const userId = currentUser._id || currentUser.id;
                       if (userId) {
                         const { _id, id, password, __v, ...safePayload } = updatedUser as any;
                         await apiFetch(`${API_BASE_URL}/users/${userId}`, {
                           method: 'PUT',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify(safePayload)
-                        }).catch(() => { /* non-critical */ });
+                        }).catch(() => {});
                       }
 
                       localStorage.setItem('user', JSON.stringify(updatedUser));
-                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Profile saved successfully!' } }));
+                      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Profile updated from resume!' } }));
                       onNavigate && onNavigate('dashboard');
                     } catch (e: any) {
                       console.error('Save error:', e);

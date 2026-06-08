@@ -808,13 +808,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                           mode="modal"
                           className="w-full px-3 py-3 rounded-lg border border-white/30 text-white bg-transparent font-medium text-[15px] hover:bg-blue-700/60"
                           onImport={async (profile: LinkedInProfile) => {
+                            // Resolve email — user may be null if page just loaded after OAuth redirect
+                            const resolvedEmail = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+                            const currentUser = user || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
                             const merged = {
-                              ...user,
-                              name: profile.name || user?.name,
-                              location: profile.location || user?.location,
-                              profileSummary: profile.summary || user?.profileSummary,
-                              profilePhoto: profile.profilePhoto || user?.profilePhoto,
-                              skills: profile.skills.length > 0 ? profile.skills : (user?.skills || []),
+                              ...currentUser,
+                              name: profile.name || currentUser?.name,
+                              location: profile.location || currentUser?.location,
+                              profileSummary: profile.summary || currentUser?.profileSummary,
+                              profilePhoto: profile.profilePhoto || currentUser?.profilePhoto,
+                              skills: profile.skills.length > 0 ? profile.skills : (currentUser?.skills || []),
                               ...(profile.experience.length > 0 ? {
                                 employment: profile.experience.map(exp => ({
                                   companyName: exp.company,
@@ -837,12 +840,17 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                             setUser(merged);
                             localStorage.setItem('user', JSON.stringify(merged));
                             calculateProfileCompletion(merged);
+                            // Use LinkedIn token if available (set during OAuth callback)
+                            const linkedinToken = sessionStorage.getItem('linkedin_token');
+                            const saveHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+                            if (linkedinToken) saveHeaders['Authorization'] = `Bearer ${linkedinToken}`;
                             try {
                               await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ email: user?.email, ...merged }),
+                                headers: saveHeaders,
+                                body: JSON.stringify({ email: resolvedEmail, ...merged }),
                               });
+                              sessionStorage.removeItem('linkedin_token');
                             } catch { /* silent */ }
                             setNotification({ type: 'success', message: 'LinkedIn profile imported successfully!', isVisible: true });
                           }}
@@ -2298,7 +2306,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                 </button>
               </div>
               <h2 className="text-lg font-bold text-gray-900 mb-1">Complete your profile faster!</h2>
-              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll auto-fill your profile details using AI — skills, experience, education and more. Existing data will be updated with parsed info.</p>
+              <p className="text-gray-500 text-sm mb-5">Upload your resume and we'll fill your profile with the parsed details — phone, skills, experience, education and more. Fields not found in the resume will be cleared.</p>
 
               {resumePopupError && (
                 <p className="text-red-500 text-sm mb-3">{resumePopupError}</p>
@@ -2407,56 +2415,56 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ onNavig
                     const fileUrl = s3Result.fileUrl || '';
                     const resumeData = { name: resumePopupFile.name, size: resumePopupFile.size, uploadDate: new Date().toLocaleDateString(), url: fileUrl };
 
-                    // 3. Merge parsed data into user profile
-                    // Normalize backend field name variations
+                    // 3. Resume is source of truth — replace each field with parsed value;
+                    //    if resume has no value for a field, that field becomes empty.
                     const workExps = p.workExperiences || p.experience || p.workExperience || [];
                     const educations = p.educations || p.education || [];
                     const eduArr = Array.isArray(educations) ? educations : (educations && typeof educations === 'object' ? [educations] : []);
                     const expArr = Array.isArray(workExps) ? workExps : [];
-                    const inferredJobTitle = p.title || p.jobTitle || expArr[0]?.jobTitle || expArr[0]?.title || '';
                     const extractYear = (dateStr: string) => String(dateStr || '').match(/\d{4}/)?.[0] || '';
-                    // Normalize skills — backend may return string[] or {skill:string}[]
                     const rawSkillsArr: any[] = Array.isArray(p.skills) ? p.skills : [];
                     const normalizedSkills: string[] = rawSkillsArr
                       .map((s: any) => (typeof s === 'string' ? s : s?.skill || s?.name || '')).filter(Boolean);
+
                     const merged = {
                       ...user,
                       resume: resumeData,
                       resumeUrl: fileUrl,
-                      ...(cleanName ? { name: cleanName } : {}),
-                      ...(p.phone ? { phone: p.phone } : {}),
-                      ...(p.location ? { location: p.location } : {}),
-                      ...(p.country ? { country: p.country } : {}),
-                      ...((p.summary || p.profileSummary) ? { profileSummary: p.summary || p.profileSummary } : {}),
-                      ...(normalizedSkills.length > 0 ? { skills: normalizedSkills } : {}),
-                      ...(inferredJobTitle ? { jobTitle: inferredJobTitle } : {}),
-                      ...(eduArr.length > 0 ? {
-                        educationCollege: {
-                          college: eduArr[0].school || eduArr[0].college || '',
-                          degree: eduArr[0].degree || '',
-                          passingYear: extractYear(eduArr[0].endYear || eduArr[0].passingYear || eduArr[0].date || ''),
-                          percentage: eduArr[0].percentage || eduArr[0].grade || ''
-                        }
-                      } : {}),
-                      ...(expArr.length > 0 ? {
-                        employment: expArr.map((w: any) => {
-                          const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
-                          return {
-                            companyName: w.company || w.companyName || '',
-                            designation: w.jobTitle || w.title || w.designation || '',
-                            description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : (w.description || w.descriptions || ''),
-                            startYear: extractYear(dateParts[0] || w.startDate || ''),
-                            endYear: extractYear(dateParts[1] || w.endDate || ''),
-                            currentlyWorking: /present|current/i.test(w.date || w.endDate || '') || !!w.current,
-                          };
-                        })
-                      } : {}),
-                      ...(p.projects?.length > 0 ? {
-                        projects: p.projects.map((pr: any) => ({
-                          projectName: pr.name || pr.projectName || '',
-                          description: pr.description || ''
-                        }))
-                      } : {}),
+                      // Always set from resume — empty string if not found
+                      name: cleanName || user?.name || '',
+                      phone: p.phone || '',
+                      location: p.location || '',
+                      country: p.country || user?.country || '',
+                      profileSummary: p.summary || p.profileSummary || '',
+                      skills: normalizedSkills.length > 0 ? normalizedSkills : [],
+                      jobTitle: p.title || p.jobTitle || expArr[0]?.jobTitle || expArr[0]?.title || '',
+                      employment: expArr.length > 0
+                        ? expArr.map((w: any) => {
+                            const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
+                            return {
+                              companyName: w.company || w.companyName || '',
+                              designation: w.jobTitle || w.title || w.designation || '',
+                              description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : (w.description || w.descriptions || ''),
+                              startYear: extractYear(dateParts[0] || w.startDate || ''),
+                              endYear: extractYear(dateParts[1] || w.endDate || ''),
+                              currentlyWorking: /present|current/i.test(w.date || w.endDate || '') || !!w.current,
+                            };
+                          })
+                        : [],
+                      educationCollege: eduArr.length > 0
+                        ? {
+                            college: eduArr[0].school || eduArr[0].college || '',
+                            degree: eduArr[0].degree || '',
+                            passingYear: extractYear(eduArr[0].endYear || eduArr[0].passingYear || eduArr[0].date || ''),
+                            percentage: eduArr[0].percentage || eduArr[0].grade || ''
+                          }
+                        : {},
+                      projects: p.projects?.length > 0
+                        ? p.projects.map((pr: any) => ({
+                            projectName: pr.name || pr.projectName || '',
+                            description: pr.description || ''
+                          }))
+                        : [],
                     };
                     setUser(merged);
                     localStorage.setItem('user', JSON.stringify(merged));

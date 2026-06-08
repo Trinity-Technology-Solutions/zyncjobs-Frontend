@@ -529,7 +529,12 @@ const ProfSection = ({ label, children }: { label: string; children: React.React
 
 // ─── ROUTER ───────────────────────────────────────────────────────────────────
 export default function ResumeTemplate({ data, scale = 1 }: Props) {
-  const style = scale !== 1 ? { transform: `scale(${scale})`, transformOrigin: 'top left', width: `${100 / scale}%` } : {};
+  const safeScale = (typeof scale === 'number' && isFinite(scale) && scale > 0) ? scale : 1;
+  const style: React.CSSProperties = safeScale !== 1 ? {
+    transform: ['scale(', safeScale.toFixed(6), ')'].join(''),
+    transformOrigin: 'top left',
+    width: [Number((100 / safeScale).toFixed(6)), '%'].join(''),
+  } : {};
   const inner = (() => {
     switch (data.template) {
       case 'modern':       return <ModernTemplate data={data} />;

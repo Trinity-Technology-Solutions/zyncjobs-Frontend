@@ -1,11 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
+import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
 import { useNavigation } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
-import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
 
@@ -21,14 +20,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
-  const [notifications, setNotifications] = useState<any[]>([]);
+  const [, setNotifications] = useState<any[]>([]);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
 
   // Secret typed sequence to reveal admin login
   useEffect(() => {
-    const secret = 'zyncadmin';
+    const secret = import.meta.env.VITE_ADMIN_SECRET || '';
     let buffer = '';
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!e.key || e.key.length > 1) return;
@@ -46,11 +45,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
 
   const { data: siteSettings, fetchSiteSettings } = useSiteSettings();
   const { items: navItems, fetchNavigation } = useNavigation();
-
-  useEffect(() => {
-    console.log('Header - siteSettings:', siteSettings);
-    console.log('Header - logo URL:', siteSettings?.siteLogo?.url);
-  }, [siteSettings]);
 
   useEffect(() => {
     fetchNavigation();
@@ -78,12 +72,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     }
   };
 
-  const handleEmployersClick = () => {
-    if (onNavigate) {
-      onNavigate('employers');
-    }
-  };
-
   const handleFindJobsClick = () => {
     if (onNavigate) {
       // Check if user is an employer
@@ -103,25 +91,6 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
       onNavigate('companies');
     }
   };
-
-  const handleCareerResourcesClick = () => {
-    if (onNavigate) {
-      if (user?.type === 'employer') return; // employers cannot access career resources
-      if (user) {
-        onNavigate('career-resources');
-      } else {
-        onNavigate('register');
-      }
-    }
-  };
-
-
-
-
-
-  useEffect(() => {
-    fetchSiteSettings();
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -304,7 +273,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           <div className="flex-shrink-0">
             <button 
               onClick={() => onNavigate && onNavigate('home')}
-              className="flex items-center cursor-pointer"
+              className="flex items-center cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              aria-label="Go to ZyncJobs home"
             >
               <img 
                 src={siteSettings?.siteLogo?.url ? strapiAPI.getImageUrl(siteSettings.siteLogo.url) : '/images/zyncjobs-logo.png'} 
@@ -315,23 +285,23 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8">
+          <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
             {navItems.length > 0 ? (
               navItems.map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate && onNavigate(item.url)}
-                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                  className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
                 >
                   {item.label}
                 </button>
               ))
             ) : (
               <>
-                <button onClick={handleFindJobsClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                <button onClick={handleFindJobsClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded">
                   {user?.type === 'employer' ? 'Candidate Search' : 'Job Search'}
                 </button>
-                <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors">
+                <button onClick={handleCompaniesClick} className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded">
                   Companies
                 </button>
               </>
@@ -340,7 +310,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
             {user?.type === 'employer' ? (
               <button
                 onClick={() => onNavigate && onNavigate('my-jobs')}
-                className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
                 Posted Jobs
               </button>
@@ -348,16 +318,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="relative" ref={careerDropdownRef}>
                 <button 
                   onClick={() => setIsCareerDropdownOpen(!isCareerDropdownOpen)}
-                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 font-medium transition-colors"
+                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  aria-expanded={isCareerDropdownOpen}
+                  aria-haspopup="true"
                 >
                   <span>Career Resources</span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${isCareerDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isCareerDropdownOpen && (
-                  <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                  <div className="absolute left-0 mt-2 w-64 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50" role="menu">
                     <button 
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('resume-studio'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
+                      role="menuitem"
                     >
                       <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -366,7 +339,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     </button>
                     <button 
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('interview-tips'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
+                      role="menuitem"
                     >
                       <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -375,7 +349,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     </button>
                     <button 
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('career-coach'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
+                      role="menuitem"
                     >
                       <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -384,7 +359,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                     </button>
                     <button 
                       onClick={() => { setIsCareerDropdownOpen(false); onNavigate && onNavigate('skill-assessment'); }}
-                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                      className="flex items-center w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50"
+                      role="menuitem"
                     >
                       <svg className="w-5 h-5 mr-3 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -407,7 +383,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                   onNavigate && onNavigate('role-selection');
                 }
               }}
-              className="text-gray-900 hover:text-gray-600 font-medium transition-colors"
+              className="text-gray-900 hover:text-gray-600 font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
               {user?.type === 'employer' ? 'Job Posting' : 'My Jobs'}
             </button>
@@ -422,7 +398,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-2 text-gray-900 hover:text-gray-600 transition-colors"
+                  className="flex items-center space-x-2 text-gray-900 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-full"
+                  aria-expanded={isDropdownOpen}
+                  aria-haspopup="true"
+                  aria-label="User profile menu"
                 >
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
@@ -683,23 +662,25 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               <div className="relative" ref={dropdownRef}>
                 <button 
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 transition-colors"
+                  className="flex items-center space-x-1 text-gray-900 hover:text-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  aria-expanded={isDropdownOpen}
+                  aria-haspopup="true"
                 >
                   <span>Login/Register</span>
                   <ChevronDown className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {isDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" role="menu">
                     <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
-                    <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
                       Login
                     </button>
-                    <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
                       Register
                     </button>
                     <hr className="my-1" />
                     <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
-                    <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors">
+                    <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
                       For Employers / Post Jobs
                     </button>
                     <hr className="my-1" />
@@ -724,6 +705,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="relative p-3 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={isMenuOpen}
+              aria-controls="mobile-menu"
               type="button"
             >
               <div className="w-6 h-6 flex flex-col justify-center items-center">

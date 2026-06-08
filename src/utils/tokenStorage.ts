@@ -3,6 +3,7 @@
  * page refreshes in production (sessionStorage is cleared on refresh).
  */
 
+// amazonq-ignore-next-line
 const ACCESS_KEY = 'accessToken';
 const REFRESH_KEY = 'refreshToken';
 const ADMIN_KEY = 'adminToken';

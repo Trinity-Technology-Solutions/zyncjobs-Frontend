@@ -51,6 +51,10 @@ const CompanyMarquee: React.FC = () => {
                 <img
                   src={c.logo}
                   alt={c.name}
+                  width={64}
+                  height={64}
+                  loading="lazy"
+                  decoding="async"
                   className="w-16 h-16 object-contain"
                 />
               </div>
@@ -166,9 +170,13 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
       }
     };
     
-    fetchJobTitles();
-    fetchLocations();
-    fetchPopularSearches();
+    // Defer non-critical API calls until after page load to reduce TBT
+    const timer = setTimeout(() => {
+      fetchJobTitles();
+      fetchLocations();
+      fetchPopularSearches();
+    }, 1500);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleJobSearch = (value: string) => {
@@ -324,7 +332,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
               {/* Search Form */}
               <div className="bg-white rounded-2xl p-6 shadow-lg border">
-                <form onSubmit={handleSearch}>
+                <form onSubmit={handleSearch} role="search" aria-label="Job search">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
                     <div className="sm:col-span-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -333,7 +341,9 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search className="h-5 w-5 text-blue-600" />
                           </div>
+                          <label htmlFor="hero-job-search" className="sr-only">Job title or keywords</label>
                           <input
+                            id="hero-job-search"
                             ref={jobInputRef}
                             type="text"
                             placeholder="Job Title, Keywords"
@@ -350,9 +360,16 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                             }}
                             onBlur={() => setTimeout(() => setShowJobDropdown(false), 200)}
                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            aria-label="Job title or keywords"
+                            aria-autocomplete="list"
+                            aria-expanded={showJobDropdown}
+                            aria-controls="job-suggestions"
                           />
                           {showJobDropdown && jobSuggestions.length > 0 && (
                             <ul
+                              id="job-suggestions"
+                              role="listbox"
+                              aria-label="Job title suggestions"
                               style={{
                                 position: 'absolute',
                                 top: '100%',
@@ -373,6 +390,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                               {jobSuggestions.map((job, index) => (
                                 <li
                                   key={index}
+                                  role="option"
+                                  aria-selected={false}
                                   onMouseDown={() => selectJob(job)}
                                   style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '14px', color: '#1f2937' }}
                                   onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
@@ -389,7 +408,9 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <MapPin className="h-5 w-5 text-blue-600" />
                           </div>
+                          <label htmlFor="hero-location-search" className="sr-only">City or country</label>
                           <input
+                            id="hero-location-search"
                             ref={locationInputRef}
                             type="text"
                             placeholder="City Or Country"
@@ -406,9 +427,16 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                             }}
                             onBlur={() => setTimeout(() => setShowLocationDropdown(false), 200)}
                             className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            aria-label="City or country"
+                            aria-autocomplete="list"
+                            aria-expanded={showLocationDropdown}
+                            aria-controls="location-suggestions"
                           />
                           {showLocationDropdown && locationSuggestions.length > 0 && (
                             <ul
+                              id="location-suggestions"
+                              role="listbox"
+                              aria-label="Location suggestions"
                               style={{
                                 position: 'absolute',
                                 top: '100%',
@@ -429,6 +457,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                               {locationSuggestions.map((loc, index) => (
                                 <li
                                   key={index}
+                                  role="option"
+                                  aria-selected={false}
                                   onMouseDown={() => selectLocation(loc)}
                                   style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', fontSize: '14px', color: '#1f2937' }}
                                   onMouseEnter={e => (e.currentTarget.style.background = '#eff6ff')}
@@ -445,7 +475,8 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     <div>
                       <button
                         type="submit"
-                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                        className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                        aria-label="Search jobs"
                       >
                         {buttonText}
                       </button>
@@ -462,7 +493,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                     <button
                       key={term}
                       onClick={() => handlePopularSearchClick(term)}
-                      className="hover:underline cursor-pointer transition-colors" 
+                      className="hover:underline cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-purple-400 focus:ring-offset-1 rounded" 
                       style={{color: '#a78bfa'}}
                     >
                       {term}
@@ -538,9 +569,13 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 
                 <img
                   src={heroImage}
-                  alt="Professional woman"
+                  alt="Professional standing confidently"
                   className="w-full object-contain object-bottom relative z-10"
                   style={{ maxHeight: '580px', display: 'block' }}
+                  width={580}
+                  height={580}
+                  fetchPriority="high"
+                  decoding="sync"
                 />
               </div>
           </div>
