@@ -154,6 +154,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         }
 
         if (!jobResult) {
+          // Job not found (employer may have deleted it) — but still check if
+          // the candidate has an application record for this jobId
+          if (user?.email) {
+            const resolvedId = urlJobId || (jobId ? String(jobId) : '');
+            if (resolvedId) await checkApplicationStatus(resolvedId, user.email);
+          }
           setJob(null);
           return;
         }
@@ -184,16 +190,14 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         }
 
         if (jobData.employerEmail || jobData.postedBy) {
-          const usersResponse = await fetch(API_ENDPOINTS.USERS);
-          if (usersResponse.ok) {
-            const users = await usersResponse.json();
-            const poster = users.find(
-              (u: any) =>
-                u.email === jobData.employerEmail ||
-                u.email === jobData.postedBy
-            );
-            setJobPoster(poster);
-          }
+          try {
+            const targetEmail = jobData.employerEmail || jobData.postedBy;
+            const posterRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/by-email/${encodeURIComponent(targetEmail)}`);
+            if (posterRes.ok) {
+              const poster = await posterRes.json();
+              if (poster && poster.email) setJobPoster(poster);
+            }
+          } catch { /* non-critical */ }
         }
 
         fetchSimilarJobs(jobData);
@@ -267,12 +271,16 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const checkApplicationStatus = async (jobId: string, userEmail: string) => {
     try {
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(userEmail)}&jobId=${jobId}`);
+      // Always fetch ALL applications for this candidate — jobId filter on server
+      // can miss if employer was deleted and jobId reference changed.
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(userEmail)}`);
       if (!response.ok) return;
       const data = await response.json();
       const list: any[] = Array.isArray(data) ? data : (data.applications || []);
       const userApplication = list.find((app: any) => {
-        const jobMatch = app.jobId === jobId || app.jobId?._id === jobId || app.jobId?.id === jobId;
+        // Match by every possible jobId shape stored on the application record
+        const appJobId = app.jobId?._id || app.jobId?.id || app.jobId || '';
+        const jobMatch = String(appJobId) === String(jobId);
         const emailMatch = app.candidateEmail?.toLowerCase() === userEmail.toLowerCase();
         return jobMatch && emailMatch;
       });
@@ -383,7 +391,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Job not found</h2>
+          {hasApplied ? (
+            <>
+              <div className="flex items-center justify-center space-x-2 bg-green-100 text-green-800 px-6 py-4 rounded-xl font-semibold text-lg mb-4">
+                <CheckCircle className="w-6 h-6" />
+                <span>You have already applied for this job</span>
+              </div>
+              <p className="text-gray-500 text-sm mb-4">This job posting is no longer available, but your application has been recorded.</p>
+            </>
+          ) : (
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Job not found</h2>
+          )}
           <button onClick={() => onNavigate('job-listings')} className="bg-blue-600 text-white px-6 py-2 rounded-lg">
             Back to Jobs
           </button>
