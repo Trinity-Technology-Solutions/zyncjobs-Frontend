@@ -13,7 +13,7 @@ import { searchAccuracy } from '../utils/searchAccuracy';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
-import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
+import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
@@ -1669,14 +1669,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                       <div className="flex items-center gap-3 mb-2">
                         <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
                           <img
-                            src={getCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getSafeCompanyLogo(job)}
+                            src={getLocalCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getCompanyLogo(job.company || '') || getSafeCompanyLogo(job)}
                             alt={`${job.company} logo`}
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
+                              const name = job.company || '';
+                              const local = getLocalCompanyLogo(name);
+                              if (local && img.src !== window.location.origin + local) {
+                                img.src = local;
+                                return;
+                              }
                               img.onerror = null;
-                              // Use Nambikkai logo as fallback for all companies
-                              img.src = '/images/company-logos/nambikkai-logo.png';
+                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
+                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
                             }}
                           />
                         </div>
