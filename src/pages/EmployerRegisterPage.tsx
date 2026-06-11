@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, Clock, Target, FileText } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, Clock, Target, FileText, X, AlertTriangle, ArrowRight, ArrowLeft, Building2 } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -16,12 +16,12 @@ const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'inf
   const colors = { success: 'bg-green-500 text-white', error: 'bg-red-500 text-white', warning: 'bg-yellow-500 text-white', info: 'bg-blue-500 text-white' };
   toast.className = `fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full ${colors[type]}`;
   const wrapper = document.createElement('div');
-  wrapper.className = 'flex items-center';
+  wrapper.className = 'flex items-center gap-3';
   const span = document.createElement('span');
   span.textContent = message;
   const btn = document.createElement('button');
-  btn.className = 'ml-4 text-white hover:text-gray-200';
-  btn.textContent = 'Ã—';
+  btn.className = 'ml-4 text-white hover:text-gray-200 flex items-center justify-center';
+  btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
   btn.addEventListener('click', () => toast.remove());
   wrapper.appendChild(span);
   wrapper.appendChild(btn);
@@ -38,7 +38,7 @@ interface EmployerRegisterPageProps {
 
 const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate }) => {
   useEffect(() => {
-    // Handle Google OAuth invite-only block redirect â€” check this FIRST before dashboard redirect
+    // Handle Google OAuth invite-only block redirect - check this FIRST before dashboard redirect
     const params = new URLSearchParams(window.location.search);
     if (params.get('blocked') === '1') {
       const cName = params.get('company') || 'This company';
@@ -62,12 +62,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   const [companyLogo, setCompanyLogo] = useState('');
   const [companySuggestions, setCompanySuggestions] = useState<CompanyProfile[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  // GST verification states
+
   const [gstLoading, setGstLoading] = useState(false);
   const [gstVerification, setGstVerification] = useState<{ verified: boolean; legalName?: string; tradeName?: string; status?: string; state?: string } | null>(null);
 
-  // Domain verification states
   const [domainVerification, setDomainVerification] = useState<DomainVerificationResult | null>(null);
   const [selectedCompanyProfile, setSelectedCompanyProfile] = useState<CompanyProfile | null>(null);
   const [verificationLoading, setVerificationLoading] = useState(false);
@@ -75,6 +73,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToDeclaration, setAgreedToDeclaration] = useState(false);
+  const [gstMismatch, setGstMismatch] = useState<{ typed: string; gst: string } | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -86,7 +85,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setCompanyLogo('');
     setSelectedCompanyProfile(null);
     setDomainVerification(null);
-    
+
     if (value.trim().length >= 2) {
       try {
         const suggestions = await CompanyVerificationService.getCompanySuggestions(value);
@@ -106,8 +105,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setCompanyLogo(company.logo || '');
     setSelectedCompanyProfile(company);
     setShowSuggestions(false);
-    
-    // If company is already verified, show verification status
+
     if (company.verified) {
       setDomainVerification({
         isValid: true,
@@ -124,27 +122,15 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       setError('Please enter both company name and email');
       return;
     }
-
     setVerificationLoading(true);
     setError('');
-    
     try {
-      const result = await CompanyVerificationService.verifyCompanyDomain(
-        formData.email, 
-        formData.companyName
-      );
-      
+      const result = await CompanyVerificationService.verifyCompanyDomain(formData.email, formData.companyName);
       setDomainVerification(result);
-      
       if (result.companyProfile) {
         setSelectedCompanyProfile(result.companyProfile);
         setCompanyLogo(result.companyProfile.logo || '');
       }
-      
-      // Remove the toast notification - only show inline card
-      // const message = CompanyVerificationService.getVerificationStatusMessage(result);
-      // showToast(message, result.isCompanyDomain ? 'success' : 'warning');
-      
     } catch (error) {
       setError('Domain verification failed. Please try again.');
       showToast('Domain verification failed', 'error');
@@ -163,7 +149,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setError('');
     setGstVerification(null);
     try {
-      // Call backend proxy to Surepass sandbox (avoids CORS + keeps token server-side)
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/verify/gst`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,9 +166,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
           status: d.gstin_status || d.status || 'Active',
           state: d.state || '',
         });
-        // Auto-fill company name from GST data
         const autoName = tradeName || legalName;
+        const typedName = formData.companyName.trim();
         if (autoName) {
+          if (typedName && typedName.toLowerCase() !== autoName.toLowerCase()) {
+            setGstMismatch({ typed: typedName, gst: autoName });
+          } else {
+            setGstMismatch(null);
+          }
           setFormData(prev => ({ ...prev, companyName: autoName }));
         }
       } else {
@@ -207,7 +197,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     if (!formData.gstNumber.trim()) { setError('Please enter your GST number.'); return; }
     if (!gstVerification) { setError('Please verify your GST number before continuing.'); return; }
     if (!gstVerification.verified) { setError('GST verification failed. Please check your GST number.'); return; }
-    
+
     setError('');
     setLoading(true);
     try {
@@ -300,8 +290,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
     setError('');
     try {
       const employerId = generateEmployerId();
-      
-      // Prepare registration data with company verification
       const registrationData: any = {
         email: formData.email,
         password: formData.password,
@@ -312,18 +300,16 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
         employerId,
         gstNumber: formData.gstNumber.trim().toUpperCase(),
       };
-      // Only attach optional fields if they have values
       if (gstVerification?.verified) registrationData.gstVerification = gstVerification;
       if (domainVerification) registrationData.domainVerification = domainVerification;
       if (selectedCompanyProfile) registrationData.companyProfile = selectedCompanyProfile;
-      
+
       const response = await authAPI.register(registrationData);
-      
-      const msg = 'â³ Registration successful! Your account is pending admin verification. You will receive an email once approved.';
-      setSuccess(msg);
+
+      setSuccess('Registration successful! Your account is pending admin verification. You will receive an email once approved.');
       showToast('Registration submitted! Awaiting admin approval.', 'info');
-      
-      // Do NOT navigate to dashboard â€” account is pending
+
+      // Do NOT navigate to dashboard - account is pending
       setTimeout(() => onNavigate('employer-login'), 4000);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Registration failed';
@@ -331,7 +317,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
         const companyMatch = msg.match(/^(.+?) already has an account/);
         const cName = companyMatch ? companyMatch[1] : formData.companyName || 'Your company';
         setError(`COMPANY_EXISTS:${cName}`);
-        showToast('Company already registered â€” joining as team member', 'warning');
+        showToast('Company already registered - joining as team member', 'warning');
       } else {
         setError(msg);
         showToast(msg, 'error');
@@ -347,86 +333,83 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 
       <div className="flex flex-1">
 
-          {/* LEFT PANEL */}
-          <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
-            <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
-            <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
+        {/* LEFT PANEL */}
+        <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden bg-white">
+          <div className="absolute top-10 left-10 w-80 h-80 rounded-full bg-orange-100 opacity-40" />
+          <div className="absolute bottom-10 right-10 w-64 h-64 rounded-full bg-blue-100 opacity-50" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-orange-50 opacity-60" />
 
-            <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
-              <BackButton onClick={() => onNavigate('home')} />
+          <div className="relative z-10 flex flex-col justify-between px-16 py-12 w-full">
+            <BackButton onClick={() => onNavigate('home')} />
 
-              <div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
-                  Employer Portal
-                </div>
-                <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
-                  Build Your<br />
-                  <span className="text-orange-500">Dream Team</span>
-                </h1>
-                <p className="text-gray-500 text-base mb-10">
-                  Create your employer account and start connecting with top talent.
-                </p>
-                <div className="space-y-4">
-                  {[
-                    { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
-                    { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
-                    { icon: Zap,       text: 'Instant Job Posting',           color: 'text-blue-600',   bg: 'bg-blue-50' },
-                    { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
-                  ].map(({ icon: Icon, text, color, bg }) => (
-                    <div key={text} className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
-                        <Icon className={`w-4 h-4 ${color}`} />
-                      </div>
-                      <span className="text-gray-700 text-sm font-medium">{text}</span>
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-4 bg-orange-50 text-orange-600 border border-orange-200">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 inline-block" />
+                Employer Portal
+              </div>
+              <h1 className="text-4xl font-bold leading-tight mb-4 text-gray-900">
+                Build Your<br />
+                <span className="text-orange-500">Dream Team</span>
+              </h1>
+              <p className="text-gray-500 text-base mb-10">
+                Create your employer account and start connecting with top talent.
+              </p>
+              <div className="space-y-4">
+                {[
+                  { icon: Search,    text: 'AI-Powered Candidate Search',   color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: BarChart2, text: 'Advanced Analytics & Insights', color: 'text-orange-500', bg: 'bg-orange-50' },
+                  { icon: Zap,       text: 'Instant Job Posting',           color: 'text-blue-600',   bg: 'bg-blue-50' },
+                  { icon: Shield,    text: 'Verified Candidate Profiles',   color: 'text-orange-500', bg: 'bg-orange-50' },
+                ].map(({ icon: Icon, text, color, bg }) => (
+                  <div key={text} className="flex items-center space-x-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${bg}`}>
+                      <Icon className={`w-4 h-4 ${color}`} />
                     </div>
-                  ))}
+                    <span className="text-gray-700 text-sm font-medium">{text}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-4 mt-4">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <BarChart2 className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Quick Posting</div>
+                  <div className="text-gray-500 text-xs mt-1">Post jobs in under 2 minutes</div>
                 </div>
               </div>
-
-              <div className="space-y-4 mt-4">
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <BarChart2 className="w-4 h-4 text-orange-500" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm">Quick Posting</div>
-                    <div className="text-gray-500 text-xs mt-1">Post jobs in under 2 minutes</div>
-                  </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <Target className="w-4 h-4 text-blue-600" />
                 </div>
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <Target className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm">Smart Shortlists</div>
-                    <div className="text-gray-500 text-xs mt-1">AI matches best candidates</div>
-                  </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Smart Shortlists</div>
+                  <div className="text-gray-500 text-xs mt-1">AI matches best candidates</div>
                 </div>
-                <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
-                  <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
-                    <Zap className="w-4 h-4 text-orange-500" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900 text-sm">Instant Collaboration</div>
-                    <div className="text-gray-500 text-xs mt-1">Work with your team seamlessly</div>
-                  </div>
+              </div>
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-orange-50 border border-orange-100">
+                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center flex-shrink-0">
+                  <Zap className="w-4 h-4 text-orange-500" />
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">Instant Collaboration</div>
+                  <div className="text-gray-500 text-xs mt-1">Work with your team seamlessly</div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* RIGHT PANEL */}
-          <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
-            {/* Decorative Blobs */}
-            <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
-            <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
-            
-            <div className="w-full max-w-md">
+        {/* RIGHT PANEL */}
+        <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12 relative overflow-hidden">
+          <div className="absolute top-20 right-10 w-72 h-72 rounded-full bg-orange-100 opacity-15 pointer-events-none" />
+          <div className="absolute bottom-20 left-10 w-64 h-64 rounded-full bg-blue-100 opacity-15 pointer-events-none" />
 
-
-              <div className="bg-white rounded-2xl shadow-xl p-8">
+          <div className="w-full max-w-md">
+            <div className="bg-white rounded-2xl shadow-xl p-8">
 
               {/* Step Indicator */}
               <div className="flex items-center justify-between mb-6">
@@ -440,7 +423,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
                           isDone ? 'bg-green-500 text-white' : isActive ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-400'
                         }`}>
-                          {isDone ? 'âœ“' : num}
+                          {isDone ? <CheckCircle className="w-4 h-4" /> : num}
                         </div>
                         <span className={`text-xs font-medium ${isActive ? 'text-orange-500' : isDone ? 'text-green-500' : 'text-gray-400'}`}>{label}</span>
                       </div>
@@ -450,29 +433,44 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                 })}
               </div>
 
+              {gstMismatch && (
+                <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-amber-800 text-sm font-semibold">Company name mismatch</p>
+                      <p className="text-amber-700 text-xs mt-0.5">
+                        You entered <span className="font-semibold line-through">{gstMismatch.typed}</span>, but your GST is registered under <span className="font-semibold">{gstMismatch.gst}</span>. The company name has been updated to match GST records.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {error && !error.startsWith('COMPANY_EXISTS:') && (
                 <div className="mb-4 flex flex-col gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                   <div className="flex items-start gap-2">
-                    <span className="text-red-500 text-xs mt-0.5">âš </span>
+                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                     <span className="text-red-600 text-sm whitespace-pre-line">{error}</span>
                   </div>
                   {error.includes('Team Management') && (
                     <button
                       type="button"
                       onClick={() => onNavigate('employer-login')}
-                      className="self-start mt-1 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg transition"
+                      className="self-start mt-1 text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 px-3 py-1.5 rounded-lg transition flex items-center gap-1"
                     >
-                      Go to Login instead â†’
+                      Go to Login instead <ArrowRight className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               )}
+
               {error.startsWith('COMPANY_EXISTS:') && (() => {
                 const cName = error.replace('COMPANY_EXISTS:', '');
                 return (
                   <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-2">
-                      <span className="text-lg">ðŸ¢</span>
+                      <Building2 className="w-5 h-5 text-orange-500 flex-shrink-0" />
                       <p className="font-semibold text-gray-900 text-sm leading-tight">
                         <span className="text-orange-600">{cName}</span> is already on ZyncJobs
                       </p>
@@ -482,9 +480,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       <button
                         type="button"
                         onClick={() => onNavigate('employer-login')}
-                        className="h-9 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition"
+                        className="h-9 bg-orange-500 hover:bg-orange-600 text-white rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1"
                       >
-                        Login â†’
+                        Login <ArrowRight className="w-3 h-3" />
                       </button>
                       <button
                         type="button"
@@ -504,14 +502,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                               isTeamMember: true,
                               domainVerification,
                               companyProfile: selectedCompanyProfile
-                              // Remove inviteToken completely
                             });
                             if (response.user) localStorage.setItem('user', JSON.stringify(response.user));
-                            
-                            // Set flag for first visit after registration
                             sessionStorage.setItem('isFirstVisitAfterRegistration', 'true');
-                            
-                            setSuccess('âœ… Registered as team member! Redirecting...');
+                            setSuccess('Registered as team member! Redirecting...');
                             setTimeout(() => onNavigate('dashboard'), 1500);
                           } catch (e2) {
                             setError((e2 instanceof Error ? e2.message : 'Registration failed'));
@@ -526,14 +520,17 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       </button>
                     </div>
                     {!formData.password && (
-                      <p className="text-xs text-amber-700 mt-2">âš  Complete Step 3 first to join as team member.</p>
+                      <p className="text-xs text-amber-700 mt-2 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Complete Step 3 first to join as team member.
+                      </p>
                     )}
                   </div>
                 );
               })()}
+
               {success && (
                 <div className="mb-4 flex items-start gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-                  <span className="text-green-500 text-xs mt-0.5">âœ“</span>
+                  <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
                   <span className="text-green-600 text-sm">{success}</span>
                 </div>
               )}
@@ -560,13 +557,23 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                             <img src={companyLogo} alt="" className="w-full h-full object-contain" onError={() => setCompanyLogo('')} />
                           </div>
                         )}
+                        {gstVerification?.verified && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                          </div>
+                        )}
                         <input type="text" name="companyName" value={formData.companyName}
                           onChange={handleCompanyNameChange}
-                          onFocus={() => formData.companyName.length >= 2 && setShowSuggestions(true)}
+                          onFocus={() => !gstVerification?.verified && formData.companyName.length >= 2 && setShowSuggestions(true)}
                           onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                          className={`w-full h-12 sm:h-14 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${companyLogo ? 'pl-10 pr-4' : 'px-4'}`}
+                          readOnly={!!gstVerification?.verified}
+                          className={`w-full h-12 sm:h-14 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 transition-all duration-200 touch-manipulation ${
+                            gstVerification?.verified
+                              ? 'border-green-200 bg-green-50 text-gray-700 cursor-not-allowed focus:ring-green-300 pr-10'
+                              : 'border-gray-200 bg-gray-50 focus:bg-white focus:ring-orange-400'
+                          } ${companyLogo ? 'pl-10' : 'px-4'}`}
                           placeholder="Enter company name" />
-                        {showSuggestions && companySuggestions.length > 0 && (
+                        {showSuggestions && !gstVerification?.verified && companySuggestions.length > 0 && (
                           <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-y-auto">
                             {companySuggestions.map((company) => (
                               <button key={company.id} type="button" onMouseDown={() => selectCompany(company)}
@@ -587,7 +594,13 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           </div>
                         )}
                       </div>
+                      {gstVerification?.verified && (
+                        <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Company name set from GST data
+                        </p>
+                      )}
                     </div>
+
                     {/* GST Number */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -599,8 +612,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           name="gstNumber"
                           value={formData.gstNumber}
                           onChange={(e) => {
-                            setFormData({ ...formData, gstNumber: e.target.value.toUpperCase() });
+                            setFormData({ ...formData, gstNumber: e.target.value.toUpperCase(), companyName: '' });
                             setGstVerification(null);
+                            setCompanyLogo('');
+                            setGstMismatch(null);
                           }}
                           className="flex-1 h-12 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white uppercase tracking-wider"
                           placeholder="e.g. 22AAAAA0000A1Z5"
@@ -620,11 +635,10 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           {gstLoading ? 'Verifying...' : 'Verify GST'}
                         </button>
                       </div>
-                      {/* GST Verification Result */}
                       {gstVerification?.verified && (
                         <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
                           <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                          GST Verified â€” Company details filled automatically
+                          GST Verified - Company details filled automatically
                         </div>
                       )}
                     </div>
@@ -653,8 +667,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           </button>
                         )}
                       </div>
-                      
-                      {/* Domain Verification Status */}
+
                       {domainVerification && (
                         <div className={`mt-2 p-3 rounded-lg border text-sm ${
                           domainVerification.verificationMethod === 'company_database' ? 'bg-green-50 border-green-200 text-green-700' :
@@ -676,7 +689,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                                  'Verification Pending'}
                               </div>
                               <div className="text-xs opacity-90">
-                                {domainVerification.verificationMethod === 'company_database' 
+                                {domainVerification.verificationMethod === 'company_database'
                                   ? ''
                                   : domainVerification.verificationMethod === 'domain_check'
                                   ? 'Corporate email detected. Your account will be verified after registration.'
@@ -693,8 +706,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                               )}
                             </div>
                           </div>
-                          
-                          {/* Company Profile Details */}
+
                           {showVerificationDetails && domainVerification.companyProfile && (
                             <div className="mt-3 pt-3 border-t border-current border-opacity-20">
                               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -714,10 +726,11 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         </div>
                       )}
                     </div>
+
                     <button type="button" onClick={handleStep1Next}
                       disabled={loading || verificationLoading}
-                      className="w-full h-12 sm:h-14 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px]">
-                      {loading ? 'Sending...' : 'Continue â†’'}
+                      className="w-full h-12 sm:h-14 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl font-semibold text-sm sm:text-base transition-all disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation min-h-[48px] flex items-center justify-center gap-2">
+                      {loading ? 'Sending...' : <><span>Continue</span><ArrowRight className="w-4 h-4" /></>}
                     </button>
                   </div>
 
@@ -730,8 +743,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      console.log('Google employer register clicked');
-                      sessionStorage.setItem('oauthIntent', 'register'); 
+                      sessionStorage.setItem('oauthIntent', 'register');
                       window.location.href = `${GOOGLE_AUTH_BASE}/api/auth/google/employer`;
                     }}
                     className="w-full flex items-center justify-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 transition-colors touch-manipulation min-h-[44px] sm:min-h-[48px]">
@@ -746,14 +758,13 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                   <div className="mt-3 sm:mt-4 lg:mt-6">
                     <div className="text-center">
                       <span className="text-xs sm:text-sm text-gray-500">Already have an account? </span>
-                      <button 
+                      <button
                         type="button"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          console.log('Navigating to employer-login');
                           onNavigate('employer-login');
-                        }} 
+                        }}
                         className="text-xs sm:text-sm font-semibold text-orange-500 hover:text-orange-600 active:text-orange-700 transition-colors touch-manipulation p-1 sm:p-2 -m-1 sm:-m-2 rounded underline"
                       >
                         Sign in
@@ -808,9 +819,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                     <button
                       type="button"
                       onClick={() => { setStep(1); setError(''); setSuccess(''); setFormData({ ...formData, otp: '' }); }}
-                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all"
+                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
                     >
-                      â† Back
+                      <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                   </div>
                 </div>
@@ -863,7 +874,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         <label htmlFor="declaration-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
                           I am an authorized representative of this company and agree to the{' '}
                           <button type="button" onClick={() => window.open('/terms#employer-declaration', '_blank')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Employer Declaration</button>
-                          {' '}â€” including posting accurate jobs and lawful use of candidate data.
+                          {' '}- including posting accurate jobs and lawful use of candidate data.
                         </label>
                       </div>
                     </div>
@@ -873,21 +884,19 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       {loading ? 'Creating Account...' : 'Create Employer Account'}
                     </button>
                     <button type="button" onClick={() => { setStep(2); setError(''); }}
-                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all">
-                      â† Back
+                      className="w-full h-11 border border-gray-200 text-gray-600 rounded-xl font-medium text-sm hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
+                      <ArrowLeft className="w-4 h-4" /> Back
                     </button>
                   </div>
                 </form>
               )}
 
-              </div>
-
             </div>
           </div>
+        </div>
       </div>
     </div>
   );
 };
 
 export default EmployerRegisterPage;
-

@@ -71,11 +71,13 @@ export class JobParser {
     'What You Will Do', 'Your Role', 'Duties', 'Tasks',
     'Requirements', 'Job Requirements', 'Qualifications',
     'Minimum Requirements', 'Basic Requirements', 'Eligibility',
-    
+    'Key Responsibilities', 'Role Overview', 'About the Role',
+
     // Process & Benefits
     'Interview Process', 'Selection Process', 'Hiring Process',
     'Benefits', 'What We Offer', 'Perks', 'Salary', 'Compensation',
-    'About Us', 'About the Company', 'Company Overview'
+    'About Us', 'About the Company', 'Company Overview',
+    'How to Apply', 'Preferred Qualifications', 'Role Overview'
   ];
 
   // Section aliases for flexible matching
@@ -118,7 +120,7 @@ export class JobParser {
   static parseJobDescription(text: string): ParsedJob {
     const cleanText = this.cleanText(text);
     const sections = this.extractSections(cleanText);
-    
+
     const title = this.extractJobTitle(cleanText, sections);
     const company = this.extractCompanyName(cleanText);
     const location = this.extractLocation(cleanText, sections);
@@ -128,12 +130,12 @@ export class JobParser {
     const mandatorySkills = this.extractMandatorySkills(cleanText, sections);
     const goodToHaveSkills = this.extractGoodToHaveSkills(cleanText, sections);
     const interviewProcess = this.extractInterviewProcess(cleanText, sections);
-    
+
     const confidence = this.calculateWeightedConfidence({
       title, company, location, experience, salary,
       responsibilities, mandatorySkills, sections, cleanText
     });
-    
+
     return {
       title, company, location, experience, salary,
       responsibilities, mandatorySkills, goodToHaveSkills,
@@ -148,15 +150,18 @@ export class JobParser {
     return text
       .replace(/\r/g, '')                    // Remove carriage returns
       .replace(/\t/g, ' ')                   // Convert tabs to spaces
+      .replace(/\*\*([^*]+)\*\*/g, '$1')     // Strip markdown bold **text**
+      .replace(/^#{1,3}\s*/gm, '')           // Strip markdown headers ## / ###
       .replace(/\n{2,}/g, '\n')              // Remove multiple newlines
       .replace(/\s{2,}/g, ' ')               // Remove multiple spaces
-      .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove unicode chars
+      .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove unicode zero-width chars
       .replace(/=\n/g, '')                   // Remove email artifacts
       .replace(/=20/g, ' ')
       .replace(/â€¢/g, '•')                  // Fix bullet points
       .replace(/â€"/g, '-')
       .replace(/[""]/g, '"')                 // Normalize quotes
       .replace(/['']/g, "'")
+      .replace(/&amp;/g, '&')               // Decode HTML entities
       .trim();
   }
 
@@ -218,13 +223,12 @@ export class JobParser {
    * Extract company name with validation
    */
   private static extractCompanyName(text: string): string {
-    // Strip interview/recruitment/drive sections before any matching
     const cleanText = text.replace(
       /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open\s+for)[\s\S]*/gi,
       ''
     ).trim();
 
-    // Priority 1: Explicit "Company Name:" or "Company:" label (not "Company for this job")
+    // Priority 1: Explicit "Company:" or "Company Name:" label
     const companyLabelMatch = cleanText.match(/^\s*Company\s+(?:Name)?\s*:\s*(.+)/im);
     if (companyLabelMatch) {
       let company = companyLabelMatch[1].split('\n')[0].trim();
@@ -232,7 +236,22 @@ export class JobParser {
       if (!isInvalid && company.length > 2 && company.length < 50) return company;
     }
 
-    // Priority 2: "X is looking/hiring/seeking"
+    // Priority 2: ZyncJobs header pattern — "ZYNCJOBS | Job Description — ... , [City], [Country]"
+    // Extract org name from header subtitle if present
+    const zyncMatch = cleanText.match(/ZYNCJOBS.*?—\s*([\w\s,]+?)\n/i);
+    if (zyncMatch) {
+      // The subtitle is a project/org description, not a company — skip
+    }
+
+    // Priority 3: "Connecting Talent" or org line right after ZYNCJOBS header
+    const orgMatch = cleanText.match(/ZyncJobs.*?\n([A-Z][\w\s&.,]{3,50})(?:\n|$)/i);
+    if (orgMatch) {
+      const candidate = orgMatch[1].trim();
+      const isInvalid = this.INVALID_COMPANY_WORDS.some(w => candidate.toLowerCase().includes(w));
+      if (!isInvalid && candidate.length > 2 && candidate.length < 50) return candidate;
+    }
+
+    // Priority 4: "X is looking/hiring/seeking"
     const seekingMatch = cleanText.match(/([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s+(?:is|are)\s+(?:looking|seeking|hiring)/i);
     if (seekingMatch) {
       let company = seekingMatch[1].trim().replace(/[,\.!]+$/, '');
@@ -247,11 +266,11 @@ export class JobParser {
    * Extract job title
    */
   private static extractJobTitle(text: string, sections: Record<string, string>): string {
-    if (sections['job title']) {
-      return sections['job title'];
-    }
+    if (sections['job title']) return sections['job title'].split('\n')[0].trim();
 
     const patterns = [
+      // After cleanText strips ##, the title becomes the first non-empty uppercase line
+      /^([A-Z][A-Za-z\s\/\-&,]{2,60})$/m,
       /Job Title\s*:?\s*([\s\S]*?)(?=Work Location|Company|Experience|$)/i,
       /(?:job\s+title|position|role)\s*[:\-]\s*([^\n\r]+)/i
     ];
@@ -262,10 +281,7 @@ export class JobParser {
         let title = match[1].trim();
         title = this.applyBoundaryProtection(title);
         title = title.replace(/[-\|–—].*$/g, '').trim();
-        
-        if (title.length > 3 && title.length < 100) {
-          return title;
-        }
+        if (title.length > 3 && title.length < 100) return title;
       }
     }
 
@@ -277,13 +293,15 @@ export class JobParser {
    */
   private static extractLocation(text: string, sections: Record<string, string>): string {
     if (sections['work location'] || sections['location']) {
-      return sections['work location'] || sections['location'];
+      return (sections['work location'] || sections['location']).split('\n')[0].trim();
     }
 
+    // Markdown bold label: **Location:** Muscat, Oman
+    const boldMatch = text.match(/Location\s*:\s*([^\n]+)/i);
+    if (boldMatch) return boldMatch[1].trim();
+
     const locationMatch = text.match(/(?:Work Location|Location)\s*:?\s*([\s\S]*?)(?=Experience|Company|$)/i);
-    if (locationMatch) {
-      return this.applyBoundaryProtection(locationMatch[1].trim());
-    }
+    if (locationMatch) return this.applyBoundaryProtection(locationMatch[1].trim());
 
     return '';
   }

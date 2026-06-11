@@ -425,13 +425,10 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
 
   const processFiles = useCallback(async (files: FileList | File[]) => {
     const rawArr = Array.from(files);
-    const expanded: File[] = [];
-    for (const f of rawArr) {
-      if (f.name.toLowerCase().endsWith('.zip')) {
-        expanded.push(...await extractZipFiles(f));
-      } else {
-        expanded.push(f);
-      }
+    const expanded: File[] = rawArr.filter(f => f.name.toLowerCase().endsWith('.csv'));
+    if (expanded.length === 0) {
+      showToast('Only CSV files are supported', 'error');
+      return;
     }
     setStep('parsing');
     setParsingProgress(0);
@@ -441,25 +438,8 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
       setParsingLabel(`Parsing ${file.name} (${i + 1}/${expanded.length})\u2026`);
       setParsingProgress(Math.round((i / expanded.length) * 80));
       try {
-        const text = await extractTextFromFile(file);
-        if (file.name.toLowerCase().endsWith('.csv')) {
-          parsed.push(...parseCSV(text));
-        } else {
-          const job = parseTextToJob(text, file.name);
-          const ai = await aiEnhanceJob(job.raw);
-          Object.assign(job, {
-            jobTitle: ai.jobTitle || job.jobTitle,
-            jobLocation: ai.jobLocation || job.jobLocation,
-            experienceRange: ai.experienceRange || job.experienceRange,
-            skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills : job.skills,
-            jobType: ai.jobType || job.jobType,
-            jobCategory: ai.jobCategory || job.jobCategory,
-            noticePeriod: ai.noticePeriod || job.noticePeriod,
-          });
-          job.errors = validateJob(job);
-          job.status = job.errors.length > 0 ? 'error' : 'ready';
-          parsed.push(job);
-        }
+        const text = await readFileAsText(file);
+        parsed.push(...parseCSV(text));
       } catch {
         parsed.push({
           id: `job-err-${i}-${Date.now()}`,
@@ -794,7 +774,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-gray-900">Import Multiple Jobs at Once</h2>
-              <p className="text-gray-500 mt-1 text-sm">Upload CSV, PDF, DOCX, ZIP — or paste multiple JDs below</p>
+              <p className="text-gray-500 mt-1 text-sm">Upload a CSV file — or paste multiple JDs below</p>
             </div>
 
             {/* Drop zone */}
@@ -809,7 +789,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 ref={fileRef}
                 type="file"
                 multiple
-                accept=".csv,.xlsx,.pdf,.docx,.txt,.zip"
+                accept=".csv"
                 className="hidden"
                 onChange={e => e.target.files && processFiles(e.target.files)}
               />
@@ -819,16 +799,9 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
               <p className="text-lg font-semibold text-gray-800">Drag & drop files here</p>
               <p className="text-sm text-gray-400 mt-1 mb-5">or click to browse</p>
               <div className="flex flex-wrap justify-center gap-2">
-                {[
-                  { label: 'CSV / Excel', Icon: IconCSV },
-                  { label: 'Multiple PDFs', Icon: IconPDF },
-                  { label: 'DOCX Files', Icon: IconDOCX },
-                  { label: 'ZIP Archive', Icon: IconZIP },
-                ].map(({ label, Icon }) => (
-                  <span key={label} className="flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-full font-medium">
-                    <Icon /> {label}
-                  </span>
-                ))}
+                <span className="flex items-center gap-1.5 bg-gray-100 text-gray-600 text-xs px-3 py-1.5 rounded-full font-medium">
+                  <IconCSV /> CSV Files only
+                </span>
               </div>
             </div>
 

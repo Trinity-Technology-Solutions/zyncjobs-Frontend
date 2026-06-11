@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import BackButton from '../components/BackButton';
 import Notification from '../components/Notification';
 import { sendAIMessage } from '../services/aiChatService';
@@ -39,7 +39,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       
       setNotification({
         type: 'success',
-        message: 'Job description parsed successfully! 🎉',
+        message: 'Job description parsed successfully! ðŸŽ‰',
         isVisible: true
       });
 
@@ -64,210 +64,108 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   };
 
   const parseJobDescription = async (description: string) => {
-    // Try consolidated job parser first
-    try {
-      const parserResult = JobParser.parseJobDescription(description);
-      
-      // If overall confidence is high enough, use parser result
-      if (parserResult.confidence.overall > 0.4) {
-        return {
-          jobTitle: parserResult.title,
-          companyName: '',
-          jobLocation: parserResult.location,
-          country: await inferCountryFromCity(
-            (import.meta.env.VITE_API_URL || 'http://localhost:5000').endsWith('/api') 
-              ? import.meta.env.VITE_API_URL 
-              : `${import.meta.env.VITE_API_URL}/api`,
-            parserResult.location
-          ),
-          jobType: extractJobType(description),
-          experienceRange: (() => {
-            const exp = parserResult.experience || '';
-            // Only use if it contains actual year numbers, not garbage text
-            const hasNumbers = /\d+\s*[-\u2013\u2014to]+\s*\d+|\d+\+?\s*(?:years?|yrs?)/i.test(exp);
-            if (hasNumbers) return normalizeExperienceRange(exp);
-            return extractExperience(description);
-          })(),
-          skills: parserResult.mandatorySkills.length > 0 ? parserResult.mandatorySkills : extractSkills(description),
-          minSalary: parserResult.salary.min,
-          maxSalary: parserResult.salary.max,
-          currency: parserResult.salary.currency,
-          payRate: parserResult.salary.payRate,
-          payType: (parserResult.salary as any).payType,
-          benefits: extractBenefits(description),
-          educationLevel: extractEducation(description),
-          jobDescription: description,
-          responsibilities: parserResult.responsibilities.length > 0 ? parserResult.responsibilities : extractResponsibilities(description),
-          goodToHaveSkills: parserResult.goodToHaveSkills || [],
-          jobCategory: extractJobCategory(description),
-          priority: extractPriority(description),
-          clientName: extractClientName(description),
-          reportingManager: extractReportingManager(description),
-          workAuth: extractWorkAuth(description),
-          noticePeriod: extractNoticePeriod(description),
-          urgentNote: extractUrgentNote(description),
-          // Add confidence metadata for UI warnings
-          _confidence: parserResult.confidence
-        };
-      }
-    } catch (error) {
-      console.log('Job parser failed, falling back to legacy parser:', error);
-    }
+    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const base = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
 
-    // Try backend as fallback
+    // Step 1: AI parses first â€” always (via backend to keep API key secure)
+    let ai: Record<string, any> = {};
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-      const base = API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch(`${base}/parse-job-post`, {
+      console.log('[JobParser] Calling AI via backend...');
+      const res = await fetch(`${base}/parse-job-post`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: description }),
-        signal: controller.signal,
       });
-      clearTimeout(timeout);
-
-      if (response.ok) {
-        const result = await response.json();
+      if (res.ok) {
+        const result = await res.json();
         const d = result.data || result;
-        const backendSalary = parseSalaryIfNumeric(d.salaryMin, d.salaryMax, description);
-        const jobLocation = d.location || extractLocation(description);
-        const country = d.country || await inferCountryFromCity(base, jobLocation);
-        return {
-          jobTitle:         d.jobTitle         || extractJobTitle(description),
-          companyName:      '',
-          jobLocation,
-          country,
-          jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
-          experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
-          skills:           d.skills?.length   ? d.skills   : extractSkills(description),
-          minSalary:        backendSalary.min,
-          maxSalary:        backendSalary.max,
-          currency:         backendSalary.currency,
-          payRate:          backendSalary.payRate,
-          payType:          (backendSalary as any).payType,
-          benefits:         extractBenefits(description),
-          educationLevel:   d.educationLevel   || extractEducation(description),
-          jobDescription:   d.description      || description,
-          responsibilities: d.responsibilities?.length ? d.responsibilities : extractResponsibilities(description),
-          requirements:     d.requirements?.length     ? d.requirements    : extractRequirements(description),
-          goodToHaveSkills: extractGoodToHaveSkills(description),
-          priority:         d.priority         || extractPriority(description),
-          clientName:       extractClientName(description),
-          reportingManager: extractReportingManager(description),
-          workAuth:         extractWorkAuth(description),
-          noticePeriod:     extractNoticePeriod(description),
-          urgentNote:       extractUrgentNote(description),
+        // Strip markdown, metadata prefixes from jobTitle
+        const rawTitle = (d.jobTitle || '').replace(/\*+/g, '').trim();
+        const metaTitlePat = /^(experience|exp|salary|location|skills?|department|employment|job type|work type|notice|joining|ctc|lpa|\d)/i;
+        const cleanTitle = metaTitlePat.test(rawTitle) ? '' : rawTitle;
+        ai = {
+          jobTitle:         cleanTitle,
+          jobLocation:      d.location        || '',
+          jobType:          d.jobType         || '',
+          experienceRange:  d.experienceRange || '',
+          skills:           d.skills          || [],
+          benefits:         [],
+          minSalary:        d.salaryMin > 0 ? String(d.salaryMin) : '',
+          maxSalary:        d.salaryMax > 0 ? String(d.salaryMax) : '',
+          currency:         d.currency        || '',
+          educationLevel:   d.educationLevel  || '',
+          jobCategory:      d.jobCategory     || '',
+          responsibilities: d.responsibilities || [],
+          requirements:     d.requirements    || [],
+          nationality:      '',
         };
+        console.log('[JobParser] AI parsed:', ai);
+      } else {
+        console.warn('[JobParser] Backend parse-job-post failed:', res.status);
       }
-    } catch {
-      // backend unavailable or timed out — fall through to AI/regex
+    } catch (err) {
+      console.error('[JobParser] AI failed:', err);
     }
-    return parseWithAIOrRegex(description);
-  };
 
-  const parseWithAIOrRegex = async (description: string) => {
+    // Step 2: JobParser regex fills anything AI left empty
+    let regex: Record<string, any> = {};
     try {
-      const prompt = `Extract job details from this job description and return ONLY valid JSON:
-{
-  "jobTitle": "",
-  "jobLocation": "",
-  "jobType": "",
-  "experienceRange": "",
-  "skills": [],
-  "minSalary": "",
-  "maxSalary": "",
-  "currency": "INR",
-  "educationLevel": "",
-  "jobCategory": "",
-  "responsibilities": [],
-  "requirements": []
-}
-
-Job Description:
-${description.slice(0, 2000)}`;
-
-      const reply = await sendAIMessage(
-        [{ role: 'user', content: prompt }],
-        'You are a job description parser. Extract structured data and return only valid JSON.',
-        undefined,
-        800
-      );
-
-      const match = reply.match(/\{[\s\S]*\}/);
-      if (!match) throw new Error('Invalid AI response');
-      const d = JSON.parse(match[0]);
-
-      const salary = extractSalaryIfNumeric(description);
-      return {
-        jobTitle:         d.jobTitle         || extractJobTitle(description),
-        companyName:      d.companyName      || '',
-        jobLocation:      d.jobLocation      || extractLocation(description),
-        country:          '',
-        jobType:          d.jobType          ? (Array.isArray(d.jobType) ? d.jobType : [d.jobType]) : extractJobType(description),
-        experienceRange:  normalizeExperienceRange(d.experienceRange) || extractExperience(description),
-        skills:           Array.isArray(d.skills) && d.skills.length ? d.skills : extractSkills(description),
-        minSalary:        d.minSalary        || salary.min,
-        maxSalary:        d.maxSalary        || salary.max,
-        currency:         d.currency         || salary.currency,
-        payRate:          salary.payRate,
-        payType:          (salary as any).payType,
-        benefits:         extractBenefits(description),
-        educationLevel:   d.educationLevel   || extractEducation(description),
-        jobDescription:   description,
-        responsibilities: Array.isArray(d.responsibilities) && d.responsibilities.length ? d.responsibilities : extractResponsibilities(description),
-        requirements:     Array.isArray(d.requirements) && d.requirements.length ? d.requirements : extractRequirements(description),
-        goodToHaveSkills: extractGoodToHaveSkills(description),
-        priority:         extractPriority(description),
-        clientName:       extractClientName(description),
-        reportingManager: extractReportingManager(description),
-        workAuth:         extractWorkAuth(description),
-        noticePeriod:     extractNoticePeriod(description),
-        urgentNote:       extractUrgentNote(description),
+      const parserResult = JobParser.parseJobDescription(description);
+      const expRaw = parserResult.experience || '';
+      const expHasNumbers = /\d+\s*[-\u2013\u2014to]+\s*\d+|\d+\+?\s*(?:years?|yrs?)/i.test(expRaw);
+      regex = {
+        jobTitle:         parserResult.title !== 'Software Developer' ? parserResult.title : '',
+        jobLocation:      parserResult.location,
+        experienceRange:  expHasNumbers ? normalizeExperienceRange(expRaw) : '',
+        skills:           parserResult.mandatorySkills,
+        minSalary:        parserResult.salary.min,
+        maxSalary:        parserResult.salary.max,
+        currency:         parserResult.salary.currency,
+        responsibilities: parserResult.responsibilities,
+        goodToHaveSkills: parserResult.goodToHaveSkills || [],
       };
-    } catch {
-      // Final fallback: pure regex
-      return buildFromRegex(description);
-    }
-  };
+    } catch { /* ignore */ }
 
-  const buildFromRegex = async (description: string) => {
-    const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-    const jobLocation = extractLocation(description);
-    const country = await inferCountryFromCity(API_BASE.endsWith('/api') ? API_BASE : `${API_BASE}/api`, jobLocation);
+    // Step 3: merge â€” AI first, regex fills gaps, helper functions as final fallback
     const salary = extractSalaryIfNumeric(description);
+    const jobLocation =
+      ai.jobLocation || regex.jobLocation || extractLocation(description);
+    const country = await inferCountryFromCity(base, jobLocation);
+
     return {
-      jobTitle:         extractJobTitle(description),
-      companyName:      '',
+      jobTitle:         ai.jobTitle         || regex.jobTitle         || extractJobTitle(description),
+      companyName:      ai.companyName      || '',
       jobLocation,
       country,
-      jobType:          extractJobType(description),
-      experienceRange:  extractExperience(description),
-      skills:           extractSkills(description),
-      minSalary:        salary.min,
-      maxSalary:        salary.max,
-      currency:         salary.currency,
+      jobType:          ai.jobType          ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description),
+      experienceRange:  normalizeExperienceRange(ai.experienceRange)  || regex.experienceRange || extractExperience(description),
+      skills:           (Array.isArray(ai.skills) && ai.skills.length)   ? ai.skills   : (regex.skills?.length ? regex.skills : extractSkills(description)),
+      minSalary:        ai.minSalary        || regex.minSalary        || salary.min,
+      maxSalary:        ai.maxSalary        || regex.maxSalary        || salary.max,
+      currency:         ai.currency         || regex.currency         || salary.currency,
       payRate:          salary.payRate,
       payType:          (salary as any).payType,
-      benefits:         extractBenefits(description),
-      educationLevel:   extractEducation(description),
+      benefits:         (Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description),
+      educationLevel:   ai.educationLevel   || extractEducation(description),
       jobDescription:   description,
-      responsibilities: extractResponsibilities(description),
-      requirements:     extractRequirements(description),
-      goodToHaveSkills: extractGoodToHaveSkills(description),
+      responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
+      requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),
+      goodToHaveSkills: regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description),
+      jobCategory:      ai.jobCategory      || extractJobCategory(description),
+      nationality:      ai.nationality      || '',
       priority:         extractPriority(description),
       clientName:       extractClientName(description),
       reportingManager: extractReportingManager(description),
       workAuth:         extractWorkAuth(description),
       noticePeriod:     extractNoticePeriod(description),
       urgentNote:       extractUrgentNote(description),
+      nationalityRestriction: extractNationalityRestriction(description),
     };
   };
 
   const inferCountryFromCity = async (apiBase: string, city: string): Promise<string> => {
     if (!city || city === 'Remote' || city === 'Hybrid' || city === 'On-site') return '';
-    // Client-side city→country map (no API needed)
+    // Client-side cityâ†’country map (no API needed)
     const cityCountryMap: Record<string, string> = {
       // India
       'Mumbai': 'India', 'Delhi': 'India', 'New Delhi': 'India', 'Bangalore': 'India',
@@ -301,6 +199,14 @@ ${description.slice(0, 2000)}`;
       // Others
       'Toronto': 'Canada', 'Vancouver': 'Canada', 'Montreal': 'Canada',
       'Sydney': 'Australia', 'Melbourne': 'Australia', 'Brisbane': 'Australia',
+      // Oman
+      'Muscat': 'Oman', 'Salalah': 'Oman', 'Sohar': 'Oman', 'Nizwa': 'Oman', 'Sur': 'Oman', 'Ibri': 'Oman',
+      // GCC
+      'Riyadh': 'Saudi Arabia', 'Jeddah': 'Saudi Arabia', 'Dammam': 'Saudi Arabia', 'Khobar': 'Saudi Arabia',
+      'Doha': 'Qatar',
+      'Kuwait City': 'Kuwait', 'Salmiya': 'Kuwait',
+      'Manama': 'Bahrain',
+      'Sharjah': 'United Arab Emirates', 'Ajman': 'United Arab Emirates',
       'Singapore': 'Singapore', 'Dubai': 'United Arab Emirates', 'Abu Dhabi': 'United Arab Emirates',
       'Berlin': 'Germany', 'Munich': 'Germany', 'Hamburg': 'Germany', 'Frankfurt': 'Germany',
       'Paris': 'France', 'Lyon': 'France', 'Madrid': 'Spain', 'Barcelona': 'Spain',
@@ -326,43 +232,28 @@ ${description.slice(0, 2000)}`;
     }
   };
 
-  // Parse salary only if actual numeric values exist in JD
-  const parseSalaryIfNumeric = (salaryMin: any, salaryMax: any, text: string) => {
-    const min = parseInt(salaryMin);
-    const max = parseInt(salaryMax);
-    if (min > 0 && max > 0) {
-      const currency = /₹|INR|rupees?|lakh/i.test(text) ? 'INR' :
-                       /€|EUR/i.test(text) ? 'EUR' :
-                       /£|GBP/i.test(text) ? 'GBP' : 'USD';
-      const payRate = /per\s+month|monthly/i.test(text) ? 'per month' :
-                      /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
-      return { min: String(min), max: String(max), currency, payRate };
-    }
-    return extractSalaryIfNumeric(text);
-  };
-
-  // Extract salary from JD text only if actual numbers found — no defaults
+  // Extract salary from JD text only if actual numbers found â€” no defaults
   const extractSalaryIfNumeric = (text: string) => {
     const empty = { min: '', max: '', currency: 'INR', payRate: 'per year' };
-    const currency = /₹|INR|lakh/i.test(text) ? 'INR' : /€|EUR/i.test(text) ? 'EUR' : /£|GBP/i.test(text) ? 'GBP' : 'USD';
+    const currency = /â‚¹|INR|lakh/i.test(text) ? 'INR' : /â‚¬|EUR/i.test(text) ? 'EUR' : /Â£|GBP/i.test(text) ? 'GBP' : 'USD';
     const payRate = /per\s+month|monthly/i.test(text) ? 'per month' : /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
 
     // Range patterns (25-35 lakhs, 25 to 35 LPA, 25-35 lks, etc.)
     const rangePatterns = [
-      // ₹2 LPA – ₹3 LPA (LPA after EACH number, any dash type)
-      /₹\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*₹?\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
-      // 2 LPA – 3 LPA (no ₹, LPA after each)
-      /([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
-      // ₹2 LPA – ₹3 LPA (with ₹ before each number, any dash type)
-      /₹\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*₹?\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
-      // 2 LPA – 3 LPA (without ₹)
-      /([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-–—to]+\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
-      // ₹2 – ₹3 (just rupee symbol)
-      /₹\s*([\d,]+(?:\.\d+)?)\s*[-–—to]+\s*₹?\s*([\d,]+(?:\.\d+)?)/gi,
+      // â‚¹2 LPA â€“ â‚¹3 LPA (LPA after EACH number, any dash type)
+      /â‚¹\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-â€“â€”to]+\s*â‚¹?\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // 2 LPA â€“ 3 LPA (no â‚¹, LPA after each)
+      /([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-â€“â€”to]+\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // â‚¹2 LPA â€“ â‚¹3 LPA (with â‚¹ before each number, any dash type)
+      /â‚¹\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-â€“â€”to]+\s*â‚¹?\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // 2 LPA â€“ 3 LPA (without â‚¹)
+      /([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)\s*[-â€“â€”to]+\s*([\d.]+)\s*(?:lpa|lakhs?(?:\s*per\s*annum)?|lks?)/gi,
+      // â‚¹2 â€“ â‚¹3 (just rupee symbol)
+      /â‚¹\s*([\d,]+(?:\.\d+)?)\s*[-â€“â€”to]+\s*â‚¹?\s*([\d,]+(?:\.\d+)?)/gi,
       // $2 - $3
-      /\$([\d,]+(?:\.\d+)?)\s*[-–—to]+\s*\$?([\d,]+(?:\.\d+)?)/gi,
+      /\$([\d,]+(?:\.\d+)?)\s*[-â€“â€”to]+\s*\$?([\d,]+(?:\.\d+)?)/gi,
       // salary: 2-3 lakhs
-      /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*[-–—to]+\s*([\d,]+(?:\.\d+)?)/gi,
+      /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*[-â€“â€”to]+\s*([\d,]+(?:\.\d+)?)/gi,
     ];
     // deduplicate patterns (some are repeated above for clarity)
     const seenPatterns = new Set<string>();
@@ -385,7 +276,7 @@ ${description.slice(0, 2000)}`;
     // "Upto" / "up to" single-value patterns (upto 25 lakhs, up to 35 LPA, upto 45 lks)
     const uptoPatterns = [
       /up\s*to\s+([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?\s*per\s*annum|lakhs?|lks?)/gi,
-      /up\s*to\s+₹\s*([\d,]+(?:\.\d+)?)/gi,
+      /up\s*to\s+â‚¹\s*([\d,]+(?:\.\d+)?)/gi,
       /up\s*to\s+\$([\d,]+(?:\.\d+)?)/gi,
       /(?:salary|ctc|pay|compensation)\s*[:\-]?\s*up\s*to\s+([\d,]+(?:\.\d+)?)/gi,
       /(?:maximum|max)\s*(?:salary|ctc|pay)?\s*[:\-]?\s*([\d,]+(?:\.\d+)?)\s*(?:lpa|lakhs?|lks?)/gi,
@@ -420,8 +311,8 @@ ${description.slice(0, 2000)}`;
       return `${c} year${c !== 1 ? 's' : ''}`;
     };
 
-    // Match "11-15 years" or "11 - 15 years" or "11 to 15 years" or "11 – 15 years"
-    const rangeMatch = text.match(/(\d+)\s*[-–—to]+\s*(\d+)/);
+    // Match "11-15 years" or "11 - 15 years" or "11 to 15 years" or "11 â€“ 15 years"
+    const rangeMatch = text.match(/(\d+)\s*[-â€“â€”to]+\s*(\d+)/);
     if (rangeMatch) {
       return `${snapMin(parseInt(rangeMatch[1]))} - ${snapMax(parseInt(rangeMatch[2]))}`;
     }
@@ -452,7 +343,7 @@ ${description.slice(0, 2000)}`;
       // Join us patterns
       /join\s+(?:us|our\s+team)\s+as\s+(?:a|an)?\s*([^\n\r,]+?)\s*(?:to|for|at|in|with|\.|,|$)/i,
       // First line before separators or urgency text
-      /^([^\n\r]+?)\s*(?:-{2,}|–|—|\||at\s+[A-Z]|@|\(|urgent|asap|immediate|apply|hiring|wanted|needed|location|salary|experience)/i,
+      /^([^\n\r]+?)\s*(?:-{2,}|â€“|â€”|\||at\s+[A-Z]|@|\(|urgent|asap|immediate|apply|hiring|wanted|needed|location|salary|experience)/i,
       // Job title with level prefixes
       /(?:^|\n)\s*(?:senior|sr\.?|junior|jr\.?|lead|principal|staff|chief|head\s+of|director\s+of)?\s*([^\n\r]+?)\s*(?:engineer|developer|analyst|scientist|manager|director|architect|consultant|specialist|coordinator|administrator|designer|writer|marketer|representative|associate|assistant|intern|trainee)\b/i,
       // Common job patterns
@@ -465,11 +356,11 @@ ${description.slice(0, 2000)}`;
         let title = match[1].trim();
         
         // Enhanced cleaning
-        title = title.replace(/[\-\|\–\—].*$/g, '').trim();
+        title = title.replace(/[\-\|\â€“\â€”].*$/g, '').trim();
         title = title.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
         title = title.replace(/\s*\[[^\]]*\]\s*/g, ' ').trim();
         title = title.replace(/\s+/g, ' ');
-        title = title.replace(/^[\-\*•\d+\.\)\s]+/, '').trim();
+        title = title.replace(/^[\-\*â€¢\d+\.\)\s]+/, '').trim();
         
         // Enhanced validation
         const invalidKeywords = ['immediate', 'asap', 'apply', 'urgent', 'preferred', 'http', 'www', 'email', 'phone', 'contact', 'location', 'salary', 'benefits', 'company', 'about', 'description', 'requirements', 'qualifications', 'responsibilities', 'duties', 'skills', 'experience', 'education', 'degree'];
@@ -488,7 +379,7 @@ ${description.slice(0, 2000)}`;
     // Enhanced fallback with better line analysis
     const lines = text.split('\n').filter(line => line.trim().length > 0);
     for (let i = 0; i < Math.min(5, lines.length); i++) {
-      const cleanLine = lines[i].trim().replace(/^[\-\*•\d+\.\)\s]+/, '').trim();
+      const cleanLine = lines[i].trim().replace(/^[\-\*â€¢\d+\.\)\s]+/, '').trim();
       
       if (cleanLine.length > 5 && cleanLine.length < 100) {
         const invalidKeywords = ['immediate', 'asap', 'apply', 'urgent', 'preferred', 'http', 'www', 'email', 'phone', 'contact', 'we are', 'company', 'about', 'description', 'location', 'salary', 'benefits'];
@@ -497,7 +388,7 @@ ${description.slice(0, 2000)}`;
         if (!hasInvalidKeyword && !cleanLine.includes('@') && !/^\d+$/.test(cleanLine)) {
           const jobTerms = /(?:engineer|developer|analyst|scientist|manager|director|architect|consultant|specialist|coordinator|administrator|designer|writer|marketer|representative|associate|assistant|intern|trainee|software|web|mobile|frontend|backend|full.?stack|data|machine\s+learning|ai|devops|cloud|security|qa|test|product|project|program|technical|sales|marketing|hr|finance|accounting|legal|operations|support|customer\s+service)/i;
           if (jobTerms.test(cleanLine)) {
-            return cleanLine.replace(/\s*[-–—].*$/g, '').trim();
+            return cleanLine.replace(/\s*[-â€“â€”].*$/g, '').trim();
           }
         }
       }
@@ -534,8 +425,8 @@ ${description.slice(0, 2000)}`;
     // --- Priority 2: work arrangement keywords (only if no city found above) ---
     if (/\bfully\s+remote\b|\b100%\s+remote\b|\bwork\s+from\s+home\b|\bwfh\b/i.test(text)) return 'Remote';
 
-    // --- Priority 3: known Indian cities (most JDs are Indian) ---
-    const indianCities = [
+    // --- Priority 3: known cities only â€” must appear with a location label OR alone on a line ---
+    const knownCities = [
       'Mumbai','Delhi','New Delhi','Bangalore','Bengaluru','Chennai','Hyderabad',
       'Kolkata','Pune','Ahmedabad','Surat','Jaipur','Lucknow','Kanpur','Nagpur',
       'Indore','Thane','Bhopal','Visakhapatnam','Patna','Vadodara','Ghaziabad',
@@ -544,90 +435,26 @@ ${description.slice(0, 2000)}`;
       'Ranchi','Howrah','Coimbatore','Jabalpur','Gwalior','Vijayawada','Jodhpur',
       'Madurai','Raipur','Kota','Guwahati','Chandigarh','Mysore','Gurgaon',
       'Noida','Kochi','Dehradun','Bhubaneswar','Mangalore','Erode','Trichy',
-      'Tiruchirappalli','Salem','Tirunelveli','Vellore','Coimbatore','Pondicherry',
-      'Puducherry','Kolhapur','Nashik','Nanded','Solapur','Hubli','Dharwad',
+      'Tiruchirappalli','Salem','Tirunelveli','Vellore','Pondicherry','Puducherry',
+      'Kolhapur','Nanded','Solapur','Hubli','Dharwad',
+      // GCC
+      'Muscat','Salalah','Sohar','Nizwa','Sur','Ibri',
+      'Dubai','Abu Dhabi','Sharjah','Ajman','Riyadh','Jeddah','Dammam','Khobar',
+      'Doha','Kuwait City','Manama','Salmiya',
+      // International
+      'Singapore','London','Toronto','Sydney','Melbourne','New York',
     ];
-    for (const city of indianCities) {
-      if (new RegExp(`\\b${city}\\b`, 'i').test(text)) return city;
+    for (const city of knownCities) {
+      // Only match if city appears with a location-related label, or alone on its own line
+      const withLabel = new RegExp(
+        `(?:location|city|based\s+in|located\s+in|work\s+location|job\s+location)\s*[:\-,]?\s*${city}\b`,
+        'i'
+      ).test(text);
+      const aloneLine = new RegExp(`^\\s*${city}\\s*$`, 'im').test(text);
+      if (withLabel || aloneLine) return city;
     }
 
-    const locationPatterns = [
-      // Major US cities with states
-      /((?:New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|El Paso|Nashville|Detroit|Oklahoma City|Portland|Las Vegas|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|Stockton|Toledo|St. Paul|Newark|Greensboro|Plano|Henderson|Lincoln|Buffalo|Jersey City|Chula Vista|Fort Wayne|Orlando|St. Petersburg|Chandler|Laredo|Norfolk|Durham|Madison|Lubbock|Irvine|Winston-Salem|Glendale|Garland|Hialeah|Reno|Chesapeake|Gilbert|Baton Rouge|Irving|Scottsdale|North Las Vegas|Fremont|Boise|Richmond|San Bernardino|Birmingham|Spokane|Rochester|Des Moines|Modesto|Fayetteville|Tacoma|Oxnard|Fontana|Columbus|Montgomery|Moreno Valley|Shreveport|Aurora|Yonkers|Akron|Huntington Beach|Little Rock|Augusta|Amarillo|Glendale|Mobile|Grand Rapids|Salt Lake City|Tallahassee|Huntsville|Grand Prairie|Knoxville|Worcester|Newport News|Brownsville|Overland Park|Santa Clarita|Providence|Garden Grove|Chattanooga|Oceanside|Jackson|Fort Lauderdale|Santa Rosa|Rancho Cucamonga|Port St. Lucie|Tempe|Ontario|Vancouver|Cape Coral|Sioux Falls|Springfield|Peoria|Pembroke Pines|Elk Grove|Salem|Lancaster|Corona|Eugene|Palmdale|Salinas|Springfield|Pasadena|Fort Collins|Hayward|Pomona|Cary|Rockford|Alexandria|Escondido|McKinney|Kansas City|Joliet|Sunnyvale|Torrance|Bridgeport|Lakewood|Hollywood|Paterson|Naperville|Syracuse|Mesquite|Dayton|Savannah|Clarksville|Orange|Pasadena|Fullerton|Killeen|Frisco|Hampton|McAllen|Warren|Bellevue|West Valley City|Columbia|Olathe|Sterling Heights|New Haven|Miramar|Waco|Thousand Oaks|Cedar Rapids|Charleston|Round Rock|Rialto|Davenport|Miami Gardens|Burbank|Richardson|Pompano Beach|North Charleston|Broken Arrow|Boulder|West Palm Beach|Surprise|Thornton|League City|Dearborn|Roseville|Beaumont|Brownsville|Independence|Murfreesboro|Ann Arbor|Fargo|Wilmington|Abilene|Odessa|Columbia|Pearland|Temecula|Carrollton|Lewisville|Victorville|Santa Maria|Berkeley|Topeka|Norman|Elgin|Clearwater|Westminster|Billings|Lowell|Stamford|Fontana|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Evansville|Fort Wayne|Provo|Charleston|Springfield|Lakewood|Peoria|High Point|Waterbury|West Jordan|Antioch|Everett|West Palm Beach|Centennial|Inglewood|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman)(?:,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY))?)/i,
-      // International cities
-      /(London|Paris|Berlin|Madrid|Rome|Amsterdam|Vienna|Brussels|Prague|Warsaw|Budapest|Stockholm|Copenhagen|Oslo|Helsinki|Dublin|Zurich|Geneva|Barcelona|Milan|Munich|Hamburg|Frankfurt|Singapore|Dubai|Toronto|Sydney|Melbourne)/i,
-      // City, State/Country patterns
-      /([A-Z][a-z]{2,}(?:\s+[A-Z][a-z]+)*,\s*(?:[A-Z]{2}|[A-Z][a-z]+))/,
-      // Major US cities with states
-      /((?:New York|Los Angeles|Chicago|Houston|Phoenix|Philadelphia|San Antonio|San Diego|Dallas|San Jose|Austin|Jacksonville|Fort Worth|Columbus|Charlotte|San Francisco|Indianapolis|Seattle|Denver|Washington|Boston|El Paso|Nashville|Detroit|Oklahoma City|Portland|Las Vegas|Memphis|Louisville|Baltimore|Milwaukee|Albuquerque|Tucson|Fresno|Sacramento|Kansas City|Long Beach|Mesa|Atlanta|Colorado Springs|Virginia Beach|Raleigh|Omaha|Miami|Oakland|Minneapolis|Tulsa|Wichita|New Orleans|Arlington|Cleveland|Tampa|Bakersfield|Aurora|Honolulu|Anaheim|Santa Ana|Corpus Christi|Riverside|Lexington|Stockton|Toledo|St. Paul|Newark|Greensboro|Plano|Henderson|Lincoln|Buffalo|Jersey City|Chula Vista|Fort Wayne|Orlando|St. Petersburg|Chandler|Laredo|Norfolk|Durham|Madison|Lubbock|Irvine|Winston-Salem|Glendale|Garland|Hialeah|Reno|Chesapeake|Gilbert|Baton Rouge|Irving|Scottsdale|North Las Vegas|Fremont|Boise|Richmond|San Bernardino|Birmingham|Spokane|Rochester|Des Moines|Modesto|Fayetteville|Tacoma|Oxnard|Fontana|Columbus|Montgomery|Moreno Valley|Shreveport|Aurora|Yonkers|Akron|Huntington Beach|Little Rock|Augusta|Amarillo|Glendale|Mobile|Grand Rapids|Salt Lake City|Tallahassee|Huntsville|Grand Prairie|Knoxville|Worcester|Newport News|Brownsville|Overland Park|Santa Clarita|Providence|Garden Grove|Chattanooga|Oceanside|Jackson|Fort Lauderdale|Santa Rosa|Rancho Cucamonga|Port St. Lucie|Tempe|Ontario|Vancouver|Cape Coral|Sioux Falls|Springfield|Peoria|Pembroke Pines|Elk Grove|Salem|Lancaster|Corona|Eugene|Palmdale|Salinas|Springfield|Pasadena|Fort Collins|Hayward|Pomona|Cary|Rockford|Alexandria|Escondido|McKinney|Kansas City|Joliet|Sunnyvale|Torrance|Bridgeport|Lakewood|Hollywood|Paterson|Naperville|Syracuse|Mesquite|Dayton|Savannah|Clarksville|Orange|Pasadena|Fullerton|Killeen|Frisco|Hampton|McAllen|Warren|Bellevue|West Valley City|Columbia|Olathe|Sterling Heights|New Haven|Miramar|Waco|Thousand Oaks|Cedar Rapids|Charleston|Sioux City|Round Rock|Rialto|Davenport|Miami Gardens|Burbank|Richardson|Pompano Beach|North Charleston|Broken Arrow|Boulder|West Palm Beach|Surprise|Thornton|League City|Dearborn|Roseville|Palmdale|Salinas|Beaumont|Brownsville|Independence|Murfreesboro|Ann Arbor|Fargo|Wilmington|Abilene|Odessa|Columbia|Pearland|Huntington Beach|Temecula|Richardson|Carrollton|Lewisville|Victorville|Santa Maria|Berkeley|Topeka|Norman|Elgin|Columbia|Clearwater|Westminster|Billings|Lowell|Stamford|Fontana|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Evansville|Fort Wayne|Provo|Charleston|Springfield|Lakewood|Peoria|High Point|Waterbury|Pompano Beach|West Jordan|Antioch|Everett|West Palm Beach|Centennial|Lowell|Richardson|Broken Arrow|Inglewood|Sandy Springs|Jurupa Valley|Hillsboro|Waterbury|Santa Clara|Costa Mesa|Miami Gardens|Concord|Peoria|Downey|Roseville|Thornton|Manchester|Allentown|Elgin|Sterling Heights|West Valley City|Columbia|Surprise|Sunnyvale|Clarksville|Roseville|Peoria|Inglewood|Evansville|Salem|Santa Clara|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina|Pearland|Victorville|Santa Maria|Berkeley|Topeka|Norman|Columbia|Clearwater|Billings|Lowell|Stamford|Cedar Rapids|Meridian|Arvada|Allentown|Cambridge|Lansing|Fort Wayne|Provo|Charleston|Springfield|Lakewood|High Point|Waterbury|West Jordan|Antioch|Everett|Centennial|Richardson|Broken Arrow|Sandy Springs|Jurupa Valley|Hillsboro|Santa Clara|Costa Mesa|Concord|Downey|Thornton|Manchester|Elgin|Sterling Heights|West Valley City|Surprise|Sunnyvale|Clarksville|Inglewood|Evansville|Salem|Thousand Oaks|Vallejo|El Monte|Abilene|Beaumont|Carrollton|Dearborn|Westminster|West Covina)(?:,\s*(?:AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming))?)/i,
-      // International cities
-      /(London|Paris|Berlin|Madrid|Rome|Amsterdam|Vienna|Brussels|Prague|Warsaw|Budapest|Stockholm|Copenhagen|Oslo|Helsinki|Dublin|Zurich|Geneva|Barcelona|Milan|Munich|Hamburg|Frankfurt|Cologne|Stuttgart|Düsseldorf|Leipzig|Dresden|Hannover|Nuremberg|Dortmund|Essen|Bremen|Duisburg|Bochum|Wuppertal|Bielefeld|Bonn|Münster|Karlsruhe|Mannheim|Augsburg|Wiesbaden|Gelsenkirchen|Mönchengladbach|Braunschweig|Chemnitz|Kiel|Aachen|Halle|Magdeburg|Freiburg|Krefeld|Lübeck|Oberhausen|Erfurt|Mainz|Rostock|Kassel|Hagen|Hamm|Saarbrücken|Mülheim|Potsdam|Ludwigshafen|Oldenburg|Leverkusen|Osnabrück|Solingen|Heidelberg|Herne|Neuss|Darmstadt|Paderborn|Regensburg|Ingolstadt|Würzburg|Fürth|Wolfsburg|Offenbach|Ulm|Heilbronn|Pforzheim|Göttingen|Bottrop|Trier|Recklinghausen|Reutlingen|Bremerhaven|Koblenz|Bergisch Gladbach|Jena|Remscheid|Erlangen|Moers|Siegen|Hildesheim|Salzgitter)(?:,\s*(?:UK|United Kingdom|Germany|France|Spain|Italy|Netherlands|Austria|Belgium|Czech Republic|Poland|Hungary|Sweden|Denmark|Norway|Finland|Ireland|Switzerland))?/i,
-      // Work arrangement patterns
-      /(remote|hybrid|on-site|work from home|wfh|distributed|anywhere|flexible location)/i,
-      // City, State patterns
-      /([A-Z][a-z]+,\s*[A-Z]{2})/,
-      // City, Country patterns
-      /([A-Z][a-z]+,\s*[A-Z][a-z]+)/,
-      // Zip code patterns
-      /([A-Z][a-z\s]+)\s+\d{5}(?:-\d{4})?/
-    ];
-
-    for (const pattern of locationPatterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        let location = match[1].trim();
-        
-        // Clean up location
-        location = location.replace(/[\-\|\–\—].*$/g, '').trim();
-        location = location.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-        location = location.replace(/\s+/g, ' ');
-        location = location.replace(/[,\.!]+$/, '').trim();
-        
-        if (location.length > 2 && location.length < 60) {
-          // Capitalize first letter if needed
-          location = location.charAt(0).toUpperCase() + location.slice(1);
-          return location;
-        }
-      }
-    }
-
-    // Enhanced remote work detection
-    const remotePatterns = [
-      /remote/i,
-      /work from home/i,
-      /wfh/i,
-      /distributed/i,
-      /anywhere/i,
-      /location independent/i,
-      /virtual/i,
-      /telecommute/i
-    ];
-    
-    const hybridPatterns = [
-      /hybrid/i,
-      /flexible location/i,
-      /remote and office/i,
-      /office and remote/i
-    ];
-    
-    const onsitePatterns = [
-      /on-site/i,
-      /onsite/i,
-      /in-office/i,
-      /office based/i,
-      /office location/i
-    ];
-
-    if (remotePatterns.some(pattern => pattern.test(text))) {
-      return 'Remote';
-    }
-    if (hybridPatterns.some(pattern => pattern.test(text))) {
-      return 'Hybrid';
-    }
-    if (onsitePatterns.some(pattern => pattern.test(text))) {
-      return 'On-site';
-    }
-
+    // --- No confident location found â€” return empty string ---
     return '';
   };
 
@@ -672,10 +499,10 @@ ${description.slice(0, 2000)}`;
 
   const extractExperience = (text: string): string => {
     // Priority 1: explicit "Experience Required" label followed by range on same or next line
-    const labelMatch = text.match(/experience\s+required\s*[:\-]?\s*([\d\s\-–—to]+(?:years?|yrs?))/i);
+    const labelMatch = text.match(/experience\s+required\s*[:\-]?\s*([\d\s\-â€“â€”to]+(?:years?|yrs?))/i);
     if (labelMatch) {
       const raw = labelMatch[1].trim();
-      const m = raw.match(/(\d+)\s*[-–—to]+\s*(\d+)/);
+      const m = raw.match(/(\d+)\s*[-â€“â€”to]+\s*(\d+)/);
       if (m) return `${parseInt(m[1])}-${parseInt(m[2])} years`;
       const s = raw.match(/(\d+)/);
       if (s) return `${parseInt(s[1])}+ years`;
@@ -683,10 +510,10 @@ ${description.slice(0, 2000)}`;
 
     // Priority 2: range patterns directly tied to experience keyword
     const rangePatterns = [
-      /(\d+)\s*[-–—]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+      /(\d+)\s*[-â€“â€”]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
       /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-      /(?:experience|exp)\s*[:\-]?\s*(\d+)\s*[-–—to]+\s*(\d+)\s*(?:years?|yrs?)/i,
-      /(?:minimum|at\s+least)\s*(\d+)\s*[-–—to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /(?:experience|exp)\s*[:\-]?\s*(\d+)\s*[-â€“â€”to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /(?:minimum|at\s+least)\s*(\d+)\s*[-â€“â€”to]+\s*(\d+)\s*(?:years?|yrs?)/i,
       /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
     ];
     for (const p of rangePatterns) {
@@ -781,10 +608,10 @@ ${description.slice(0, 2000)}`;
           const section = match[1];
           
           // Extract skills from bullet points
-          const bulletPoints = section.match(/(?:^|\n)\s*[•\-\*\d+\.)\s]+([^\n]+)/gm);
+          const bulletPoints = section.match(/(?:^|\n)\s*[â€¢\-\*\d+\.)\s]+([^\n]+)/gm);
           if (bulletPoints) {
             for (const point of bulletPoints) {
-              const cleanPoint = point.replace(/^\s*[•\-\*\d+\.)\s]+/, '').trim();
+              const cleanPoint = point.replace(/^\s*[â€¢\-\*\d+\.)\s]+/, '').trim();
               for (const skill of commonSkills) {
                 if (cleanPoint.toLowerCase().includes(skill.toLowerCase())) {
                   foundSkills.add(skill);
@@ -1018,10 +845,10 @@ ${description.slice(0, 2000)}`;
       const section = responsibilitiesMatch[0];
       
       // Extract bullet points or numbered items
-      const bulletPoints = section.match(/(?:^|\n)\s*[•\-\*\d+\.)\s]+(.+)/gm);
+      const bulletPoints = section.match(/(?:^|\n)\s*[â€¢\-\*\d+\.)\s]+(.+)/gm);
       if (bulletPoints) {
         bulletPoints.forEach(point => {
-          const cleaned = point.replace(/^\s*[•\-\*\d+\.)\s]+/, '').trim();
+          const cleaned = point.replace(/^\s*[â€¢\-\*\d+\.)\s]+/, '').trim();
           if (cleaned.length > 10 && cleaned.length < 200) {
             responsibilities.push(cleaned);
           }
@@ -1066,18 +893,48 @@ ${description.slice(0, 2000)}`;
       /(?:good\s+to\s+have|nice\s+to\s+have|preferred\s+skills?|bonus\s+skills?|optional\s+skills?)[:\s]*([\s\S]*?)(?=(?:preferred\s+candidate|interview|recruitment|$))/i
     );
     if (!sectionMatch) return [];
+
+    const isValidSkill = (s: string) =>
+      s.length > 2 && s.length < 100 &&
+      !/^[-#*=_|.\s]+$/.test(s) &&       // reject lines of only symbols
+      !/^#{1,6}\s/.test(s) &&             // reject markdown headers
+      !/^-{2,}$/.test(s.trim()) &&        // reject horizontal rules
+      /[a-zA-Z]/.test(s);                 // must contain at least one letter
+
     const bullets = sectionMatch[1].match(/(?:^|\n)\s*[•\-\*\d+\.\)\s]+(.+)/gm);
     if (bullets) {
       return bullets
         .map(b => b.replace(/^\s*[•\-\*\d+\.\)\s]+/, '').trim())
-        .filter(b => b.length > 2 && b.length < 100)
+        .filter(isValidSkill)
         .slice(0, 10);
     }
-    // fallback: split by newlines
     return sectionMatch[1].split('\n')
       .map(l => l.trim())
-      .filter(l => l.length > 2 && l.length < 100)
+      .filter(isValidSkill)
       .slice(0, 10);
+  };
+
+  const extractNationalityRestriction = (text: string): string => {
+    const lower = text.toLowerCase();
+    const patterns: [RegExp, string][] = [
+      [/oman\s+national(?:s|\s+only)?|omanis?\s+only|omani\s+national/i, 'Oman National Only'],
+      [/uae\s+national(?:s|\s+only)?|emirati(?:s)?\s+only|emirati\s+national/i, 'UAE National Only'],
+      [/saudi\s+national(?:s|\s+only)?|saudi\s+only|saudi\s+arabian\s+national/i, 'Saudi National Only'],
+      [/bahrain\s+national(?:s|\s+only)?|bahraini(?:s)?\s+only/i, 'Bahrain National Only'],
+      [/kuwait\s+national(?:s|\s+only)?|kuwaiti(?:s)?\s+only/i, 'Kuwait National Only'],
+      [/qatar\s+national(?:s|\s+only)?|qatari(?:s)?\s+only/i, 'Qatar National Only'],
+      [/indian\s+national(?:s|\s+only)?|indian(?:s)?\s+only/i, 'Indian National Only'],
+    ];
+    for (const [pattern, label] of patterns) {
+      if (pattern.test(text)) return label;
+    }
+    // Generic: "[Nationality] nationals only" or "only [nationality] nationals"
+    const genericMatch = text.match(/\b([A-Z][a-z]+)\s+nationals?\s+only\b|\bonly\s+([A-Z][a-z]+)\s+nationals?\b/i);
+    if (genericMatch) {
+      const nat = (genericMatch[1] || genericMatch[2]).trim();
+      return `${nat.charAt(0).toUpperCase() + nat.slice(1)} National Only`;
+    }
+    return '';
   };
 
   const extractUrgentNote = (text: string): string => {
@@ -1109,10 +966,10 @@ ${description.slice(0, 2000)}`;
     
     if (requirementsMatch && requirementsMatch[0]) {
       const section = requirementsMatch[0];
-      const bulletPoints = section.match(/(?:^|\n)\s*[•\-\*\d+\.)\s]+(.+)/gm);
+      const bulletPoints = section.match(/(?:^|\n)\s*[â€¢\-\*\d+\.)\s]+(.+)/gm);
       if (bulletPoints) {
         bulletPoints.forEach(point => {
-          const cleaned = point.replace(/^\s*[•\-\*\d+\.)\s]+/, '').trim();
+          const cleaned = point.replace(/^\s*[â€¢\-\*\d+\.)\s]+/, '').trim();
           if (cleaned.length > 10 && cleaned.length < 200) {
             requirements.push(cleaned);
           }
