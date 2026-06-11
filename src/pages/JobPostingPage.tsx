@@ -675,8 +675,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     if (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') {
       updateJobData('jobDescription', '');
     }
-    // In parse mode, clear the raw JD text — a clean one will be generated at step 6
-    if (mode === 'parse') {
+    // In parse mode, clear only garbage values — real JD will be regenerated at step 6
+    if (mode === 'parse' && (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined')) {
       updateJobData('jobDescription', '');
     }
   }, []);
@@ -1999,6 +1999,10 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       if (nextStepNum === 6 && jobData.jobTitle && mode === 'parse') {
         setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
       }
+      // If skipping to review (step 7) and JD is empty, generate it now
+      if (nextStepNum === 7 && !jobData.jobDescription.trim() && jobData.jobTitle) {
+        setTimeout(() => generateJobDescription(jobData.jobTitle, true), 300);
+      }
     }
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -3277,6 +3281,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
   const renderStep7 = () => {
     const bannerUrl = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory);
+    // Ensure the jobHeaderImage is set before submit
+    if (!jobData.jobHeaderImage) updateJobData('jobHeaderImage', getCategoryBanner(jobData.jobCategory));
     const bannerOptions = getCategoryBannerOptions(jobData.jobCategory);
     return (
     <div className="px-6 py-8">
@@ -3561,7 +3567,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       country: jobData.country || '',
       urgentNote: jobData.urgentNote?.trim() || '',
       nationalityRestriction: jobData.nationalityRestriction || '',
-      jobHeaderImage: jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory)
+      jobHeaderImage: jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'
     };
     
     console.log('Posting job for user:', user.email);

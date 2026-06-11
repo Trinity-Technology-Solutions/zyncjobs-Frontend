@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, Settings, AlertTriangle } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, Settings, AlertTriangle, KeyRound } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
@@ -18,6 +18,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [suggestReset, setSuggestReset] = useState(false);
   const [showChangePw, setShowChangePw] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPw, setConfirmNewPw] = useState('');
@@ -33,6 +34,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
     e.preventDefault();
     setLoading(true);
     setError('');
+    setSuggestReset(false);
     try {
       const response = await authAPI.login({ email, password });
       const userType = response.user.userType || response.user.role;
@@ -63,7 +65,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       // For team members: store ownerEmail so dashboard fetches owner's data
       const userToStore = {
         ...response.user,
-        ownerEmail: response.user.ownerEmail || (isTeamMember ? response.user.employerId : null)
+        ownerEmail: (response.user as any).ownerEmail || (isTeamMember ? response.user.employerId : null)
       };
       localStorage.setItem('user', JSON.stringify(userToStore));
       const displayName = response.user.name || response.user.companyName || response.user.company || response.user.fullName || response.user.email.split('@')[0];
@@ -80,8 +82,10 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       onNavigate('dashboard');
       if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome back! Login successful.' });
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Login failed';
+      const errData = (err as any)?.response?.data || err;
+      const errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
       setError(errorMessage);
+      if (errData?.suggestReset) setSuggestReset(true);
       if (onShowNotification) onShowNotification({ type: 'error', message: errorMessage });
     } finally {
       setLoading(false);
@@ -247,9 +251,21 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
               </div>
 
               {error && (
-                <div className="mb-5 flex items-start space-x-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                  <span className="text-red-600 text-sm">{error}</span>
+                <div className="mb-5 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                  <div className="flex items-start space-x-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-red-600 text-sm">{error}</span>
+                  </div>
+                  {suggestReset && (
+                    <button
+                      type="button"
+                      onClick={() => onNavigate('forgot-password')}
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700 underline"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      Reset your password
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -271,7 +287,12 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="block text-sm font-medium text-gray-700">Password</label>
-                    <button type="button" onClick={() => onNavigate('forgot-password')} className="text-xs font-medium text-orange-500 hover:text-orange-700">
+                    <button type="button" onClick={() => onNavigate('forgot-password')}
+                      className={`text-xs font-semibold transition-all ${
+                        suggestReset
+                          ? 'text-orange-600 underline animate-pulse'
+                          : 'text-orange-500 hover:text-orange-700'
+                      }`}>
                       Forgot Password?
                     </button>
                   </div>
