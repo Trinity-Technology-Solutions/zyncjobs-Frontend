@@ -499,6 +499,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             </div>
             
             <div className="mt-4 lg:mt-0 flex flex-wrap items-center gap-2 sm:gap-3">
+              {/* nationality restriction banner */}
+              {(job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement) && (
+                <div className="w-full lg:w-auto flex items-center gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2">
+                  <span className="text-base leading-none">🪪</span>
+                  <p className="text-sm text-red-700 font-bold">{job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement}</p>
+                </div>
+              )}
               <button 
                 onClick={() => setShowShareModal(true)}
                 className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-2 text-sm"
@@ -635,8 +642,12 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     'summary': 'summary',
                     'key responsibilities': 'responsibilities', 
                     'responsibilities': 'responsibilities',
+                    'role & responsibilities': 'responsibilities',
+                    'role and responsibilities': 'responsibilities',
+                    'requirements': 'mandatory-skills',
                     'mandatory skills': 'mandatory-skills',
                     'required skills': 'mandatory-skills',
+                    'qualifications': 'mandatory-skills',
                     'good to have skills': 'good-to-have',
                     'nice to have': 'good-to-have',
                     'preferred candidate profile': 'candidate-profile',
@@ -686,7 +697,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       {/* Job Summary Section */}
                       {sections.summary && sections.summary.length > 0 && (
                         <div>
-                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Job Summary</h4>
+                          <h4 className="text-xl font-bold text-gray-900 mb-3">Job Summary</h4>
                           <div className="text-gray-700 space-y-2">
                             {sections.summary.map((line: string, i: number) => (
                               <p key={i} className="text-sm leading-relaxed">{line}</p>
@@ -698,7 +709,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       {/* Key Responsibilities Section */}
                       {sections.responsibilities && sections.responsibilities.length > 0 && (
                         <div>
-                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Role & responsibilities</h4>
+                          <h4 className="text-xl font-bold text-gray-900 mb-3">Role & Responsibilities</h4>
                           <div className="space-y-2">
                             {sections.responsibilities.map((line: string, i: number) => {
                               const isBulletPoint = /^[•\-\*]/.test(line) || 
@@ -733,7 +744,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                       {((sections['mandatory-skills'] && sections['mandatory-skills'].length > 0) || 
                         (sections['candidate-profile'] && sections['candidate-profile'].length > 0)) && (
                         <div>
-                          <h4 className="text-lg font-semibold text-gray-900 mb-3">Required Skills & Qualifications</h4>
+                          <h4 className="text-xl font-bold text-gray-900 mb-3">Requirements</h4>
                           <div className="space-y-2">
                             {/* Mandatory Skills */}
                             {sections['mandatory-skills'] && sections['mandatory-skills'].map((skill: string, i: number) => (

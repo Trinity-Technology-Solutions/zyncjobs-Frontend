@@ -26,7 +26,9 @@ export const getLocalCompanyLogo = (companyName: string): string => {
     'nambikkai': '/images/company-logos/nambikkai-logo.png',
     'nambikkai india': '/images/company-logos/nambikkai-logo.png',
     'trinity technology solutions': '/images/company-logos/trinity-logo.png',
-    'trinity': '/images/company-logos/trinity-logo.png',
+    'trinity technology': '/images/company-logos/trinity-logo.png',
+    'trinity international llc': '/images/company-logos/trinityoman.jpg',
+    'trinity international': '/images/company-logos/trinityoman.jpg',
     'growthpulse': '/images/company-logos/growthpulss.png',
     'growthpulse solutions': '/images/company-logos/growthpulss.png',
     'growth pulse': '/images/company-logos/growthpulss.png',
@@ -445,6 +447,8 @@ const getCompanyDomain = (companyName: string): string => {
     'larsen & toubro': 'larsentoubro.com',
     'l&t': 'larsentoubro.com',
     'infra': 'larsentoubro.com',
+    'trinity international': 'trinityoman.com',
+    'trinity international llc': 'trinityoman.com',
     // Local Companies - Updated with correct domains
     // Note: Growthpulse Solutions may not have a public website
     // Removed growthpulse mappings to avoid DNS errors

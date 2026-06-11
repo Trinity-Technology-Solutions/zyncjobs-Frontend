@@ -1751,6 +1751,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                         )}
                       </div>
 
+                        {(job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement) && (
+                        <div className="flex items-center gap-2 bg-red-50 border border-red-300 rounded-lg px-3 py-2 mb-2">
+                          <span className="text-base leading-none">🪪</span>
+                          <p className="text-sm text-red-700 font-bold">{job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement}</p>
+                        </div>
+                      )}
                       {job.urgentNote && (
                         <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 mb-2">
                           <p className="text-sm text-orange-700 font-medium leading-relaxed line-clamp-2">{job.urgentNote}</p>

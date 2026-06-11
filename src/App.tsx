@@ -441,10 +441,11 @@ function App() {
           else if (rawType === 'super_admin') userType = 'super_admin';
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
+          const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
           setUser(prev => {
-            if (prev?.type === userType && prev?.email === userData.email) return prev;
+            if (prev?.type === userType && prev?.email === userData.email && prev?.name === freshName) return prev;
             return {
-              name: userData.name || userData.fullName || userData.email?.split('@')[0] || 'User',
+              name: freshName,
               type: userType,
               email: userData.email,
               ...(stored.teamRole && { teamRole: stored.teamRole }),
@@ -452,6 +453,13 @@ function App() {
               ...(stored.employerId && { employerId: stored.employerId }),
             } as any;
           });
+          // Keep localStorage in sync with the verified DB name
+          try {
+            const ls = JSON.parse(localStorage.getItem('user') || '{}');
+            if (ls.name !== freshName) {
+              localStorage.setItem('user', JSON.stringify({ ...ls, name: freshName }));
+            }
+          } catch { /* ignore */ }
         }
       } catch {
         tokenStorage.clear();
@@ -479,26 +487,7 @@ function App() {
     // Do not restore on unmount — App lives for the entire session
   }, []);
 
-  // Early returns AFTER all hooks
-  // Check if this is an admin invite activation - bypass all other logic
-  if (location.pathname === '/admin/accept-invite') {
-    console.log('🔑 Admin invite activation detected, bypassing user checks');
-    return (
-      <>
-        <GlobalAlert />
-        <SEOHead />
-        <OfflineIndicator />
-        <Suspense fallback={<LoadingFallback />}>
-          <AdminAcceptInvitePage
-            onNavigate={handleNavigation}
-            onLogin={handleLogin}
-          />
-        </Suspense>
-      </>
-    );
-  }
 
-  // Always show loader for protected routes AND auth routes until session is fully restored
   if (userLoading) {
     const waitForSessionPaths = [
       '/login', '/employer-login',
@@ -888,15 +877,10 @@ function App() {
 
             {/* -- Admin Accept Invite (Public Route) -- */}
             <Route path="/admin/accept-invite" element={
-              (() => {
-                console.log('🔑 Admin accept invite route accessed');
-                return (
-                  <AdminAcceptInvitePage
-                    onNavigate={handleNavigation}
-                    onLogin={handleLogin}
-                  />
-                );
-              })()
+              <AdminAcceptInvitePage
+                onNavigate={handleNavigation}
+                onLogin={handleLogin}
+              />
             } />
 
             {/* -- Admin Routes -- */}
