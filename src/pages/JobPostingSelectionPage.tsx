@@ -7,7 +7,7 @@ interface JobPostingSelectionPageProps {
 }
 
 const bulkSteps = [
-  'Upload CSV, PDFs, DOCX, or ZIP',
+  'Upload CSV file',
   'AI parses every JD automatically',
   'Preview, edit & validate all jobs',
   'Bulk publish in one click',

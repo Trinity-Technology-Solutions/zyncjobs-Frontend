@@ -124,9 +124,12 @@ export const authAPI = {
         throw new Error('Too many login attempts. Please wait a few minutes and try again.');
       }
       const errorText = await response.text();
-      let error;
+      let error: any;
       try { error = JSON.parse(errorText); } catch { error = { error: 'Login failed' }; }
-      throw new Error(error.error || 'Incorrect email or password. Please try again.');
+      const err: any = new Error(error.error || 'Incorrect email or password. Please try again.');
+      err.suggestReset = error.suggestReset || false;
+      err.response = { data: error };
+      throw err;
     }
 
     const result = await response.json();
