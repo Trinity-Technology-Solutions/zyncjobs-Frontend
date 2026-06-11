@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, Settings } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, Settings, AlertTriangle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
@@ -46,37 +46,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
 
       const verificationStatus = (response.user as any).verificationStatus;
 
-      // Company verification bypass: if another user from the same company domain
-      // is already verified, skip verification for this user
+      // Block pending employers - requires admin verification
       if (!isTeamMember && verificationStatus === 'pending') {
-        try {
-          const emailDomain = email.split('@')[1];
-          const checkRes = await fetch(`${API_BASE}/users/company-verified?domain=${encodeURIComponent(emailDomain)}`);
-          if (checkRes.ok) {
-            const { verified } = await checkRes.json();
-            if (verified) {
-              // Auto-approve — patch this user's verification status
-              await fetch(`${API_BASE}/users/${response.user.id || (response.user as any)._id}/verify-company`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ verificationStatus: 'verified', autoApproved: true })
-              });
-              response.user.verificationStatus = 'verified';
-            } else {
-              setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
-              setLoading(false);
-              return;
-            }
-          } else {
-            setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
-            setLoading(false);
-            return;
-          }
-        } catch {
-          setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
-          setLoading(false);
-          return;
-        }
+        setError('Your employer account is pending admin verification. Please wait for approval before logging in.');
+        setLoading(false);
+        return;
       }
 
       if (!isTeamMember && verificationStatus === 'rejected') {
@@ -149,7 +123,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
             <div className="text-center mb-5">
               <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <span className="text-2xl">🔐</span>
+                <Shield className="w-7 h-7 text-blue-600" />
               </div>
               <h2 className="text-xl font-bold text-gray-900">Set Your Password</h2>
               <p className="text-gray-500 text-sm mt-1">You're logged in! Set a personal password to secure your account.</p>
@@ -274,7 +248,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
 
               {error && (
                 <div className="mb-5 flex items-start space-x-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-                  <span className="text-red-500 text-xs mt-0.5">⚠</span>
+                  <AlertTriangle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
                   <span className="text-red-600 text-sm">{error}</span>
                 </div>
               )}

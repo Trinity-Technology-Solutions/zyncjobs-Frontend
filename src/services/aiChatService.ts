@@ -3,44 +3,25 @@ export interface ChatMessage {
   content: string;
 }
 
-const API_KEY = () => import.meta.env.VITE_OPENROUTER_API_KEY as string;
-const FAST_MODEL = 'mistralai/mistral-small-3.1-24b-instruct:free'; // faster than mistral-7b
-const BASE_URL = 'https://openrouter.ai/api/v1/chat/completions';
+const API_BASE = () => (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
-function headers() {
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${API_KEY()}`,
-    'HTTP-Referer': window.location.origin,
-    'X-Title': 'ZyncJobs',
-  };
-}
-
-// Non-streaming — for JSON responses (Roadmap, Assessment)
+// Non-streaming — for JSON responses (Roadmap, Assessment, Skill suggestions)
 export async function sendAIMessage(
   messages: ChatMessage[],
   systemPrompt: string,
   signal?: AbortSignal,
   maxTokens = 800
 ): Promise<string> {
-  const apiKey = API_KEY();
-  if (!apiKey) throw new Error('No API key');
-
-  const res = await fetch(BASE_URL, {
+  const res = await fetch(`${API_BASE()}/ai/chat`, {
     method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      model: FAST_MODEL,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      max_tokens: maxTokens,
-      temperature: 0.4, // lower = faster + more deterministic JSON
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, systemPrompt, maxTokens }),
     signal,
   });
 
-  if (!res.ok) throw new Error(`OpenRouter error: ${res.status}`);
+  if (!res.ok) throw new Error(`AI chat error: ${res.status}`);
   const data = await res.json();
-  const reply = data.choices?.[0]?.message?.content?.trim();
+  const reply = data.content?.trim() || data.reply?.trim() || data.message?.trim();
   if (!reply) throw new Error('Empty response');
   return reply;
 }
@@ -52,23 +33,14 @@ export async function sendAIMessageStream(
   onChunk: (text: string) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  const apiKey = API_KEY();
-  if (!apiKey) throw new Error('No API key');
-
-  const res = await fetch(BASE_URL, {
+  const res = await fetch(`${API_BASE()}/ai/chat/stream`, {
     method: 'POST',
-    headers: headers(),
-    body: JSON.stringify({
-      model: FAST_MODEL,
-      messages: [{ role: 'system', content: systemPrompt }, ...messages],
-      max_tokens: 600,
-      temperature: 0.7,
-      stream: true,
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, systemPrompt, maxTokens: 600 }),
     signal,
   });
 
-  if (!res.ok) throw new Error(`OpenRouter error: ${res.status}`);
+  if (!res.ok) throw new Error(`AI stream error: ${res.status}`);
   if (!res.body) throw new Error('No response body');
 
   const reader = res.body.getReader();
@@ -82,14 +54,14 @@ export async function sendAIMessageStream(
       if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
       try {
         const json = JSON.parse(line.slice(6));
-        const token = json.choices?.[0]?.delta?.content;
+        const token = json.choices?.[0]?.delta?.content || json.chunk;
         if (token) onChunk(token);
       } catch { /* skip malformed chunks */ }
     }
   }
 }
 
-// Assessment questions — needs more tokens for 10 questions JSON
+// Assessment questions
 export async function generateAssessmentQuestions(skill: string): Promise<any[]> {
   const prompt = `Generate exactly 10 MCQ questions for "${skill}".
 Return ONLY a JSON array, no markdown, no explanation:
@@ -100,7 +72,7 @@ correctAnswer is 0-3 index. Mix difficulty levels.`;
     [{ role: 'user', content: prompt }],
     'You are a technical assessment expert. Return only a valid JSON array, nothing else.',
     undefined,
-    1200 // enough for 10 questions
+    1200
   );
   const match = reply.match(/\[[\s\S]*\]/);
   if (!match) throw new Error('Invalid AI response');
@@ -113,7 +85,7 @@ correctAnswer is 0-3 index. Mix difficulty levels.`;
   }));
 }
 
-// Career roadmap — needs more tokens for 4-step JSON
+// Career roadmap
 export async function generateCareerRoadmap(
   currentRole: string,
   targetRole: string,
@@ -141,6 +113,5 @@ export async function callAIWithFallback(
   systemPrompt: string,
   signal?: AbortSignal
 ): Promise<string> {
-  if (!API_KEY()) throw new Error('No API key configured');
   return sendAIMessage(messages, systemPrompt, signal, 600);
 }

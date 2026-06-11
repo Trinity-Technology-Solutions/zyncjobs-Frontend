@@ -222,7 +222,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                           onError={(e) => {
                             const img = e.target as HTMLImageElement;
                             img.onerror = null;
-                            img.src = '/images/company-logos/nambikkai-logo.png';
+                            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || '')}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
                           }}
                         />
                       </div>
