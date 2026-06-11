@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Search, Filter, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot } from 'lucide-react';
+import { Search, MapPin, Star, Users, Code, Mail, Briefcase, Zap, ChevronDown, MessageCircle, Copy, Target, CheckCircle, Bot, Building2, Clock, X } from 'lucide-react';
 import { tokenStorage } from '../utils/tokenStorage';
 import DirectMessage from '../components/DirectMessage';
 import BackButton from '../components/BackButton';
@@ -19,15 +19,20 @@ interface Candidate {
   location?: string;
   skills?: string[];
   experience?: string;
+  experienceYears?: number;
   rating?: number;
   salary?: string;
+  expectedCTC?: string | number;
   availability?: string;
+  noticePeriod?: string;
+  openToRelocation?: boolean;
   email?: string;
   profilePhoto?: string;
   profileSummary?: string;
   education?: string;
   languages?: string;
   employment?: any;
+  workHistory?: any[];
   certifications?: any;
   resumeUrl?: string;
   // AI computed
@@ -38,6 +43,102 @@ interface Candidate {
   _bestJob?: any;
 }
 
+// ── Boolean keyword parser ──────────────────────────────────────────────────
+type BoolNode =
+  | { type: 'TERM'; value: string }
+  | { type: 'AND'; left: BoolNode; right: BoolNode }
+  | { type: 'OR';  left: BoolNode; right: BoolNode }
+  | { type: 'NOT'; operand: BoolNode };
+
+function parseBooleanQuery(raw: string): BoolNode | null {
+  const tokens = tokenize(raw);
+  if (!tokens.length) return null;
+  let pos = 0;
+
+  function peek() { return tokens[pos]; }
+  function consume() { return tokens[pos++]; }
+
+  function parseExpr(): BoolNode { return parseOr(); }
+
+  function parseOr(): BoolNode {
+    let left = parseAnd();
+    while (peek() === 'OR') { consume(); left = { type: 'OR', left, right: parseAnd() }; }
+    return left;
+  }
+
+  function parseAnd(): BoolNode {
+    let left = parseNot();
+    while (peek() === 'AND') { consume(); left = { type: 'AND', left, right: parseNot() }; }
+    return left;
+  }
+
+  function parseNot(): BoolNode {
+    if (peek() === 'NOT') { consume(); return { type: 'NOT', operand: parsePrimary() }; }
+    return parsePrimary();
+  }
+
+  function parsePrimary(): BoolNode {
+    if (peek() === '(') {
+      consume();
+      const node = parseExpr();
+      if (peek() === ')') consume();
+      return node;
+    }
+    const t = consume() || '';
+    return { type: 'TERM', value: t.toLowerCase() };
+  }
+
+  try { return parseExpr(); } catch { return null; }
+}
+
+function tokenize(input: string): string[] {
+  const tokens: string[] = [];
+  let i = 0;
+  while (i < input.length) {
+    if (input[i] === ' ' || input[i] === '\t') { i++; continue; }
+    if (input[i] === '(') { tokens.push('('); i++; continue; }
+    if (input[i] === ')') { tokens.push(')'); i++; continue; }
+    if (input[i] === '"') {
+      let j = i + 1;
+      while (j < input.length && input[j] !== '"') j++;
+      tokens.push(input.slice(i + 1, j));
+      i = j + 1;
+      continue;
+    }
+    let j = i;
+    while (j < input.length && !' \t()"'.includes(input[j])) j++;
+    const word = input.slice(i, j);
+    if (word === 'AND' || word === 'OR' || word === 'NOT') tokens.push(word);
+    else tokens.push(word);
+    i = j;
+  }
+  return tokens.filter(Boolean);
+}
+
+function evalBoolNode(node: BoolNode, text: string): boolean {
+  switch (node.type) {
+    case 'TERM': return text.toLowerCase().includes(node.value);
+    case 'AND':  return evalBoolNode(node.left, text) && evalBoolNode(node.right, text);
+    case 'OR':   return evalBoolNode(node.left, text) || evalBoolNode(node.right, text);
+    case 'NOT':  return !evalBoolNode(node.operand, text);
+  }
+}
+
+function matchesBoolean(query: string, candidate: Candidate): boolean {
+  const node = parseBooleanQuery(query);
+  if (!node) return true;
+  const blob = [
+    candidate.fullName, candidate.name, candidate.jobTitle, candidate.title,
+    candidate.profileSummary, candidate.location,
+    ...(candidate.skills || []),
+    ...(Array.isArray(candidate.workHistory) ? candidate.workHistory.map((w: any) => w.company || w.employer || '') : []),
+    typeof candidate.employment === 'object' ? JSON.stringify(candidate.employment) : candidate.employment,
+  ].filter(Boolean).join(' ');
+  return evalBoolNode(node, blob);
+}
+
+const NOTICE_OPTIONS = ['Immediate', '15 Days', '1 Month', '2 Months', '3 Months'];
+
 interface CandidateSearchPageProps {
   onNavigate: (page: string, params?: any) => void;
   user?: any;
@@ -47,8 +148,10 @@ interface CandidateSearchPageProps {
 const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, user, onLogout }) => {
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedSkill, setSelectedSkill] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [skillInput, setSkillInput] = useState('');
+  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
+  const [locationInput, setLocationInput] = useState('');
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [totalCandidates, setTotalCandidates] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -67,6 +170,17 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [sortBy, setSortBy] = useState<'ai_score' | 'name' | 'skills'>('ai_score');
   const [selectedCandidateForMessage, setSelectedCandidateForMessage] = useState<Candidate | null>(null);
+
+  // Advanced filters
+  const [booleanQuery, setBooleanQuery] = useState('');
+  const [designations, setDesignations] = useState<string[]>([]);
+  const [designationInput, setDesignationInput] = useState('');
+  const [expRange, setExpRange] = useState<[number, number]>([0, 30]);
+  const [salaryRange, setSalaryRange] = useState<[number, number]>([0, 100]);
+  const [noticePeriod, setNoticePeriod] = useState<string[]>([]);
+  const [relocationOnly, setRelocationOnly] = useState(false);
+  const [targetCompanies, setTargetCompanies] = useState<string[]>([]);
+  const [companyInput, setCompanyInput] = useState('');
 
   // Close contact menu on outside click
   useEffect(() => {
@@ -162,8 +276,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const scoredCandidates = useMemo(() => {
     try {
       const q = searchTerm.toLowerCase().trim();
-      const skillQ = selectedSkill.toLowerCase().trim();
-      const locQ = selectedLocation.toLowerCase().trim();
 
       const filtered = candidates.filter(c => {
         const name = (c.fullName || c.name || '').toLowerCase();
@@ -173,13 +285,54 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
         const skills = (c.skills || []).map((s: string) => s.toLowerCase());
         const location = (c.location || '').toLowerCase();
         const experience = (c.experience || '').toLowerCase();
-        const availability = (c.availability || '').toLowerCase();
+        const availability = (c.availability || c.noticePeriod || '').toLowerCase();
 
         if (q && !name.includes(q) && !title.includes(q) && !email.includes(q) && !summary.includes(q) && !skills.some((s: string) => s.includes(q))) return false;
-        if (skillQ && !skills.some((s: string) => s.includes(skillQ) || skillQ.includes(s))) return false;
-        if (locQ && !location.includes(locQ)) return false;
+        if (selectedSkills.length > 0 && !selectedSkills.some(skillQ => skills.some((s: string) => s.includes(skillQ.toLowerCase()) || skillQ.toLowerCase().includes(s)))) return false;
+        if (selectedLocations.length > 0 && !selectedLocations.some(locQ => location.includes(locQ.toLowerCase()))) return false;
         if (experienceFilter && !experience.includes(experienceFilter.toLowerCase())) return false;
         if (availabilityFilter && !availability.includes(availabilityFilter.toLowerCase())) return false;
+
+        // Boolean keyword search
+        if (booleanQuery.trim() && !matchesBoolean(booleanQuery, c)) return false;
+
+        // Designation / role multi-select
+        if (designations.length > 0) {
+          const cTitle = (c.jobTitle || c.title || '').toLowerCase();
+          if (!designations.some(d => cTitle.includes(d.toLowerCase()))) return false;
+        }
+
+        // Experience range
+        if (expRange[0] > 0 || expRange[1] < 30) {
+          const expYears = c.experienceYears ?? (parseFloat(c.experience || '0') || 0);
+          if (expYears < expRange[0] || expYears > expRange[1]) return false;
+        }
+
+        // Salary / CTC range (in LPA)
+        if (salaryRange[0] > 0 || salaryRange[1] < 100) {
+          const raw = c.expectedCTC ?? c.salary ?? '';
+          const ctc = parseFloat(String(raw).replace(/[^0-9.]/g, '')) || -1;
+          if (ctc >= 0 && (ctc < salaryRange[0] || ctc > salaryRange[1])) return false;
+        }
+
+        // Notice period
+        if (noticePeriod.length > 0) {
+          const avail = (c.noticePeriod || c.availability || '').toLowerCase();
+          if (!noticePeriod.some(n => avail.includes(n.toLowerCase()))) return false;
+        }
+
+        // Relocation toggle
+        if (relocationOnly && !c.openToRelocation) return false;
+
+        // Target companies (ex-employer token match)
+        if (targetCompanies.length > 0) {
+          const empHistory = [
+            ...(Array.isArray(c.workHistory) ? c.workHistory.map((w: any) => w.company || w.employer || '') : []),
+            typeof c.employment === 'object' ? JSON.stringify(c.employment) : String(c.employment || ''),
+          ].join(' ').toLowerCase();
+          if (!targetCompanies.some(tc => empHistory.includes(tc.toLowerCase()))) return false;
+        }
+
         return true;
       });
 
@@ -192,7 +345,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     } catch {
       return candidates;
     }
-  }, [candidates, searchTerm, selectedSkill, selectedLocation, experienceFilter, availabilityFilter, selectedJob, sortBy, employerJobs]);
+  }, [candidates, searchTerm, selectedSkills, selectedLocations, experienceFilter, availabilityFilter, selectedJob, sortBy, employerJobs, booleanQuery, designations, expRange, salaryRange, noticePeriod, relocationOnly, targetCompanies]);
 
   useEffect(() => {
     const loadSkillsAndLocations = async () => {      try {
@@ -276,8 +429,8 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
       
       // Track search appearances for all candidates that appear in results
-      if (filtered.length > 0 && (searchTerm || selectedSkill || selectedLocation)) {
-        const searchQuery = [searchTerm, selectedSkill, selectedLocation].filter(Boolean).join(' ');
+      if (filtered.length > 0 && (searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0)) {
+        const searchQuery = [searchTerm, selectedSkills.join(' '), selectedLocations.join(' ')].filter(Boolean).join(' ');
         
         // Track search appearance for each candidate
         filtered.forEach(async (candidate: any) => {
@@ -305,7 +458,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     } finally {
       setLoading(false);
     }
-  }, [searchTerm, selectedSkill, selectedLocation]);
+  }, [searchTerm, selectedSkills, selectedLocations]);
 
   useEffect(() => { fetchCandidates(); }, [fetchCandidates]);
 
@@ -444,11 +597,29 @@ return (
             <div className="max-w-4xl mx-auto">
               <div className="bg-white/95 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-white/30 shadow-lg">
                 <div className="flex flex-col gap-3">
+                  {/* Boolean search bar */}
+                  <div className="relative">
+                    <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400 w-4 h-4" />
+                    <input
+                      type="text"
+                      placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
+                      value={booleanQuery}
+                      onChange={(e) => setBooleanQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-purple-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm bg-purple-50/50"
+                    />
+                    {booleanQuery && (
+                      <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded ${
+                        parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'
+                      }`}>
+                        {parseBooleanQuery(booleanQuery) ? 'valid' : 'syntax'}
+                      </span>
+                    )}
+                  </div>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <input
                       type="text"
-                      placeholder="Search candidates"
+                      placeholder="Search candidates by name, title, email…"
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                       className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm"
@@ -457,43 +628,70 @@ return (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="relative">
                       <Code className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input
-                        type="text"
-                        placeholder="Skills (e.g., Python)"
-                        value={selectedSkill}
-                        onChange={(e) => {
-                          setSelectedSkill(e.target.value);
-                          if (e.target.value.length >= 1) {
-                            const filtered = searchAccuracy.getAccurateMatches(
-                              e.target.value, 
-                              allSkills, 
-                              'skill'
-                            ).slice(0, 12).map(m => m.item);
-                            setSkillSuggestions(filtered);
+                      <div className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent bg-white min-h-[42px] flex flex-wrap items-center gap-1">
+                        {selectedSkills.map((skill, index) => (
+                          <span key={index} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                            {skill}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedSkills(prev => prev.filter((_, i) => i !== index))}
+                              className="hover:bg-blue-200 rounded-full p-0.5"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type="text"
+                          placeholder={selectedSkills.length === 0 ? "Skills (e.g., Python)" : "Add more skills..."}
+                          value={skillInput}
+                          onChange={(e) => {
+                            setSkillInput(e.target.value);
+                            if (e.target.value.length >= 1) {
+                              const filtered = searchAccuracy.getAccurateMatches(
+                                e.target.value, 
+                                allSkills.filter(s => !selectedSkills.includes(s)), 
+                                'skill'
+                              ).slice(0, 12).map(m => m.item);
+                              setSkillSuggestions(filtered);
+                              setShowSkillSuggestions(true);
+                            } else {
+                              const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'].filter(s => !selectedSkills.includes(s));
+                              setSkillSuggestions(popularSkills);
+                              setShowSkillSuggestions(true);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if ((e.key === 'Enter' || e.key === ',') && skillInput.trim()) {
+                              e.preventDefault();
+                              const newSkill = skillInput.trim();
+                              if (!selectedSkills.includes(newSkill)) {
+                                setSelectedSkills(prev => [...prev, newSkill]);
+                              }
+                              setSkillInput('');
+                              setShowSkillSuggestions(false);
+                            } else if (e.key === 'Backspace' && skillInput === '' && selectedSkills.length > 0) {
+                              setSelectedSkills(prev => prev.slice(0, -1));
+                            }
+                          }}
+                          onFocus={() => {
+                            if (skillInput) {
+                              const filtered = searchAccuracy.getAccurateMatches(
+                                skillInput, 
+                                allSkills.filter(s => !selectedSkills.includes(s)), 
+                                'skill'
+                              ).slice(0, 12).map(m => m.item);
+                              setSkillSuggestions(filtered);
+                            } else {
+                              const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'].filter(s => !selectedSkills.includes(s));
+                              setSkillSuggestions(popularSkills);
+                            }
                             setShowSkillSuggestions(true);
-                          } else {
-                            const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'];
-                            setSkillSuggestions(popularSkills);
-                            setShowSkillSuggestions(true);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (selectedSkill) {
-                            const filtered = searchAccuracy.getAccurateMatches(
-                              selectedSkill, 
-                              allSkills, 
-                              'skill'
-                            ).slice(0, 12).map(m => m.item);
-                            setSkillSuggestions(filtered);
-                          } else {
-                            const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'];
-                            setSkillSuggestions(popularSkills);
-                          }
-                          setShowSkillSuggestions(true);
-                        }}
-                        onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
-                      />
+                          }}
+                          onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
+                          className="flex-1 min-w-[120px] outline-none text-sm text-gray-900 bg-transparent"
+                        />
+                      </div>
                       {showSkillSuggestions && skillSuggestions.length > 0 && (
                         <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
                           <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
@@ -502,7 +700,10 @@ return (
                                 key={index}
                                 type="button"
                                 onMouseDown={() => {
-                                  setSelectedSkill(skill);
+                                  if (!selectedSkills.includes(skill)) {
+                                    setSelectedSkills(prev => [...prev, skill]);
+                                  }
+                                  setSkillInput('');
                                   setShowSkillSuggestions(false);
                                 }}
                                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
@@ -519,41 +720,68 @@ return (
                     </div>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <input
-                        type="text"
-                        placeholder="Location (e.g., Mumbai)"
-                        value={selectedLocation}
-                        onChange={(e) => {
-                          setSelectedLocation(e.target.value);
-                          if (e.target.value.length >= 1) {
-                            const filtered = searchAccuracy.getLocationMatches(
-                              e.target.value, 
-                              allLocations
-                            ).slice(0, 12);
-                            setLocationSuggestions(filtered);
+                      <div className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent bg-white min-h-[42px] flex flex-wrap items-center gap-1">
+                        {selectedLocations.map((location, index) => (
+                          <span key={index} className="inline-flex items-center gap-1 bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full">
+                            {location}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedLocations(prev => prev.filter((_, i) => i !== index))}
+                              className="hover:bg-green-200 rounded-full p-0.5"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <input
+                          type="text"
+                          placeholder={selectedLocations.length === 0 ? "Location (e.g., Mumbai)" : "Add more locations..."}
+                          value={locationInput}
+                          onChange={(e) => {
+                            setLocationInput(e.target.value);
+                            if (e.target.value.length >= 1) {
+                              const filtered = searchAccuracy.getLocationMatches(
+                                e.target.value, 
+                                allLocations.filter(l => !selectedLocations.includes(l))
+                              ).slice(0, 12);
+                              setLocationSuggestions(filtered);
+                              setShowLocationSuggestions(true);
+                            } else {
+                              const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'].filter(l => !selectedLocations.includes(l));
+                              setLocationSuggestions(popularLocations);
+                              setShowLocationSuggestions(true);
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if ((e.key === 'Enter' || e.key === ',') && locationInput.trim()) {
+                              e.preventDefault();
+                              const newLocation = locationInput.trim();
+                              if (!selectedLocations.includes(newLocation)) {
+                                setSelectedLocations(prev => [...prev, newLocation]);
+                              }
+                              setLocationInput('');
+                              setShowLocationSuggestions(false);
+                            } else if (e.key === 'Backspace' && locationInput === '' && selectedLocations.length > 0) {
+                              setSelectedLocations(prev => prev.slice(0, -1));
+                            }
+                          }}
+                          onFocus={() => {
+                            if (locationInput) {
+                              const filtered = searchAccuracy.getLocationMatches(
+                                locationInput, 
+                                allLocations.filter(l => !selectedLocations.includes(l))
+                              ).slice(0, 12);
+                              setLocationSuggestions(filtered);
+                            } else {
+                              const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'].filter(l => !selectedLocations.includes(l));
+                              setLocationSuggestions(popularLocations);
+                            }
                             setShowLocationSuggestions(true);
-                          } else {
-                            const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'];
-                            setLocationSuggestions(popularLocations);
-                            setShowLocationSuggestions(true);
-                          }
-                        }}
-                        onFocus={() => {
-                          if (selectedLocation) {
-                            const filtered = searchAccuracy.getLocationMatches(
-                              selectedLocation, 
-                              allLocations
-                            ).slice(0, 12);
-                            setLocationSuggestions(filtered);
-                          } else {
-                            const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'];
-                            setLocationSuggestions(popularLocations);
-                          }
-                          setShowLocationSuggestions(true);
-                        }}
-                        onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 text-sm"
-                      />
+                          }}
+                          onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
+                          className="flex-1 min-w-[120px] outline-none text-sm text-gray-900 bg-transparent"
+                        />
+                      </div>
                       {showLocationSuggestions && locationSuggestions.length > 0 && (
                         <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-xl overflow-hidden" style={{maxHeight: '152px'}}>
                           <div className="overflow-y-auto" style={{maxHeight: '152px'}}>
@@ -562,7 +790,10 @@ return (
                                 key={index}
                                 type="button"
                                 onMouseDown={() => {
-                                  setSelectedLocation(location);
+                                  if (!selectedLocations.includes(location)) {
+                                    setSelectedLocations(prev => [...prev, location]);
+                                  }
+                                  setLocationInput('');
                                   setShowLocationSuggestions(false);
                                 }}
                                 className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
@@ -578,10 +809,145 @@ return (
                       )}
                     </div>
                   </div>
-                  <button onClick={() => fetchCandidates()} className="w-full sm:w-auto sm:self-center bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg sm:rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md">
-                    <Filter className="w-4 h-4" />
-                    <span>Search Candidates</span>
-                  </button>
+                  {/* Row 3: Experience, Salary, Designation, Companies */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {/* Experience Range */}
+                    <div className="relative">
+                      <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Exp (yrs)</label>
+                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-400">
+                        <input
+                          type="number" min={0} max={30} placeholder="Min"
+                          value={expRange[0] === 0 ? '' : expRange[0]}
+                          onChange={e => setExpRange([Math.min(+e.target.value || 0, expRange[1]), expRange[1]])}
+                          className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none border-r border-gray-200 text-center"
+                        />
+                        <input
+                          type="number" min={0} max={30} placeholder="Max"
+                          value={expRange[1] === 30 ? '' : expRange[1]}
+                          onChange={e => setExpRange([expRange[0], Math.max(+e.target.value || 30, expRange[0])])}
+                          className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none text-center"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Salary / CTC Range */}
+                    <div className="relative">
+                      <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">CTC (LPA)</label>
+                      <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-indigo-400">
+                        <input
+                          type="number" min={0} max={200} placeholder="Min"
+                          value={salaryRange[0] === 0 ? '' : salaryRange[0]}
+                          onChange={e => setSalaryRange([Math.min(+e.target.value || 0, salaryRange[1]), salaryRange[1]])}
+                          className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none border-r border-gray-200 text-center"
+                        />
+                        <input
+                          type="number" min={0} max={200} placeholder="Max"
+                          value={salaryRange[1] === 100 ? '' : salaryRange[1]}
+                          onChange={e => setSalaryRange([salaryRange[0], Math.max(+e.target.value || 100, salaryRange[0])])}
+                          className="w-1/2 px-2 py-2.5 text-sm text-gray-900 outline-none text-center"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Designation */}
+                    <div className="relative">
+                      <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Designation</label>
+                      <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-400">
+                        <Briefcase className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                        <input
+                          type="text" placeholder="e.g. Engineer"
+                          value={designationInput}
+                          onChange={e => setDesignationInput(e.target.value)}
+                          onKeyDown={e => {
+                            if ((e.key === 'Enter' || e.key === ',') && designationInput.trim()) {
+                              e.preventDefault();
+                              if (!designations.includes(designationInput.trim())) setDesignations(d => [...d, designationInput.trim()]);
+                              setDesignationInput('');
+                            }
+                          }}
+                          className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
+                        />
+                        {designationInput && (
+                          <button onMouseDown={() => { if (!designations.includes(designationInput.trim())) setDesignations(d => [...d, designationInput.trim()]); setDesignationInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ex-Company */}
+                    <div className="relative">
+                      <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Ex-Company</label>
+                      <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-400">
+                        <Building2 className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
+                        <input
+                          type="text" placeholder="e.g. Infosys"
+                          value={companyInput}
+                          onChange={e => setCompanyInput(e.target.value)}
+                          onKeyDown={e => {
+                            if ((e.key === 'Enter' || e.key === ',') && companyInput.trim()) {
+                              e.preventDefault();
+                              if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies(c => [...c, companyInput.trim()]);
+                              setCompanyInput('');
+                            }
+                          }}
+                          className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
+                        />
+                        {companyInput && (
+                          <button onMouseDown={() => { if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies(c => [...c, companyInput.trim()]); setCompanyInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 4: Notice Period chips + Relocation toggle */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Clock className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    {NOTICE_OPTIONS.map(n => (
+                      <button
+                        key={n}
+                        onClick={() => setNoticePeriod(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])}
+                        className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                          noticePeriod.includes(n) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400'
+                        }`}
+                      >{n}</button>
+                    ))}
+                    <button
+                      onClick={() => setRelocationOnly(v => !v)}
+                      className={`ml-auto flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                        relocationOnly ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400'
+                      }`}
+                    >
+                      <MapPin className="w-3 h-3" /> Open to Relocation
+                    </button>
+                  </div>
+
+                  {/* Active filter tags */}
+                  {(designations.length > 0 || targetCompanies.length > 0) && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {designations.map(d => (
+                        <span key={d} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full">
+                          {d}<button onClick={() => setDesignations(ds => ds.filter(x => x !== d))}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                      {targetCompanies.map(tc => (
+                        <span key={tc} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                          {tc}<button onClick={() => setTargetCompanies(cs => cs.filter(x => x !== tc))}><X className="w-3 h-3" /></button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <button onClick={() => fetchCandidates()} className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg sm:rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-md">
+                      <Search className="w-4 h-4" />
+                      <span>Search</span>
+                    </button>
+                    <button
+                      onClick={() => { setDesignations([]); setExpRange([0,30]); setSalaryRange([0,100]); setNoticePeriod([]); setRelocationOnly(false); setTargetCompanies([]); setBooleanQuery(''); setSearchTerm(''); setSelectedSkills([]); setSkillInput(''); setSelectedLocations([]); setLocationInput(''); }}
+                      className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg sm:rounded-xl border border-gray-300 text-gray-600 text-sm hover:border-red-400 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" /> Clear
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -683,11 +1049,11 @@ return (
                       <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
                       <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
                     </div>
-                    {(searchTerm || selectedSkill || selectedLocation) && (
+                    {(searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0) && (
                       <span className="text-sm sm:text-base text-gray-500 sm:ml-2">
                         {searchTerm && ` matching "${searchTerm}"`}
-                        {selectedSkill && ` with ${selectedSkill} skills`}
-                        {selectedLocation && ` in ${selectedLocation}`}
+                        {selectedSkills.length > 0 && ` with ${selectedSkills.join(', ')} skills`}
+                        {selectedLocations.length > 0 && ` in ${selectedLocations.join(', ')}`}
                       </span>
                     )}
                   </div>
@@ -707,7 +1073,7 @@ return (
               <Users className="w-20 h-20 text-gray-300 mx-auto mb-6" />
               <h3 className="text-2xl font-bold text-gray-900 mb-4">No candidates found</h3>
               <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                {(searchTerm || selectedSkill || selectedLocation) 
+                {(searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0) 
                   ? 'No candidates match your current search criteria. Try adjusting your filters.' 
                   : 'No candidates are currently registered.'}
               </p>
@@ -715,10 +1081,19 @@ return (
                 <button
                   onClick={() => {
                     setSearchTerm('');
-                    setSelectedSkill('');
-                    setSelectedLocation('');
+                    setSelectedSkills([]);
+                    setSkillInput('');
+                    setSelectedLocations([]);
+                    setLocationInput('');
                     setExperienceFilter('');
                     setAvailabilityFilter('');
+                    setBooleanQuery('');
+                    setDesignations([]);
+                    setExpRange([0, 30]);
+                    setSalaryRange([0, 100]);
+                    setNoticePeriod([]);
+                    setRelocationOnly(false);
+                    setTargetCompanies([]);
                   }}
                   className="border border-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:border-blue-600 hover:text-blue-600 transition-colors"
                 >
