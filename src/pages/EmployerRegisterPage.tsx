@@ -549,6 +549,49 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         className="w-full h-12 sm:h-14 px-4 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
                         placeholder="Enter your full name" />
                     </div>
+
+                    {/* GST Number */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        GST Number <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          name="gstNumber"
+                          value={formData.gstNumber}
+                          onChange={(e) => {
+                            setFormData({ ...formData, gstNumber: e.target.value.toUpperCase(), companyName: '' });
+                            setGstVerification(null);
+                            setCompanyLogo('');
+                            setGstMismatch(null);
+                          }}
+                          className="flex-1 h-12 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white uppercase tracking-wider"
+                          placeholder="e.g. 22AAAAA0000A1Z5"
+                          maxLength={15}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleGSTVerification}
+                          disabled={gstLoading || !formData.gstNumber.trim()}
+                          className="h-12 px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                          {gstLoading ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <FileText className="w-4 h-4" />
+                          )}
+                          {gstLoading ? 'Verifying...' : 'Verify GST'}
+                        </button>
+                      </div>
+                      {gstVerification?.verified && (
+                        <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
+                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                          GST Verified - Company details filled automatically
+                        </div>
+                      )}
+                    </div>
+
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Name</label>
                       <div className="relative">
@@ -598,48 +641,6 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         <p className="mt-1 text-xs text-green-600 flex items-center gap-1">
                           <CheckCircle className="w-3 h-3" /> Company name set from GST data
                         </p>
-                      )}
-                    </div>
-
-                    {/* GST Number */}
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                        GST Number <span className="text-red-500">*</span>
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          name="gstNumber"
-                          value={formData.gstNumber}
-                          onChange={(e) => {
-                            setFormData({ ...formData, gstNumber: e.target.value.toUpperCase(), companyName: '' });
-                            setGstVerification(null);
-                            setCompanyLogo('');
-                            setGstMismatch(null);
-                          }}
-                          className="flex-1 h-12 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white uppercase tracking-wider"
-                          placeholder="e.g. 22AAAAA0000A1Z5"
-                          maxLength={15}
-                        />
-                        <button
-                          type="button"
-                          onClick={handleGSTVerification}
-                          disabled={gstLoading || !formData.gstNumber.trim()}
-                          className="h-12 px-4 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-semibold disabled:opacity-50 flex items-center gap-1.5 whitespace-nowrap"
-                        >
-                          {gstLoading ? (
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <FileText className="w-4 h-4" />
-                          )}
-                          {gstLoading ? 'Verifying...' : 'Verify GST'}
-                        </button>
-                      </div>
-                      {gstVerification?.verified && (
-                        <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
-                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                          GST Verified - Company details filled automatically
-                        </div>
                       )}
                     </div>
 
