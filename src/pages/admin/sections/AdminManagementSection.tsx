@@ -235,7 +235,8 @@ export default function AdminManagementSection({
   };
 
   const deleteAdmin = async (adminId: string, adminName: string) => {
-    const confirmed = await (window as any).confirmAsync(
+    // Use standard confirm instead of non-existent confirmAsync
+    const confirmed = confirm(
       `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`
     );
     if (!confirmed) return;
@@ -245,14 +246,22 @@ export default function AdminManagementSection({
     setSuccess('');
 
     try {
-      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${adminId}`, {
-        method: 'DELETE'
-      }, onUnauthorized);
+      const response = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${adminId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed (${response.status})`);
+      }
 
+      // Remove from UI immediately
       setAdmins(prev => prev.filter(admin => (admin._id || admin.id) !== adminId));
       setSuccess(`Admin ${adminName} deleted successfully!`);
-    } catch (error) {
-      setError('Failed to delete admin.');
+    } catch (error: any) {
+      console.error('Delete admin error:', error);
+      setError(error.message || 'Failed to delete admin.');
     } finally {
       setActionLoading(null);
     }

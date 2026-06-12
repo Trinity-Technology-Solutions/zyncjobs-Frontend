@@ -536,9 +536,24 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                             className="w-8 h-8 object-contain"
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
-                              img.onerror = null;
-                              // Final fallback to UI Avatars
-                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
+                              const tried = (img.dataset.tried || '').split(',').filter(Boolean);
+                              const domain = company.toLowerCase().replace(/[^a-z0-9]/g, '');
+                              const fallbacks = [
+                                getSafeCompanyLogo(job),
+                                getCompanyLogo(company),
+                                `https://logo.clearbit.com/${domain}.com`,
+                                `https://www.google.com/s2/favicons?domain=${domain}.com&sz=64`,
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`
+                              ];
+                              const next = fallbacks.find(u => u && !tried.includes(u));
+                              if (next) {
+                                tried.push(next);
+                                img.dataset.tried = tried.join(',');
+                                img.src = next;
+                              } else {
+                                img.onerror = null;
+                                img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
+                              }
                             }}
                           />
                         </div>

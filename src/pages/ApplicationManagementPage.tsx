@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, Download } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
+import BackButton from '../components/BackButton';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -437,11 +438,14 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       <div style={{marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px'}}>
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
-            </h1>
-            <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+          <div className="flex items-center gap-3">
+            <BackButton onClick={() => onNavigate('job-management')} />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
+              </h1>
+              <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Search */}

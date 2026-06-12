@@ -235,7 +235,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     try {
       let url = API_ENDPOINTS.JOBS;
 
-      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness.length > 0 || categoryTerms.length > 0) {
+      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || categoryTerms.length > 0) {
         const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : activeTerm;
         const searchParams = {
           query: searchQuery,
@@ -596,6 +596,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     } else {
       // select only this one — clear ALL quick-filter related state first
       setActiveQuickFilter(key);
+      // For freshness filters, ensure we have all jobs loaded first
+      if (filterType === 'freshness' && jobs.length === 0) {
+        fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=500`)
+          .then(r => r.json())
+          .then(data => {
+            const arr = Array.isArray(data) ? data : (data.jobs || []);
+            setJobs(arr);
+          })
+          .catch(() => {});
+      }
       setFilters(prev => ({
         ...prev,
         freshness: filterType === 'freshness' ? [value] : [],
@@ -1193,9 +1203,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
+              onClick={() => handleQuickFilter('48h', 'freshness', '48h')}
               className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                activeQuickFilter === '24h'
+                activeQuickFilter === '48h'
                   ? 'bg-blue-100 border-blue-400 text-blue-800'
                   : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
               }`}
@@ -1675,14 +1685,25 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                             onError={(e) => {
                               const img = e.target as HTMLImageElement;
                               const name = job.company || '';
-                              const local = getLocalCompanyLogo(name);
-                              if (local && img.src !== window.location.origin + local) {
-                                img.src = local;
-                                return;
+                              const tried = (img.dataset.tried || '').split(',').filter(Boolean);
+                              const domain = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                              const fallbacks = [
+                                getCompanyLogo(name),
+                                getSafeCompanyLogo(job),
+                                `https://logo.clearbit.com/${domain}.com`,
+                                `https://www.google.com/s2/favicons?domain=${domain}.com&sz=64`,
+                                `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`
+                              ];
+                              const next = fallbacks.find(u => u && !tried.includes(u));
+                              if (next) {
+                                tried.push(next);
+                                img.dataset.tried = tried.join(',');
+                                img.src = next;
+                              } else {
+                                img.onerror = null;
+                                const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
+                                img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
                               }
-                              img.onerror = null;
-                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
-                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
                             }}
                           />
                         </div>

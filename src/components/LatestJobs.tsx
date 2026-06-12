@@ -221,8 +221,23 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                           className="w-10 h-10 object-contain"
                           onError={(e) => {
                             const img = e.target as HTMLImageElement;
-                            img.onerror = null;
-                            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || '')}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
+                            const name = job.company || '';
+                            const tried = (img.dataset.tried || '').split(',').filter(Boolean);
+                            const fallbacks = [
+                              getSafeCompanyLogo(job),
+                              getCompanyLogo(name),
+                              `https://logo.clearbit.com/${name.toLowerCase().replace(/\s+/g, '')}.com`,
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`
+                            ];
+                            const next = fallbacks.find(u => u && !tried.includes(u));
+                            if (next) {
+                              tried.push(next);
+                              img.dataset.tried = tried.join(',');
+                              img.src = next;
+                            } else {
+                              img.onerror = null;
+                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
+                            }
                           }}
                         />
                       </div>

@@ -29,25 +29,48 @@ function onRefreshed(newToken: string) {
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = tokenStorage.getRefresh();
-  if (!refreshToken) return null;
+  if (!refreshToken) {
+    console.warn('No refresh token available for token refresh');
+    return null;
+  }
 
-  const res = await fetch(`${API_BASE}/token/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
-  });
+  try {
+    console.log('Attempting token refresh...');
+    const res = await fetch(`${API_BASE}/users/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
 
-  if (!res.ok) {
+    if (!res.ok) {
+      console.warn('Token refresh failed:', res.status, res.statusText);
+      const errorText = await res.text().catch(() => 'Unknown error');
+      console.warn('Token refresh error details:', errorText);
+      tokenStorage.clear();
+      window.dispatchEvent(new CustomEvent('zync:logout'));
+      return null;
+    }
+
+    const data = await res.json();
+    console.log('Token refresh successful');
+    
+    // Backend returns 'accessToken' (no refreshToken in response - handled via httpOnly cookies)
+    const newAccessToken = data.accessToken;
+    if (!newAccessToken) {
+      console.error('No access token in refresh response:', data);
+      tokenStorage.clear();
+      window.dispatchEvent(new CustomEvent('zync:logout'));
+      return null;
+    }
+    
+    tokenStorage.setAccess(newAccessToken);
+    return newAccessToken;
+  } catch (error) {
+    console.error('Token refresh error:', error);
     tokenStorage.clear();
     window.dispatchEvent(new CustomEvent('zync:logout'));
     return null;
   }
-
-  const data = await res.json();
-  tokenStorage.setAccess(data.accessToken);
-  if (data.refreshToken) tokenStorage.setRefresh(data.refreshToken);
-
-  return data.accessToken;
 }
 
 export async function apiFetch(url: string, options: RequestInit = {}): Promise<Response> {
@@ -76,31 +99,27 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
     // Not expired — return as-is
     if (response.status !== 401) return response;
 
+    console.warn('Received 401 response, attempting token refresh...');
+
     // Check if it's a TOKEN_EXPIRED error
     const cloned = response.clone();
     let body: any = {};
     try { body = await cloned.json(); } catch { /* ignore */ }
 
-    if (body?.code !== 'TOKEN_EXPIRED') {
-      // Try a refresh anyway on any 401 — the server may not send TOKEN_EXPIRED code
-      if (!isRefreshing) {
-        isRefreshing = true;
-        const newToken = await refreshAccessToken();
-        isRefreshing = false;
-        if (newToken) {
-          onRefreshed(newToken);
-          headers.set('Authorization', `Bearer ${newToken}`);
-          return fetch(safeUrl, { ...options, headers });
-        }
+    // Always try refresh on 401 - don't rely on specific error codes
+    if (!isRefreshing) {
+      isRefreshing = true;
+      const newToken = await refreshAccessToken();
+      isRefreshing = false;
+      
+      if (newToken) {
+        onRefreshed(newToken);
+        headers.set('Authorization', `Bearer ${newToken}`);
+        console.log('Retrying original request with new token');
+        return fetch(safeUrl, { ...options, headers });
       }
-      // Refresh failed or token truly invalid — force logout
-      tokenStorage.clear();
-      window.dispatchEvent(new CustomEvent('zync:logout'));
-      return response;
-    }
-
-    // Only one refresh at a time
-    if (isRefreshing) {
+    } else {
+      // Wait for ongoing refresh
       return new Promise(resolve => {
         refreshQueue.push(async (newToken: string) => {
           headers.set('Authorization', `Bearer ${newToken}`);
@@ -108,21 +127,10 @@ export async function apiFetch(url: string, options: RequestInit = {}): Promise<
         });
       });
     }
-
-    isRefreshing = true;
-    const newToken = await refreshAccessToken();
-    isRefreshing = false;
-
-    if (!newToken) {
-      // Return original 401 — caller handles logout
-      return response;
-    }
-
-    onRefreshed(newToken);
-
-    // Retry original request with new token
-    headers.set('Authorization', `Bearer ${newToken}`);
-    return fetch(safeUrl, { ...options, headers });
+    
+    // Refresh failed — return original 401
+    console.warn('Token refresh failed, user needs to re-login');
+    return response;
   } catch (error) {
     console.warn(`Network error for ${url.replace(/[\r\n]/g, '')}:`, error);
     return new Response(JSON.stringify({ error: 'Network error' }), {
