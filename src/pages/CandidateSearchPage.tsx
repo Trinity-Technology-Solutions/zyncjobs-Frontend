@@ -670,30 +670,14 @@ return (
             </div>
           </div>
 
-          <div className="bg-white/60 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-200">
-              <div className="text-gray-700 font-medium text-base sm:text-lg">
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="text-sm sm:text-base">Searching candidates...</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
-                    <div>
-                      <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
-                      <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
-                    </div>
-                    {(searchTerm || selectedSkill || selectedLocation) && (
-                      <span className="text-sm sm:text-base text-gray-500 sm:ml-2">
-                        {searchTerm && ` matching "${searchTerm}"`}
-                        {selectedSkill && ` with ${selectedSkill} skills`}
-                        {selectedLocation && ` in ${selectedLocation}`}
-                      </span>
-                    )}
-                  </div>
-                )}
+          {loading && (
+            <div className="bg-white/60 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-200">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span className="text-sm sm:text-base text-gray-700">Searching candidates...</span>
               </div>
-          </div>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -931,11 +915,7 @@ return (
           </div>
         )}
 
-        {scoredCandidates.length > 0 && candidates.length > scoredCandidates.length && (
-          <div className="flex justify-center py-4">
-            <p className="text-sm text-gray-400">Showing {scoredCandidates.length} of {candidates.length} candidates</p>
-          </div>
-        )}
+
       </div>
       
       <Footer onNavigate={onNavigate} />

@@ -9,10 +9,10 @@ export const getCompanyLogo = (companyName: string): string => {
     return localLogo;
   }
 
-  // Known domain map — use logo.dev (Clearbit blocked on many networks)
+  // Known domain map — use Google favicon (most reliable, no token needed)
   const domain = getCompanyDomain(companyName);
   if (domain) {
-    return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
+    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
   }
 
   // If no domain mapping, return UI avatars directly
@@ -449,6 +449,16 @@ const getCompanyDomain = (companyName: string): string => {
     'infra': 'larsentoubro.com',
     'trinity international': 'trinityoman.com',
     'trinity international llc': 'trinityoman.com',
+    // New companies
+    'transunion': 'transunion.com',
+    'haverim consulting': 'haverimconsulting.com',
+    'vtx core': 'vtxcore.com',
+    'vtxcore': 'vtxcore.com',
+    'yaat group': 'yaatgroup.com',
+    'yaatgroup': 'yaatgroup.com',
+    'grace institutions': 'graceinstitutions.com',
+    'trinity consulting asia': 'trinityconsulting.asia',
+    'subros': 'subros.com',
     // Local Companies - Updated with correct domains
     // Note: Growthpulse Solutions may not have a public website
     // Removed growthpulse mappings to avoid DNS errors
@@ -494,13 +504,15 @@ export const getLogoWithFallbacks = (companyName: string, website?: string): str
   let domain = getCompanyDomain(companyName);
   if (!domain && website) {
     try {
-      domain = new URL(website).hostname;
+      domain = new URL(website).hostname.replace('www.', '');
     } catch {}
   }
   
   if (domain) {
+    // Google favicon is most reliable — works for almost all public domains
+    logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+    logos.push(`https://logo.clearbit.com/${domain}`);
     logos.push(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`);
-    logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=64`);
   }
   
   // UI avatars as final fallback

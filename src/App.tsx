@@ -270,20 +270,15 @@ function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    // Get user type from multiple sources to ensure we have it
-    let userType = localStorage.getItem('lastUserType') || user?.type;
+    let userType = user?.type || localStorage.getItem('lastUserType');
 
-    // Fallback: try to get from localStorage user object if lastUserType is not available
     if (!userType) {
       try {
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
         userType = storedUser.userType || storedUser.role || storedUser.type;
-      } catch {
-        // ignore parsing errors
-      }
+      } catch { }
     }
 
-    // Fallback: try to get from token payload
     if (!userType) {
       try {
         const token = tokenStorage.getAccess();
@@ -291,17 +286,13 @@ function App() {
           const payload = JSON.parse(atob(token.split('.')[1]));
           userType = payload.userType || payload.role;
         }
-      } catch {
-        // ignore token parsing errors
-      }
+      } catch { }
     }
 
     console.log('🚪 Logout - User type detected:', userType);
 
-    // Clear user state immediately
+    // Clear storage AFTER reading userType
     setUser(null);
-
-    // Clear all storage
     tokenStorage.clear();
     sessionStorage.clear();
     localStorage.removeItem('user');
@@ -309,7 +300,7 @@ function App() {
 
     if (userType === 'employer') navigate('/employer-login');
     else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
-    else navigate('/login');
+    else navigate('/');
   }, [navigate, user?.type]);
 
   const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {

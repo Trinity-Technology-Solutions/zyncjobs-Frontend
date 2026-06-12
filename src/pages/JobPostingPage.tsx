@@ -691,6 +691,16 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobData.jobDescription]);
 
+  // Auto-set banner image when job category changes
+  useEffect(() => {
+    if (jobData.jobCategory) {
+      const defaultBanner = getCategoryBanner(jobData.jobCategory);
+      if (defaultBanner && (!jobData.jobHeaderImage || jobData.jobHeaderImage === 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop')) {
+        updateJobData('jobHeaderImage', defaultBanner);
+      }
+    }
+  }, [jobData.jobCategory]);
+
   // Load countries on component mount
   useEffect(() => {
     const fetchCountries = async () => {
@@ -3280,10 +3290,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
   );
 
   const renderStep7 = () => {
-    const bannerUrl = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory);
-    // Ensure the jobHeaderImage is set before submit
-    if (!jobData.jobHeaderImage) updateJobData('jobHeaderImage', getCategoryBanner(jobData.jobCategory));
+    const bannerUrl = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
     const bannerOptions = getCategoryBannerOptions(jobData.jobCategory);
+    
     return (
     <div className="px-6 py-8">
       {/* Banner picker modal */}
@@ -3487,6 +3496,14 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
     
+    // Ensure banner image is set — always derive from category if jobHeaderImage is missing/default
+    const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+    const SALES_BANNER = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop';
+    const finalBannerImage = (jobData.jobHeaderImage && jobData.jobHeaderImage !== SALES_BANNER && jobData.jobHeaderImage !== DEFAULT_BANNER)
+      ? jobData.jobHeaderImage
+      : getCategoryBanner(jobData.jobCategory) || DEFAULT_BANNER;
+    console.log('Final banner image being sent:', finalBannerImage);
+    
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
     
@@ -3567,13 +3584,14 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       country: jobData.country || '',
       urgentNote: jobData.urgentNote?.trim() || '',
       nationalityRestriction: jobData.nationalityRestriction || '',
-      jobHeaderImage: jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'
+      jobHeaderImage: finalBannerImage
     };
     
     console.log('Posting job for user:', user.email);
     console.log('JobType being sent:', jobPostData.jobType, 'Type:', typeof jobPostData.jobType);
     console.log('Benefits being sent:', jobPostData.benefits, 'Type:', typeof jobPostData.benefits, 'IsArray:', Array.isArray(jobPostData.benefits));
     console.log('Skills being sent:', jobPostData.skills, 'Type:', typeof jobPostData.skills, 'IsArray:', Array.isArray(jobPostData.skills));
+    console.log('Banner image being sent:', jobPostData.jobHeaderImage);
     console.log('Full payload:', JSON.stringify(jobPostData, null, 2));
     
     try {
@@ -3642,7 +3660,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           certifications: [],
           companyName: '',
           companyLogo: '',
-          companyId: ''
+          companyId: '',
+          jobHeaderImage: ''
         });
         setCurrentStep(1);
         

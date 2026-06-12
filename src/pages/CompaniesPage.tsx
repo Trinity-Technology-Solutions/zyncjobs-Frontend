@@ -34,6 +34,14 @@ const KNOWN_DOMAINS: Record<string, string> = {
   'hcl': 'hcltech.com',
   'tech mahindra': 'techmahindra.com',
   'freshworks': 'freshworks.com',
+  'transunion': 'transunion.com',
+  'haverim consulting': 'haverimconsulting.com',
+  'vtx core': 'vtxcore.com',
+  'vtxcore': 'vtxcore.com',
+  'yaat group': 'yaatgroup.com',
+  'grace institutions': 'graceinstitutions.com',
+  'trinity consulting asia': 'trinityconsulting.asia',
+  'subros': 'subros.com',
 };
 
 // Multi-fallback logo component

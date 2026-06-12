@@ -4,7 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:3002'
+  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:5000'
+
+  console.log('🔧 Vite proxy target:', proxyTarget)
 
   return {
     plugins: [react(), tailwindcss()],
@@ -41,6 +43,9 @@ export default defineConfig(({ mode }) => {
           target: proxyTarget,
           changeOrigin: true,
           secure: false,
+          configure: (proxy, options) => {
+            console.log('🔧 API proxy configured for:', options.target)
+          }
         },
         '/uploads': {
           target: proxyTarget,

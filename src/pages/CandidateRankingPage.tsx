@@ -6,6 +6,8 @@ import { computeMatchScore, extractSkillsFromText } from '../services/jobMatchEn
 import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { apiFetch } from '../api/apiFetch';
+import { toCdnUrl } from '../utils/cdnUtils';
 
 interface CandidateRankingPageProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -40,6 +42,11 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
 };
 
+// Convert S3 direct URL to CloudFront URL
+function toCloudFrontUrl(url: string): string {
+  return toCdnUrl(url);
+}
+
 // Resolve candidate skills: profile skills array first, fallback to resume PDF parsing
 async function resolveSkills(app: any): Promise<string[]> {
   const profileSkills: string[] =
@@ -48,11 +55,12 @@ async function resolveSkills(app: any): Promise<string[]> {
 
   if (profileSkills.length > 0) return profileSkills;
 
-  // Fallback: parse resume PDF and extract skills from text
+  // Fallback: parse resume PDF via CloudFront URL
   const resumeUrl = app?.resumeUrl || app?.resume?.url || app?.resume?.fileUrl || '';
   if (!resumeUrl) return [];
   try {
-    const textItems = await readPdf(resumeUrl);
+    const cfUrl = toCloudFrontUrl(resumeUrl);
+    const textItems = await readPdf(cfUrl);
     const resumeText = textItems.map((t: any) => t.text).join(' ');
     return extractSkillsFromText(resumeText);
   } catch {
