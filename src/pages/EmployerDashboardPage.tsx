@@ -216,18 +216,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             if (data?.hasInvite && data.role) {
               const liveRole = data.role as 'Owner' | 'Recruiter' | 'Viewer';
               setTeamRole(liveRole);
+              // data.employerId = owner's email/id used to identify the team
               const resolvedOwner = data.employerId || _ue;
               setOwnerEmailState(resolvedOwner);
               const _s = JSON.parse(localStorage.getItem('user') || '{}');
               _s.teamRole = liveRole;
               _s.employerOwnerId = resolvedOwner;
+              _s.ownerEmail = resolvedOwner;
               localStorage.setItem('user', JSON.stringify(_s));
-              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, teamRole: liveRole });
+              // Pass ownerEmail so fetchDashboardData uses owner's data
+              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
             } else {
               setTeamRole('Owner');
               setOwnerEmailState(_ue);
               // Owner — fetch with own email
-              fetchDashboardData({ ...parsedUser, employerOwnerId: null });
+              fetchDashboardData({ ...parsedUser, employerOwnerId: null, ownerEmail: _ue });
             }
           })
           .catch(() => {
@@ -269,8 +272,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         sessionStorage.removeItem('isFirstVisitAfterRegistration');
       }
       
-      // For team members: fetch data using the owner's employerId so they see the owner's jobs/apps
-      fetchDashboardData(parsedUser);
+      // NOTE: fetchDashboardData is already called inside the /team/check .then() block above
+      // Do NOT call it again here — that causes team members to see 0 data
     }
     
     // Listen for alerts navigation event from header
@@ -2099,7 +2102,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'team' ? (
             <TeamSection
-              employerEmail={user?.employerId || user?.ownerEmail || user?.email}
+              employerEmail={user?.employerOwnerId || user?.ownerEmail || user?.email}
               currentUserEmail={user?.email}
               companyName={companyName}
               showToast={showToast}
@@ -2589,9 +2592,14 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : roleColors[member.role]
+                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                  member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  roleColors[member.role]
                 }`}>
-                  {member.status === 'pending' ? '⏳ Pending' : member.role}
+                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
+                  {member.role}
                 </span>
                 {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">

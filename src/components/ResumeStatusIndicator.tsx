@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { FileText, AlertCircle, CheckCircle, Upload } from 'lucide-react';
-import { quickResumeCheck } from '../utils/resumeValidation';
+import React, { useState, useEffect } from "react";
+import { FileText, AlertCircle, CheckCircle, Upload } from "lucide-react";
+import { quickResumeCheck } from "../utils/resumeValidation";
 
 interface ResumeStatusIndicatorProps {
   user?: any;
@@ -12,8 +12,8 @@ interface ResumeStatusIndicatorProps {
 const ResumeStatusIndicator: React.FC<ResumeStatusIndicatorProps> = ({
   user,
   onUploadClick,
-  className = '',
-  showText = true
+  className = "",
+  showText = true,
 }) => {
   const [hasResume, setHasResume] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -25,11 +25,17 @@ const ResumeStatusIndicator: React.FC<ResumeStatusIndicatorProps> = ({
   const checkResumeStatus = () => {
     setLoading(true);
     try {
-      const userData = user || JSON.parse(localStorage.getItem('user') || '{}');
-      const resumeExists = quickResumeCheck(userData);
+      const userData = user || JSON.parse(localStorage.getItem("user") || "{}");
+      const resumeExists =
+        !!userData?.resume?.url ||
+        !!userData?.resumeUrl ||
+        quickResumeCheck(userData);
+      console.log("Resume object:", userData?.resume);
+      console.log("Resume URL:", userData?.resumeUrl);
+      console.log("Final resumeExists:", resumeExists);
       setHasResume(resumeExists);
     } catch (error) {
-      console.error('Error checking resume status:', error);
+      console.error("Error checking resume status:", error);
       setHasResume(false);
     } finally {
       setLoading(false);
@@ -40,7 +46,9 @@ const ResumeStatusIndicator: React.FC<ResumeStatusIndicatorProps> = ({
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
-        {showText && <span className="text-sm text-gray-500">Checking resume...</span>}
+        {showText && (
+          <span className="text-sm text-gray-500">Checking resume...</span>
+        )}
       </div>
     );
   }
@@ -59,15 +67,15 @@ const ResumeStatusIndicator: React.FC<ResumeStatusIndicatorProps> = ({
       <AlertCircle className="w-4 h-4 text-orange-500" />
       {showText && (
         <button
-          onClick={onUploadClick || (() => window.location.href = '/dashboard')}
+          onClick={
+            onUploadClick || (() => (window.location.href = "/dashboard"))
+          }
           className="text-sm text-orange-600 hover:text-orange-700 font-medium hover:underline"
         >
           Upload resume to apply
         </button>
       )}
-      {!showText && (
-        <span className="text-sm text-orange-600">No resume</span>
-      )}
+      {!showText && <span className="text-sm text-orange-600">No resume</span>}
     </div>
   );
 };
