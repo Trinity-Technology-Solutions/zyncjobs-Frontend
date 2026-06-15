@@ -45,9 +45,14 @@ export const getLocalCompanyLogo = (companyName: string): string => {
     return localLogos[name];
   }
   
-  // Check for partial matches
+  // Check for partial matches — also strip common legal suffixes before matching
+  const stripped = name.replace(/\s*(private|pvt|ltd|llc|inc|corp|solutions|technologies|technology|group|india|jobs)[\.\s]*/gi, '').trim();
+  if (localLogos[stripped]) {
+    return localLogos[stripped];
+  }
+
   for (const [key, logo] of Object.entries(localLogos)) {
-    if (name.includes(key) || key.includes(name)) {
+    if (name.includes(key) || key.includes(name) || stripped.includes(key) || key.includes(stripped)) {
       return logo;
     }
   }
@@ -55,7 +60,7 @@ export const getLocalCompanyLogo = (companyName: string): string => {
   return '';
 };
 
-const getCompanyDomain = (companyName: string): string => {
+export const getCompanyDomain = (companyName: string): string => {
   const name = companyName.toLowerCase();
   
   // Common company domain mappings
@@ -454,11 +459,15 @@ const getCompanyDomain = (companyName: string): string => {
     'haverim consulting': 'haverimconsulting.com',
     'vtx core': 'vtxcore.com',
     'vtxcore': 'vtxcore.com',
+    'vertex core': 'vtxcore.com',
+    'michcons': 'michcons.com',
     'yaat group': 'yaatgroup.com',
     'yaatgroup': 'yaatgroup.com',
     'grace institutions': 'graceinstitutions.com',
     'trinity consulting asia': 'trinityconsulting.asia',
     'subros': 'subros.com',
+    'lone star alpha': 'lonestaralpha.com',
+    'lonestaralpha': 'lonestaralpha.com',
     // Local Companies - Updated with correct domains
     // Note: Growthpulse Solutions may not have a public website
     // Removed growthpulse mappings to avoid DNS errors
@@ -509,10 +518,7 @@ export const getLogoWithFallbacks = (companyName: string, website?: string): str
   }
   
   if (domain) {
-    // Google favicon is most reliable — works for almost all public domains
     logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
-    logos.push(`https://logo.clearbit.com/${domain}`);
-    logos.push(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`);
   }
   
   // UI avatars as final fallback

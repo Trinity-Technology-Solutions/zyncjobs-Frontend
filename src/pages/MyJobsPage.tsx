@@ -1090,12 +1090,12 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 </div>
                                 {application.jobTitle && (
                                   <p className="text-base text-blue-700 font-semibold flex items-center gap-1 mb-2">
-                                    <span>💼</span>
+                                    <Briefcase className="w-4 h-4" />
                                     {application.jobTitle}
                                   </p>
                                 )}
                                 <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex">
-                                  <span>📅</span>
+                                  <Clock className="w-4 h-4 text-gray-500" />
                                   <span className="text-sm font-medium text-gray-700">
                                     Applied on: {formatDate(application.createdAt || application.appliedAt)}
                                   </span>
@@ -1220,7 +1220,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                               </div>
 
                               <div className="flex items-center gap-1 bg-gray-100 px-3 py-1 rounded-lg inline-flex mb-3">
-                                <span>📅</span>
+                                <Clock className="w-4 h-4 text-gray-500" />
                                 <span className="text-sm font-medium text-gray-700">
                                   Applied on: {formatDate(application.createdAt || application.appliedAt)}
                                 </span>

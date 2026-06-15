@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
+import CompanyLogo from './CompanyLogo';
 import { formatSalary } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
 import { getId } from '../utils/getId';
@@ -210,35 +211,11 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                 <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
-                        <img 
-                          src={
-                            getLocalCompanyLogo(job.company || '') ||
-                            companyLogos[(job.company || '').toLowerCase()] ||
-                            getSafeCompanyLogo(job) ||
-                            getCompanyLogo(job.company || '')
-                          } 
-                          alt={`${job.company} logo`}
-                          className="w-10 h-10 object-contain"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            const name = job.company || '';
-                            const tried = (img.dataset.tried || '').split(',').filter(Boolean);
-                            const fallbacks = [
-                              getSafeCompanyLogo(job),
-                              getCompanyLogo(name),
-                              `https://logo.clearbit.com/${name.toLowerCase().replace(/\s+/g, '')}.com`,
-                              `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`
-                            ];
-                            const next = fallbacks.find(u => u && !tried.includes(u));
-                            if (next) {
-                              tried.push(next);
-                              img.dataset.tried = tried.join(',');
-                              img.src = next;
-                            } else {
-                              img.onerror = null;
-                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
-                            }
-                          }}
+                        <CompanyLogo
+                          companyName={job.company || ''}
+                          storedLogo={job.companyLogo || companyLogos[(job.company || '').toLowerCase()] || ''}
+                          size={40}
+                          className="rounded"
                         />
                       </div>
                       <div>
