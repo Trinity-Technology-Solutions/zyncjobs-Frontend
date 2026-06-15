@@ -13,7 +13,8 @@ import { searchAccuracy } from '../utils/searchAccuracy';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
-import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
+
+import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
@@ -1677,36 +1678,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     <div className="flex-1">
                       {/* Company logo + name row */}
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                          <img
-                            src={getLocalCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getCompanyLogo(job.company || '') || getSafeCompanyLogo(job)}
-                            alt={`${job.company} logo`}
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              const name = job.company || '';
-                              const tried = (img.dataset.tried || '').split(',').filter(Boolean);
-                              const domain = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                              const fallbacks = [
-                                getCompanyLogo(name),
-                                getSafeCompanyLogo(job),
-                                `https://logo.clearbit.com/${domain}.com`,
-                                `https://www.google.com/s2/favicons?domain=${domain}.com&sz=64`,
-                                `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`
-                              ];
-                              const next = fallbacks.find(u => u && !tried.includes(u));
-                              if (next) {
-                                tried.push(next);
-                                img.dataset.tried = tried.join(',');
-                                img.src = next;
-                              } else {
-                                img.onerror = null;
-                                const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
-                                img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
-                              }
-                            }}
-                          />
-                        </div>
+                        <CompanyLogo
+                          companyName={job.company || ''}
+                          storedLogo={companyLogos[(job.company || '').toLowerCase()]}
+                          size={40}
+                          className="rounded-lg border border-gray-200"
+                        />
                         <span className="text-blue-600 font-semibold text-base">{job.company}</span>
                       </div>
 

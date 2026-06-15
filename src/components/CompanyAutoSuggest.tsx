@@ -151,6 +151,7 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       { id: '99', name: 'Grace Institutions', logo: 'https://logo.clearbit.com/graceinstitutions.com', followers: 4000 },
       { id: '100', name: 'Trinity Consulting Asia', logo: 'https://logo.clearbit.com/trinityconsulting.asia', followers: 6000 },
       { id: '101', name: 'Subros', logo: 'https://logo.clearbit.com/subros.com', followers: 15000 },
+      { id: '102', name: 'Lone Star Alpha', logo: 'https://logo.clearbit.com/lonestaralpha.com', followers: 5000 },
     ];
     
     try {
@@ -222,6 +223,8 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       'grace institutions': 'graceinstitutions.com',
       'trinity consulting asia': 'trinityconsulting.asia',
       'subros': 'subros.com',
+      'lone star alpha': 'lonestaralpha.com',
+      'lonestaralpha': 'lonestaralpha.com',
     };
     const nameLower = company.name.toLowerCase();
     for (const [key, domain] of Object.entries(domainMap)) {
