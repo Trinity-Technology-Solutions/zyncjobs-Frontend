@@ -691,6 +691,16 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobData.jobDescription]);
 
+  // Auto-set banner image when job category changes
+  useEffect(() => {
+    if (jobData.jobCategory) {
+      const defaultBanner = getCategoryBanner(jobData.jobCategory);
+      if (defaultBanner && (!jobData.jobHeaderImage || jobData.jobHeaderImage === 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop')) {
+        updateJobData('jobHeaderImage', defaultBanner);
+      }
+    }
+  }, [jobData.jobCategory]);
+
   // Load countries on component mount
   useEffect(() => {
     const fetchCountries = async () => {
@@ -1810,7 +1820,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       
       setNotification({
         type: 'success',
-        message: `Added "${formattedSkill}" and found ${newSkills.length} related skills from JD: ${newSkills.join(', ')} 🎯`,
+        message: `Added "${formattedSkill}" and found ${newSkills.length} related skills from JD: ${newSkills.join(', ')}`,
         isVisible: true
       });
     } else {
@@ -2316,10 +2326,10 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             onChange={(e) => updateJobData('priority', e.target.value)}
             className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value="Low">🟢 Low Priority</option>
-            <option value="Medium">🟡 Medium Priority</option>
-            <option value="High">🟠 High Priority</option>
-            <option value="Urgent">🔴 Urgent</option>
+            <option value="Low">Low Priority</option>
+            <option value="Medium">Medium Priority</option>
+            <option value="High">High Priority</option>
+            <option value="Urgent">Urgent</option>
           </select>
         </div>
         
@@ -2873,13 +2883,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   updateJobData('skills', mergedSkills);
                   setNotification({
                     type: 'success',
-                    message: `Extracted ${parsedSkills.length} skills from job description! 🎯`,
+                    message: `Extracted ${parsedSkills.length} skills from job description!`,
                     isVisible: true
                   });
                 }}
                 className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-lg text-sm font-medium flex items-center space-x-1 transition-colors"
               >
-                <span>🎯</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
                 <span>Extract from JD</span>
               </button>
             )}
@@ -2931,7 +2941,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                     className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group"
                   >
                     <span>{skill}</span>
-                    <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">🚀 AI</span>
+                    <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">AI</span>
                   </button>
                 ))}
               </div>
@@ -2985,7 +2995,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   }}
                   className="text-xs bg-amber-100 text-amber-700 border border-amber-300 px-3 py-1 rounded-lg hover:bg-amber-200 transition-colors"
                 >
-                  ✨ Import from JD ({parsedData.goodToHaveSkills.length})
+                  Import from JD ({parsedData.goodToHaveSkills.length})
                 </button>
               )}
             </div>
@@ -3026,7 +3036,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             {/* JD parsed good-to-have suggestions */}
             {mode === 'parse' && parsedData?.goodToHaveSkills?.length > 0 && (
               <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                <p className="text-xs font-medium text-amber-700 mb-2">✨ From JD — click to add:</p>
+                <p className="text-xs font-medium text-amber-700 mb-2">From JD — click to add:</p>
                 <div className="flex flex-wrap gap-2">
                   {parsedData.goodToHaveSkills.map((skill: string) => (
                     <button
@@ -3280,10 +3290,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
   );
 
   const renderStep7 = () => {
-    const bannerUrl = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory);
-    // Ensure the jobHeaderImage is set before submit
-    if (!jobData.jobHeaderImage) updateJobData('jobHeaderImage', getCategoryBanner(jobData.jobCategory));
+    const bannerUrl = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
     const bannerOptions = getCategoryBannerOptions(jobData.jobCategory);
+    
     return (
     <div className="px-6 py-8">
       {/* Banner picker modal */}
@@ -3427,7 +3436,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                     const jd = (jobData.jobDescription || '').trim();
                     if (!jd) return (
                       <span className="text-orange-500 text-sm cursor-pointer" onClick={() => setCurrentStep(6)}>
-                        ⚠️ No description — click Edit to add one
+                        No description — click Edit to add one
                       </span>
                     );
                     const preview = jd.replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\n+/g, ' ').trim();
@@ -3486,6 +3495,14 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
     // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
+    
+    // Ensure banner image is set — always derive from category if jobHeaderImage is missing/default
+    const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+    const SALES_BANNER = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop';
+    const finalBannerImage = (jobData.jobHeaderImage && jobData.jobHeaderImage !== SALES_BANNER && jobData.jobHeaderImage !== DEFAULT_BANNER)
+      ? jobData.jobHeaderImage
+      : getCategoryBanner(jobData.jobCategory) || DEFAULT_BANNER;
+    console.log('Final banner image being sent:', finalBannerImage);
     
     // Check if salary should be included (only if user actually modified it)
     const shouldIncludeSalary = salaryModified && jobData.minSalary && jobData.maxSalary;
@@ -3567,13 +3584,14 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       country: jobData.country || '',
       urgentNote: jobData.urgentNote?.trim() || '',
       nationalityRestriction: jobData.nationalityRestriction || '',
-      jobHeaderImage: jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'
+      jobHeaderImage: finalBannerImage
     };
     
     console.log('Posting job for user:', user.email);
     console.log('JobType being sent:', jobPostData.jobType, 'Type:', typeof jobPostData.jobType);
     console.log('Benefits being sent:', jobPostData.benefits, 'Type:', typeof jobPostData.benefits, 'IsArray:', Array.isArray(jobPostData.benefits));
     console.log('Skills being sent:', jobPostData.skills, 'Type:', typeof jobPostData.skills, 'IsArray:', Array.isArray(jobPostData.skills));
+    console.log('Banner image being sent:', jobPostData.jobHeaderImage);
     console.log('Full payload:', JSON.stringify(jobPostData, null, 2));
     
     try {
@@ -3591,7 +3609,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         sessionStorage.removeItem('editJobData');
         setNotification({
           type: 'success',
-          message: isEditMode ? 'Job updated successfully! ✅' : 'Job posted successfully! 🎉',
+          message: isEditMode ? 'Job updated successfully!' : 'Job posted successfully!',
           isVisible: true
         });
         console.log('Job Posted by:', user.email, result);
@@ -3642,7 +3660,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           certifications: [],
           companyName: '',
           companyLogo: '',
-          companyId: ''
+          companyId: '',
+          jobHeaderImage: ''
         });
         setCurrentStep(1);
         
@@ -3724,7 +3743,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 {currentStep === 7 && 'Review'}
               </h1>
               {currentStep === 1 && parsedData && (
-                <span className="text-sm text-green-600 ml-2">✨ AI Parsed</span>
+                <span className="text-sm text-green-600 ml-2">AI Parsed</span>
               )}
             </div>
           </div>
@@ -3745,7 +3764,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           {/* Sidebar with Tips */}
           <div className="hidden lg:block w-80 bg-gray-50 border-l border-gray-200 p-6">
             <div className="sticky top-32">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">💡 Tips & Help</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Tips & Help</h3>
               
               {currentStep === 1 && (
                 <div className="space-y-4">
@@ -3811,7 +3830,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               
               {/* Quick Stats */}
               <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
-                <h4 className="font-medium text-blue-800 mb-2">📊 Quick Stats</h4>
+                <h4 className="font-medium text-blue-800 mb-2">Quick Stats</h4>
                 <div className="space-y-2 text-sm text-blue-700">
                   <div>• Average time to hire: 23 days</div>
                   <div>• Jobs with salary: +30% applications</div>

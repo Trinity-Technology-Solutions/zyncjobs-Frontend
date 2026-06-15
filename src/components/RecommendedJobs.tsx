@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame } from 'lucide-react';
 import localStorageMigration from '../services/localStorageMigration';
 import { formatSalary } from '../utils/textUtils';
-import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
+import CompanyLogo from './CompanyLogo';
 import { formatJobDescription } from '../utils/htmlUtils';
 
 interface Job {
@@ -506,42 +506,12 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                     <div className="flex-1 min-w-0 pr-2">
                       {/* Company logo + name */}
                       <div className="flex items-center gap-3 mb-1.5">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                          <img
-                            src={(() => {
-                              const companyName = company.toLowerCase();
-                              // Priority 1: Local logos from logoUtils
-                              const localLogo = (() => {
-                                if (companyName.includes('inypeople') || companyName.includes('iny people')) return '/images/company-logos/inypeople-logo.png';
-                                if (companyName.includes('nambikkai')) return '/images/company-logos/nambikkai-logo.png';
-                                if (companyName.includes('trinity')) return '/images/company-logos/trinity-logo.png';
-                                if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) return '/images/company-logos/growthpulss.png';
-                                return '';
-                              })();
-                              if (localLogo) return localLogo;
-                              
-                              // Priority 2: API fetched logos
-                              const apiLogo = companyLogos[companyName];
-                              if (apiLogo) return apiLogo;
-                              
-                              // Priority 3: getSafeCompanyLogo (uses logo.dev)
-                              const safeLogo = getSafeCompanyLogo(job);
-                              if (safeLogo) return safeLogo;
-                              
-                              // Priority 4: use central logo utils fallback
-                              return getCompanyLogo(company);
-                            })()
-                            }
-                            alt={`${company} logo`}
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              img.onerror = null;
-                              // Final fallback to UI Avatars
-                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
-                            }}
-                          />
-                        </div>
+                        <CompanyLogo
+                          companyName={company}
+                          storedLogo={companyLogos[company.toLowerCase()]}
+                          size={40}
+                          className="rounded-lg border border-gray-200"
+                        />
                         <span className="text-sm font-semibold text-blue-600 truncate">{company}</span>
                       </div>
 

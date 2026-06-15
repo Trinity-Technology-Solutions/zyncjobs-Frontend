@@ -13,7 +13,8 @@ import { searchAccuracy } from '../utils/searchAccuracy';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
-import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
+
+import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
@@ -235,7 +236,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     try {
       let url = API_ENDPOINTS.JOBS;
 
-      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness.length > 0 || categoryTerms.length > 0) {
+      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || categoryTerms.length > 0) {
         const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : activeTerm;
         const searchParams = {
           query: searchQuery,
@@ -596,6 +597,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     } else {
       // select only this one — clear ALL quick-filter related state first
       setActiveQuickFilter(key);
+      // For freshness filters, ensure we have all jobs loaded first
+      if (filterType === 'freshness' && jobs.length === 0) {
+        fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=500`)
+          .then(r => r.json())
+          .then(data => {
+            const arr = Array.isArray(data) ? data : (data.jobs || []);
+            setJobs(arr);
+          })
+          .catch(() => {});
+      }
       setFilters(prev => ({
         ...prev,
         freshness: filterType === 'freshness' ? [value] : [],
@@ -1193,9 +1204,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
+              onClick={() => handleQuickFilter('48h', 'freshness', '48h')}
               className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                activeQuickFilter === '24h'
+                activeQuickFilter === '48h'
                   ? 'bg-blue-100 border-blue-400 text-blue-800'
                   : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
               }`}
@@ -1667,25 +1678,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     <div className="flex-1">
                       {/* Company logo + name row */}
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                          <img
-                            src={getLocalCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getCompanyLogo(job.company || '') || getSafeCompanyLogo(job)}
-                            alt={`${job.company} logo`}
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              const name = job.company || '';
-                              const local = getLocalCompanyLogo(name);
-                              if (local && img.src !== window.location.origin + local) {
-                                img.src = local;
-                                return;
-                              }
-                              img.onerror = null;
-                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
-                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
-                            }}
-                          />
-                        </div>
+                        <CompanyLogo
+                          companyName={job.company || ''}
+                          storedLogo={companyLogos[(job.company || '').toLowerCase()]}
+                          size={40}
+                          className="rounded-lg border border-gray-200"
+                        />
                         <span className="text-blue-600 font-semibold text-base">{job.company}</span>
                       </div>
 

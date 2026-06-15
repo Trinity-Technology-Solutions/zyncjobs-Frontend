@@ -1037,29 +1037,32 @@ return (
           </div>
 
           <div className="bg-white/60 backdrop-blur-sm rounded-lg sm:rounded-xl p-3 sm:p-4 border border-gray-200">
-              <div className="text-gray-700 font-medium text-base sm:text-lg">
-                {loading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span className="text-sm sm:text-base">Searching candidates...</span>
+            <div className="text-gray-700 font-medium text-base sm:text-lg">
+              {loading ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                  <span className="text-sm sm:text-base text-gray-700">Searching candidates...</span>
+                </div>
+              ) : (
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
+                  <div>
+                    <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
+                    <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? \x27s\x27 : \x27\x27} found</span>
                   </div>
-                ) : (
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
-                    <div>
-                      <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
-                      <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
-                    </div>
-                    {(searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0) && (
-                      <span className="text-sm sm:text-base text-gray-500 sm:ml-2">
-                        {searchTerm && ` matching "${searchTerm}"`}
-                        {selectedSkills.length > 0 && ` with ${selectedSkills.join(', ')} skills`}
-                        {selectedLocations.length > 0 && ` in ${selectedLocations.join(', ')}`}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
+                  {(searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0) && (
+                    <span className="text-sm sm:text-base text-gray-500 sm:ml-2">
+                      {searchTerm && ` matching "${searchTerm}"`}
+                      {selectedSkills.length > 0 && ` with {selectedSkills.join(\x27, \x27)} skills`}
+                      {selectedLocations.length > 0 && ` in {selectedLocations.join(\x27, \x27)}`}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {loading ? (
@@ -1306,11 +1309,7 @@ return (
           </div>
         )}
 
-        {scoredCandidates.length > 0 && candidates.length > scoredCandidates.length && (
-          <div className="flex justify-center py-4">
-            <p className="text-sm text-gray-400">Showing {scoredCandidates.length} of {candidates.length} candidates</p>
-          </div>
-        )}
+
       </div>
       
       <Footer onNavigate={onNavigate} />

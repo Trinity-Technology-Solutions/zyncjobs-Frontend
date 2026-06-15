@@ -400,19 +400,22 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     finally { setVerifying(false); }
   };
 
-  // Fetch company logo from domain
+  // Fetch company logo from domain via backend proxy
   const fetchCompanyLogo = async (website: string) => {
     if (!website) return;
     setFetchingLogo(true);
     try {
-      const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-      const logoUrl = `https://logo.clearbit.com/${domain}`;
-      
-      // Test if logo exists
-      const img = new Image();
-      img.onload = () => setCompanyLogo(logoUrl);
-      img.onerror = () => setCompanyLogo('');
-      img.src = logoUrl;
+      const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      if (!domain) return;
+      const API = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${API}/logo-proxy?domain=${encodeURIComponent(domain)}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setCompanyLogo(url);
+      } else {
+        setCompanyLogo('');
+      }
     } catch {
       setCompanyLogo('');
     } finally {
@@ -538,6 +541,21 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         
         console.log('Company save response:', companyResponse);
         companySaveSuccess = true;
+
+        // Auto-fetch logo from email domain if no logo yet
+        if (!companyLogo && domain) {
+          try {
+            const logoRes = await fetch(`${API}/companies/auto-fetch-logo`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ companyName: formData.companyName, domain })
+            });
+            if (logoRes.ok) {
+              const logoData = await logoRes.json();
+              if (logoData.logoUrl) setCompanyLogo(logoData.logoUrl);
+            }
+          } catch {}
+        }
       } catch (companyError) {
         console.error('Company save failed (continuing anyway):', companyError instanceof Error ? companyError.message : 'Unknown error');
         // Continue with user update even if company save fails

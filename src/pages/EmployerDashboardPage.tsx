@@ -216,18 +216,21 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             if (data?.hasInvite && data.role) {
               const liveRole = data.role as 'Owner' | 'Recruiter' | 'Viewer';
               setTeamRole(liveRole);
+              // data.employerId = owner's email/id used to identify the team
               const resolvedOwner = data.employerId || _ue;
               setOwnerEmailState(resolvedOwner);
               const _s = JSON.parse(localStorage.getItem('user') || '{}');
               _s.teamRole = liveRole;
               _s.employerOwnerId = resolvedOwner;
+              _s.ownerEmail = resolvedOwner;
               localStorage.setItem('user', JSON.stringify(_s));
-              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, teamRole: liveRole });
+              // Pass ownerEmail so fetchDashboardData uses owner's data
+              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
             } else {
               setTeamRole('Owner');
               setOwnerEmailState(_ue);
               // Owner — fetch with own email
-              fetchDashboardData({ ...parsedUser, employerOwnerId: null });
+              fetchDashboardData({ ...parsedUser, employerOwnerId: null, ownerEmail: _ue });
             }
           })
           .catch(() => {
@@ -269,8 +272,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         sessionStorage.removeItem('isFirstVisitAfterRegistration');
       }
       
-      // For team members: fetch data using the owner's employerId so they see the owner's jobs/apps
-      fetchDashboardData(parsedUser);
+      // NOTE: fetchDashboardData is already called inside the /team/check .then() block above
+      // Do NOT call it again here — that causes team members to see 0 data
     }
     
     // Listen for alerts navigation event from header
@@ -1567,7 +1570,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           ) : (
                             <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
                           )}
-                          {/* 3 action buttons in a row on mobile, stacked on desktop */}
+                          {/* Action buttons */}
                           <div className="flex flex-row sm:flex-col gap-2">
                             <button
                               onClick={() => {
@@ -1589,24 +1592,48 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 Schedule
                               </button>
                             )}
-                            {canDeleteRecords && (
+                            {application.status !== 'rejected' && canManageApplications && (
                               <button
-                                onClick={(e) => {
-                                  e.preventDefault(); e.stopPropagation();
+                                onClick={async () => {
                                   const appId = application._id || application.id;
-                                  openConfirm('Delete Application', 'Are you sure you want to delete this application? This action cannot be undone.', async () => {
-                                    try {
-                                      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
-                                      if (response.ok) { setApplications(prev => prev.filter(app => (app._id || app.id) !== appId)); showToast('Application deleted successfully!', 'success'); }
-                                      else { showToast('Failed to delete application', 'error'); }
-                                    } catch { showToast('Failed to delete application', 'error'); }
-                                    closeConfirm();
-                                  });
+                                  try {
+                                    const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ status: 'rejected' }),
+                                    });
+                                    if (response.ok) {
+                                      setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: 'rejected' } : app));
+                                      // Send rejection email to candidate
+                                      try {
+                                        await apiFetch(`${API_ENDPOINTS.BASE_URL}/email/send`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            to: application.candidateEmail,
+                                            subject: `Application Update - ${application.jobTitle || 'Job Position'} at ${companyName}`,
+                                            type: 'application_rejected',
+                                            data: {
+                                              candidateName: application.candidateName || 'Applicant',
+                                              jobTitle: application.jobTitle || 'Job Position',
+                                              companyName,
+                                            },
+                                          }),
+                                        });
+                                      } catch { /* email failure is non-critical */ }
+                                      showToast('Application rejected & email sent to candidate', 'success');
+                                    } else { throw new Error(); }
+                                  } catch { showToast('Failed to reject application.', 'error'); }
                                 }}
-                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm inline-flex items-center justify-center gap-1 whitespace-nowrap"
+                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
                               >
-                                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Delete
+                                Reject
                               </button>
+                            )}
+                            {application.status === 'rejected' && (
+                              <span className="flex-1 sm:flex-none sm:w-full text-center px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-red-50 text-red-600 border border-red-200">
+                                Rejected
+                              </span>
                             )}
                           </div>
                         </div>
@@ -2073,7 +2100,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'team' ? (
             <TeamSection
-              employerEmail={user?.employerId || user?.ownerEmail || user?.email}
+              employerEmail={user?.employerOwnerId || user?.ownerEmail || user?.email}
               currentUserEmail={user?.email}
               companyName={companyName}
               showToast={showToast}
@@ -2563,9 +2590,14 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : roleColors[member.role]
+                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                  member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  roleColors[member.role]
                 }`}>
-                  {member.status === 'pending' ? '⏳ Pending' : member.role}
+                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
+                  {member.role}
                 </span>
                 {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">

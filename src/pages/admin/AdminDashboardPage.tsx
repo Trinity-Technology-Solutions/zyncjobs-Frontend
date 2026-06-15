@@ -53,7 +53,7 @@ interface NavItem {
   id: string;
   label: string;
   icon: React.ElementType;
-  section: 'main' | 'users' | 'content' | 'communication' | 'system';
+  section: 'main' | 'users' | 'content' | 'communication' | 'system' | 'talent';
 }
 
 const navItems: NavItem[] = [
@@ -80,14 +80,32 @@ const sectionLabels: Record<string, string> = {
   system: 'System',
 };
 
+// API Error handler
+function handleApiError(error: any, context: string) {
+  console.error(`API Error [${context}]:`, error);
+  
+  const isServerError = error?.status >= 500 || error?.code === 'ECONNREFUSED';
+  const shouldRetry = isServerError;
+  const retryAfter = shouldRetry ? 5000 : null; // Retry after 5 seconds
+  
+  return { isServerError, shouldRetry, retryAfter };
+}
+
 function authHeaders() {
   // Try admin token first, then access token
   const adminToken = tokenStorage.getAdmin();
   const accessToken = tokenStorage.getAccess();
+  const refreshToken = tokenStorage.getRefresh();
   const token = adminToken || accessToken;
   
   console.log('🔑 Dashboard auth - Admin token exists:', !!adminToken);
   console.log('🔑 Dashboard auth - Access token exists:', !!accessToken);
+  console.log('🔑 Dashboard auth - Refresh token exists:', !!refreshToken);
+  if (token) {
+    console.log('🔑 Dashboard auth - Using token type:', adminToken ? 'admin' : 'access');
+    // Log first few chars to verify token format
+    console.log('🔑 Dashboard auth - Token preview:', token.substring(0, 20) + '...');
+  }
   
   return {
     'Content-Type': 'application/json',
@@ -300,7 +318,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 
   const renderSection = () => {
     switch (activeNav) {
-      case 'admins':        return canManageAdmins ? <AdminManagementSection onUnauthorized={handleUnauthorized} currentUser={user} /> : <AccessDeniedSection />;
+      case 'admins':        return canManageAdmins ? <AdminManagementSection onUnauthorized={handleUnauthorized} currentUser={{ ...user, email: user.email ?? '' }} /> : <AccessDeniedSection />;
       case 'candidates':    return <UsersSection role="candidate" onUnauthorized={handleUnauthorized} />;
       case 'employers':     return <UsersSection role="employer" onUnauthorized={handleUnauthorized} />;
       case 'jobs':          return <JobsSection onUnauthorized={handleUnauthorized} />;
@@ -730,9 +748,20 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     
     setActionLoading(userId + 'delete');
     try {
-      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE' }, onUnauthorized);
+      const response = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { 
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed (${response.status})`);
+      }
+      
       setUsers(prev => prev.filter(u => (u.id || u._id) !== userId));
+      console.log('✅ User deleted successfully from UI');
     } catch (e: any) {
+      console.error('❌ Delete user error:', e);
       if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to delete user.');
     } finally {
       setActionLoading(null);
@@ -927,9 +956,20 @@ function JobsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
     if (!ok) return;
     setActionLoading(jobId + 'delete');
     try {
-      await authFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' }, onUnauthorized);
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { 
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed (${response.status})`);
+      }
+      
       setJobs(prev => prev.filter(j => (j.id || j._id) !== jobId));
+      console.log('✅ Job deleted successfully from UI');
     } catch (e: any) {
+      console.error('❌ Delete job error:', e);
       if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to delete job.');
     } finally {
       setActionLoading(null);

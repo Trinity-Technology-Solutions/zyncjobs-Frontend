@@ -10,6 +10,7 @@ interface SearchSuggestion {
 }
 
 interface EnhancedSearchInputProps {
+  id?: string;
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
@@ -24,6 +25,7 @@ interface EnhancedSearchInputProps {
 }
 
 const EnhancedSearchInput: React.FC<EnhancedSearchInputProps> = ({
+  id,
   placeholder = 'Search...',
   value,
   onChange,
@@ -206,6 +208,7 @@ const EnhancedSearchInput: React.FC<EnhancedSearchInputProps> = ({
         )}
         <input
           ref={inputRef}
+          id={id}
           type="text"
           placeholder={placeholder}
           value={value}

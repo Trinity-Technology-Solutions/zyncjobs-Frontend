@@ -104,10 +104,10 @@ export const CATEGORY_BANNERS: Record<string, string[]> = {
 
 const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
 
-/** Returns the first (default) banner image for a given category */
-export function getCategoryBanner(category: string): string {
+/** Returns the first banner image for a given category, or null if not found */
+export function getCategoryBanner(category: string): string | null {
   const images = CATEGORY_BANNERS[category];
-  return images ? images[0] : DEFAULT_BANNER;
+  return images ? images[0] : null;
 }
 
 /** Returns all banner options for a given category + a few generic ones */

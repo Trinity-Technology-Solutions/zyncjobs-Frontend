@@ -5,104 +5,7 @@ import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { Search, MapPin, Users, Building2, Star, Briefcase } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
-
-// Local logo map for companies with known local assets
-const LOCAL_LOGOS: Record<string, string> = {
-  'nambikkai india': '/images/company-logos/nambikkai-logo.png',
-  'nambikkai': '/images/company-logos/nambikkai-logo.png',
-  'trinity technology solutions': '/images/company-logos/trinity-logo.png',
-  'trinity': '/images/company-logos/trinity-logo.png',
-  'growthpulse solutions': '/images/company-logos/growthpulss.png',
-  'growthpulse': '/images/company-logos/growthpulss.png',
-  'growthpulss': '/images/company-logos/growthpulss.png',
-  'inypeople': '/images/company-logos/inypeople-logo.png',
-};
-
-// Known domain map for companies without a stored domain
-const KNOWN_DOMAINS: Record<string, string> = {
-  'infosys': 'infosys.com',
-  'zoho': 'zoho.com',
-  'tcs': 'tcs.com',
-  'wipro': 'wipro.com',
-  'google': 'google.com',
-  'microsoft': 'microsoft.com',
-  'amazon': 'amazon.com',
-  'apple': 'apple.com',
-  'meta': 'meta.com',
-  'accenture': 'accenture.com',
-  'cognizant': 'cognizant.com',
-  'hcl': 'hcltech.com',
-  'tech mahindra': 'techmahindra.com',
-  'freshworks': 'freshworks.com',
-};
-
-// Multi-fallback logo component
-const CompanyLogo: React.FC<{ company: { name: string; logo?: string; logoUrl?: string; domain?: string; website?: string }; className?: string }> = ({ company, className }) => {
-  const nameLower = company.name.toLowerCase();
-
-  // Check local logo first (exact then partial)
-  const getLocalLogo = (): string => {
-    if (LOCAL_LOGOS[nameLower]) return LOCAL_LOGOS[nameLower];
-    for (const [key, path] of Object.entries(LOCAL_LOGOS)) {
-      if (nameLower.includes(key) || key.includes(nameLower)) return path;
-    }
-    return '';
-  };
-
-  const getDomain = (): string => {
-    if (company.domain) return company.domain;
-    try { const h = new URL(company.website || '').hostname; return h.replace('www.', ''); } catch {}
-    // Check known domains map
-    if (KNOWN_DOMAINS[nameLower]) return KNOWN_DOMAINS[nameLower];
-    for (const [key, domain] of Object.entries(KNOWN_DOMAINS)) {
-      if (nameLower.includes(key)) return domain;
-    }
-    return '';
-  };
-
-  const buildFallbacks = (): string[] => {
-    const urls: string[] = [];
-    const localLogo = getLocalLogo();
-    if (localLogo) urls.push(localLogo);
-    const domain = getDomain();
-    if (domain) {
-      urls.push(`https://logo.clearbit.com/${domain}`);
-      urls.push(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=128`);
-      urls.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
-    }
-    urls.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=128&background=3b82f6&color=ffffff&bold=true`);
-    return urls;
-  };
-
-  const getInitialSrc = (): string => {
-    // Local logo takes highest priority
-    const localLogo = getLocalLogo();
-    if (localLogo) return localLogo;
-    // Use stored logo only if it's not a stale favicon/avatar
-    const stored = company.logo || company.logoUrl || '';
-    if (stored && !stored.includes('google.com/s2/favicons') && !stored.includes('ui-avatars.com')) {
-      return stored;
-    }
-    // Fall through to domain-based
-    const domain = getDomain();
-    if (domain) return `https://logo.clearbit.com/${domain}`;
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=128&background=3b82f6&color=ffffff&bold=true`;
-  };
-
-  const [src, setSrc] = useState(getInitialSrc);
-  const fallbacksRef = useRef<string[]>(buildFallbacks());
-  const triedRef = useRef<Set<string>>(new Set([getInitialSrc()]));
-
-  const handleError = () => {
-    const next = fallbacksRef.current.find(u => !triedRef.current.has(u));
-    if (next) {
-      triedRef.current.add(next);
-      setSrc(next);
-    }
-  };
-
-  return <img src={src} alt={company.name} className={className} onError={handleError} />;
-};
+import CompanyLogo from '../components/CompanyLogo';
 
 interface Company {
   _id?: string;
@@ -161,7 +64,6 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
   // Helper function to get the best logo for a company
   const getBestCompanyLogo = (company: Company): string => {
-    // Special cases: Local logos for specific companies
     const companyName = company.name.toLowerCase();
     if (companyName.includes('nambikkai')) {
       return '/images/company-logos/nambikkai-logo.png';
@@ -172,8 +74,12 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
     if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) {
       return '/images/company-logos/growthpulss.png';
     }
-    if (companyName.includes('trinity')) {
-      return '/images/company-logos/trinity-logo.png';
+    // Exact trinity matches only — avoid matching "Trinity Consulting Asia"
+    if (companyName === 'trinity technology solutions' || companyName === 'trinity technology'
+      || companyName === 'trinity international llc' || companyName === 'trinity international') {
+      return companyName.includes('international') 
+        ? '/images/company-logos/trinityoman.jpg'
+        : '/images/company-logos/trinity-logo.png';
     }
 
     // For all other companies, check API logo first
@@ -605,8 +511,11 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
               .map((company, index) => (
               <div key={`${company.name}-${index}`} className="w-12 h-12 bg-white rounded-lg shadow-sm border border-slate-200 flex items-center justify-center opacity-70 hover:opacity-100 transition-opacity">
                 <CompanyLogo
-                  company={company}
-                  className="w-8 h-8 object-contain"
+                  companyName={company.name}
+                  storedLogo={company.logo || company.logoUrl}
+                  website={company.website}
+                  size={32}
+                  className="object-contain"
                 />
               </div>
             ))}
@@ -721,10 +630,13 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
               >
                 {/* Company Header */}
                 <div className="flex items-start space-x-4 mb-4">
-                  <CompanyLogo
-                    company={company}
-                    className="w-16 h-16 rounded-lg border border-gray-200 object-contain bg-white p-2"
-                  />
+                <CompanyLogo
+                  companyName={company.name}
+                  storedLogo={company.logo || company.logoUrl}
+                  website={company.website}
+                  size={64}
+                  className="rounded-lg border border-gray-200 object-contain bg-white p-2"
+                />
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-semibold text-gray-900 truncate">{company.name}</h3>
                     {company.tagline && (

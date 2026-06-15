@@ -144,6 +144,14 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       { id: '92', name: 'Samsung', logo: 'https://logo.clearbit.com/samsung.com', followers: 8000000 },
       { id: '93', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png', followers: 5000 },
       { id: '94', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png', followers: 2500 },
+      { id: '95', name: 'TransUnion', logo: 'https://logo.clearbit.com/transunion.com', followers: 500000 },
+      { id: '96', name: 'Haverim Consulting', logo: 'https://logo.clearbit.com/haverimconsulting.com', followers: 3000 },
+      { id: '97', name: 'VTX Core', logo: 'https://logo.clearbit.com/vtxcore.com', followers: 5000 },
+      { id: '98', name: 'YAAT Group', logo: 'https://logo.clearbit.com/yaatgroup.com', followers: 8000 },
+      { id: '99', name: 'Grace Institutions', logo: 'https://logo.clearbit.com/graceinstitutions.com', followers: 4000 },
+      { id: '100', name: 'Trinity Consulting Asia', logo: 'https://logo.clearbit.com/trinityconsulting.asia', followers: 6000 },
+      { id: '101', name: 'Subros', logo: 'https://logo.clearbit.com/subros.com', followers: 15000 },
+      { id: '102', name: 'Lone Star Alpha', logo: 'https://logo.clearbit.com/lonestaralpha.com', followers: 5000 },
     ];
     
     try {
@@ -205,7 +213,26 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
     if (company.name.toLowerCase().includes('inypeople') || company.name.toLowerCase().includes('iny people')) {
       return '/images/company-logos/inypeople-logo.png';
     }
-    
+
+    // Domain-based logos for new companies
+    const domainMap: Record<string, string> = {
+      'transunion': 'transunion.com',
+      'haverim consulting': 'haverimconsulting.com',
+      'vtx core': 'vtxcore.com',
+      'yaat group': 'yaatgroup.com',
+      'grace institutions': 'graceinstitutions.com',
+      'trinity consulting asia': 'trinityconsulting.asia',
+      'subros': 'subros.com',
+      'lone star alpha': 'lonestaralpha.com',
+      'lonestaralpha': 'lonestaralpha.com',
+    };
+    const nameLower = company.name.toLowerCase();
+    for (const [key, domain] of Object.entries(domainMap)) {
+      if (nameLower.includes(key)) {
+        return `https://logo.clearbit.com/${domain}`;
+      }
+    }
+
     // Try multiple logo sources
     const logoSources = [
       company.logo,
