@@ -135,6 +135,18 @@ export const API_ENDPOINTS = {
   ADMIN_TALENT_CANDIDATES: `${config.API_URL}/admin/talent/candidates`,
   ADMIN_TALENT_EMAIL: `${config.API_URL}/admin/talent/email`,
   ADMIN_TALENT_STATS: `${config.API_URL}/admin/talent/stats`,
+  // ATS
+  ATS_DASHBOARD: `${config.API_URL}/ats/dashboard`,
+  ATS_PERFORMANCE: `${config.API_URL}/ats/recruiter-performance`,
+  ATS_ACTIVITY: `${config.API_URL}/ats/activity`,
+  ATS_PIPELINE: `${config.API_URL}/ats/pipeline`,
+  ATS_ASSIGNMENTS: `${config.API_URL}/ats/assignments`,
+  ATS_NOTES: `${config.API_URL}/ats/notes`,
+  ATS_LEADERBOARD: `${config.API_URL}/ats/leaderboard`,
+  ATS_SLA: `${config.API_URL}/ats/sla`,
+  ATS_AUDIT: `${config.API_URL}/ats/audit`,
+  ATS_TEAM: `${config.API_URL}/ats/team`,
+  ATS_LOG: `${config.API_URL}/ats/log`,
 };
 
 // Google OAuth base — strips /api suffix to get server root

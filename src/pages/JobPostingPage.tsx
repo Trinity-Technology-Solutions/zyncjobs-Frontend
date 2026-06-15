@@ -66,6 +66,8 @@ interface JobData {
   noticePeriod: string;
   urgentNote: string;
   nationalityRestriction: string;
+  postedByName: string;
+  assignedTo: string;
   
   jobHeaderImage: string;
 
@@ -377,6 +379,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     noticePeriod: parsedData?.noticePeriod || '',
     urgentNote: editJob?.urgentNote || '',
     nationalityRestriction: editJob?.nationalityRestriction || parsedData?.nationalityRestriction || '',
+    postedByName: editJob?.postedByName || '',
+    assignedTo: editJob?.assignedTo || '',
     hiringTimeline: '',
     numberOfPeople: 0,
     workAuth: editJob?.workAuth || parsedData?.workAuth || [],
@@ -1960,6 +1964,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
         if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
+        if (!jobData.postedByName?.trim()) return { isValid: false, message: 'Job Posted By is required' };
+        if (!jobData.assignedTo?.trim()) return { isValid: false, message: 'Assigned To is required' };
         break;
       case 2:
         // Step 2 is removed - no validation needed
@@ -2480,6 +2486,17 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           </div>
         </div>
         
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-3">Job Posted By *</label>
+          <input
+            type="text"
+            value={jobData.postedByName || ''}
+            onChange={(e) => updateJobData('postedByName', e.target.value)}
+            placeholder="e.g. Recruiter / Team Member Name"
+            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
 
       </div>
       
@@ -3634,6 +3651,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           noticePeriod: '',
           urgentNote: '',
           nationalityRestriction: '',
+          postedByName: '',
+          assignedTo: '',
           country: '',
           language: '',
           jobCategory: '',
