@@ -217,12 +217,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               const liveRole = data.role as 'Owner' | 'Recruiter' | 'Viewer';
               setTeamRole(liveRole);
               // data.employerId = owner's email/id used to identify the team
-              const resolvedOwner = data.employerId || _ue;
+              const resolvedOwner = (data.employerId && data.employerId.includes('@')) ? data.employerId : _ue;
               setOwnerEmailState(resolvedOwner);
               const _s = JSON.parse(localStorage.getItem('user') || '{}');
               _s.teamRole = liveRole;
               _s.employerOwnerId = resolvedOwner;
               _s.ownerEmail = resolvedOwner;
+              // Fix: sync the correct name from live API data
+              if (data.memberName) {
+                _s.name = data.memberName;
+                setEmployerName(data.memberName);
+              }
               localStorage.setItem('user', JSON.stringify(_s));
               // Pass ownerEmail so fetchDashboardData uses owner's data
               fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
@@ -695,9 +700,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [accessDeniedModal, setAccessDeniedModal] = useState<{ show: boolean; feature: string; requiredRole: string }>({ show: false, feature: '', requiredRole: '' });
 
   // Guard function: show popup if role doesn't have access
-  const withRoleCheck = (feature: string, requiredRole: 'Owner' | 'Recruiter', action: () => void) => {
+  const withRoleCheck = (feature: string, requiredRole: 'Owner' | 'Recruiter' | 'Viewer', action: () => void) => {
     if (isOwner) { action(); return; }
     if (requiredRole === 'Recruiter' && isRecruiter) { action(); return; }
+    if (requiredRole === 'Viewer' && (isRecruiter || isViewer)) { action(); return; }
     setAccessDeniedModal({ show: true, feature, requiredRole });
   };
 
@@ -855,9 +861,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
                 { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
                 { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
-                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
-                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
-                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Viewer', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
+                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Viewer', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
+                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Viewer', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
@@ -2402,7 +2408,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   const [inviteToken, setInviteToken] = React.useState('');
   const [inviteCredentials, setInviteCredentials] = React.useState<{ email: string; password: string; role: string } | null>(null);
   const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-  const closeConfirm = () => setConfirmDialog(c => ({ ...c, isOpen: false }));
+  const closeConfirm = () => setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: () => {} });
 
   // Generate a secure random password
   const generatePassword = () => {
@@ -2599,7 +2605,17 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                   member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
                   roleColors[member.role]
                 }`}>
-                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                  {member.status === 'pending' ? (
+                    <span className="flex items-center gap-1 justify-center">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" strokeWidth={2}/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2"/></svg>
+                      Pending
+                    </span>
+                  ) : member.status === 'active' ? (
+                    <span className="flex items-center gap-1 justify-center">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+                      Active
+                    </span>
+                  ) : member.status || 'Active'}
                 </span>
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
                   {member.role}
@@ -2615,9 +2631,15 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                     <button onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (window.confirm('Are you sure you want to remove this team member?')) {
-                        await handleRemove(member.id);
-                      }
+                      setConfirmDialog({
+                        isOpen: true,
+                        title: 'Remove Member',
+                        message: `Remove ${member.memberName} from the team? Their account will be deactivated and they will no longer be able to login.`,
+                        onConfirm: async () => {
+                          setConfirmDialog({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+                          await handleRemove(member.id);
+                        }
+                      });
                     }}
                       className="text-red-500 hover:text-red-700 text-xs border border-red-200 px-2 py-1 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap">
                       Remove

@@ -26,6 +26,34 @@ interface RecommendedJobsProps {
 }
 
 const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, location, user, onNavigate }) => {
+  // Guest users should not see personalized recommendations
+  if (!user?.email) {
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-10 text-center">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Lightbulb className="w-8 h-8 text-blue-500" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Personalized Job Recommendations</h3>
+        <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+          Log in to get job recommendations tailored to your skills, experience, and preferences.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={() => onNavigate?.('login')}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+          >
+            Log In
+          </button>
+          <button
+            onClick={() => onNavigate?.('job-listings')}
+            className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm"
+          >
+            Browse All Jobs
+          </button>
+        </div>
+      </div>
+    );
+  }
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -257,6 +285,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
         }
         fetchAllRecentJobs();
       } else {
+        // Logged-in user with no skills yet — show latest jobs as fallback
         fetchAllRecentJobs();
       }
     } catch (error) {
@@ -358,8 +387,14 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4 mb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Recommended Jobs for You</h2>
-            <p className="text-sm text-gray-600">Based on your skills and preferences • Updated daily</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">
+              {resumeSkills && resumeSkills.length > 0 ? 'Recommended Jobs for You' : 'Latest Jobs'}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {resumeSkills && resumeSkills.length > 0
+                ? 'Based on your skills and preferences • Updated daily'
+                : 'Most recently posted jobs • Update your profile for personalized recommendations'}
+            </p>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>

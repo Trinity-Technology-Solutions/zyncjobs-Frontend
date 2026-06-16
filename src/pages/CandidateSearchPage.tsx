@@ -198,7 +198,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   useEffect(() => {
     fetch(`${API_ENDPOINTS.JOBS}`)
       .then(r => r.ok ? r.json() : [])
-      .then((jobs: any[]) => {
+      .then((jobs: any) => {
         const allJobs = Array.isArray(jobs) ? jobs : jobs.jobs || [];
         if (!user?.email) {
           setEmployerJobs(allJobs);
@@ -1047,22 +1047,19 @@ return (
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0">
                   <div>
                     <span className="text-blue-600 font-bold">{scoredCandidates.length}</span>
-                    <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? \x27s\x27 : \x27\x27} found</span>
+                    <span className="text-gray-600"> candidate{scoredCandidates.length !== 1 ? 's' : ''} found</span>
                   </div>
                   {(searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0) && (
                     <span className="text-sm sm:text-base text-gray-500 sm:ml-2">
                       {searchTerm && ` matching "${searchTerm}"`}
-                      {selectedSkills.length > 0 && ` with {selectedSkills.join(\x27, \x27)} skills`}
-                      {selectedLocations.length > 0 && ` in {selectedLocations.join(\x27, \x27)}`}
+                      {selectedSkills.length > 0 && ` with ${selectedSkills.join(", ")} skills`}
+                      {selectedLocations.length > 0 && ` in ${selectedLocations.join(", ")}`}
                     </span>
                   )}
                 </div>
               )}
             </div>
           </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {loading ? (

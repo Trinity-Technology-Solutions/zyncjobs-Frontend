@@ -105,35 +105,44 @@ export const getPostingFreshness = (dateString: string | Date): 'new' | 'recent'
   }
 };
 
-export const formatSalary = (salary: any): string => {
+export const formatSalary = (salary: any, currencyCode?: string): string => {
   if (!salary) return '';
-  
+
+  // Import currency symbol lookup inline to avoid circular deps
+  const CURRENCY_SYMBOLS: Record<string, string> = {
+    INR: '₹', USD: '$', AED: 'د.إ', SAR: 'ر.س', OMR: 'ر.ع',
+    QAR: 'ر.ق', KWD: 'د.ك', BHD: '.د.ب', GBP: '£', EUR: '€',
+    CAD: 'C$', AUD: 'A$', SGD: 'S$', MYR: 'RM'
+  };
+
+  const fmtNum = (n: number, code: string): string => {
+    if (code === 'INR') {
+      if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
+      if (n >= 100000)   return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
+      if (n > 0 && n < 1000) return `${n}L`;
+    }
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000)    return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+    return n.toString();
+  };
+
   if (typeof salary === 'object' && (salary.min !== undefined || salary.max !== undefined)) {
     const { min, max } = salary;
-    
     if (!min && !max) return '';
     if (min === 0 && max === 0) return '';
-    
-    const fmtNum = (n: number): string => {
-      if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
-      if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
-      if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
-      // Small numbers (1-999) are stored as LPA values
-      if (n > 0) return `${n}L`;
-      return n.toString();
-    };
-
-    if (min && max && min > 0 && max > 0) return `₹${fmtNum(min)} - ₹${fmtNum(max)}`;
-    if (min && min > 0) return `₹${fmtNum(min)}+`;
-    if (max && max > 0) return `Up to ₹${fmtNum(max)}`;
+    const code = currencyCode || salary.currency || 'INR';
+    const sym = CURRENCY_SYMBOLS[code] || code;
+    if (min && max && min > 0 && max > 0) return `${sym}${fmtNum(min, code)} - ${sym}${fmtNum(max, code)}`;
+    if (min && min > 0) return `${sym}${fmtNum(min, code)}+`;
+    if (max && max > 0) return `Up to ${sym}${fmtNum(max, code)}`;
     return '';
   }
-  
+
   if (typeof salary === 'string') {
     if (!salary.trim()) return '';
-    return salary.replace(/\$/g, '₹');
+    return salary;
   }
-  
+
   return salary.toString();
 };
 
@@ -147,8 +156,8 @@ export const formatJobDescription = (description: string, _jobCurrency?: string)
     text = text.replace(/<\/?(p|li|br|div|h[1-6])[^>]*>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
   }
 
-  // Always replace $ with ₹
-  text = text.replace(/\$([0-9,]+)/g, '₹$1');
+  // Do not blindly replace currency symbols — keep original currency from job data
+  // text = text.replace(/\$([0-9,]+)/g, '₹$1'); // removed: breaks USD jobs
 
   // Strip markdown bold markers ** from headings (e.g. **Job Summary** → Job Summary)
   text = text.replace(/\*\*([^*]+)\*\*/g, '$1');
