@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/env';
-import { MapPin, Mail, Phone, Download, MessageCircle, Briefcase, GraduationCap, Star, User } from 'lucide-react';
+import { MapPin, Mail, Phone, Download, MessageCircle, Briefcase, GraduationCap, Star, User, DollarSign, Clock } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
@@ -230,6 +230,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       openToWork: data.openToWork ?? false,
       visibilityStatus: data.visibilityStatus ?? 'passively-looking',
       profileVisibility: data.profileVisibility ?? 'public',
+      experience: data.experience || data.experienceYears || '',
+      expectedCTC: data.expectedCTC || data.salary || data.salaryExpectation || data.ctc || '',
     };
   }
 
@@ -251,6 +253,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       languages: '',
       certifications: '',
       awards: '',
+      experience: '',
+      expectedCTC: '',
     };
   }
 
@@ -377,6 +381,16 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
               {candidate.location && (
                 <span className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-lg px-3 py-1">
                   <MapPin className="w-3.5 h-3.5 text-blue-400" />{candidate.location}
+                </span>
+              )}
+              {candidate.experience && (
+                <span className="flex items-center gap-1.5 bg-orange-50 border border-orange-100 rounded-lg px-3 py-1 text-orange-700">
+                  <Clock className="w-3.5 h-3.5 text-orange-400" />{candidate.experience} {typeof candidate.experience === 'number' ? 'yrs exp' : ''}
+                </span>
+              )}
+              {candidate.expectedCTC && (
+                <span className="flex items-center gap-1.5 bg-green-50 border border-green-100 rounded-lg px-3 py-1 text-green-700">
+                  <DollarSign className="w-3.5 h-3.5 text-green-400" />{candidate.expectedCTC}
                 </span>
               )}
               {candidate.email && (

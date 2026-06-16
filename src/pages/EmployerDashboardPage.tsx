@@ -889,7 +889,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               })}
 
               {/* Delete Account */}
-              <button onClick={() => openConfirm(
+              <button onClick={() => {
+                if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Delete Account', requiredRole: 'Owner' }); return; }
+                openConfirm(
                 'Delete Account',
                 'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
                 async () => {
@@ -916,7 +918,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     showToast('Network error. Please try again.', 'error');
                   }
                 }
-              )}
+              )}}
                 style={{ fontSize: '15px' }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
                 <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
@@ -963,7 +965,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Complete Profile Button */}
             <button
-              onClick={() => onNavigate('employer-complete-profile')}
+              onClick={() => {
+              if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Edit Profile', requiredRole: 'Owner' }); return; }
+              onNavigate('employer-complete-profile');
+            }}
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
