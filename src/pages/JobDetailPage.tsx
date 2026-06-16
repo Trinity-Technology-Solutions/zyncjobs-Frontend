@@ -15,18 +15,26 @@ const fmtNum = (n: number): string => {
   return n.toString();
 };
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: '₹', USD: '$', AED: 'د.إ', SAR: 'ر.س', OMR: 'ر.ع',
+  QAR: 'ر.ق', KWD: 'د.ك', BHD: '.د.ب', GBP: '£', EUR: '€',
+  CAD: 'C$', AUD: 'A$', SGD: 'S$', MYR: 'RM'
+};
+
 const formatSalaryDisplay = (job: any): string => {
+  const code = job.currency || job.salary?.currency || 'INR';
+  const sym = CURRENCY_SYMBOLS[code] || code;
   // salary object from DB: { min, max, currency, period }
   if (job.salary && typeof job.salary === 'object' && (job.salary.min || job.salary.max)) {
-    const s = formatSalary(job.salary);
+    const s = formatSalary(job.salary, code);
     if (s) return s + (job.salary.period ? ` ${job.salary.period}` : '');
   }
   // flat salaryMin/salaryMax fields
   const min = Number(job.salaryMin) || 0;
   const max = Number(job.salaryMax) || 0;
-  if (min && max) return `₹${fmtNum(min)} - ₹${fmtNum(max)}`;
-  if (min) return `₹${fmtNum(min)}+`;
-  if (max) return `Up to ₹${fmtNum(max)}`;
+  if (min && max) return `${sym}${fmtNum(min)} - ${sym}${fmtNum(max)}`;
+  if (min) return `${sym}${fmtNum(min)}+`;
+  if (max) return `Up to ${sym}${fmtNum(max)}`;
   return 'Salary not disclosed';
 };
 

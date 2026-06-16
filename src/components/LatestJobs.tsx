@@ -256,9 +256,9 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                       <div className="text-right">
                         <span className="font-semibold text-gray-900 text-sm">
-                          {job.salary ? formatSalary(job.salary) : 
-                           job.salaryMin && job.salaryMax ? 
-                           `${job.currency || 'INR'} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}` : 
+                          {job.salary ? formatSalary(job.salary, job.currency || job.salary?.currency) :
+                           job.salaryMin && job.salaryMax ?
+                           formatSalary({ min: job.salaryMin, max: job.salaryMax, currency: job.currency || 'INR' }) :
                            'Salary not specified'}
                         </span>
                       </div>

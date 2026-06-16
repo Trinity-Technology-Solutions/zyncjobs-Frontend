@@ -1582,7 +1582,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">
-                        AI Job Suggestions
+                        {user?.skills?.length > 0 ? 'AI Job Suggestions' : 'Latest Jobs'}
                       </h3>
                       {recommendedJobs.length > 3 && (
                         <button
