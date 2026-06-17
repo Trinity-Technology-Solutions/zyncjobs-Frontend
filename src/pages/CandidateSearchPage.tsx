@@ -1328,4 +1328,3 @@ return (
 };
 
 export default CandidateSearchPage;
-
