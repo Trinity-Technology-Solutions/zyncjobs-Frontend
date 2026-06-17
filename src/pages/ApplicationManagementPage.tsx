@@ -25,7 +25,7 @@ const COLUMNS = [
   { id: 'rejected',   label: 'Rejected',    color: '#ef4444', light: '#fef2f2', border: '#fecaca' },
 ];
 
-function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProfile, onDelete }: any) {
+function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProfile, onDelete, isViewer }: any) {
   const appId = application.id || application._id;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: appId });
   const style = transform ? { transform: `translate(${transform.x}px,${transform.y}px)`, zIndex: 999, opacity: 0.95 } : undefined;
@@ -71,6 +71,7 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         <button onClick={() => onViewResume(application)} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1.5 py-0.5 rounded hover:bg-blue-50">
           Resume
         </button>
+        {!isViewer && (<>
         <span className="text-gray-300 text-xs">·</span>
         <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
           Interview
@@ -79,12 +80,13 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
           Delete
         </button>
+        </>)}
       </div>
     </div>
   );
 }
 
-function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewProfile, onDelete }: any) {
+function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewProfile, onDelete, isViewer }: any) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
     <div className="flex flex-col flex-shrink-0" style={{ width: 230 }}>
@@ -119,6 +121,7 @@ function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewPro
               onScheduleInterview={onScheduleInterview}
               onViewProfile={onViewProfile}
               onDelete={onDelete}
+              isViewer={isViewer}
             />
           ))
         )}
@@ -146,14 +149,11 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [activeId, setActiveId] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
-  const [confirm, setConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null }); 
+  const isViewer = (user?.teamRole === 'Viewer') || false; 
+
+  const [confirm, setConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-  useEffect(() => {
-    const storedJobId = sessionStorage.getItem('selectedJobId');
-    setJobId(storedJobId);
-  }, []);
 
   useEffect(() => {
     if (jobId) {
@@ -382,9 +382,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
   const activeApp = activeId ? applications.find(a => (a.id || a._id) === activeId) : null;
 
+  useEffect(() => {
+    const storedJobId = sessionStorage.getItem('selectedJobId');
+    setJobId(storedJobId);
+  }, []);
+
   const handleDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
+    if (isViewer) return;
     const { active, over } = e;
     if (!over) return;
     const newStatus = String(over.id);
@@ -507,6 +513,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                   onScheduleInterview={onScheduleInterview}
                   onViewProfile={onViewProfile}
                   onDelete={deleteApplication}
+                  isViewer={isViewer}
                 />
               ))}
             </div>
