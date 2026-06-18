@@ -157,14 +157,14 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       };
 
       // Track profile_view
-      await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/track/profile-view`, {
+      await fetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/profile-view`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: candidateEmail, viewedBy: currentUser.email }),
       });
 
       // Track recruiter_action (profile_viewed)
-      await fetch(`${API_ENDPOINTS.BASE_URL}/analytics/track/recruiter-action`, {
+      await fetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/recruiter-action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(trackPayload),

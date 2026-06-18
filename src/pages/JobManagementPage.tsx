@@ -443,7 +443,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       refreshCount: job.refreshCount || 0,
                       lastRefreshedAt: job.lastRefreshedAt
                     }))}
-                    userPlan="free" // TODO: Get from user data
+                    userPlan={(user as any)?.plan || 'free'} // TODO: Get from user data
                     onRefreshComplete={() => {
                       // Refresh the jobs list and clear selection
                       const userData = localStorage.getItem('user');
@@ -594,7 +594,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           jobTitle={job.jobTitle || job.title || 'Job Position'}
                           refreshCount={job.refreshCount || 0}
                           lastRefreshedAt={job.lastRefreshedAt}
-                          userPlan="free" // TODO: Get from user data
+                          userPlan={(user as any)?.plan || 'free'} // TODO: Get from user data
                           onRefreshSuccess={() => {
                             // Refresh the jobs list
                             const userData = localStorage.getItem('user');

@@ -1137,7 +1137,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <BulkJobRefresh
                             selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
                             selectedJobs={jobs.map(j => ({ id: j.id || j._id, title: j.jobTitle || j.title, refreshCount: j.refreshCount || 0, lastRefreshedAt: j.lastRefreshedAt }))}
-                            userPlan="free"
+                            userPlan={user?.plan || 'free'}
                             onRefreshComplete={() => { if (user) fetchDashboardData(user); }}
                             className="text-xs px-3 py-2"
                           />
@@ -1187,7 +1187,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     jobTitle={job.jobData.jobTitle || job.jobData.title}
                                     refreshCount={job.jobData.refreshCount || 0}
                                     lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                    userPlan="free"
+                                    userPlan={user?.plan || 'free'}
                                     onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
                                     className="text-[10px] px-2 py-1"
                                   />
@@ -1232,7 +1232,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                       jobTitle={job.jobData.jobTitle || job.jobData.title}
                                       refreshCount={job.jobData.refreshCount || 0}
                                       lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                      userPlan="free"
+                                      userPlan={user?.plan || 'free'}
                                       onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
                                       className="text-[10px] px-1.5 py-0.5"
                                     />

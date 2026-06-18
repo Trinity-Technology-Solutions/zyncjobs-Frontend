@@ -926,7 +926,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 refreshCount: job.refreshCount || 0,
                                 lastRefreshedAt: job.lastRefreshedAt
                               }))}
-                              userPlan="free"
+                              userPlan={(user as any)?.plan || 'free'}
                               onRefreshComplete={() => {
                                 fetchPostedJobs();
                                 setSelectedJobs([]);
