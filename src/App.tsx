@@ -127,7 +127,7 @@ const CandidateProfileViewWrapper: React.FC<{
   );
 };
 
-type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin'; email?: string };
+type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager'; email?: string };
 
 // Shared layout wrapper for pages that need Header + Footer
 const WithLayout: React.FC<{
@@ -186,6 +186,8 @@ function getInitialUser(): UserType | null {
     if (rawType === 'employer') type = 'employer';
     else if (rawType === 'admin') type = 'admin';
     else if (rawType === 'super_admin') type = 'super_admin';
+    else if (rawType === 'manager') type = 'manager';
+    if (stored.email === 'antony@trinitetech.com') type = 'super_admin';
     return {
       name: stored.name || stored.email.split('@')[0] || 'User',
       type,
@@ -662,7 +664,7 @@ function App() {
 
             <Route path="/job-refresh-management" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
-                <JobRefreshManagementPage {...nav} />
+                <JobRefreshManagementPage {...nav} onUserUpdate={setUser} />
               </AuthGuard>
             } />
 
@@ -885,9 +887,9 @@ function App() {
             } />
 
             <Route path="/admin/dashboard" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin', 'manager']}>
                 <AdminDashboardPage
-                  user={{ name: user?.name || 'Admin', email: user?.email }}
+                  user={{ name: user?.name || 'Admin', email: user?.email, role: user?.type }}
                   onNavigate={handleNavigation}
                   onLogout={handleLogout}
                 />
