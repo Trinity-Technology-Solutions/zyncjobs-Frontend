@@ -169,7 +169,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
                 }
               }
 
-              await fetch(`${(import.meta.env.VITE_API_URL || '/api')}/analytics/track/recruiter-action`, {
+              await fetch(`${(import.meta.env.VITE_API_URL || '/api')}/analytics-tracking/track/recruiter-action`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

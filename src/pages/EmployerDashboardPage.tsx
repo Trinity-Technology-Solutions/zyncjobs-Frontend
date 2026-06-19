@@ -418,9 +418,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        // Only send employerId if it's a valid non-numeric ID (UUID/ObjectId)
-        const isValidId = (id: any) => id && typeof id === 'string' && !/^\d+$/.test(id);
-        const interviewEmployerId = isValidId(ownerEmployerId) ? ownerEmployerId : isValidId(userId) ? userId : '';
+        // Use the available employer ID — prefer ownerEmployerId, fallback to userId
+        const interviewEmployerId = ownerEmployerId || userId || '';
         const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
@@ -450,7 +449,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         } else {
           setInterviews([]);
         }
-      } catch {
+      } catch (err) {
+        console.error('Error fetching interviews:', err);
         setInterviews([]);
       }
 
@@ -1137,7 +1137,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <BulkJobRefresh
                             selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
                             selectedJobs={jobs.map(j => ({ id: j.id || j._id, title: j.jobTitle || j.title, refreshCount: j.refreshCount || 0, lastRefreshedAt: j.lastRefreshedAt }))}
-                            userPlan="free"
+                            userPlan={user?.plan || 'free'}
                             onRefreshComplete={() => { if (user) fetchDashboardData(user); }}
                             className="text-xs px-3 py-2"
                           />
@@ -1187,7 +1187,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     jobTitle={job.jobData.jobTitle || job.jobData.title}
                                     refreshCount={job.jobData.refreshCount || 0}
                                     lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                    userPlan="free"
+                                    userPlan={user?.plan || 'free'}
                                     onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
                                     className="text-[10px] px-2 py-1"
                                   />
@@ -1232,7 +1232,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                       jobTitle={job.jobData.jobTitle || job.jobData.title}
                                       refreshCount={job.jobData.refreshCount || 0}
                                       lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                      userPlan="free"
+                                      userPlan={user?.plan || 'free'}
                                       onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
                                       className="text-[10px] px-1.5 py-0.5"
                                     />
@@ -2281,10 +2281,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             const userData = localStorage.getItem('user');
             if (userData) {
               const u = JSON.parse(userData);
-              const userId = u.id || u._id;
-              const userEmail = u.email;
-              const safeId = userId && typeof userId === 'string' && !/^\d+$/.test(userId) ? userId : '';
-              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(safeId)}&employerEmail=${encodeURIComponent(userEmail || '')}`)
+              const ownerId = u.employerOwnerId || u.ownerEmail || u.id || u._id || '';
+              const ownerEmail = u.ownerEmail || u.employerOwnerId || u.email || '';
+              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(ownerId)}&employerEmail=${encodeURIComponent(ownerEmail)}`)
                 .then(r => r.ok ? r.json() : [])
                 .then((data: any[]) => {
                   setInterviews(Array.isArray(data) ? data : []);

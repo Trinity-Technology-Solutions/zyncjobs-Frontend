@@ -26,15 +26,18 @@ interface Job {
 }
 
 interface JobRefreshManagementPageProps {
-  onNavigate: (page: string) => void;
-  user: { name: string; type: 'candidate' | 'employer'; email?: string } | null;
+  onNavigate: (page: string, params?: any) => void;
+  user: { name: string; type: 'candidate' | 'employer'; email?: string; plan?: string } | null;
   onLogout: () => void;
+  userLoading?: boolean;
+  onUserUpdate?: React.Dispatch<React.SetStateAction<any>>;
 }
 
 const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({ 
   onNavigate, 
   user, 
-  onLogout 
+  onLogout,
+  onUserUpdate 
 }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);

@@ -216,17 +216,16 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           _id: realCompanyData._id || realCompanyData.id,
           name: realCompanyData.name || realCompanyData.companyName,
           industry: realCompanyData.industry,
-          rating: realCompanyData.rating || 0,
+          rating: realCompanyData.rating || null,
           description: realCompanyData.description || realCompanyData.about,
           location: realCompanyData.location || realCompanyData.headquarters,
-          employees: realCompanyData.size || realCompanyData.companySize,
+          employees: realCompanyData.size || realCompanyData.companySize || realCompanyData.employees,
           website: realCompanyData.website || realCompanyData.companyWebsite,
-          openJobs: realCompanyData.openJobs || 0,
+          openJobs: realCompanyData.openPositions ?? realCompanyData.openJobs ?? 0,
           logo: realCompanyData.logo,
-          // Additional fields from enhanced profile
           tagline: realCompanyData.tagline,
           foundedYear: realCompanyData.foundedYear,
-          companyType: realCompanyData.companyType || 'Private',
+          companyType: realCompanyData.companyType || '—',
           benefits: realCompanyData.benefits || [],
           socialLinks: realCompanyData.socialLinks || {},
           locations: realCompanyData.locations || [],
@@ -242,8 +241,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           name: realCompanyData.name || realCompanyData.companyName,
           industry: realCompanyData.industry,
           description: realCompanyData.description || realCompanyData.about,
-          company_type: realCompanyData.companyType || 'Private',
-          founded_year: realCompanyData.foundedYear ? parseInt(realCompanyData.foundedYear) : new Date().getFullYear(),
+          company_type: realCompanyData.companyType || '—',
+          founded_year: realCompanyData.foundedYear ? parseInt(realCompanyData.foundedYear) : null,
           tagline: realCompanyData.tagline,
           logo_url: realCompanyData.logo,
           website: realCompanyData.website || realCompanyData.companyWebsite,
@@ -566,7 +565,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 mb-4 sm:mb-6">
                     <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-bold text-gray-900">{avgRating ?? '4.2'}</span>
+                      <span className="text-lg font-bold text-gray-900">{avgRating ?? '—'}</span>
                       <span className="text-gray-600 text-sm">({reviews.length} reviews)</span>
                     </div>
                     {followersCount > 0 && (
@@ -593,10 +592,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       {company.industry}
                     </span>
                     <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                      {company.companyType || 'Private'}
+                      {company.companyType || '—'}
                     </span>
                     <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                      {company.employees} Employees
+                      {company.employees || '—'} Employees
                     </span>
                     {company.foundedYear && (
                       <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
@@ -631,13 +630,13 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {company?.foundedYear || '2019'}
+              {company?.foundedYear || '—'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Founded</div>
           </div>
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {company?.employees || '11-50'}
+              {company?.employees || '—'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Employees</div>
           </div>
@@ -649,7 +648,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           </div>
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 truncate">
-              {company?.location?.split(',')[0] || company?.headquarters?.split(',')[0] || 'Chennai'}
+              {company?.location?.split(',')[0] || company?.headquarters?.split(',')[0] || '—'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Headquarters</div>
           </div>

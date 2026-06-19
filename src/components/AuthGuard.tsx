@@ -3,8 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  user: { type: 'candidate' | 'employer' | 'admin' | 'super_admin' } | null;
-  allowedRoles?: Array<'candidate' | 'employer' | 'admin' | 'super_admin'>;
+  user: { type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' } | null;
+  allowedRoles?: Array<'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager'>;
   redirectTo?: string;
   userLoading?: boolean;
 }
