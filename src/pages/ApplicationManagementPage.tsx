@@ -368,20 +368,19 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     }
   };
 
-  const downloadAllApplicationsCSV = async () => {
+  const downloadAllApplicationsCSV = () => {
     if (!filtered.length) { alert('No applications available.'); return; }
-    if (!jobId) { alert('No job selected.'); return; }
     setCsvDownloading(true);
     try {
       const jobTitle = sessionStorage.getItem('selectedJobTitle') || 'job';
-      const url = `${API_ENDPOINTS.APPLICATIONS}/job/${jobId}/export-csv`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error || 'No applications found to export.');
-        return;
-      }
-      const blob = await res.blob();
+      const headers = ['Candidate Name', 'Email', 'Phone', 'Job Title', 'Applied Date'];
+      const rows = filtered.map(a => [
+        a.candidateName || '', a.candidateEmail || '', a.candidatePhone || '',
+        a.jobTitle || '',
+        a.appliedDate ? new Date(a.appliedDate).toISOString().split('T')[0] : ''
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = `${jobTitle.replace(/\s+/g, '_')}_applications.csv`;
