@@ -151,17 +151,10 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
     setLoading(true);
     
     try {
-      // Load companies and jobs first
-      const [companiesRes, jobsRes] = await Promise.all([
-        fetch(API_ENDPOINTS.COMPANIES),
-        fetch(API_ENDPOINTS.JOBS)
-      ]);
-      
+      // Load companies
+      const companiesRes = await fetch(API_ENDPOINTS.COMPANIES);
       const companiesData = await companiesRes.json();
-      const jobsData = await jobsRes.json();
-      
       const companiesList = Array.isArray(companiesData) ? companiesData : (companiesData.companies || companiesData.data || []);
-      const jobsList = Array.isArray(jobsData) ? jobsData : (jobsData.jobs || jobsData.data || []);
       
       // Try to load locations and industries from API, with fallbacks
       let locationsList: string[] = [];
@@ -270,43 +263,29 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
         }
       }
       
-      // Add job counts to companies and map enhanced data
-      const companiesWithJobCounts = companiesList.map((company: any) => {
-        const companyJobs = jobsList.filter((job: any) => {
-          const jobCompany = (job.company || job.companyName || '').toLowerCase().trim();
-          const companyName = (company.name || company.companyName || '').toLowerCase().trim();
-          return jobCompany === companyName;
-        });
-        
-        // Remove any test/demo companies and normalize data
-        let updatedCompany = { ...company };
-        
-        return {
-          ...updatedCompany,
-          // Map enhanced fields from API
-          name: company.name || company.companyName,
-          industry: company.industry,
-          description: company.description || company.about,
-          location: company.location || company.headquarters,
-          employees: company.size || company.companySize || company.employees,
-          website: company.website || company.companyWebsite,
-          tagline: company.tagline,
-          foundedYear: company.foundedYear,
-          companyType: company.companyType || 'Private',
-          benefits: Array.isArray(company.benefits) ? company.benefits : [],
-          socialLinks: company.socialLinks || {},
-          locations: Array.isArray(company.locations) ? company.locations : [],
-          gstNumber: company.gstNumber,
-          cinNumber: company.cinNumber,
-          openJobs: companyJobs.length,
-          // Ensure rating is always a number
-          rating: typeof company.rating === 'number' ? company.rating : (Math.random() * 2 + 3),
-          domain: company.domain,
-        };
-      });
+      // Map enhanced data (job counts come from backend directly)
+      const companiesWithJobCounts = companiesList.map((company: any) => ({
+        ...company,
+        name: company.name || company.companyName,
+        industry: company.industry,
+        description: company.description || company.about,
+        location: company.location || company.headquarters,
+        employees: company.size || company.companySize || company.employees,
+        website: company.website || company.companyWebsite,
+        tagline: company.tagline,
+        foundedYear: company.foundedYear,
+        companyType: company.companyType || '—',
+        benefits: Array.isArray(company.benefits) ? company.benefits : [],
+        socialLinks: company.socialLinks || {},
+        locations: Array.isArray(company.locations) ? company.locations : [],
+        gstNumber: company.gstNumber,
+        cinNumber: company.cinNumber,
+        openJobs: typeof company.openPositions === 'number' ? company.openPositions : 0,
+        rating: typeof company.rating === 'number' ? company.rating : null,
+        domain: company.domain,
+      }));
       
       console.log('📊 Companies loaded:', companiesWithJobCounts.length);
-      console.log('💼 Jobs loaded:', jobsList.length);
       console.log('📍 Locations loaded:', locationsList.length);
       console.log('🏭 Industries loaded:', industriesList.length);
       
@@ -649,7 +628,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                       <div className="flex items-center">
                         <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                         <span className="text-sm text-gray-600 ml-1">
-                          {typeof company.rating === 'number' ? company.rating.toFixed(1) : '4.2'}
+                          {typeof company.rating === 'number' ? company.rating.toFixed(1) : '—'}
                         </span>
                       </div>
                       {company.companyType && (

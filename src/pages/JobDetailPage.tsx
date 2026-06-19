@@ -680,9 +680,9 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   }
                   if (buf.length) sections[current] = [...(sections[current] || []), ...buf];
 
-                  const renderLines = (lines: string[]) => lines.map((line, i) => (
+                  const renderLines = (lines: string[], forceBullet = false) => lines.map((line, i) => (
                     <div key={i} className="flex items-start gap-2">
-                      {/^[•\-\*]/.test(line)
+                      {forceBullet || /^[•\-\*]/.test(line)
                         ? <><span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span><span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span></>
                         : <p className="text-sm text-gray-700 leading-relaxed">{line}</p>
                       }
@@ -718,7 +718,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         sections[key]?.length ? (
                           <div key={key}>
                             <h4 className="text-xl font-bold text-gray-900 mb-3">{label}</h4>
-                            <div className="space-y-2">{renderLines(sections[key])}</div>
+                            <div className="space-y-2">{renderLines(sections[key], key === 'responsibilities' || key === 'requirements')}</div>
                           </div>
                         ) : null
                       )}
