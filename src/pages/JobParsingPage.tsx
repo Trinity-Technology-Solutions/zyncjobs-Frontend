@@ -39,7 +39,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       
       setNotification({
         type: 'success',
-        message: 'Job description parsed successfully! ðŸŽ‰',
+        message: 'Job description parsed successfully!',
         isVisible: true
       });
 
@@ -89,7 +89,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
           jobType:          d.jobType         || '',
           experienceRange:  d.experienceRange || '',
           skills:           d.skills          || [],
-          benefits:         [],
+          goodToHaveSkills: d.goodToHaveSkills || [],
+          benefits:         d.benefits || [],
           minSalary:        d.salaryMin > 0 ? String(d.salaryMin) : '',
           maxSalary:        d.salaryMax > 0 ? String(d.salaryMax) : '',
           currency:         d.currency        || '',
@@ -150,7 +151,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       jobDescription:   description,
       responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
       requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),
-      goodToHaveSkills: regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description),
+      goodToHaveSkills: (Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description)),
       jobCategory:      ai.jobCategory      || extractJobCategory(description),
       nationality:      ai.nationality      || '',
       priority:         extractPriority(description),
@@ -419,7 +420,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     for (const city of knownCities) {
       // Only match if city appears with a location-related label, or alone on its own line
       const withLabel = new RegExp(
-        `(?:location|city|based\s+in|located\s+in|work\s+location|job\s+location)\s*[:\-,]?\s*${city}\b`,
+        `(?:location|city|based\\s+in|located\\s+in|work\\s+location|job\\s+location)\\s*[:\\-,]?\\s*${city}\\b`,
         'i'
       ).test(text);
       const aloneLine = new RegExp(`^\\s*${city}\\s*$`, 'im').test(text);
@@ -677,8 +678,11 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
   const extractBenefits = (text: string): string[] => {
     const benefits: string[] = [];
-    const benefitPatterns = [
-      { pattern: /health\s*insurance|medical\s*insurance|healthcare/i, benefit: 'Health insurance' },
+    const benefitSection = text.match(/(?:benefits?|perks?|what we offer|why join us)[:\n]+([\s\S]*?)(?:\n\s*\n|\n(?:requirements?|qualifications?|about|job description|apply|how to apply))/i);
+    const searchText = benefitSection ? benefitSection[1] : text;
+
+    const benefitPatterns: { pattern: RegExp; benefit: string }[] = [
+      { pattern: /health\s*insurance|medical\s*insurance/i, benefit: 'Health insurance' },
       { pattern: /dental\s*insurance|dental\s*care/i, benefit: 'Dental insurance' },
       { pattern: /vision\s*insurance|eye\s*care/i, benefit: 'Vision insurance' },
       { pattern: /life\s*insurance/i, benefit: 'Life insurance' },
@@ -688,7 +692,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     ];
 
     for (const { pattern, benefit } of benefitPatterns) {
-      if (pattern.test(text)) {
+      if (pattern.test(searchText)) {
         benefits.push(benefit);
       }
     }

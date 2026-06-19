@@ -5,7 +5,7 @@ import Footer from '../components/Footer';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
-import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, Download } from 'lucide-react';
+import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
@@ -148,6 +148,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [searchQuery, setSearchQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [csvDownloading, setCsvDownloading] = useState(false);
   const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
   const isViewer = (user?.teamRole === 'Viewer') || false; 
 
@@ -367,6 +368,33 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     }
   };
 
+  const downloadAllApplicationsCSV = () => {
+    if (!filtered.length) { alert('No applications available.'); return; }
+    setCsvDownloading(true);
+    try {
+      const jobTitle = sessionStorage.getItem('selectedJobTitle') || 'job';
+      const headers = ['Candidate Name', 'Email', 'Phone', 'Job Title', 'Applied Date'];
+      const rows = filtered.map(a => [
+        a.candidateName || '', a.candidateEmail || '', a.candidatePhone || '',
+        a.jobTitle || '',
+        a.appliedDate ? new Date(a.appliedDate).toISOString().split('T')[0] : ''
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${jobTitle.replace(/\s+/g, '_')}_applications.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (e) {
+      alert('Failed to export applications. Please try again.');
+    } finally {
+      setCsvDownloading(false);
+    }
+  };
+
   const filtered = useMemo(() =>
     applications.filter(app =>
       !searchQuery ||
@@ -470,10 +498,18 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                 <button
                   onClick={downloadAllResumes}
                   disabled={bulkDownloading}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                >
+                  <FileDown className="w-4 h-4" />
+                  {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
+                </button>
+                <button
+                  onClick={downloadAllApplicationsCSV}
+                  disabled={csvDownloading}
                   className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
                 >
-                  <Download className="w-4 h-4" />
-                  {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
+                  <FileDown className="w-4 h-4" />
+                  {csvDownloading ? 'Exporting...' : 'Export CSV'}
                 </button>
                 <button
                   onClick={runAIShortlist}

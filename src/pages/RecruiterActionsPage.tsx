@@ -3,7 +3,7 @@ import { Users, RefreshCw, Eye, TrendingUp, MapPin, Building2, Sparkles } from '
 import BackButton from '../components/BackButton';
 import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
-import { API_ENDPOINTS } from '../config/env';
+import { API_ENDPOINTS, config } from '../config/env';
 
 interface Props { onNavigate: (page: string) => void; user?: any; onLogout?: () => void; }
 type FilterKey = 'all' | 'profile_viewed' | 'job_invite';
@@ -109,8 +109,7 @@ const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =
 
   useEffect(() => {
     if (!userEmail) return;
-    const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
-    const socket: Socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+    const socket: Socket = io(config.SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on(`analytics_update:${userEmail}`, ({ eventType }: { eventType: string }) => {
       if (eventType === 'recruiter_action') {
         setLiveIndicator(true);
