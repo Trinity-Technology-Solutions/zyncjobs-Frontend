@@ -696,7 +696,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                   {actionType === 'posted' && (
                     <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
                       <select
-                        value={job.status || (job.isActive ? 'active' : 'closed')}
+                        value={job.status === 'approved' ? 'active' : job.status || (job.isActive ? 'active' : 'closed')}
                         onChange={(e) => {
                           const newStatus = e.target.value;
                           const jobId = getId(job);
@@ -758,9 +758,26 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               <Briefcase className="w-4 h-4 text-blue-600" />
               <span className="text-sm font-medium text-blue-700">{job.type}</span>
             </div>
-            {job.positionId && actionType === 'posted' && (
+            {(job.jobCode || job.positionId) && actionType === 'posted' && (
               <div className="flex items-center gap-1.5 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-lg">
-                <span className="text-sm font-semibold text-purple-600">PID: {job.positionId}</span>
+                <span className="text-sm font-semibold text-purple-600">
+                  Job Code: {job.jobCode || (() => {
+                    const rawPos = job.positionId || '';
+                    if (!rawPos) return '';
+                    const isNewFormat = /^[A-Z]{2,4}\/\d{2}\/\d{4}$/.test(rawPos);
+                    if (isNewFormat) return rawPos;
+                    const companyName = job.company || '';
+                    let abbr = 'ZYN';
+                    if (companyName) {
+                      const words = companyName.trim().split(/\s+/).filter(Boolean);
+                      abbr = words.length === 1 ? words[0].substring(0, 3).toUpperCase() : words.slice(0, 4).map((w: string) => w[0]).join('').toUpperCase();
+                    }
+                    const yr = new Date().getFullYear().toString().slice(-2);
+                    const numMatch = rawPos.match(/(\d{4})$/);
+                    const seq = numMatch ? numMatch[1] : String(parseInt(rawPos.replace(/\D/g, '')) || 1).padStart(4, '0');
+                    return `${abbr}/${yr}/${seq}`;
+                  })()}
+                </span>
               </div>
             )}
           </div>

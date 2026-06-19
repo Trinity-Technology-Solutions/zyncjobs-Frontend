@@ -554,7 +554,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     : 'bg-green-500'
                 }`}></span>
                 <span className="capitalize">
-                  {job.status === 'closed' || (!job.isActive && job.status !== 'hold') ? 'Closed' : job.status || 'Active'}
+                  {job.status === 'closed' || (!job.isActive && job.status !== 'hold') 
+                    ? 'Closed' 
+                    : job.status === 'hold' 
+                    ? 'Hold' 
+                    : 'Active'}
                 </span>
               </div>
 
