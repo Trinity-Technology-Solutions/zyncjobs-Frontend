@@ -48,7 +48,7 @@ const formatExperience = (exp: string | undefined): string => {
   };
   return map[exp] || exp;
 };
-import { getDisplayEmployerId, getCompanyAbbreviation } from '../utils/jobMigrationUtils';
+import { getDisplayEmployerId } from '../utils/jobMigrationUtils';
 import QuickApplyButton from '../components/QuickApplyButton';
 import BackButton from '../components/BackButton';
 import JobShareModal from '../components/JobShareModal';
@@ -192,7 +192,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               if (logoUrl) setCompanyLogoUrl(logoUrl);
             }
           }
-        } catch {}
+        } catch { }
 
         if (user?.email && (jobData.id || jobData._id)) {
           await checkApplicationStatus(jobData.id || jobData._id || '', user.email);
@@ -225,11 +225,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   // Set Open Graph meta tags for LinkedIn share preview
   useEffect(() => {
     if (!job) return;
-    
+
     const companyName = job.company || '';
     const jobTitle = job.jobTitle || job.title || '';
     const description = (job.jobDescription || job.description || 'Job opportunity').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*\*([^*]+)\*/g, '$1');
-    
+
     // Use backend OG tags route for social sharing
     const backendUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
     // Prefer SEO slug URL, fallback to ?id= URL
@@ -241,13 +241,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       ? `${window.location.origin}/jobs/${jobSlug}`
       : `${backendUrl}/job-detail?id=${job.id || job._id}`;
     document.title = `${jobTitle} at ${companyName} | ZyncJobs`;
-    
+
     const setMeta = (property: string, content: string) => {
       let el = document.querySelector(`meta[property='${property}']`) as HTMLMetaElement;
       if (!el) { el = document.createElement('meta'); el.setAttribute('property', property); document.head.appendChild(el); }
       el.setAttribute('content', content);
     };
-    
+
     // Set canonical URL
     let canonicalEl = document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (!canonicalEl) {
@@ -256,21 +256,21 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       document.head.appendChild(canonicalEl);
     }
     canonicalEl.href = canonicalUrl;
-    
+
     setMeta('og:title', `${jobTitle} at ${companyName}`);
     setMeta('og:description', description.substring(0, 160) + '...');
     setMeta('og:url', ogUrl);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'ZyncJobs');
     if (job.jobHeaderImage) setMeta('og:image', job.jobHeaderImage);
-    
+
     // Set Twitter meta tags
     const setTwitterMeta = (name: string, content: string) => {
       let el = document.querySelector(`meta[name='${name}']`) as HTMLMetaElement;
       if (!el) { el = document.createElement('meta'); el.setAttribute('name', name); document.head.appendChild(el); }
       el.setAttribute('content', content);
     };
-    
+
     setTwitterMeta('twitter:card', 'summary_large_image');
     setTwitterMeta('twitter:title', `${jobTitle} at ${companyName}`);
     setTwitterMeta('twitter:description', description.substring(0, 160) + '...');
@@ -340,6 +340,29 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     }
   };
 
+  const updateJobStatus = async (newStatus: string) => {
+    try {
+      const jid = job?.id || job?._id || String(jobId || '');
+      if (!jid) return;
+      const isActive = newStatus === 'active';
+      const response = await fetch(`${API_ENDPOINTS.JOBS}/${jid}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus, isActive })
+      });
+
+      if (!response.ok) throw new Error('Failed to update job status');
+
+      setJob((prev: any) => ({ ...prev, status: newStatus, isActive }));
+      showNotif(`Job status updated to ${newStatus}`, 'success');
+    } catch (error) {
+      console.error('Error updating job status:', error);
+      showNotif('Failed to update job status', 'error');
+    }
+  };
+
   const handleReapply = async () => {
     try {
       if (!user?.email) {
@@ -351,24 +374,24 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?candidateEmail=${encodeURIComponent(user.email)}`);
       if (response.ok) {
         const applications = await response.json();
-        const withdrawnApp = applications.find((app: { jobId: { _id: any; }; candidateEmail: string; status: string; }) => 
-          (app.jobId._id === (job._id || jobId)) && 
+        const withdrawnApp = applications.find((app: { jobId: { _id: any; }; candidateEmail: string; status: string; }) =>
+          (app.jobId._id === (job._id || jobId)) &&
           app.candidateEmail?.toLowerCase() === user.email.toLowerCase() &&
           app.status === 'withdrawn'
         );
-        
+
         if (withdrawnApp) {
           // Update the application status back to applied
           const updateResponse = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${withdrawnApp._id}/status`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
               status: 'applied',
               note: 'Reapplied to position after withdrawal',
               updatedBy: user.name || user.fullName || 'Candidate'
             })
           });
-          
+
           if (updateResponse.ok) {
             setHasApplied(true);
             setApplicationStatus('applied');
@@ -430,7 +453,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       {/* Job Header */}
       <div className="bg-white/90 backdrop-blur-md shadow-lg border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <BackButton 
+          <BackButton
             onClick={() => {
               try {
                 if (user?.type === 'employer' || user?.userType === 'employer') {
@@ -470,7 +493,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   <Building className="w-5 h-5" />
                   <span>{job.company}</span>
                 </div>
-                
+
                 <div className="flex flex-wrap items-center gap-6 text-sm text-gray-600">
                   <div className="flex items-center space-x-2">
                     <MapPin className="w-4 h-4" />
@@ -506,7 +529,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 </div>
               </div>
             </div>
-            
+
             <div className="mt-4 lg:mt-0 flex flex-wrap items-center gap-2 sm:gap-3">
               {/* nationality restriction banner */}
               {(job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement) && (
@@ -515,20 +538,40 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   <p className="text-sm text-red-700 font-bold">{job.nationalityRestriction || job.nationality_restriction || job.nationalityRequirement}</p>
                 </div>
               )}
-              <button 
+              {/* Job Status Badge (Read-Only) */}
+              <div className={`text-sm font-semibold px-4 py-2 rounded-lg border-2 flex items-center gap-2 ${
+                job.status === 'closed' || (!job.isActive && job.status !== 'hold')
+                  ? 'bg-red-50 border-red-500 text-red-700'
+                  : job.status === 'hold'
+                  ? 'bg-orange-50 border-orange-400 text-orange-800'
+                  : 'bg-green-50 border-green-500 text-green-700'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  job.status === 'closed' || (!job.isActive && job.status !== 'hold')
+                    ? 'bg-red-500'
+                    : job.status === 'hold'
+                    ? 'bg-orange-500'
+                    : 'bg-green-500'
+                }`}></span>
+                <span className="capitalize">
+                  {job.status === 'closed' || (!job.isActive && job.status !== 'hold') ? 'Closed' : job.status || 'Active'}
+                </span>
+              </div>
+
+              <button
                 onClick={() => setShowShareModal(true)}
                 className="bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center space-x-2 text-sm"
               >
                 <Share2 className="w-4 h-4" />
                 <span>Share</span>
               </button>
-              
+
               {/* Apply buttons - Hide for employers */}
               {user?.type !== 'employer' && user?.userType !== 'employer' && (
                 <div className="flex flex-wrap items-center gap-2">
                   {hasApplied ? (
                     applicationStatus === 'withdrawn' ? (
-                      <button 
+                      <button
                         onClick={handleReapply}
                         className="bg-green-600 text-white px-4 py-2.5 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center space-x-2 text-sm"
                       >
@@ -557,7 +600,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                           }, 1000);
                         }}
                       />
-                      <button 
+                      <button
                         onClick={async () => {
                           const jid = job.id || job._id || String(jobId || '');
                           if (user && (user.name || user.fullName)) {
@@ -574,7 +617,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                               onNavigate('dashboard');
                               return;
                             }
-                            
+
                             sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: jid, id: jid,
                               jobTitle: job.jobTitle || job.title,
@@ -633,7 +676,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               {/* Job Description directly below banner inside same card */}
               <div className="p-6">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Job description</h2>
-                
+
                 {(() => {
                   const rawDesc = job.jobDescription || job.description || '';
                   if (!rawDesc.trim()) return <p className="text-sm text-gray-500">No description available.</p>;
@@ -725,14 +768,38 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                     </div>
                   );
                 })()}
-                
+
                 {/* Created By & On Details */}
                 <div className="border-t border-gray-100 pt-6 mt-8">
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                    <div className="flex items-center space-x-1">
-                      <span className="font-medium">Created By:</span>
-                      <span>{job.postedBy || jobPoster?.name || jobPoster?.fullName || 'System'}</span>
-                    </div>
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-gray-500">
+                    {/* Job Posted By */}
+                    {(() => {
+                      const postedBy = String(job.postedBy || job.employerEmail || job.postedByName || '').trim();
+                      if (!postedBy || postedBy === 'null' || postedBy === 'undefined') return null;
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-gray-700">Job Posted By:</span>
+                          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                            {postedBy}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    {/* Assigned To — always render if field exists with any non-empty value */}
+                    {(() => {
+                      const at = String(job.assignedTo || job.assigned_to || '').trim();
+                      if (!at || at === 'N/A' || at === 'null' || at === 'undefined') return null;
+                      return (
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-medium text-gray-700">Assigned To:</span>
+                          <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2.5 py-0.5 rounded-full text-xs font-semibold">
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                            {at}
+                          </span>
+                        </div>
+                      );
+                    })()}
                     <div className="flex items-center space-x-1">
                       <span className="font-medium">Posted:</span>
                       <span className="text-blue-600 font-medium">{formatDetailedTime(job.createdAt)}</span>
@@ -752,7 +819,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                         <span className="text-blue-600">{job.jobCategory || job.category}</span>
                       </div>
                     )}
-                    {/* Employer ID and Position ID - Enhanced Display */}
                     {(() => {
                       const displayEmployerId = getDisplayEmployerId(job, jobPoster);
                       return displayEmployerId ? (
@@ -763,25 +829,14 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                           </span>
                         </div>
                       ) : null;
-                    })()} 
+                    })()}
                     {(() => {
-                      const rawPos = job.positionId;
-                      if (!rawPos) return null;
-                      // Already in new format ABBR/YY/NNNN
-                      const isNewFormat = /^[A-Z]{2,4}\/\d{2}\/\d{4}$/.test(rawPos);
-                      let displayPos = rawPos;
-                      if (!isNewFormat) {
-                        // Reformat old positionId using company name
-                        const abbr = getCompanyAbbreviation(job.company || job.employerCompany || '');
-                        const year = new Date().getFullYear().toString().slice(-2);
-                        // Extract numeric part from old format (e.g. "2026-0006" -> "0006", "PID0003" -> "0003")
-                        const numMatch = rawPos.match(/(\d{4})$/);
-                        const seq = numMatch ? numMatch[1] : String(parseInt(rawPos.replace(/\D/g, '')) || 1).padStart(4, '0');
-                        displayPos = `${abbr}/${year}/${seq}`;
-                      }
+                      const displayPos = job.jobCode || job.positionId;
+                      if (!displayPos) return null;
+
                       return (
                         <div className="flex items-center space-x-1">
-                          <span className="font-medium text-gray-700">Position Code:</span>
+                          <span className="font-medium text-gray-700">Job Code:</span>
                           <span className="text-green-600 font-bold text-sm bg-green-50 px-3 py-1 rounded-full border border-green-200">{displayPos}</span>
                         </div>
                       );
@@ -795,20 +850,20 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
           {/* Right col: Company Logo Card + Sidebar */}
           <div className="space-y-6">
             {/* Company Logo Card */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{display:'flex', alignItems:'center', justifyContent:'center', minHeight:'200px'}}>
-              <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'4px'}}>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
                 <img
                   src={getCompanyLogo(job)}
                   alt={job.company}
-                  style={{width:'160px', height:'80px', objectFit:'contain', display:'block'}}
+                  style={{ width: '160px', height: '80px', objectFit: 'contain', display: 'block' }}
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
                     img.onerror = null;
                     img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
                   }}
                 />
-                <p style={{fontSize:'18px', fontWeight:'700', color:'#111827', textAlign:'center', margin:'0', lineHeight:'1.3'}}>{job.company}</p>
-                <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0', lineHeight:'1.3'}}>Company</p>
+                <p style={{ fontSize: '18px', fontWeight: '700', color: '#111827', textAlign: 'center', margin: '0', lineHeight: '1.3' }}>{job.company}</p>
+                <p style={{ fontSize: '13px', color: '#6b7280', textAlign: 'center', margin: '0', lineHeight: '1.3' }}>Company</p>
               </div>
             </div>
             {/* Skills */}
@@ -916,7 +971,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 <div className="flex flex-col space-y-3">
                   {hasApplied ? (
                     applicationStatus === 'withdrawn' ? (
-                      <button 
+                      <button
                         onClick={handleReapply}
                         className="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
                       >
@@ -948,7 +1003,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                           className="w-full justify-center"
                         />
                       )}
-                      <button 
+                      <button
                         onClick={async () => {
                           const jid2 = job.id || job._id || String(jobId || '');
                           if (user && user.name) {
@@ -965,7 +1020,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                               onNavigate('dashboard');
                               return;
                             }
-                            
+
                             sessionStorage.setItem('selectedJob', JSON.stringify({
                               _id: jid2, id: jid2,
                               jobTitle: job.jobTitle || job.title,
@@ -1009,7 +1064,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       </div>
 
       {/* Job Share Modal */}
-      <JobShareModal 
+      <JobShareModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
         job={job}

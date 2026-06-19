@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -22,7 +22,7 @@ import BulkJobRefresh from '../components/BulkJobRefresh';
 import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
-const _missingJobIds = new Set<string>();
+
 
 interface EmployerDashboardPageProps {
   onNavigate: (page: string, params?: any) => void;
@@ -32,7 +32,7 @@ interface EmployerDashboardPageProps {
 const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigate, onLogout }) => {
   const { toast, showToast, hideToast } = useToast();
   const [confirm, setConfirm] = useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>(
-    { isOpen: false, title: '', message: '', onConfirm: () => {} }
+    { isOpen: false, title: '', message: '', onConfirm: () => { } }
   );
   const openConfirm = (title: string, message: string, onConfirm: () => void) =>
     setConfirm({ isOpen: true, title, message, onConfirm });
@@ -83,6 +83,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [appFilterJob, setAppFilterJob] = useState('all');
   const [appFilterStatus, setAppFilterStatus] = useState('all');
   const [appSearch, setAppSearch] = useState('');
+  const [appCurrentPage, setAppCurrentPage] = useState(1);
+  const [appsPerPage, setAppsPerPage] = useState(5);
+  const [interviewCurrentPage, setInterviewCurrentPage] = useState(1);
+  const [interviewsPerPage] = useState(5);
+
+  useEffect(() => {
+    setAppCurrentPage(1);
+  }, [appFilterJob, appFilterStatus, appSearch]);
+
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
@@ -115,7 +124,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 otherPhoto: uData.profilePicture || uData.photo || '',
                 preview: msg.message?.substring(0, 40) || ''
               };
-            } catch { return { ...c, otherName: 'Candidate', otherPhoto: '', preview: msg.message?.substring(0,40)||'' }; }
+            } catch { return { ...c, otherName: 'Candidate', otherPhoto: '', preview: msg.message?.substring(0, 40) || '' }; }
           })
         );
         setRecentMessages(enriched);
@@ -125,6 +134,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, []);
 
   useEffect(() => {
+    const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    const isEmployer = storedUser.userType === 'employer' || storedUser.role === 'employer';
+    if (!isEmployer) return;
+
     const token = getToken();
     if (token) {
       fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
@@ -139,7 +152,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${t}` } })
           .then(res => res.ok ? res.json() : [])
           .then(data => setSavedCandidates(Array.isArray(data) ? data : data.savedCandidates || []))
-          .catch(() => {});
+          .catch(() => { });
       }
     };
 
@@ -167,7 +180,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         if (userData) {
           const parsedUser = JSON.parse(userData);
           const userEmail = parsedUser.email;
-          
+
           const dynamicNotifications = await NotificationService.fetchNotifications(userEmail);
           setNotifications(dynamicNotifications);
         }
@@ -177,19 +190,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         createFallbackNotifications();
       }
     };
-    
+
     const createFallbackNotifications = () => {
       // Use the notification service to create fallback notifications
       const fallbackNotifications = NotificationService.createFallbackNotifications(applications, interviews, jobs);
       setNotifications(fallbackNotifications);
     };
-    
+
     // Initial fetch
     fetchNotifications();
-    
+
     // Set up real-time updates - fetch every 30 seconds
     const notificationInterval = setInterval(fetchNotifications, 30000);
-    
+
     return () => {
       clearInterval(notificationInterval);
     };
@@ -204,7 +217,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       setInterviews([]);
       setDashboardStats(null);
       setRecentActivity([]);
-      
+
       setUser(parsedUser);
       setEmployerName(parsedUser.name || 'Employer');
       // Live fetch team role from backend on every load
@@ -245,19 +258,19 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       const actualCompanyName = parsedUser.companyName || parsedUser.ownerCompanyName || parsedUser.company || parsedUser.organizationName || 'Company';
       setCompanyName(actualCompanyName);
       setCompanyLogo(parsedUser.companyLogo || '');
-      
+
       // Check if profile completion popup should be shown
       // Only show for FIRST TIME after registration (not on subsequent visits)
-      const hasCompletedProfile = parsedUser.industry && 
-                                 parsedUser.companySize && 
-                                 parsedUser.headquarters && 
-                                 parsedUser.companyDescription &&
-                                 parsedUser.companyWebsite &&
-                                 parsedUser.tagline;
-      
+      const hasCompletedProfile = parsedUser.industry &&
+        parsedUser.companySize &&
+        parsedUser.headquarters &&
+        parsedUser.companyDescription &&
+        parsedUser.companyWebsite &&
+        parsedUser.tagline;
+
       const hasSeenPopup = localStorage.getItem('hasSeenProfilePopup');
       const isFirstVisit = sessionStorage.getItem('isFirstVisitAfterRegistration'); // Only for current session
-      
+
       // Show popup ONLY if:
       // 1. Profile is not complete AND
       // 2. This is their first visit after registration (session flag exists) AND
@@ -267,22 +280,22 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setTimeout(() => {
           setShowProfilePopup(true);
         }, 1500);
-        
+
         // Clear the first visit flag so popup won't show on page refresh
         sessionStorage.removeItem('isFirstVisitAfterRegistration');
       }
-      
+
       // NOTE: fetchDashboardData is already called inside the /team/check .then() block above
       // Do NOT call it again here — that causes team members to see 0 data
     }
-    
+
     // Listen for alerts navigation event from header
     const handleShowAlerts = () => setActiveMenu('alerts');
     const handleShowApplications = () => setActiveMenu('applications');
-    
+
     window.addEventListener('showAlerts', handleShowAlerts);
     window.addEventListener('showApplications', handleShowApplications);
-    
+
     return () => {
       window.removeEventListener('showAlerts', handleShowAlerts);
       window.removeEventListener('showApplications', handleShowApplications);
@@ -299,20 +312,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         fetchDashboardData(user);
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [user]);
 
   // Add effect to refresh data when returning to dashboard
   useEffect(() => {
-    const handleFocus = () => {}; // removed aggressive refetch
-    
+    const handleFocus = () => { }; // removed aggressive refetch
+
     const handleJobDeleted = () => { if (user) fetchDashboardData(user); };
-    
+
     window.addEventListener('focus', handleFocus);
     window.addEventListener('jobDeleted', handleJobDeleted);
-    
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('jobDeleted', handleJobDeleted);
@@ -323,46 +336,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     try {
       setError(null);
       const userId = userData.id || userData._id || userData.userId;
-      // For team members: use the owner's employerId to fetch owner's data
-      const ownerEmployerId = userData.employerId; // set by backend when team member is created
       const userEmail = userData.email;
-      // ownerEmail: for team members this is the owner's email; for owners it's their own email
       const userName = userData.name || userData.fullName;
-      // For team members, use the owner's email/company to load shared company data
-      const ownerEmail = userData.ownerEmail || userData.employerOwnerId || userData.employerEmail || userEmail;
-      
+
       let employerJobs = [];
-      let employerApps = [];
       let dashboardStats = { activeJobs: 0, applications: 0, interviews: 0, hired: 0 };
       let recentActivity = [];
-      
-      // Fetch Jobs — use employer/email endpoint for precise server-side filtering
+
+      // Fetch Jobs (role-based filtered by backend automatically when queried with user's own email)
       try {
-        const jobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
+        const jobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`);
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const myEmployerId = storedUser.employerId;
-          employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
-            const email = ownerEmail?.toLowerCase().trim();
-            const selfEmail = userEmail?.toLowerCase().trim();
-            // Match by owner email or self email
-            const matchesEmail = job.postedBy?.toLowerCase().trim() === email || 
-                                 job.employerEmail?.toLowerCase().trim() === email ||
-                                 job.postedBy?.toLowerCase().trim() === selfEmail || 
-                                 job.employerEmail?.toLowerCase().trim() === selfEmail;
-            // Match by employerId (owner's ID stored on team member)
-            const matchesEmployerId = ownerEmployerId && (
-              job.employerId === ownerEmployerId ||
-              job.postedByEmployerId === ownerEmployerId
-            );
-            // Also match by myEmployerId from stored user
-            const matchesMyEmployerId = myEmployerId && (
-              job.employerId === myEmployerId ||
-              job.postedByEmployerId === myEmployerId
-            );
-            return matchesEmail || matchesEmployerId || matchesMyEmployerId;
-          }) : [];
+          employerJobs = Array.isArray(allJobs) ? allJobs : [];
+
           setJobs(employerJobs);
           dashboardStats.activeJobs = employerJobs.length;
         } else {
@@ -376,33 +363,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setJobs([]);
       }
 
-      // Fetch Applications — server-side filtered by ownerEmail
+      // Fetch Applications (role-based filtered by backend automatically when queried with user's own email)
       try {
-        const appsRes = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(ownerEmail)}`);
+        let appsUrl = `${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`;
+        const appsRes = await apiFetch(appsUrl);
         if (appsRes.ok) {
           const response = await appsRes.json();
           const allApps = response.applications || response || [];
-          // Enrich with job titles
-          const appsWithJobDetails = await Promise.all(
-            allApps.map(async (app: any) => {
-              const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
-              // Skip enrichment if jobId missing, non-string, already has title, or known 404
-              if (appJobId && typeof appJobId === 'string' && appJobId !== 'undefined' && !app.jobTitle && !_missingJobIds.has(appJobId)) {
-                try {
-                  const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
-                  if (jobRes.ok) {
-                    const jobData = await jobRes.json();
-                    return { ...app, jobTitle: jobData.jobTitle || jobData.title || 'Job Position' };
-                  }
-                  _missingJobIds.add(appJobId);
-                } catch { /* non-critical */ }
-              }
-              return app;
-            })
-          );
-          employerApps = appsWithJobDetails;
-          setApplications(employerApps);
-          dashboardStats.applications = employerApps.length;
+          setApplications(allApps);
+          dashboardStats.applications = allApps.length;
         } else {
           setApplications([]);
         }
@@ -411,15 +380,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setApplications([]);
       }
 
-      // Fetch Interviews (non-critical, fail silently)
+      // Fetch Interviews (role-based filtered by backend automatically when queried with user's own email)
       try {
-        // Use the available employer ID — prefer ownerEmployerId, fallback to userId
-        const interviewEmployerId = ownerEmployerId || userId || '';
-        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
+        const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerEmail=${encodeURIComponent(userEmail)}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
           const interviewsArray = Array.isArray(interviewsData) ? interviewsData : [];
-          
+
           // Fetch job details for each interview
           const interviewsWithJobDetails = await Promise.all(
             interviewsArray.map(async (interview: any) => {
@@ -429,7 +396,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   const jobRes = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`);
                   if (jobRes.ok) {
                     const jobData = await jobRes.json();
-                    return { ...interview, jobTitle: jobData.jobTitle || jobData.title || 'Interview' };
+                    return {
+                      ...interview,
+                      jobTitle: jobData.jobTitle || jobData.title || 'Interview',
+                      jobCode: interview.jobCode || (jobData.positionId ? `TTS/26/${jobData.positionId.toString().padStart(4, '0')}` : null)
+                    };
                   }
                 }
               } catch (e) {
@@ -438,7 +409,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               return interview;
             })
           );
-          
+
           setInterviews(interviewsWithJobDetails);
           dashboardStats.interviews = interviewsWithJobDetails.length;
         } else {
@@ -449,11 +420,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         setInterviews([]);
       }
 
-      // Fetch Dashboard Stats (non-critical, fail silently)
+      // Fetch Dashboard Stats (role-based filtered by backend automatically when queried with user's own email)
       try {
         const storedUserForStats = JSON.parse(localStorage.getItem('user') || '{}');
         const myCompanyForStats = storedUserForStats.companyName || storedUserForStats.company || '';
-        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}&userName=${encodeURIComponent(userName || '')}&companyName=${encodeURIComponent(myCompanyForStats)}`);
+        const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerEmail=${encodeURIComponent(userEmail)}&companyName=${encodeURIComponent(myCompanyForStats)}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
           dashboardStats = { ...dashboardStats, ...stats };
@@ -463,9 +434,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       }
       setDashboardStats(dashboardStats);
 
-      // Fetch Recent Activity (non-critical, fail silently)
+      // Fetch Recent Activity (role-based filtered by backend automatically when queried with user's own email)
       try {
-        const activityRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}&userName=${encodeURIComponent(userName || '')}`);
+        const activityRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/recent-activity?employerEmail=${encodeURIComponent(userEmail)}`);
         if (activityRes.ok) {
           const activity = await activityRes.json();
           recentActivity = activity;
@@ -473,7 +444,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       } catch {
         // non-critical fallback to local activity below
       }
-      
+
       // If no activity from API, create from local jobs
       if (recentActivity.length === 0 && employerJobs.length > 0) {
         recentActivity = employerJobs.slice(0, 3).map((job: any) => ({
@@ -484,7 +455,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         }));
       }
       setRecentActivity(recentActivity);
-      
+
     } catch (error) {
       console.error('Error in fetchDashboardData:', error);
       setError('Some dashboard data could not be loaded. Please refresh the page.');
@@ -504,11 +475,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     if (companyLogo && companyLogo.trim() !== '') return companyLogo;
 
     const isTrinity = user?.email?.includes('@trinitetech') || user?.email?.includes('trinity') ||
-                     companyName?.toLowerCase().includes('trinity') || employerName?.toLowerCase().includes('trinity');
+      companyName?.toLowerCase().includes('trinity') || employerName?.toLowerCase().includes('trinity');
     if (isTrinity) return '/images/trinity-logo.webp';
 
     const isInypeople = companyName?.toLowerCase().includes('inypeople') || companyName?.toLowerCase().includes('iny people') ||
-                       employerName?.toLowerCase().includes('inypeople') || employerName?.toLowerCase().includes('iny people');
+      employerName?.toLowerCase().includes('inypeople') || employerName?.toLowerCase().includes('iny people');
     if (isInypeople) return '/images/company-logos/inypeople-logo.png';
 
     const isNambikkai = companyName?.toLowerCase().includes('nambikkai') || employerName?.toLowerCase().includes('nambikkai');
@@ -527,7 +498,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
     if (user?.email?.includes('@')) {
       const emailDomain = user.email.split('@')[1];
-      if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain)) {
+      if (emailDomain && !['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'].includes(emailDomain)) {
         return `https://img.logo.dev/${emailDomain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
       }
     }
@@ -589,7 +560,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         return aJobId === jId;
       });
       const appCount = jobApps.length;
-      const shortlisted = jobApps.filter(a => ['shortlisted','hired'].includes(a.status)).length;
+      const shortlisted = jobApps.filter(a => ['shortlisted', 'hired'].includes(a.status)).length;
       const interviewCount = interviews.filter(i => {
         const iJobId = typeof i.jobId === 'object' ? String(i.jobId?._id || i.jobId?.id || '') : String(i.jobId || '');
         return iJobId === jId;
@@ -605,8 +576,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, [jobs, applications, interviews]);
 
 
-  const PIE_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4'];
-  
+  const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
+
   // ── Calculate dynamic percentage changes (last 30 days vs previous 30 days) ──
   const calculatePercentageChange = (currentData: any[]) => {
     const now = new Date();
@@ -632,7 +603,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const jobsPercentage = useMemo(() => calculatePercentageChange(jobs), [jobs]);
   const applicationsPercentage = useMemo(() => calculatePercentageChange(applications), [applications]);
   const interviewsPercentage = useMemo(() => {
-    const interviewed = applications.filter(a => ['interviewed','hired'].includes(a.status));
+    const interviewed = applications.filter(a => ['interviewed', 'hired'].includes(a.status));
     return calculatePercentageChange(interviewed);
   }, [applications]);
   const hiredPercentage = useMemo(() => {
@@ -642,34 +613,34 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   // ────────────────────────────────────────────────────────────────────
 
   const stats = [
-    { 
-      label: 'Active Jobs', 
-      value: dashboardStats?.activeJobs?.toString() || '0', 
-      icon: Briefcase, 
+    {
+      label: 'Active Jobs',
+      value: dashboardStats?.activeJobs?.toString() || '0',
+      icon: Briefcase,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       percentage: jobsPercentage
     },
-    { 
-      label: 'Applications', 
-      value: dashboardStats?.applications?.toString() || '0', 
-      icon: FileText, 
+    {
+      label: 'Applications',
+      value: dashboardStats?.applications?.toString() || '0',
+      icon: FileText,
       color: 'text-green-600',
       bgColor: 'bg-green-50',
       percentage: applicationsPercentage
     },
-    { 
-      label: 'Interviews', 
-      value: dashboardStats?.interviews?.toString() || '0', 
-      icon: Users, 
+    {
+      label: 'Interviews',
+      value: dashboardStats?.interviews?.toString() || '0',
+      icon: Users,
       color: 'text-orange-600',
       bgColor: 'bg-orange-50',
       percentage: interviewsPercentage
     },
-    { 
-      label: 'Hired', 
-      value: dashboardStats?.hired?.toString() || '0', 
-      icon: UserPlus, 
+    {
+      label: 'Hired',
+      value: dashboardStats?.hired?.toString() || '0',
+      icon: UserPlus,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
       percentage: hiredPercentage
@@ -714,7 +685,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }
 
   return (
-    <div className="bg-gray-50 flex" style={{height: `calc(100vh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth'}}>
+    <div className="bg-gray-50 flex" style={{ height: `calc(100vh - ${headerHeight}px)`, overflow: 'hidden', scrollBehavior: 'smooth' }}>
       {/* Error Display */}
       {error && (
         <div className="fixed top-4 right-4 bg-red-100 border border-red-400 text-red-700 px-3 py-2 sm:px-4 sm:py-3 rounded z-50 max-w-xs sm:max-w-md text-sm">
@@ -731,218 +702,216 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" style={{top: `${headerHeight}px`}} onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden" style={{ top: `${headerHeight}px` }} onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar — fixed height, independent scroll */}
-      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{top: `${headerHeight}px`, width: '300px', height: `calc(100vh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth'}}>
-            {/* Profile header - Enhanced */}
-            <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
-              <div className="flex items-center gap-3">
-                <div className="relative flex-shrink-0">
-                  <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md overflow-hidden">
-                    <img src={getDisplayLogo()} alt={companyName || employerName}
-                      className="w-10 sm:w-14 h-10 sm:h-14 object-contain"
-                      onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        const displayName = companyName || employerName;
-                        if ((displayName.toLowerCase().includes('trinity') || 
-                             user?.email?.includes('trinity') || 
-                             user?.email?.includes('@trinitetech')) && 
-                            !img.src.includes('trinity-logo')) {
-                          if (!img.src.includes('trinity-logo.webp')) {
-                            img.src = '/images/trinity-logo.webp';
-                          } else {
-                            img.src = '/images/company-logos/trinity-logo.png';
-                          }
-                          return;
-                        }
-                        if (displayName.toLowerCase().includes('nambikkai') && !img.src.includes('nambikkai-logo.png')) {
-                          img.src = '/images/company-logos/nambikkai-logo.png';
-                          return;
-                        }
-                        const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
-                        const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
-                          `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#1e40af"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text></svg>`
-                        )}`;
-                        if (img.src !== fallbackUrl) img.src = fallbackUrl;
-                      }}
-                    />
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-white text-sm sm:text-base leading-tight">{employerName}</p>
-                  <p className="text-xs sm:text-sm text-white leading-snug mt-0.5 font-medium" style={{wordBreak:'break-word', whiteSpace:'normal'}}>
-                    {companyName && companyName !== 'Company' ? companyName :
-                     user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
-                     user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
-                     'Company'}
-                  </p>
-                </div>
-                {/* Close button — mobile only */}
-                <button
-                  onClick={() => setSidebarOpen(false)}
-                  className="lg:hidden flex-shrink-0 text-white/70 hover:text-white p-1 rounded-lg hover:bg-blue-700/50 transition-colors"
-                  aria-label="Close menu"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Messages + Activity panel - Enhanced Card Style */}
-            <div className="px-3 sm:px-4 py-3 sm:py-4 mx-2 sm:mx-3 mt-3 sm:mt-4 bg-gradient-to-br from-blue-600/80 to-blue-700/70 rounded-xl border-2 border-blue-400/80 backdrop-blur-sm shadow-lg">
-              <div className="flex items-center justify-between mb-2 sm:mb-3">
-                <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">💬 Messages</span>
-                <button onClick={() => onNavigate('candidate-messages')} className="text-white hover:text-blue-100 transition-colors">
-                  <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </button>
-              </div>
-              {recentMessages.length === 0 ? (
-                <p className="text-xs sm:text-sm text-white text-center py-2">No messages yet</p>
-              ) : (
-                <div className="space-y-1.5 sm:space-y-2">
-                  {recentMessages.map((c, i) => (
-                    <div key={i} onClick={() => onNavigate('candidate-messages')} className="flex items-center gap-2 cursor-pointer hover:bg-blue-500/40 rounded-lg p-1.5 sm:p-2 transition-all duration-200 border border-transparent hover:border-blue-300/60">
-                      {c.otherPhoto ? (
-                        <img src={c.otherPhoto} alt={c.otherName} className="w-6 sm:w-8 h-6 sm:h-8 rounded-full object-cover flex-shrink-0 border-2 border-blue-300/60" />
-                      ) : (
-                        <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                          {c.otherName.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs sm:text-sm font-semibold text-white truncate">{c.otherName}</p>
-                        <p className="text-xs text-white truncate">{c.preview}...</p>
-                      </div>
-                      {c.unreadCount > 0 && (
-                        <span className="bg-blue-400 text-white text-xs w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[9px] sm:text-[10px]">{c.unreadCount}</span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Role badge for team members */}
-            {teamRole && (
-              <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-full bg-blue-500/60 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] text-blue-300 font-medium leading-none mb-0.5">Role</p>
-                  <p className="text-sm font-bold text-white leading-none">{teamRole === 'Owner' ? 'Admin' : teamRole}</p>
-                </div>
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                  teamRole === 'Owner' ? 'bg-emerald-400/30 text-emerald-300 border border-emerald-400/40' :
-                  teamRole === 'Recruiter' ? 'bg-orange-400/30 text-orange-300 border border-orange-400/40' :
-                  'bg-gray-400/30 text-gray-300 border border-gray-400/40'
-                }`}>Active</span>
-              </div>
-            )}
-
-            {/* Navigation */}
-            <nav className="py-4 flex flex-col px-3 space-y-1">
-              {([
-                { key: 'dashboard',        label: 'Dashboard',         icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
-                { key: 'job-management',   label: 'Job Management',    icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
-                { key: 'ranking',          label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
-                { key: 'ai-recruiter',     label: 'AI Recruiter',      icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
-                { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
-                { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
-                { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
-                { key: 'analytics',        label: 'Analytics',         icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true },
-                { key: 'ats-dashboard',    label: '🎯 Recruiter ATS',   icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => onNavigate('ats-dashboard'), external: true, show: true },
-                { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
-                { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
-                { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
-                { key: 'saved-candidates', label: 'Saved Candidates',  icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
-                { key: 'credentialing',    label: 'Credentialing',     icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
-                { key: 'settings',         label: 'Account Settings',  icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
-              ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean; show: boolean }[]).filter(item => item.show).map(item => {
-                const isActive = activeMenu === item.key;
-                return (
-                  <button key={item.key} onClick={item.action}
-                    style={{ fontSize: '15px' }}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left font-medium ${
-                      isActive
-                        ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40'
-                        : 'text-white hover:bg-blue-700/60 hover:text-white'
-                    }`}
-                  >
-                    <span className={`flex-shrink-0 text-lg ${isActive ? 'text-white' : 'text-blue-200'}`}>{item.icon}</span>
-                    <span className="leading-tight flex-1 truncate" style={{ fontSize: '15px' }}>{item.label}</span>
-                    {item.badge ? (
-                      <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[20px] h-[20px] px-1 rounded-full font-bold flex items-center justify-center ${
-                        item.badgeRed ? 'bg-red-500 text-white' : 'bg-emerald-400 text-slate-900'
-                      }`}>{item.badge}</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-
-              {/* Delete Account */}
-              <button onClick={() => {
-                if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Delete Account', requiredRole: 'Owner' }); return; }
-                openConfirm(
-                'Delete Account',
-                'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
-                async () => {
-                  closeConfirm();
-                  try {
-                    const stored = localStorage.getItem('user');
-                    const userData = stored ? JSON.parse(stored) : {};
-                    const userId = userData.id || userData._id;
-                                        if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
-                    const token = getToken();
-                    const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
-                      method: 'DELETE',
-                    });
-                    if (res.ok) {
-                      localStorage.clear();
-                      sessionStorage.clear();
-                      showToast('Account deleted successfully. Redirecting...', 'success');
-                      setTimeout(() => { if (onLogout) onLogout(); onNavigate('home'); }, 1500);
-                    } else {
-                      const err = await res.json().catch(() => ({}));
-                      showToast(err.error || 'Failed to delete account. Please try again.', 'error');
+      <div className={`employer-sidebar flex flex-col flex-shrink-0 bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 transition-transform duration-300 z-40 fixed left-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`} style={{ top: `${headerHeight}px`, width: '300px', height: `calc(100vh - ${headerHeight}px)`, overflowY: 'auto', overflowX: 'hidden', scrollBehavior: 'smooth' }}>
+        {/* Profile header - Enhanced */}
+        <div className="px-4 sm:px-6 pt-4 sm:pt-6 pb-4 border-b border-blue-700">
+          <div className="flex items-center gap-3">
+            <div className="relative flex-shrink-0">
+              <div className="w-12 sm:w-16 h-12 sm:h-16 rounded-full bg-white flex items-center justify-center border-2 border-white shadow-md overflow-hidden">
+                <img src={getDisplayLogo()} alt={companyName || employerName}
+                  className="w-10 sm:w-14 h-10 sm:h-14 object-contain"
+                  onError={(e) => {
+                    const img = e.target as HTMLImageElement;
+                    const displayName = companyName || employerName;
+                    if ((displayName.toLowerCase().includes('trinity') ||
+                      user?.email?.includes('trinity') ||
+                      user?.email?.includes('@trinitetech')) &&
+                      !img.src.includes('trinity-logo')) {
+                      if (!img.src.includes('trinity-logo.webp')) {
+                        img.src = '/images/trinity-logo.webp';
+                      } else {
+                        img.src = '/images/company-logos/trinity-logo.png';
+                      }
+                      return;
                     }
-                  } catch {
-                    showToast('Network error. Please try again.', 'error');
-                  }
-                }
-              )}}
-                style={{ fontSize: '15px' }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
-                <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
-                <span style={{ fontSize: '15px' }}>Delete Account</span>
-              </button>
-            </nav>
-
-            {/* Logout Button */}
-            <div className="px-3 py-4 border-t border-blue-700 mt-auto" style={{paddingBottom: '32px', marginBottom: '0'}}>
-              <button
-                onClick={() => {
-                  if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
-                }}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-blue-700/50 hover:text-white transition-all duration-200 font-medium"
-              >
-                <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
-                <span style={{ fontSize: '15px' }}>Logout</span>
-              </button>
+                    if (displayName.toLowerCase().includes('nambikkai') && !img.src.includes('nambikkai-logo.png')) {
+                      img.src = '/images/company-logos/nambikkai-logo.png';
+                      return;
+                    }
+                    const initials = displayName.split(' ').map(word => word.charAt(0)).join('').toUpperCase().substring(0, 2);
+                    const fallbackUrl = `data:image/svg+xml,${encodeURIComponent(
+                      `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><circle cx="32" cy="32" r="32" fill="#1e40af"/><text x="32" y="40" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="20" font-weight="bold">${initials}</text></svg>`
+                    )}`;
+                    if (img.src !== fallbackUrl) img.src = fallbackUrl;
+                  }}
+                />
+              </div>
             </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-white text-sm sm:text-base leading-tight">{employerName}</p>
+              <p className="text-xs sm:text-sm text-white leading-snug mt-0.5 font-medium" style={{ wordBreak: 'break-word', whiteSpace: 'normal' }}>
+                {companyName && companyName !== 'Company' ? companyName :
+                  user?.email?.includes('@trinitetech') ? 'Trinity Technology Solutions' :
+                    user?.email?.includes('@') ? user.email.split('@')[1].split('.')[0].charAt(0).toUpperCase() + user.email.split('@')[1].split('.')[0].slice(1) :
+                      'Company'}
+              </p>
+            </div>
+            {/* Close button — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden flex-shrink-0 text-white/70 hover:text-white p-1 rounded-lg hover:bg-blue-700/50 transition-colors"
+              aria-label="Close menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Messages + Activity panel - Enhanced Card Style */}
+        <div className="px-3 sm:px-4 py-3 sm:py-4 mx-2 sm:mx-3 mt-3 sm:mt-4 bg-gradient-to-br from-blue-600/80 to-blue-700/70 rounded-xl border-2 border-blue-400/80 backdrop-blur-sm shadow-lg">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <span className="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">💬 Messages</span>
+            <button onClick={() => onNavigate('candidate-messages')} className="text-white hover:text-blue-100 transition-colors">
+              <svg className="w-3 sm:w-4 h-3 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </button>
+          </div>
+          {recentMessages.length === 0 ? (
+            <p className="text-xs sm:text-sm text-white text-center py-2">No messages yet</p>
+          ) : (
+            <div className="space-y-1.5 sm:space-y-2">
+              {recentMessages.map((c, i) => (
+                <div key={i} onClick={() => onNavigate('candidate-messages')} className="flex items-center gap-2 cursor-pointer hover:bg-blue-500/40 rounded-lg p-1.5 sm:p-2 transition-all duration-200 border border-transparent hover:border-blue-300/60">
+                  {c.otherPhoto ? (
+                    <img src={c.otherPhoto} alt={c.otherName} className="w-6 sm:w-8 h-6 sm:h-8 rounded-full object-cover flex-shrink-0 border-2 border-blue-300/60" />
+                  ) : (
+                    <div className="w-6 sm:w-8 h-6 sm:h-8 rounded-full bg-gradient-to-br from-blue-400 to-cyan-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                      {c.otherName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs sm:text-sm font-semibold text-white truncate">{c.otherName}</p>
+                    <p className="text-xs text-white truncate">{c.preview}...</p>
+                  </div>
+                  {c.unreadCount > 0 && (
+                    <span className="bg-blue-400 text-white text-xs w-4 sm:w-5 h-4 sm:h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 text-[9px] sm:text-[10px]">{c.unreadCount}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Role badge for team members */}
+        {teamRole && (
+          <div className="mx-3 mt-2 px-3 py-2 rounded-lg bg-blue-700/50 border border-blue-500/50 flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-full bg-blue-500/60 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] text-blue-300 font-medium leading-none mb-0.5">Role</p>
+              <p className="text-sm font-bold text-white leading-none">{teamRole === 'Owner' ? 'Admin' : teamRole}</p>
+            </div>
+            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ${teamRole === 'Owner' ? 'bg-emerald-400/30 text-emerald-300 border border-emerald-400/40' :
+              teamRole === 'Recruiter' ? 'bg-orange-400/30 text-orange-300 border border-orange-400/40' :
+                'bg-gray-400/30 text-gray-300 border border-gray-400/40'
+              }`}>Active</span>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="py-4 flex flex-col px-3 space-y-1">
+          {([
+            { key: 'dashboard', label: 'Dashboard', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>, action: () => setActiveMenu('dashboard'), show: true },
+            { key: 'job-management', label: 'Job Management', icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Job Management', 'Recruiter', () => onNavigate('job-management')), external: true, show: true },
+            { key: 'ranking', label: 'Candidate Ranking', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>, action: () => withRoleCheck('Candidate Ranking', 'Recruiter', () => onNavigate('candidate-ranking')), external: true, show: true },
+            { key: 'ai-recruiter', label: 'AI Recruiter', icon: <Sparkles className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Recruiter', 'Recruiter', () => onNavigate('ai-recruiter')), external: true, show: true },
+            { key: 'applications', label: 'Applications', icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
+            { key: 'interviews', label: 'Interviews', icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
+            { key: 'posted-jobs', label: 'Posted Jobs', icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+            { key: 'analytics', label: 'Analytics', icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true },
+            { key: 'ats-dashboard', label: 'Recruiter Analytics', icon: <svg className="w-[18px] h-[18px] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>, action: () => onNavigate('ats-dashboard'), external: true, show: true },
+            { key: 'team', label: 'Team', icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
+            { key: 'auto-rejection', label: 'AI Rejection', icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
+            { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
+            { key: 'saved-candidates', label: 'Saved Candidates', icon: <Bookmark className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Saved Candidates', 'Recruiter', () => setActiveMenu('saved-candidates')), show: true },
+            { key: 'credentialing', label: 'Credentialing', icon: <Shield className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Credentialing', 'Owner', () => setActiveMenu('credentialing')), show: true },
+            { key: 'settings', label: 'Account Settings', icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Account Settings', 'Owner', () => onNavigate('settings')), external: true, show: true },
+          ] as { key: string; label: string; icon: React.ReactNode; action: () => void; external?: boolean; badge?: number | null; badgeRed?: boolean; show: boolean }[]).filter(item => item.show).map(item => {
+            const isActive = activeMenu === item.key;
+            return (
+              <button key={item.key} onClick={item.action}
+                style={{ fontSize: '15px' }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 text-left font-medium ${isActive
+                  ? 'bg-gradient-to-r from-blue-400 to-blue-500 text-white shadow-lg shadow-blue-400/40'
+                  : 'text-white hover:bg-blue-700/60 hover:text-white'
+                  }`}
+              >
+                <span className={`flex-shrink-0 text-lg ${isActive ? 'text-white' : 'text-blue-200'}`}>{item.icon}</span>
+                <span className="leading-tight flex-1 truncate" style={{ fontSize: '15px' }}>{item.label}</span>
+                {item.badge ? (
+                  <span style={{ fontSize: '11px' }} className={`flex-shrink-0 min-w-[20px] h-[20px] px-1 rounded-full font-bold flex items-center justify-center ${item.badgeRed ? 'bg-red-500 text-white' : 'bg-emerald-400 text-slate-900'
+                    }`}>{item.badge}</span>
+                ) : null}
+              </button>
+            );
+          })}
+
+          {/* Delete Account */}
+          <button onClick={() => {
+            if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Delete Account', requiredRole: 'Owner' }); return; }
+            openConfirm(
+              'Delete Account',
+              'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
+              async () => {
+                closeConfirm();
+                try {
+                  const stored = localStorage.getItem('user');
+                  const userData = stored ? JSON.parse(stored) : {};
+                  const userId = userData.id || userData._id;
+                  if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
+                  const token = getToken();
+                  const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
+                    method: 'DELETE',
+                  });
+                  if (res.ok) {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    showToast('Account deleted successfully. Redirecting...', 'success');
+                    setTimeout(() => { if (onLogout) onLogout(); onNavigate('home'); }, 1500);
+                  } else {
+                    const err = await res.json().catch(() => ({}));
+                    showToast(err.error || 'Failed to delete account. Please try again.', 'error');
+                  }
+                } catch {
+                  showToast('Network error. Please try again.', 'error');
+                }
+              }
+            )
+          }}
+            style={{ fontSize: '15px' }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
+            <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
+            <span style={{ fontSize: '15px' }}>Delete Account</span>
+          </button>
+        </nav>
+
+        {/* Logout Button */}
+        <div className="px-3 py-4 border-t border-blue-700 mt-auto" style={{ paddingBottom: '32px', marginBottom: '0' }}>
+          <button
+            onClick={() => {
+              if (onLogout) { onLogout(); } else { localStorage.removeItem('user'); onNavigate('home'); }
+            }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-white hover:bg-blue-700/50 hover:text-white transition-all duration-200 font-medium"
+          >
+            <LogOut className="w-[18px] h-[18px] flex-shrink-0" />
+            <span style={{ fontSize: '15px' }}>Logout</span>
+          </button>
+        </div>
       </div>
 
       {/* Main Content — offset by sidebar width on desktop, independent scroll */}
-      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{height: '100%', scrollBehavior: 'smooth'}}>
-{/* Top bar with Back Button */}
+      <div className="flex-1 bg-gray-50 min-w-0 overflow-y-auto lg:pl-[300px]" style={{ height: '100%', scrollBehavior: 'smooth' }}>
+        {/* Top bar with Back Button */}
         <div className="flex items-center justify-between gap-2 py-3 px-3 sm:px-4 lg:px-6">
           <div className="flex items-center gap-2">
             {/* Inline static menu toggle — mobile only */}
@@ -966,9 +935,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             {/* Complete Profile Button */}
             <button
               onClick={() => {
-              if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Edit Profile', requiredRole: 'Owner' }); return; }
-              onNavigate('employer-complete-profile');
-            }}
+                if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Edit Profile', requiredRole: 'Owner' }); return; }
+                onNavigate('employer-complete-profile');
+              }}
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
@@ -978,7 +947,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </button>
-            
+
             {/* Post Job Button */}
             {canPostJobs ? (
               <button
@@ -995,7 +964,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <span className="sm:hidden">View</span>
               </span>
             )}
-            
+
             {/* Notification Bell - Moved to right side */}
             <div className="relative">
               <button
@@ -1030,836 +999,943 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         {/* Dashboard Content */}
         <div className="pt-0 pb-2 flex-1 min-w-0">
           <div className="px-3 sm:px-4 lg:px-6">
-          {activeMenu === 'dashboard' ? (
-            <>
-              <div className="mb-4 sm:mb-6">
-                <h1 className="hidden lg:block text-2xl sm:text-3xl font-bold text-gray-900">Employer Dashboard</h1>
-                <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
-                {isViewer && (
-                  <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg text-sm">
-                    <span className="text-base">👁️</span>
-                    <span>You have <strong>View Only</strong> access. Contact the Owner to request additional permissions.</span>
-                  </div>
-                )}
-              </div>
-              <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl shadow-md border-2 border-gray-200 p-3 sm:p-4 lg:p-6">
+            {activeMenu === 'dashboard' ? (
+              <>
+                <div className="mb-4 sm:mb-6">
+                  <h1 className="hidden lg:block text-2xl sm:text-3xl font-bold text-gray-900">Employer Dashboard</h1>
+                  <p className="text-gray-500 mt-1 text-sm">Welcome back, {employerName} here's your hiring overview</p>
+                  {isViewer && (
+                    <div className="mt-3 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-lg text-sm">
+                      <span className="text-base">👁️</span>
+                      <span>You have <strong>View Only</strong> access. Contact the Owner to request additional permissions.</span>
+                    </div>
+                  )}
+                </div>
+                <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl shadow-md border-2 border-gray-200 p-3 sm:p-4 lg:p-6">
 
-              {/* ── Stat Cards ── */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
-                {stats.map((stat, index) => {
-                  const isPositive = !stat.percentage.startsWith('-');
-                  const numericPct = parseInt(stat.percentage.replace(/[^0-9-]/g, '')) || 0;
-                  const clampedPct = Math.min(Math.abs(numericPct), 100);
-                  const isNumericPct = stat.percentage.includes('%');
-                  const radius = 24;
-                  const circumference = 2 * Math.PI * radius;
-                  const fillRatio = isNumericPct ? clampedPct / 100 : 0.6;
-                  const strokeDash = fillRatio * circumference;
-                  const ringColors = ['#3b82f6','#06b6d4','#f59e0b','#10b981'];
-                  const ringColor = isPositive ? ringColors[index] : '#ef4444';
-                  const numVal = parseInt(stat.value) || 0;
-                  const displayVal = numVal >= 1000 ? `${(numVal/1000).toFixed(1)}K` : stat.value;
-                  const borderColors = ['border-t-blue-500','border-t-cyan-500','border-t-amber-500','border-t-emerald-500'];
-                  const bgGradients = ['from-blue-50 to-white','from-cyan-50 to-white','from-amber-50 to-white','from-emerald-50 to-white'];
-                  return (
-                    <div key={index} className={`bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
-                      <p className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-2 sm:mb-3 truncate">{stat.label}</p>
-                      <div className="flex items-center justify-between">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 leading-none mb-1 truncate">{displayVal}</h3>
-                          <p className="text-[10px] sm:text-xs font-medium truncate" style={{ color: isPositive ? ringColor : '#ef4444' }}>
-                            {isNumericPct ? `${isPositive ? "▲" : "▼"} ${Math.abs(numericPct)}%` : stat.percentage.replace(' this month', '')}
-                          </p>
-                        </div>
-                        <div className="relative flex-shrink-0 ml-2">
-                          <svg width="40" height="40" viewBox="0 0 60 60" className="sm:w-12 sm:h-12 lg:w-15 lg:h-15">
-                            <circle cx="30" cy="30" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="5" />
-                            <circle cx="30" cy="30" r={radius} fill="none" stroke={ringColor} strokeWidth="5"
-                              strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 30 30)" />
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-[8px] sm:text-[10px] lg:text-xs font-bold" style={{ color: ringColor }}>
-                              {isNumericPct ? `${isPositive ? '+' : ''}${numericPct}%` : stat.percentage.replace(' this month', '')}
-                            </span>
+                  {/* ── Stat Cards ── */}
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-5 mb-6 sm:mb-8">
+                    {stats.map((stat, index) => {
+                      const isPositive = !stat.percentage.startsWith('-');
+                      const numericPct = parseInt(stat.percentage.replace(/[^0-9-]/g, '')) || 0;
+                      const clampedPct = Math.min(Math.abs(numericPct), 100);
+                      const isNumericPct = stat.percentage.includes('%');
+                      const radius = 24;
+                      const circumference = 2 * Math.PI * radius;
+                      const fillRatio = isNumericPct ? clampedPct / 100 : 0.6;
+                      const strokeDash = fillRatio * circumference;
+                      const ringColors = ['#3b82f6', '#06b6d4', '#f59e0b', '#10b981'];
+                      const ringColor = isPositive ? ringColors[index] : '#ef4444';
+                      const numVal = parseInt(stat.value) || 0;
+                      const displayVal = numVal >= 1000 ? `${(numVal / 1000).toFixed(1)}K` : stat.value;
+                      const borderColors = ['border-t-blue-500', 'border-t-cyan-500', 'border-t-amber-500', 'border-t-emerald-500'];
+                      const bgGradients = ['from-blue-50 to-white', 'from-cyan-50 to-white', 'from-amber-50 to-white', 'from-emerald-50 to-white'];
+                      return (
+                        <div key={index} className={`bg-gradient-to-br ${bgGradients[index]} rounded-xl sm:rounded-2xl px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5 shadow-md border-2 border-gray-100 border-t-4 ${borderColors[index]} hover:shadow-lg hover:border-gray-200 transition-all duration-300`}>
+                          <p className="text-gray-400 text-[10px] sm:text-xs font-semibold uppercase tracking-widest mb-2 sm:mb-3 truncate">{stat.label}</p>
+                          <div className="flex items-center justify-between">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="text-xl sm:text-2xl lg:text-4xl font-bold text-gray-900 leading-none mb-1 truncate">{displayVal}</h3>
+                              <p className="text-[10px] sm:text-xs font-medium truncate" style={{ color: isPositive ? ringColor : '#ef4444' }}>
+                                {isNumericPct ? `${isPositive ? "▲" : "▼"} ${Math.abs(numericPct)}%` : stat.percentage.replace(' this month', '')}
+                              </p>
+                            </div>
+                            <div className="relative flex-shrink-0 ml-2">
+                              <svg width="40" height="40" viewBox="0 0 60 60" className="sm:w-12 sm:h-12 lg:w-15 lg:h-15">
+                                <circle cx="30" cy="30" r={radius} fill="none" stroke="#f3f4f6" strokeWidth="5" />
+                                <circle cx="30" cy="30" r={radius} fill="none" stroke={ringColor} strokeWidth="5"
+                                  strokeDasharray={`${strokeDash} ${circumference}`} strokeLinecap="round" transform="rotate(-90 30 30)" />
+                              </svg>
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <span className="text-[8px] sm:text-[10px] lg:text-xs font-bold" style={{ color: ringColor }}>
+                                  {isNumericPct ? `${isPositive ? '+' : ''}${numericPct}%` : stat.percentage.replace(' this month', '')}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Recruitment Analytics (ATS Job Performance) ── */}
+                  {(() => {
+                    const activeTab = chartFilterJobId.startsWith('tab:') ? chartFilterJobId.replace('tab:', '') : 'top';
+                    const needsAttention = jobPerformanceStats.filter(j => j.appCount === 0 && j.postedDaysAgo >= 5);
+                    const topPerforming = [...jobPerformanceStats].sort((a, b) => b.score - a.score).slice(0, 10);
+                    const mostApplied = [...jobPerformanceStats].sort((a, b) => b.appCount - a.appCount).slice(0, 10);
+                    const recentlyPosted = [...jobPerformanceStats].sort((a, b) => a.postedDaysAgo - b.postedDaysAgo).slice(0, 10);
+
+                    const tabData: Record<string, typeof jobPerformanceStats> = {
+                      top: topPerforming,
+                      applied: mostApplied,
+                      recent: recentlyPosted,
+                      attention: needsAttention,
+                    };
+                    const visibleJobs = tabData[activeTab] || topPerforming;
+
+                    const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
+                      if (pct >= 80) return { bar: '#10b981', label: '🔥 Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
+                      if (pct >= 40) return { bar: '#f59e0b', label: '📈 Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200' };
+                      if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '' };
+                      if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
+                      return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
+                    };
+
+                    const tabs = [
+                      { key: 'top', label: 'Top Performing', count: topPerforming.length },
+                      { key: 'applied', label: 'Most Applied', count: mostApplied.length },
+                      { key: 'recent', label: 'Recently Posted', count: recentlyPosted.length },
+                      { key: 'attention', label: 'Needs Attention', count: needsAttention.length, red: true },
+                    ];
+
+                    return (
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-5 overflow-hidden">
+                        {/* Header */}
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 gap-3">
+                          <div>
+                            <h2 className="text-base font-bold text-gray-900">Job Performance Score</h2>
+                            <p className="text-xs text-gray-400 mt-0.5">{companyName} · Applications overview</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {jobs.length > 0 && (
+                              <BulkJobRefresh
+                                selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
+                                selectedJobs={jobs.map(j => ({ id: j.id || j._id, title: j.jobTitle || j.title, refreshCount: j.refreshCount || 0, lastRefreshedAt: j.lastRefreshedAt }))}
+                                userPlan="free"
+                                onRefreshComplete={() => { if (user) fetchDashboardData(user); }}
+                                className="text-xs px-3 py-2"
+                              />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex overflow-x-auto border-b border-gray-100 px-4 gap-1 pt-2">
+                          {tabs.map(t => (
+                            <button key={t.key} onClick={() => setChartFilterJobId(`tab:${t.key}`)}
+                              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${activeTab === t.key
+                                ? t.red ? 'border-red-500 text-red-600' : 'border-blue-600 text-blue-700'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                }`}>
+                              {t.label}
+                              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${activeTab === t.key
+                                ? t.red ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-100 text-gray-500'
+                                }`}>{t.count}</span>
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Job Cards */}
+                        <div className="px-6 py-4">
+                          {visibleJobs.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+                              <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
+                              <p className="text-xs">{activeTab === 'attention' ? '🎉 All jobs are getting applications!' : 'No data yet'}</p>
+                            </div>
+                          ) : activeTab === 'attention' ? (
+                            /* Needs Attention: special card layout */
+                            <div className="space-y-3">
+                              {visibleJobs.map(job => (
+                                <div key={job.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
+                                    <p className="text-xs text-red-500 mt-0.5">0 Applications · Posted {job.postedDaysAgo} day{job.postedDaysAgo !== 1 ? 's' : ''} ago</p>
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                                    {job.jobData && (
+                                      <JobRefreshButton
+                                        jobId={job.jobData.id || job.jobData._id}
+                                        jobTitle={job.jobData.jobTitle || job.jobData.title}
+                                        refreshCount={job.jobData.refreshCount || 0}
+                                        lastRefreshedAt={job.jobData.lastRefreshedAt}
+                                        userPlan="free"
+                                        onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
+                                        className="text-[10px] px-2 py-1"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            /* Top/Applied/Recent: performance card layout */
+                            <div className="space-y-4">
+                              {visibleJobs.map((job, idx) => {
+                                const { bar, label, labelCls } = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
+                                return (
+                                  <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
+                                    <div className="flex items-start justify-between gap-3 mb-2">
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[11px] font-bold text-gray-400">#{idx + 1}</span>
+                                          <p className="text-sm font-bold text-gray-900 truncate">{job.title}</p>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-1.5">
+                                          <span className="text-xs text-gray-500">{job.appCount} / {job.target} Applications</span>
+                                          <span className="text-xs text-cyan-600">{job.shortlisted} Shortlisted</span>
+                                          <span className="text-xs text-purple-600">{job.interviewCount} Interviews</span>
+                                        </div>
+                                      </div>
+                                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                        {label && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>{label}</span>}
+                                      </div>
+                                    </div>
+                                    {/* Progress bar */}
+                                    <div className="flex items-center gap-2">
+                                      <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-500"
+                                          style={{ width: `${Math.max(job.progressPct, 3)}%`, background: bar }} />
+                                      </div>
+                                      <span className="text-[11px] font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
+                                      {job.jobData && (
+                                        <JobRefreshButton
+                                          jobId={job.jobData.id || job.jobData._id}
+                                          jobTitle={job.jobData.jobTitle || job.jobData.title}
+                                          refreshCount={job.jobData.refreshCount || 0}
+                                          lastRefreshedAt={job.jobData.lastRefreshedAt}
+                                          userPlan="free"
+                                          onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
+                                          className="text-[10px] px-1.5 py-0.5"
+                                        />
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+
+
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })()}
 
-              {/* ── Recruitment Analytics (ATS Job Performance) ── */}
-              {(() => {
-                const activeTab = chartFilterJobId.startsWith('tab:') ? chartFilterJobId.replace('tab:', '') : 'top';
-                const needsAttention = jobPerformanceStats.filter(j => j.appCount === 0 && j.postedDaysAgo >= 5);
-                const topPerforming = [...jobPerformanceStats].sort((a, b) => b.score - a.score).slice(0, 10);
-                const mostApplied = [...jobPerformanceStats].sort((a, b) => b.appCount - a.appCount).slice(0, 10);
-                const recentlyPosted = [...jobPerformanceStats].sort((a, b) => a.postedDaysAgo - b.postedDaysAgo).slice(0, 10);
-
-                const tabData: Record<string, typeof jobPerformanceStats> = {
-                  top: topPerforming,
-                  applied: mostApplied,
-                  recent: recentlyPosted,
-                  attention: needsAttention,
-                };
-                const visibleJobs = tabData[activeTab] || topPerforming;
-
-                const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
-                  if (pct >= 80) return { bar: '#10b981', label: '🔥 Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
-                  if (pct >= 40) return { bar: '#f59e0b', label: '📈 Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200' };
-                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '' };
-                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
-                  return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
-                };
-
-                const tabs = [
-                  { key: 'top',       label: 'Top Performing', count: topPerforming.length },
-                  { key: 'applied',   label: 'Most Applied',   count: mostApplied.length },
-                  { key: 'recent',    label: 'Recently Posted',count: recentlyPosted.length },
-                  { key: 'attention', label: 'Needs Attention', count: needsAttention.length, red: true },
-                ];
-
-                return (
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 mb-5 overflow-hidden">
-                    {/* Header */}
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between px-6 pt-5 pb-4 border-b border-gray-100 gap-3">
-                      <div>
-                        <h2 className="text-base font-bold text-gray-900">Job Performance Score</h2>
-                        <p className="text-xs text-gray-400 mt-0.5">{companyName} · Applications overview</p>
+                  {/* ── Row 1: Charts ── */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-4 sm:mb-5">
+                    {/* Area chart */}
+                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300 flex flex-col">
+                      <div className="flex items-center justify-between mb-1">
+                        <div>
+                          <h2 className="text-sm font-bold text-gray-900">Applications Received</h2>
+                          <p className="text-xs text-gray-400 mt-0.5">Last 7 days</p>
+                        </div>
+                        <TrendingUp className="w-4 h-4 text-blue-500" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        {jobs.length > 0 && (
-                          <BulkJobRefresh
-                            selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
-                            selectedJobs={jobs.map(j => ({ id: j.id || j._id, title: j.jobTitle || j.title, refreshCount: j.refreshCount || 0, lastRefreshedAt: j.lastRefreshedAt }))}
-                            userPlan={user?.plan || 'free'}
-                            onRefreshComplete={() => { if (user) fetchDashboardData(user); }}
-                            className="text-xs px-3 py-2"
-                          />
+                      <div className="flex-1 min-h-0">
+                        {applications.length === 0 ? (
+                          <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={160}>
+                            <AreaChart data={applicationsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                              <defs>
+                                <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
+                                  <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                              <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                              <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+                              <Tooltip />
+                              <Area type="monotone" dataKey="applications" stroke="#8b5cf6" fill="url(#appGrad)" strokeWidth={2} />
+                            </AreaChart>
+                          </ResponsiveContainer>
                         )}
                       </div>
                     </div>
 
-                    {/* Tabs */}
-                    <div className="flex overflow-x-auto border-b border-gray-100 px-4 gap-1 pt-2">
-                      {tabs.map(t => (
-                        <button key={t.key} onClick={() => setChartFilterJobId(`tab:${t.key}`)}
-                          className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-all ${
-                            activeTab === t.key
-                              ? t.red ? 'border-red-500 text-red-600' : 'border-blue-600 text-blue-700'
-                              : 'border-transparent text-gray-500 hover:text-gray-700'
-                          }`}>
-                          {t.label}
-                          <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                            activeTab === t.key
-                              ? t.red ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-700'
-                              : 'bg-gray-100 text-gray-500'
-                          }`}>{t.count}</span>
-                        </button>
-                      ))}
+                    {/* Status Donut */}
+                    <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl p-6 shadow-md border-2 border-purple-100 hover:shadow-lg transition-all duration-300 flex flex-col">
+                      <div className="flex items-center justify-between mb-1">
+                        <div>
+                          <h2 className="text-sm font-bold text-gray-900">Status Breakdown</h2>
+                          <p className="text-xs text-gray-400 mt-0.5">All applications</p>
+                        </div>
+                        <BarChart2 className="w-4 h-4 text-purple-500" />
+                      </div>
+                      <div className="flex-1 min-h-0">
+                        {statusBreakdown.length === 0 ? (
+                          <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
+                        ) : (
+                          <ResponsiveContainer width="100%" height={200}>
+                            <PieChart>
+                              <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
+                                {statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                              </Pie>
+                              <Tooltip />
+                              <Legend iconSize={9} wrapperStyle={{ fontSize: 10 }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Job Cards */}
-                    <div className="px-6 py-4">
-                      {visibleJobs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                          <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
-                          <p className="text-xs">{activeTab === 'attention' ? '🎉 All jobs are getting applications!' : 'No data yet'}</p>
-                        </div>
-                      ) : activeTab === 'attention' ? (
-                        /* Needs Attention: special card layout */
-                        <div className="space-y-3">
-                          {visibleJobs.map(job => (
-                            <div key={job.id} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold text-gray-900 truncate">{job.title}</p>
-                                <p className="text-xs text-red-500 mt-0.5">0 Applications · Posted {job.postedDaysAgo} day{job.postedDaysAgo !== 1 ? 's' : ''} ago</p>
+                    {/* Acquisitions */}
+                    <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-6 shadow-md border-2 border-indigo-100 hover:shadow-lg transition-all duration-300 flex flex-col">
+                      <div className="flex items-center justify-between mb-3">
+                        <h2 className="text-sm font-bold text-gray-900">Acquisitions</h2>
+                        <span className="text-xs text-violet-500 font-semibold bg-violet-50 px-2 py-0.5 rounded-full">This Month</span>
+                      </div>
+                      <div className="flex-1">
+                        {(() => {
+                          const total = applications.length || 1;
+                          const acq = [
+                            { label: 'Applications', count: applications.length, color: '#8b5cf6' },
+                            { label: 'Shortlisted', count: applications.filter(a => ['shortlisted', 'hired'].includes(a.status)).length, color: '#06b6d4' },
+                            { label: 'On-hold', count: applications.filter(a => a.status === 'reviewed').length, color: '#f59e0b' },
+                            { label: 'Rejected', count: applications.filter(a => a.status === 'rejected').length, color: '#ef4444' },
+                          ];
+                          return (
+                            <>
+                              <div className="flex h-2.5 rounded-full overflow-hidden mb-4">
+                                {acq.map((s, i) => <div key={i} style={{ width: `${(s.count / total) * 100}%`, background: s.color }} />)}
                               </div>
-                              <div className="flex items-center gap-2 flex-shrink-0 ml-3">
-                                {job.jobData && (
-                                  <JobRefreshButton
-                                    jobId={job.jobData.id || job.jobData._id}
-                                    jobTitle={job.jobData.jobTitle || job.jobData.title}
-                                    refreshCount={job.jobData.refreshCount || 0}
-                                    lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                    userPlan={user?.plan || 'free'}
-                                    onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
-                                    className="text-[10px] px-2 py-1"
-                                  />
+                              <div className="space-y-3">
+                                {acq.map((s, i) => (
+                                  <div key={i} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: s.color }}></span>
+                                      <span className="text-xs text-gray-600">{s.label}</span>
+                                    </div>
+                                    <span className="text-xs font-bold text-gray-800">
+                                      {applications.length > 0 ? `${Math.round((s.count / total) * 100)}%` : '0%'}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Row 2: Bottom Cards ── */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+                    {/* New Applicants */}
+                    <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-sm font-bold text-gray-900">New Applicants</h2>
+                        <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Today</span>
+                      </div>
+                      {applications.length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {applications.slice(0, 5).map((app, i) => (
+                            <div key={i} className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
+                                style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}>
+                                {(app.candidateName || 'C').charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName || 'Candidate'}</p>
+                                <p className="text-xs text-gray-400 truncate">{(app.jobTitle || 'a position').substring(0, 24)}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recent Activity */}
+                    <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl p-6 shadow-md border-2 border-orange-100 hover:shadow-lg transition-all duration-300">
+                      <h2 className="text-sm font-bold text-gray-900 mb-4">Recent Activity</h2>
+                      {loading ? (
+                        <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-600"></div></div>
+                      ) : recentActivity.length === 0 ? (
+                        <p className="text-xs text-gray-400 text-center py-8">No recent activity</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {recentActivity.map((activity, index) => (
+                            <div key={index} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0">
+                              <div className="w-2 h-2 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-800">{activity.message}</p>
+                                {activity.details?.jobTitle && <p className="text-xs text-gray-400 truncate">{activity.details.jobTitle}</p>}
+                              </div>
+                              <span className="text-xs text-gray-400 whitespace-nowrap">{activity.time}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                </div>{/* end white container */}
+
+              </>
+            ) : activeMenu === 'applications' ? (
+              <>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Applications</h1>
+                  <span className="text-sm text-gray-500">
+                    {(() => {
+                      const filtered = applications.filter(a => {
+                        const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
+                        const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
+                        const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
+                        return jobMatch && statusMatch && searchMatch;
+                      });
+                      return `${filtered.length} of ${applications.length} applications`;
+                    })()}
+                  </span>
+                </div>
+
+                {/* Filters */}
+                <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-6 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
+                    <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Search candidate..."
+                      value={appSearch}
+                      onChange={e => setAppSearch(e.target.value)}
+                      className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400"
+                    />
+                  </div>
+                  <div className="flex flex-row gap-2">
+                    <select
+                      value={appFilterJob}
+                      onChange={e => setAppFilterJob(e.target.value)}
+                      className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
+                    >
+                      <option value="all">All Jobs</option>
+                      {jobs.map(job => {
+                        const jobTitle = job.jobTitle || job.title;
+                        const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
+                        return (
+                          <option key={job._id || job.id} value={jobTitle}>{jobTitle} ({count})</option>
+                        );
+                      })}
+                    </select>
+                    <select
+                      value={appFilterStatus}
+                      onChange={e => setAppFilterStatus(e.target.value)}
+                      className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
+                    >
+                      <option value="all">All Status</option>
+                      <option value="pending">Pending</option>
+                      <option value="reviewed">Reviewed</option>
+                      <option value="shortlisted">Shortlisted</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="hired">Hired</option>
+                    </select>
+                    {(appFilterJob !== 'all' || appFilterStatus !== 'all' || appSearch) && (
+                      <button
+                        onClick={() => { setAppFilterJob('all'); setAppFilterStatus('all'); setAppSearch(''); }}
+                        className="text-sm text-red-500 hover:text-red-700 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  </div>
+                ) : applications.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Users className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No applications yet</h3>
+                    <p className="text-gray-600 mb-6">Applications will appear here when candidates apply.</p>
+                  </div>
+                ) : (() => {
+                  const filtered = applications.filter(a => {
+                    const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
+                    const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
+                    const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
+                    return jobMatch && statusMatch && searchMatch;
+                  });
+
+                  const totalAppPages = Math.ceil(filtered.length / appsPerPage);
+                  const startIndex = (appCurrentPage - 1) * appsPerPage;
+                  const paginatedApps = filtered.slice(startIndex, startIndex + appsPerPage);
+
+                  return filtered.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">No applications match your filters.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {paginatedApps.map((application) => (
+                        <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
+                          {/* Mobile: stacked layout | Desktop: side-by-side */}
+                          <div className="flex flex-col sm:flex-row gap-4">
+                            {/* Candidate info */}
+                            <div className="flex-1 min-w-0">
+                              {/* Avatar + name row */}
+                              <div className="flex items-start gap-2 sm:gap-3 mb-2">
+                                <div className="hidden sm:flex w-12 h-12 bg-gray-100 rounded-full items-center justify-center flex-shrink-0">
+                                  <span className="text-gray-600 font-bold text-lg">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
+                                </div>
+                                <div className="flex sm:hidden w-8 h-8 bg-gray-100 rounded-full items-center justify-center flex-shrink-0 mt-0.5">
+                                  <span className="text-gray-600 font-bold text-sm">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                                  <p className="text-xs text-blue-700 font-semibold flex items-center gap-1 mt-0.5 leading-snug">
+                                    <Briefcase className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                    <span>Applied for: {application.jobTitle || 'Job Position'} {application.jobCode ? `(${application.jobCode})` : ''}</span>
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2">
+                                <span className="text-xs text-gray-500 break-all">{application.candidateEmail}</span>
+                                <span className="text-xs text-gray-400">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </div>
+                              {application.coverLetter && application.coverLetter !== 'No cover letter' && (
+                                <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg mb-3 border-l-2 border-gray-300">
+                                  <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 100 ? `${application.coverLetter.substring(0, 100)}...` : application.coverLetter}
+                                </div>
+                              )}
+                              <div className="flex flex-wrap gap-2">
+                                {application.candidateEmail ? (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedResumeAppId(application._id || application.id || null);
+                                        setSelectedResumeUrl(application.resumeUrl || null);
+                                        setSelectedResumeCandidateName(application.candidateName || null);
+                                        setSelectedResumeCandidateEmail(application.candidateEmail || null);
+                                        setShowResumeModal(true);
+                                      }}
+                                      className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                                    >
+                                      <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      View Resume
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
+                                        if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
+                                        sessionStorage.setItem('viewCandidateId', String(cid));
+                                        sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
+                                        setViewingCandidateId(String(cid));
+                                      }}
+                                      className="text-indigo-600 hover:text-indigo-800 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 bg-indigo-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-indigo-200 transition-colors"
+                                    >
+                                      <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      View Profile
+                                    </button>
+                                  </>
+                                ) : (
+                                  <span className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Not available</span>
                                 )}
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      ) : (
-                        /* Top/Applied/Recent: performance card layout */
-                        <div className="space-y-4">
-                          {visibleJobs.map((job, idx) => {
-                            const { bar, label, labelCls } = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
-                            return (
-                              <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
-                                <div className="flex items-start justify-between gap-3 mb-2">
-                                  <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className="text-[11px] font-bold text-gray-400">#{idx + 1}</span>
-                                      <p className="text-sm font-bold text-gray-900 truncate">{job.title}</p>
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 mt-1.5">
-                                      <span className="text-xs text-gray-500">{job.appCount} / {job.target} Applications</span>
-                                      <span className="text-xs text-cyan-600">{job.shortlisted} Shortlisted</span>
-                                      <span className="text-xs text-purple-600">{job.interviewCount} Interviews</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                    {label && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>{label}</span>}
-                                  </div>
-                                </div>
-                                {/* Progress bar */}
-                                <div className="flex items-center gap-2">
-                                  <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-500"
-                                      style={{ width: `${Math.max(job.progressPct, 3)}%`, background: bar }} />
-                                  </div>
-                                  <span className="text-[11px] font-bold tabular-nums" style={{ color: bar, minWidth: 36 }}>{job.progressPct}%</span>
-                                  {job.jobData && (
-                                    <JobRefreshButton
-                                      jobId={job.jobData.id || job.jobData._id}
-                                      jobTitle={job.jobData.jobTitle || job.jobData.title}
-                                      refreshCount={job.jobData.refreshCount || 0}
-                                      lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                      userPlan={user?.plan || 'free'}
-                                      onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
-                                      className="text-[10px] px-1.5 py-0.5"
-                                    />
-                                  )}
-                                </div>
+
+                            {/* Action buttons: on mobile - status full width on its own row, then 3 buttons in a row; on desktop - vertical column */}
+                            <div className="flex flex-col gap-2 sm:flex-shrink-0 sm:items-stretch sm:min-w-[140px]">
+                              {canManageApplications ? (
+                                <select
+                                  value={application.status}
+                                  onChange={async (e) => {
+                                    const newStatus = e.target.value;
+                                    const appId = application._id || application.id;
+                                    try {
+                                      const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ status: newStatus }),
+                                      });
+                                      if (response.ok) {
+                                        setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: newStatus } : app));
+                                        const msgs: Record<string, string> = { pending: 'Marked as pending', reviewed: 'Marked as reviewed', shortlisted: 'Candidate shortlisted!', rejected: 'Application rejected', hired: 'Candidate hired!' };
+                                        showToast(msgs[newStatus] || 'Status updated', 'success');
+                                      } else { throw new Error(); }
+                                    } catch {
+                                      showToast('Failed to update status. Please try again.', 'error');
+                                      e.target.value = application.status;
+                                    }
+                                  }}
+                                  className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white cursor-pointer"
+                                >
+                                  <option value="pending">Pending</option>
+                                  <option value="reviewed">Reviewed</option>
+                                  <option value="shortlisted">Shortlisted</option>
+                                  <option value="rejected">Rejected</option>
+                                  <option value="hired">Hired</option>
+                                </select>
+                              ) : (
+                                <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
+                              )}
+                              {/* Action buttons */}
+                              <div className="flex flex-row sm:flex-col gap-2">
+                                <button
+                                  onClick={() => {
+                                    const jobId = application.jobId?.id || application.jobId?._id || application.jobId;
+                                    if (jobId) onNavigate('job-detail', { jobId });
+                                    else showToast('Job details not available.', 'info');
+                                  }}
+                                  className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                                >
+                                  View Job Details
+                                </button>
+                                {application.status !== 'rejected' && canManageApplications && (
+                                  <button
+                                    onClick={() => { setSelectedApplication(application); setShowScheduleModal(true); }}
+                                    className="flex-1 sm:flex-none sm:w-full bg-emerald-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                                  >
+                                    Schedule
+                                  </button>
+                                )}
+                                {application.status !== 'rejected' && canManageApplications && (
+                                  <button
+                                    onClick={async () => {
+                                      const appId = application._id || application.id;
+                                      try {
+                                        const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                          method: 'PUT',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ status: 'rejected' }),
+                                        });
+                                        if (response.ok) {
+                                          setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: 'rejected' } : app));
+                                          // Send rejection email to candidate
+                                          try {
+                                            await apiFetch(`${API_ENDPOINTS.BASE_URL}/email/send`, {
+                                              method: 'POST',
+                                              headers: { 'Content-Type': 'application/json' },
+                                              body: JSON.stringify({
+                                                to: application.candidateEmail,
+                                                subject: `Application Update - ${application.jobTitle || 'Job Position'} at ${companyName}`,
+                                                type: 'application_rejected',
+                                                data: {
+                                                  candidateName: application.candidateName || 'Applicant',
+                                                  jobTitle: application.jobTitle || 'Job Position',
+                                                  companyName,
+                                                },
+                                              }),
+                                            });
+                                          } catch { /* email failure is non-critical */ }
+                                          showToast('Application rejected & email sent to candidate', 'success');
+                                        } else { throw new Error(); }
+                                      } catch { showToast('Failed to reject application.', 'error'); }
+                                    }}
+                                    className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                                  >
+                                    Reject
+                                  </button>
+                                )}
+                                {application.status === 'rejected' && (
+                                  <span className="flex-1 sm:flex-none sm:w-full text-center px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-red-50 text-red-600 border border-red-200">
+                                    Rejected
+                                  </span>
+                                )}
                               </div>
-                            );
-                          })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Pagination Controls */}
+                      {filtered.length > 0 && (
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-6 border-t border-gray-200 bg-white rounded-b-xl shadow-sm mt-6">
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                            <span>Show</span>
+                            <select
+                              value={appsPerPage}
+                              onChange={(e) => {
+                                setAppsPerPage(Number(e.target.value));
+                                setAppCurrentPage(1);
+                              }}
+                              className="bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium cursor-pointer"
+                            >
+                              <option value={5}>5</option>
+                              <option value={10}>10</option>
+                              <option value={20}>20</option>
+                              <option value={50}>50</option>
+                            </select>
+                            <span>entries</span>
+                            <span className="mx-2 text-gray-300">|</span>
+                            <span>Showing {filtered.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + appsPerPage, filtered.length)} of {filtered.length} entries</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setAppCurrentPage(prev => Math.max(prev - 1, 1))}
+                              disabled={appCurrentPage === 1}
+                              className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              title="Previous Page"
+                            >
+                              <ChevronLeft className="w-4 h-4" />
+                            </button>
+                            
+                            <div className="flex items-center gap-1.5 px-2">
+                              <span className="text-sm text-gray-600">Page</span>
+                              <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">{appCurrentPage}</span>
+                              <span className="text-sm text-gray-400">/</span>
+                              <span className="text-sm font-medium text-gray-700">{totalAppPages || 1}</span>
+                            </div>
+
+                            <button
+                              onClick={() => setAppCurrentPage(prev => Math.min(prev + 1, totalAppPages))}
+                              disabled={appCurrentPage === totalAppPages || totalAppPages === 0}
+                              className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                              title="Next Page"
+                            >
+                              <ChevronRight className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
                       )}
-
-
                     </div>
-                  </div>
-                );
-              })()}
-
-              {/* ── Row 1: Charts ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 mb-4 sm:mb-5">
-                {/* Area chart */}
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 shadow-md border-2 border-blue-100 hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
+                  );
+                })()
+                }
+              </>
+            ) : activeMenu === 'interviews' ? (
+              <>
+                <div className="mb-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
-                      <h2 className="text-sm font-bold text-gray-900">Applications Received</h2>
-                      <p className="text-xs text-gray-400 mt-0.5">Last 7 days</p>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Interviews</h1>
+                      <p className="text-sm text-gray-500">
+                        {interviews.length === 0 ? 'No interviews scheduled' :
+                          interviews.length === 1 ? '1 interview scheduled' :
+                            `${interviews.length} interviews scheduled`}
+                      </p>
                     </div>
-                    <TrendingUp className="w-4 h-4 text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                  {applications.length === 0 ? (
-                    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={160}>
-                      <AreaChart data={applicationsOverTime} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="appGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                        <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
-                        <Tooltip />
-                        <Area type="monotone" dataKey="applications" stroke="#8b5cf6" fill="url(#appGrad)" strokeWidth={2} />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  )}
+                    <div className="flex items-center gap-2">
+                      <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium">
+                        📅 Schedule Management
+                      </span>
+                    </div>
                   </div>
                 </div>
+                {loading ? (
+                  <div className="flex justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                  </div>
+                ) : interviews.length === 0 ? (
+                  <div className="text-center py-16">
+                    <MessageSquare className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No Interviews Scheduled</h3>
+                    <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">Interview schedules will appear here when candidates book interviews.</p>
+                  </div>
+                ) : (() => {
+                  const totalInterviewPages = Math.ceil(interviews.length / interviewsPerPage);
+                  const startIndex = (interviewCurrentPage - 1) * interviewsPerPage;
+                  const paginatedInterviews = interviews.slice(startIndex, startIndex + interviewsPerPage);
 
-                {/* Status Donut */}
-                <div className="bg-gradient-to-br from-purple-50 to-white rounded-2xl p-6 shadow-md border-2 border-purple-100 hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="flex items-center justify-between mb-1">
-                    <div>
-                      <h2 className="text-sm font-bold text-gray-900">Status Breakdown</h2>
-                      <p className="text-xs text-gray-400 mt-0.5">All applications</p>
-                    </div>
-                    <BarChart2 className="w-4 h-4 text-purple-500" />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                  {statusBreakdown.length === 0 ? (
-                    <div className="flex items-center justify-center h-40 text-gray-400 text-sm">No data yet</div>
-                  ) : (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <PieChart>
-                        <Pie data={statusBreakdown} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="value">
-                          {statusBreakdown.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip />
-                        <Legend iconSize={9} wrapperStyle={{ fontSize: 10 }} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                  </div>
-                </div>
-
-                {/* Acquisitions */}
-                <div className="bg-gradient-to-br from-indigo-50 to-white rounded-2xl p-6 shadow-md border-2 border-indigo-100 hover:shadow-lg transition-all duration-300 flex flex-col">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="text-sm font-bold text-gray-900">Acquisitions</h2>
-                    <span className="text-xs text-violet-500 font-semibold bg-violet-50 px-2 py-0.5 rounded-full">This Month</span>
-                  </div>
-                  <div className="flex-1">
-                  {(() => {
-                    const total = applications.length || 1;
-                    const acq = [
-                      { label:'Applications', count: applications.length, color:'#8b5cf6' },
-                      { label:'Shortlisted',  count: applications.filter(a=>['shortlisted','hired'].includes(a.status)).length, color:'#06b6d4' },
-                      { label:'On-hold',      count: applications.filter(a=>a.status==='reviewed').length, color:'#f59e0b' },
-                      { label:'Rejected',     count: applications.filter(a=>a.status==='rejected').length, color:'#ef4444' },
-                    ];
-                    return (
-                      <>
-                        <div className="flex h-2.5 rounded-full overflow-hidden mb-4">
-                          {acq.map((s,i) => <div key={i} style={{width:`${(s.count/total)*100}%`,background:s.color}} />)}
-                        </div>
-                        <div className="space-y-3">
-                          {acq.map((s,i) => (
-                            <div key={i} className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background:s.color}}></span>
-                                <span className="text-xs text-gray-600">{s.label}</span>
-                              </div>
-                              <span className="text-xs font-bold text-gray-800">
-                                {applications.length > 0 ? `${Math.round((s.count/total)*100)}%` : '0%'}
+                  return (
+                    <div className="space-y-3 sm:space-y-4">
+                      {paginatedInterviews.map((interview) => (
+                        <div key={interview._id || interview.id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-sm transition-shadow duration-200">
+                        <div className="flex flex-col lg:flex-row items-start gap-4">
+                          <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
+                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-gray-600 font-semibold text-xs sm:text-sm">
+                                {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
                               </span>
                             </div>
-                          ))}
-                        </div>
-                      </>
-                    );
-                  })()}
-                  </div>
-                </div>
-              </div>
 
-              {/* ── Row 2: Bottom Cards ── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
-                {/* New Applicants */}
-                <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-bold text-gray-900">New Applicants</h2>
-                    <span className="text-xs text-emerald-600 font-semibold bg-emerald-50 px-2 py-0.5 rounded-full">Today</span>
-                  </div>
-                  {applications.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {applications.slice(0,5).map((app,i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-                            style={{background: PIE_COLORS[i % PIE_COLORS.length]}}>
-                            {(app.candidateName||'C').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName||'Candidate'}</p>
-                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle||'a position').substring(0,24)}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Recent Activity */}
-                <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl p-6 shadow-md border-2 border-orange-100 hover:shadow-lg transition-all duration-300">
-                  <h2 className="text-sm font-bold text-gray-900 mb-4">Recent Activity</h2>
-                  {loading ? (
-                    <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-600"></div></div>
-                  ) : recentActivity.length === 0 ? (
-                    <p className="text-xs text-gray-400 text-center py-8">No recent activity</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {recentActivity.map((activity, index) => (
-                        <div key={index} className="flex items-start gap-3 pb-3 border-b border-gray-50 last:border-0">
-                          <div className="w-2 h-2 rounded-full bg-violet-400 mt-1.5 flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium text-gray-800">{activity.message}</p>
-                            {activity.details?.jobTitle && <p className="text-xs text-gray-400 truncate">{activity.details.jobTitle}</p>}
-                          </div>
-                          <span className="text-xs text-gray-400 whitespace-nowrap">{activity.time}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              </div>{/* end white container */}
-
-            </>
-          ) : activeMenu === 'applications' ? (
-            <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Applications</h1>
-                <span className="text-sm text-gray-500">
-                  {(() => {
-                    const filtered = applications.filter(a => {
-                      const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
-                      const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
-                      const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
-                      return jobMatch && statusMatch && searchMatch;
-                    });
-                    return `${filtered.length} of ${applications.length} applications`;
-                  })()}
-                </span>
-              </div>
-
-              {/* Filters */}
-              <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-6 flex flex-col gap-2">
-                <div className="flex items-center gap-2 bg-gray-100 rounded-lg px-3 py-2">
-                  <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                  <input
-                    type="text"
-                    placeholder="Search candidate..."
-                    value={appSearch}
-                    onChange={e => setAppSearch(e.target.value)}
-                    className="bg-transparent text-sm text-gray-600 outline-none w-full placeholder-gray-400"
-                  />
-                </div>
-                <div className="flex flex-row gap-2">
-                  <select
-                    value={appFilterJob}
-                    onChange={e => setAppFilterJob(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
-                  >
-                    <option value="all">All Jobs</option>
-                    {jobs.map(job => {
-                      const jobTitle = job.jobTitle || job.title;
-                      const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
-                      return (
-                        <option key={job._id || job.id} value={jobTitle}>{jobTitle} ({count})</option>
-                      );
-                    })}
-                  </select>
-                  <select
-                    value={appFilterStatus}
-                    onChange={e => setAppFilterStatus(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="reviewed">Reviewed</option>
-                    <option value="shortlisted">Shortlisted</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="hired">Hired</option>
-                  </select>
-                  {(appFilterJob !== 'all' || appFilterStatus !== 'all' || appSearch) && (
-                    <button
-                      onClick={() => { setAppFilterJob('all'); setAppFilterStatus('all'); setAppSearch(''); }}
-                      className="text-sm text-red-500 hover:text-red-700 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors whitespace-nowrap"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                </div>
-              ) : applications.length === 0 ? (
-                <div className="text-center py-16">
-                  <Users className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">No applications yet</h3>
-                  <p className="text-gray-600 mb-6">Applications will appear here when candidates apply.</p>
-                </div>
-              ) : (() => {
-                const filtered = applications.filter(a => {
-                  const jobMatch = appFilterJob === 'all' || (a.jobTitle || '') === appFilterJob || (a.jobId?._id || a.jobId) === appFilterJob;
-                  const statusMatch = appFilterStatus === 'all' || a.status === appFilterStatus;
-                  const searchMatch = !appSearch || (a.candidateName || '').toLowerCase().includes(appSearch.toLowerCase()) || (a.candidateEmail || '').toLowerCase().includes(appSearch.toLowerCase());
-                  return jobMatch && statusMatch && searchMatch;
-                });
-                return filtered.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500">No applications match your filters.</p>
-                  </div>
-                ) : (
-                <div className="space-y-4">
-                  {filtered.map((application) => (
-                    <div key={application._id || application.id} className="bg-white border border-gray-200 rounded-xl p-5 sm:p-6 hover:shadow-md transition-shadow duration-200">
-                      {/* Mobile: stacked layout | Desktop: side-by-side */}
-                      <div className="flex flex-col sm:flex-row gap-4">
-                        {/* Candidate info */}
-                        <div className="flex-1 min-w-0">
-                          {/* Avatar + name row */}
-                          <div className="flex items-start gap-2 sm:gap-3 mb-2">
-                            <div className="hidden sm:flex w-12 h-12 bg-gray-100 rounded-full items-center justify-center flex-shrink-0">
-                              <span className="text-gray-600 font-bold text-lg">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
-                            </div>
-                            <div className="flex sm:hidden w-8 h-8 bg-gray-100 rounded-full items-center justify-center flex-shrink-0 mt-0.5">
-                              <span className="text-gray-600 font-bold text-sm">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
-                            </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
-                              <p className="text-xs text-blue-700 font-semibold flex items-start gap-1 mt-0.5 leading-snug">
-                                <Briefcase className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                                <span>Applied for: {application.jobTitle || 'Job Position'}</span>
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mb-2">
-                            <span className="text-xs text-gray-500 break-all">{application.candidateEmail}</span>
-                            <span className="text-xs text-gray-400">Applied: {new Date(application.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                          </div>
-                          {application.coverLetter && application.coverLetter !== 'No cover letter' && (
-                            <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded-lg mb-3 border-l-2 border-gray-300">
-                              <strong className="text-gray-700">Cover Letter:</strong> {application.coverLetter.length > 100 ? `${application.coverLetter.substring(0, 100)}...` : application.coverLetter}
-                            </div>
-                          )}
-                          {application.candidateEmail ? (
-                            <button
-                              onClick={() => {
-                                setSelectedResumeAppId(application._id || application.id || null);
-                                setSelectedResumeUrl(application.resumeUrl || null);
-                                setSelectedResumeCandidateName(application.candidateName || null);
-                                setSelectedResumeCandidateEmail(application.candidateEmail || null);
-                                setShowResumeModal(true);
-                              }}
-                              className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center gap-1.5 bg-blue-100 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-200 transition-colors"
-                            >
-                              <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              View Resume
-                            </button>
-                          ) : (
-                            <span className="text-gray-500 text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Not available</span>
-                          )}
-                        </div>
+                              <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
+                                <div className="min-w-0">
+                                  <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1 truncate">
+                                    {interview.candidateName || 'Candidate'}
+                                  </h3>
+                                  <p className="text-sm sm:text-base text-purple-700 font-semibold flex items-center gap-1">
+                                    <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                    <span className="truncate">{interview.jobTitle || 'Interview'} {interview.jobCode ? `(${interview.jobCode})` : ''}</span>
+                                  </p>
+                                </div>
+                                <span className={`flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                  interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
+                                    interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
+                                      'bg-gray-50 text-gray-600 border border-gray-200'
+                                  }`}>
+                                  {interview.status?.charAt(0).toUpperCase() + interview.status?.slice(1) || 'Scheduled'}
+                                </span>
+                              </div>
 
-                        {/* Action buttons: on mobile - status full width on its own row, then 3 buttons in a row; on desktop - vertical column */}
-                        <div className="flex flex-col gap-2 sm:flex-shrink-0 sm:items-stretch sm:min-w-[140px]">
-                          {canManageApplications ? (
-                            <select
-                              value={application.status}
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 text-xs sm:text-sm text-gray-500">
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span className="truncate">{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                                  <span>{interview.time}</span>
+                                </span>
+                                <span className="truncate">{interview.candidateEmail}</span>
+                              </div>
+
+                              {interview.meetingLink && (
+                                <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                                  <a
+                                    href={interview.meetingLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
+                                  >
+                                    <Video className="w-3 h-3 sm:w-4 sm:h-4" />
+                                    <span>Join Meeting</span>
+                                  </a>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(interview.meetingLink);
+                                      showToast('Meeting link copied!', 'success');
+                                    }}
+                                    className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                                    title="Copy meeting link"
+                                  >
+                                    Copy Link
+                                  </button>
+                                </div>
+                              )}
+
+                              {interview.notes && (
+                                <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border-l-2 border-gray-300">
+                                  <strong className="text-gray-700">Notes:</strong> {interview.notes}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
+                            {canManageApplications ? (<select
+                              value={interview.status || 'scheduled'}
                               onChange={async (e) => {
                                 const newStatus = e.target.value;
-                                const appId = application._id || application.id;
                                 try {
-                                  const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                  const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json' },
                                     body: JSON.stringify({ status: newStatus }),
                                   });
+
                                   if (response.ok) {
-                                    setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: newStatus } : app));
-                                    const msgs: Record<string, string> = { pending: 'Marked as pending', reviewed: 'Marked as reviewed', shortlisted: 'Candidate shortlisted!', rejected: 'Application rejected', hired: 'Candidate hired!' };
-                                    showToast(msgs[newStatus] || 'Status updated', 'success');
-                                  } else { throw new Error(); }
-                                } catch {
-                                  showToast('Failed to update status. Please try again.', 'error');
-                                  e.target.value = application.status;
+                                    setInterviews(prev =>
+                                      prev.map(int =>
+                                        int._id === interview._id ? { ...int, status: newStatus } : int
+                                      )
+                                    );
+                                    showToast('Interview status updated!', 'success');
+                                  } else {
+                                    throw new Error('Failed to update status');
+                                  }
+                                } catch (error) {
+                                  console.error('Error updating interview status:', error);
+                                  showToast('Failed to update interview status. Please try again.', 'error');
+                                  e.target.value = interview.status || 'scheduled';
                                 }
                               }}
-                              className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white cursor-pointer"
+                              className="px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                              title="Update interview status"
                             >
-                              <option value="pending">Pending</option>
-                              <option value="reviewed">Reviewed</option>
-                              <option value="shortlisted">Shortlisted</option>
-                              <option value="rejected">Rejected</option>
-                              <option value="hired">Hired</option>
-                            </select>
-                          ) : (
-                            <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
-                          )}
-                          {/* Action buttons */}
-                          <div className="flex flex-row sm:flex-col gap-2">
+                              <option value="scheduled">Scheduled</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
                             <button
                               onClick={() => {
-                                const cid = application.candidateEmail || application.candidateId || application.userId || application.candidateUserId || '';
-                                if (!cid) { showToast('Candidate profile not available.', 'info'); return; }
-                                sessionStorage.setItem('viewCandidateId', String(cid));
-                                sessionStorage.setItem('viewCandidateData', JSON.stringify({ name: application.candidateName || '', email: application.candidateEmail || '', phone: application.candidatePhone || '', skills: application.candidateSkills || application.skills || [] }));
-                                setViewingCandidateId(String(cid));
+                                const jobId = interview.jobId?.id || interview.jobId?._id || interview.jobId;
+                                if (jobId) onNavigate('job-detail', { jobId });
+                                else showToast('Job details not available.', 'info');
                               }}
-                              className="flex-1 sm:flex-none sm:w-full bg-blue-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
+                              className="bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
                             >
-                              View Profile
+                              View Job Details
                             </button>
-                            {application.status !== 'rejected' && canManageApplications && (
-                              <button
-                                onClick={() => { setSelectedApplication(application); setShowScheduleModal(true); }}
-                                className="flex-1 sm:flex-none sm:w-full bg-emerald-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
-                              >
-                                Schedule
-                              </button>
-                            )}
-                            {application.status !== 'rejected' && canManageApplications && (
-                              <button
-                                onClick={async () => {
-                                  const appId = application._id || application.id;
-                                  try {
-                                    const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ status: 'rejected' }),
-                                    });
-                                    if (response.ok) {
-                                      setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: 'rejected' } : app));
-                                      // Send rejection email to candidate
-                                      try {
-                                        await apiFetch(`${API_ENDPOINTS.BASE_URL}/email/send`, {
-                                          method: 'POST',
-                                          headers: { 'Content-Type': 'application/json' },
-                                          body: JSON.stringify({
-                                            to: application.candidateEmail,
-                                            subject: `Application Update - ${application.jobTitle || 'Job Position'} at ${companyName}`,
-                                            type: 'application_rejected',
-                                            data: {
-                                              candidateName: application.candidateName || 'Applicant',
-                                              jobTitle: application.jobTitle || 'Job Position',
-                                              companyName,
-                                            },
-                                          }),
-                                        });
-                                      } catch { /* email failure is non-critical */ }
-                                      showToast('Application rejected & email sent to candidate', 'success');
-                                    } else { throw new Error(); }
-                                  } catch { showToast('Failed to reject application.', 'error'); }
-                                }}
-                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
-                              >
-                                Reject
-                              </button>
-                            )}
-                            {application.status === 'rejected' && (
-                              <span className="flex-1 sm:flex-none sm:w-full text-center px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-red-50 text-red-600 border border-red-200">
-                                Rejected
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                );
-              })()
-            }
-            </>
-          ) : activeMenu === 'interviews' ? (
-            <>
-              <div className="mb-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Interviews</h1>
-                    <p className="text-sm text-gray-500">
-                      {interviews.length === 0 ? 'No interviews scheduled' : 
-                       interviews.length === 1 ? '1 interview scheduled' : 
-                       `${interviews.length} interviews scheduled`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-medium">
-                      📅 Schedule Management
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
-                </div>
-              ) : interviews.length === 0 ? (
-                <div className="text-center py-16">
-                  <MessageSquare className="w-16 sm:w-24 h-16 sm:h-24 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-lg sm:text-xl font-semibold text-gray-900 mb-2">No Interviews Scheduled</h3>
-                  <p className="text-sm sm:text-base text-gray-600 mb-6 px-4">Interview schedules will appear here when candidates book interviews.</p>
-                </div>
-              ) : (
-                <div className="space-y-3 sm:space-y-4">
-                  {interviews.map((interview) => (
-                    <div key={interview._id} className="bg-white border border-gray-200 rounded-lg p-4 sm:p-5 hover:shadow-sm transition-shadow duration-200">
-                      <div className="flex flex-col lg:flex-row items-start gap-4">
-                        <div className="flex items-start space-x-3 sm:space-x-4 flex-1 min-w-0">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-gray-600 font-semibold text-xs sm:text-sm">
-                              {interview.candidateName?.charAt(0).toUpperCase() || 'C'}
-                            </span>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-3 gap-2">
-                              <div className="min-w-0">
-                                <h3 className="text-base sm:text-lg lg:text-xl font-bold text-gray-900 mb-1 truncate">
-                                  {interview.candidateName || 'Candidate'}
-                                </h3>
-                                <p className="text-sm sm:text-base text-purple-700 font-semibold flex items-center gap-1">
-                                  <Briefcase className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                  <span className="truncate">{interview.jobTitle || 'Interview'}</span>
-                                </p>
-                              </div>
-                              <span className={`flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
-                                interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                                interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
-                                interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-                                'bg-gray-50 text-gray-600 border border-gray-200'
-                              }`}>
-                                {interview.status?.charAt(0).toUpperCase() + interview.status?.slice(1) || 'Scheduled'}
-                              </span>
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-3 text-xs sm:text-sm text-gray-500">
-                              <span className="flex items-center gap-1">
-                                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span className="truncate">{new Date(interview.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                                <span>{interview.time}</span>
-                              </span>
-                              <span className="truncate">{interview.candidateEmail}</span>
-                            </div>
-
-                            {interview.meetingLink && (
-                              <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
-                                <a
-                                  href={interview.meetingLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
-                                >
-                                  <Video className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  <span>Join Meeting</span>
-                                </a>
-                                <button
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(interview.meetingLink);
-                                    showToast('Meeting link copied!', 'success');
-                                  }}
-                                  className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-                                  title="Copy meeting link"
-                                >
-                                  Copy Link
-                                </button>
-                              </div>
-                            )}
-
-                            {interview.notes && (
-                              <div className="text-xs sm:text-sm text-gray-600 bg-gray-50 p-3 rounded border-l-2 border-gray-300">
-                                <strong className="text-gray-700">Notes:</strong> {interview.notes}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
-                          {canManageApplications ? (<select
-                            value={interview.status || 'scheduled'}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value;
-                              try {
-                                const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ status: newStatus }),
-                                });
-                                
-                                if (response.ok) {
-                                  setInterviews(prev => 
-                                    prev.map(int => 
-                                      int._id === interview._id ? { ...int, status: newStatus } : int
-                                    )
-                                  );
-                                  showToast('Interview status updated!', 'success');
-                                } else {
-                                  throw new Error('Failed to update status');
-                                }
-                              } catch (error) {
-                                console.error('Error updating interview status:', error);
-                                showToast('Failed to update interview status. Please try again.', 'error');
-                                e.target.value = interview.status || 'scheduled';
-                              }
-                            }}
-                            className="px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
-                            title="Update interview status"
-                          >
-                            <option value="scheduled">Scheduled</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
-                          {canDeleteRecords && (<button 
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openConfirm(
-                                'Delete Interview', 
-                                'Are you sure you want to delete this interview? This action cannot be undone.', 
-                                async () => {
-                                  try {
-                                    const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
-                                      method: 'DELETE',
-                                      headers: { 'Content-Type': 'application/json' },
-                                    });
-                                    if (response.ok) {
-                                      setInterviews(prev => prev.filter(int => int._id !== interview._id));
-                                      showToast('Interview deleted successfully!', 'success');
-                                    } else {
+                            {canDeleteRecords && (<button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openConfirm(
+                                  'Delete Interview',
+                                  'Are you sure you want to delete this interview? This action cannot be undone.',
+                                  async () => {
+                                    try {
+                                      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}`, {
+                                        method: 'DELETE',
+                                        headers: { 'Content-Type': 'application/json' },
+                                      });
+                                      if (response.ok) {
+                                        setInterviews(prev => prev.filter(int => int._id !== interview._id));
+                                        showToast('Interview deleted successfully!', 'success');
+                                      } else {
+                                        showToast('Failed to delete interview', 'error');
+                                      }
+                                    } catch (error) {
+                                      console.error('Delete error:', error);
                                       showToast('Failed to delete interview', 'error');
                                     }
-                                  } catch (error) {
-                                    console.error('Delete error:', error);
-                                    showToast('Failed to delete interview', 'error');
+                                    closeConfirm();
                                   }
-                                  closeConfirm();
-                                }
-                              );
-                            }}
-                            className="bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
-                          >
-                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            <span className="hidden sm:inline">Delete</span>
-                          </button>)}
+                                );
+                              }}
+                              className="bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm shadow-md flex items-center justify-center gap-2"
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <span className="hidden sm:inline">Delete</span>
+                            </button>)}
+                          </div>
                         </div>
                       </div>
+                    ))}
+                    
+                    {totalInterviewPages > 1 && (
+                      <div className="flex justify-center items-center space-x-4 mt-6">
+                        <button
+                          onClick={() => setInterviewCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={interviewCurrentPage === 1}
+                          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                        >
+                          <ChevronLeft className="w-5 h-5" />
+                        </button>
+                        <span className="text-gray-600 text-sm">
+                          Page {interviewCurrentPage} of {totalInterviewPages}
+                        </span>
+                        <button
+                          onClick={() => setInterviewCurrentPage(p => Math.min(totalInterviewPages, p + 1))}
+                          disabled={interviewCurrentPage === totalInterviewPages}
+                          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+                        >
+                          <ChevronRight className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
                     </div>
-                  ))}
+                  );
+                })()}
+              </>
+            ) : activeMenu === 'saved-candidates' ? (
+              <>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Saved Candidates</h1>
+                  <button
+                    onClick={() => {
+                      const token = getToken();
+                      if (token) {
+                        fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
+                          .then(res => res.ok ? res.json() : [])
+                          .then(data => {
+                            const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
+                            setSavedCandidates(candidates);
+                            showToast(`Refreshed! Found ${candidates.length} saved candidates.`, 'success');
+                          })
+                          .catch(() => showToast('Failed to refresh saved candidates.', 'error'));
+                      }
+                    }}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                  </button>
                 </div>
-              )}
-            </>
-          ) : activeMenu === 'saved-candidates' ? (
-            <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Saved Candidates</h1>
-                <button
-                  onClick={() => {
-                    const token = getToken();
-                    if (token) {
-                      fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
-                        .then(res => res.ok ? res.json() : [])
-                        .then(data => {
-                          const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
-                          setSavedCandidates(candidates);
-                          showToast(`Refreshed! Found ${candidates.length} saved candidates.`, 'success');
-                        })
-                        .catch(() => showToast('Failed to refresh saved candidates.', 'error'));
-                    }
-                  }}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh
-                </button>
-              </div>
-              
-              {savedCandidates.length === 0 ? (
+
+                {savedCandidates.length === 0 ? (
                   <div className="text-center py-16">
                     <Bookmark className="w-24 h-24 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-xl font-semibold text-gray-900 mb-2">No Saved Candidates</h3>
@@ -1874,139 +1950,139 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
                     </div>
                   </div>
-              ) : (
-                <div className="space-y-4">
-                  {savedCandidates.map((candidate) => {
-                    const name = candidate.candidateName || candidate.fullName || candidate.name || 'Candidate';
-                    const title = candidate.candidateTitle || candidate.title || '';
-                    const location = candidate.candidateLocation || candidate.location || '';
-                    const experience = candidate.candidateExperience || candidate.experience || '';
-                    const email = candidate.candidateEmail || candidate.email || '';
-                    const skills: string[] = (() => {
-                      const raw = candidate.candidateSkills || candidate.skills;
-                      if (!raw) return [];
-                      if (Array.isArray(raw)) return raw;
-                      try { return JSON.parse(raw); } catch { return raw.split(',').map((s: string) => s.trim()).filter(Boolean); }
-                    })();
-                    const photo = candidate.candidateProfilePicture || candidate.profilePhoto || '';
-                    return (
-                    <div key={candidate._id || candidate.id} className="border-2 border-green-200 rounded-xl p-6 hover:shadow-lg hover:border-green-400 transition-all duration-300 bg-gradient-to-br from-white via-green-50 to-emerald-50">
-                      <div className="flex items-start justify-between gap-4">
-                        {/* Avatar */}
-                        <div className="flex-shrink-0">
-                          {photo ? (
-                            <img src={photo} alt={name} className="w-16 h-16 rounded-full object-cover border-2 border-green-300 shadow"
-                              onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=10b981&color=ffffff&bold=true`; }} />
-                          ) : (
-                            <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md text-white font-bold text-2xl">
-                              {name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          {/* Name + Applied Job badge */}
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h3 className="text-xl font-bold text-gray-900">{name}</h3>
-                            {candidate.appliedJobTitle && (
-                              <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full flex items-center gap-1">
-                                <Briefcase className="w-3 h-3" />
-                                {candidate.appliedJobTitle}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Title */}
-                          {title && <p className="text-sm font-semibold text-green-700 mb-2">{title}</p>}
-
-                          {/* Meta row */}
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {location && (
-                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
-                                <MapPin className="w-3 h-3 text-green-500" />{location}
-                              </span>
-                            )}
-                            {experience && (
-                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
-                                <Briefcase className="w-3 h-3 text-blue-500" />{experience}
-                              </span>
-                            )}
-                            {email && (
-                              <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
-                                <Mail className="w-3 h-3 text-purple-500" />{email}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Skills */}
-                          {skills.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5">
-                              {skills.slice(0, 8).map((skill, i) => (
-                                <span key={i} className="text-xs bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">{skill}</span>
-                              ))}
-                              {skills.length > 8 && (
-                                <span className="text-xs text-gray-400 px-1 py-0.5">+{skills.length - 8} more</span>
+                ) : (
+                  <div className="space-y-4">
+                    {savedCandidates.map((candidate) => {
+                      const name = candidate.candidateName || candidate.fullName || candidate.name || 'Candidate';
+                      const title = candidate.candidateTitle || candidate.title || '';
+                      const location = candidate.candidateLocation || candidate.location || '';
+                      const experience = candidate.candidateExperience || candidate.experience || '';
+                      const email = candidate.candidateEmail || candidate.email || '';
+                      const skills: string[] = (() => {
+                        const raw = candidate.candidateSkills || candidate.skills;
+                        if (!raw) return [];
+                        if (Array.isArray(raw)) return raw;
+                        try { return JSON.parse(raw); } catch { return raw.split(',').map((s: string) => s.trim()).filter(Boolean); }
+                      })();
+                      const photo = candidate.candidateProfilePicture || candidate.profilePhoto || '';
+                      return (
+                        <div key={candidate._id || candidate.id} className="border-2 border-green-200 rounded-xl p-6 hover:shadow-lg hover:border-green-400 transition-all duration-300 bg-gradient-to-br from-white via-green-50 to-emerald-50">
+                          <div className="flex items-start justify-between gap-4">
+                            {/* Avatar */}
+                            <div className="flex-shrink-0">
+                              {photo ? (
+                                <img src={photo} alt={name} className="w-16 h-16 rounded-full object-cover border-2 border-green-300 shadow"
+                                  onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=10b981&color=ffffff&bold=true`; }} />
+                              ) : (
+                                <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md text-white font-bold text-2xl">
+                                  {name.charAt(0).toUpperCase()}
+                                </div>
                               )}
                             </div>
-                          )}
-                        </div>
 
-                        {/* Actions */}
-                        <div className="flex flex-col gap-2 flex-shrink-0">
-                          <button
-                            onClick={() => { if (email) window.location.href = `mailto:${email}`; }}
-                            className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-5 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-colors text-sm flex items-center gap-1"
-                          >
-                            <Mail className="w-4 h-4" />Contact
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              openConfirm(
-                                'Remove Candidate', 
-                                'Remove this candidate from your saved list? This action cannot be undone.', 
-                                async () => {
-                                  try {
-                                    const token = getToken();
-                                    const recordId = candidate.id || candidate._id;
-                                    const candidateId = candidate.candidateId;
-                                    const response = await fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidateId}`, {
-                                      method: 'DELETE',
-                                      headers: { 'Authorization': `Bearer ${token}` }
-                                    });
-                                    if (response.ok) {
-                                      setSavedCandidates(prev => prev.filter(c => (c.id || c._id) !== recordId));
-                                      showToast('Candidate removed from saved list!', 'success');
-                                    } else {
-                                      showToast('Failed to remove candidate. Please try again.', 'error');
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              {/* Name + Applied Job badge */}
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <h3 className="text-xl font-bold text-gray-900">{name}</h3>
+                                {candidate.appliedJobTitle && (
+                                  <span className="text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                    <Briefcase className="w-3 h-3" />
+                                    {candidate.appliedJobTitle}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Title */}
+                              {title && <p className="text-sm font-semibold text-green-700 mb-2">{title}</p>}
+
+                              {/* Meta row */}
+                              <div className="flex flex-wrap gap-2 mb-3">
+                                {location && (
+                                  <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
+                                    <MapPin className="w-3 h-3 text-green-500" />{location}
+                                  </span>
+                                )}
+                                {experience && (
+                                  <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
+                                    <Briefcase className="w-3 h-3 text-blue-500" />{experience}
+                                  </span>
+                                )}
+                                {email && (
+                                  <span className="flex items-center gap-1 text-xs text-gray-600 bg-white border border-gray-200 px-2 py-1 rounded-lg">
+                                    <Mail className="w-3 h-3 text-purple-500" />{email}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Skills */}
+                              {skills.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {skills.slice(0, 8).map((skill, i) => (
+                                    <span key={i} className="text-xs bg-emerald-100 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full font-medium">{skill}</span>
+                                  ))}
+                                  {skills.length > 8 && (
+                                    <span className="text-xs text-gray-400 px-1 py-0.5">+{skills.length - 8} more</span>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex flex-col gap-2 flex-shrink-0">
+                              <button
+                                onClick={() => { if (email) window.location.href = `mailto:${email}`; }}
+                                className="bg-gradient-to-r from-green-600 to-emerald-700 text-white px-5 py-2 rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-colors text-sm flex items-center gap-1"
+                              >
+                                <Mail className="w-4 h-4" />Contact
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  openConfirm(
+                                    'Remove Candidate',
+                                    'Remove this candidate from your saved list? This action cannot be undone.',
+                                    async () => {
+                                      try {
+                                        const token = getToken();
+                                        const recordId = candidate.id || candidate._id;
+                                        const candidateId = candidate.candidateId;
+                                        const response = await fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}/${candidateId}`, {
+                                          method: 'DELETE',
+                                          headers: { 'Authorization': `Bearer ${token}` }
+                                        });
+                                        if (response.ok) {
+                                          setSavedCandidates(prev => prev.filter(c => (c.id || c._id) !== recordId));
+                                          showToast('Candidate removed from saved list!', 'success');
+                                        } else {
+                                          showToast('Failed to remove candidate. Please try again.', 'error');
+                                        }
+                                      } catch (error) {
+                                        console.error('Remove error:', error);
+                                        showToast('Failed to remove candidate. Please try again.', 'error');
+                                      }
+                                      closeConfirm();
                                     }
-                                  } catch (error) {
-                                    console.error('Remove error:', error);
-                                    showToast('Failed to remove candidate. Please try again.', 'error');
-                                  }
-                                  closeConfirm();
-                                }
-                              );
-                            }}
-                            className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
-                          >
-                            Remove
-                          </button>
+                                  );
+                                }}
+                                className="bg-red-600 text-white px-5 py-2 rounded-lg font-semibold hover:bg-red-700 transition-colors text-sm"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
-            </>
-          ) : activeMenu === 'alerts' ? (
-            <>
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Alerts & Notifications</h1>
-                <button
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            ) : activeMenu === 'alerts' ? (
+              <>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Alerts & Notifications</h1>
+                  <button
                     onClick={async () => {
                       try {
                         const userData = localStorage.getItem('user');
@@ -2026,119 +2102,119 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     </svg>
                     Refresh
                   </button>
-              </div>
-              
-              <div className="space-y-4">
-                {notifications.length === 0 ? (
-                  <div className="text-center py-16">
-                    <Bell className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">No Alerts</h3>
-                    <p className="text-gray-600 mb-6">You're all caught up! New alerts will appear here.</p>
-                  </div>
-                ) : (
-                  notifications.map((notification) => (
-                    <div key={notification.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
-                      <div className="flex items-start space-x-4">
-                        <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">
-                          {NotificationService.getNotificationIcon(notification.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between mb-1">
-                            <h3 className="text-sm font-semibold text-gray-900">{notification.title}</h3>
-                            <span className="text-xs text-gray-400 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
+                </div>
+
+                <div className="space-y-4">
+                  {notifications.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Bell className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">No Alerts</h3>
+                      <p className="text-gray-600 mb-6">You're all caught up! New alerts will appear here.</p>
+                    </div>
+                  ) : (
+                    notifications.map((notification) => (
+                      <div key={notification.id} className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-sm transition-shadow duration-200">
+                        <div className="flex items-start space-x-4">
+                          <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-base flex-shrink-0">
+                            {NotificationService.getNotificationIcon(notification.type)}
                           </div>
-                          <p className="text-sm text-gray-600 mb-3">{notification.message}</p>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => {
-                                if (notification.type === 'application') {
-                                  const candidateName = notification.data?.candidateName || notification.data?.candidateEmail || '';
-                                  if (candidateName) setAppSearch(candidateName);
-                                  setActiveMenu('applications');
-                                } else if (notification.type === 'interview') {
-                                  setActiveMenu('interviews');
-                                } else if (notification.type === 'job') {
-                                  onNavigate('my-jobs');
-                                }
-                              }}
-                              className="text-xs font-medium text-blue-600 border border-blue-600 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
-                            >
-                              View Details
-                            </button>
-                            <button 
-                              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
-                              className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
-                            >
-                              Dismiss
-                            </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-start justify-between mb-1">
+                              <h3 className="text-sm font-semibold text-gray-900">{notification.title}</h3>
+                              <span className="text-xs text-gray-400 whitespace-nowrap ml-4">{NotificationService.formatTime(notification.time)}</span>
+                            </div>
+                            <p className="text-sm text-gray-600 mb-3">{notification.message}</p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => {
+                                  if (notification.type === 'application') {
+                                    const candidateName = notification.data?.candidateName || notification.data?.candidateEmail || '';
+                                    if (candidateName) setAppSearch(candidateName);
+                                    setActiveMenu('applications');
+                                  } else if (notification.type === 'interview') {
+                                    setActiveMenu('interviews');
+                                  } else if (notification.type === 'job') {
+                                    onNavigate('my-jobs');
+                                  }
+                                }}
+                                className="text-xs font-medium text-blue-600 border border-blue-600 px-3 py-1.5 rounded hover:bg-blue-50 transition-colors"
+                              >
+                                View Details
+                              </button>
+                              <button
+                                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                                className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
+                              >
+                                Dismiss
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Alert Settings */}
+                <div className="mt-8 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Alert Preferences</h2>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-gray-700">New job applications</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-gray-700">Interview confirmations</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-gray-700">Job posting updates</span>
+                    </label>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                      <span className="text-gray-700">Weekly summary reports</span>
+                    </label>
+                  </div>
+                  <button className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
+                    Save Preferences
+                  </button>
+                </div>
+              </>
+            ) : activeMenu === 'team' ? (
+              <TeamSection
+                employerEmail={user?.employerOwnerId || user?.ownerEmail || user?.email}
+                currentUserEmail={user?.email}
+                companyName={companyName}
+                showToast={showToast}
+                canInvite={canInviteMembers}
+              />
+            ) : activeMenu === 'auto-rejection' ? (
+              <>
+                <div className="mb-6">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div>
+                      <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">AI Auto-Rejection</h1>
+                      <p className="text-sm text-gray-500">
+                        Configure intelligent filtering to automatically screen applications
+                      </p>
                     </div>
-                  ))
-                )}
-              </div>
-              
-              {/* Alert Settings */}
-              <div className="mt-8 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Alert Preferences</h2>
-                <div className="space-y-3">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span className="text-gray-700">New job applications</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span className="text-gray-700">Interview confirmations</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span className="text-gray-700">Job posting updates</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-                    <span className="text-gray-700">Weekly summary reports</span>
-                  </label>
-                </div>
-                <button className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                  Save Preferences
-                </button>
-              </div>
-            </>
-          ) : activeMenu === 'team' ? (
-            <TeamSection
-              employerEmail={user?.employerOwnerId || user?.ownerEmail || user?.email}
-              currentUserEmail={user?.email}
-              companyName={companyName}
-              showToast={showToast}
-              canInvite={canInviteMembers}
-            />
-          ) : activeMenu === 'auto-rejection' ? (
-            <>
-              <div className="mb-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">AI Auto-Rejection</h1>
-                    <p className="text-sm text-gray-500">
-                      Configure intelligent filtering to automatically screen applications
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium border border-blue-200">
-                      🤖 Smart Filtering
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium border border-blue-200">
+                        🤖 Smart Filtering
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
-                <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
-              </div>
-            </>
-          ) : activeMenu === 'credentialing' ? (
-            canAccessCredentialing
-              ? <CandidateCredentialing employerEmail={user?.email || ''} showToast={showToast} />
-              : <AccessDenied role={teamRole} />
-          ) : null}
+                <div className="bg-white rounded-lg sm:rounded-xl p-4 sm:p-6 shadow-sm border border-gray-100">
+                  <AutoRejectionSettings onSave={(settings) => console.log('Settings saved:', settings)} />
+                </div>
+              </>
+            ) : activeMenu === 'credentialing' ? (
+              canAccessCredentialing
+                ? <CandidateCredentialing employerEmail={user?.email || ''} showToast={showToast} />
+                : <AccessDenied role={teamRole} />
+            ) : null}
           </div>
         </div>
       </div>
@@ -2195,9 +2271,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       }}
                     >
                       <div className="flex items-start space-x-3">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${
-                          NotificationService.getNotificationColor(notification.type)
-                        }`}>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold flex-shrink-0 ${NotificationService.getNotificationColor(notification.type)
+                          }`}>
                           {NotificationService.getNotificationIcon(notification.type)}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -2285,7 +2360,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   setInterviews(Array.isArray(data) ? data : []);
                   setActiveMenu('interviews');
                 })
-                .catch(() => {});
+                .catch(() => { });
             }
             fetchDashboardData(user);
           }}
@@ -2305,15 +2380,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <span className="font-semibold text-blue-600">{accessDeniedModal.feature}</span> requires
               </p>
               <p className="text-gray-500 text-sm mb-4">
-                <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${
-                  accessDeniedModal.requiredRole === 'Owner' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
-                }`}>{accessDeniedModal.requiredRole}</span> access or higher.
+                <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${accessDeniedModal.requiredRole === 'Owner' ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+                  }`}>{accessDeniedModal.requiredRole}</span> access or higher.
               </p>
               <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 w-full">
                 <p className="text-amber-800 text-xs">
-                  Your current role is <span className={`font-bold px-1.5 py-0.5 rounded-full ${
-                    teamRole === 'Recruiter' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
-                  }`}>{teamRole}</span>. Contact the Owner to request access.
+                  Your current role is <span className={`font-bold px-1.5 py-0.5 rounded-full ${teamRole === 'Recruiter' ? 'bg-orange-100 text-orange-700' : 'bg-gray-100 text-gray-600'
+                    }`}>{teamRole}</span>. Contact the Owner to request access.
                 </p>
               </div>
               <button
@@ -2393,6 +2466,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   const [loading, setLoading] = React.useState(true);
   const [inviteEmail, setInviteEmail] = React.useState('');
   const [inviteRole, setInviteRole] = React.useState<TeamRole>('Recruiter');
+  const [invitePosition, setInvitePosition] = React.useState('Recruiter');
   const [inviteName, setInviteName] = React.useState('');
   const [invitePassword, setInvitePassword] = React.useState('');
   const [showInvitePw, setShowInvitePw] = React.useState(false);
@@ -2402,7 +2476,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   const [inviting, setInviting] = React.useState(false);
   const [inviteToken, setInviteToken] = React.useState('');
   const [inviteCredentials, setInviteCredentials] = React.useState<{ email: string; password: string; role: string } | null>(null);
-  const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => { } });
   const closeConfirm = () => setConfirmDialog(c => ({ ...c, isOpen: false }));
 
   // Generate a secure random password
@@ -2435,7 +2509,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
         console.error('Team API error:', res.status, res.statusText);
         setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
       }
-    } catch (e) { 
+    } catch (e) {
       console.error('Team fetch error:', e);
       setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
     }
@@ -2466,6 +2540,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
           memberEmail: inviteEmail.trim(),
           memberName: inviteName.trim() || inviteEmail.split('@')[0],
           role: inviteRole,
+          position: invitePosition,
           password: invitePassword,
           companyName,
           emailType: 'credentials',
@@ -2493,6 +2568,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
     setInviteEmail('');
     setInviteName('');
     setInviteRole('Recruiter');
+    setInvitePosition('Recruiter');
     setInviteToken('');
     setInvitePassword('');
     setInviteCredentials(null);
@@ -2551,12 +2627,12 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
           {canInvite ? (
             <button onClick={() => setShowInvite(true)}
               className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium text-xs sm:text-sm min-h-[36px] sm:min-h-[40px]">
-              <UserPlus className="w-4 h-4" /> 
+              <UserPlus className="w-4 h-4" />
               <span>Invite Member</span>
             </button>
           ) : (
             <span className="flex items-center justify-center gap-2 bg-gray-100 text-gray-400 px-4 py-2 rounded-lg text-xs sm:text-sm border border-gray-200 cursor-not-allowed min-h-[36px] sm:min-h-[40px]" title="Only Owners can invite members">
-              <UserPlus className="w-4 h-4" /> 
+              <UserPlus className="w-4 h-4" />
               <span>Invite Member</span>
             </span>
           )}
@@ -2566,9 +2642,8 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {(Object.entries(ROLE_PERMISSIONS) as [TeamRole, string[]][]).map(([role, perms]) => (
           <div key={role} onClick={() => setSelectedRole(selectedRole === role ? null : role)}
-            className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-pointer transition-all ${
-              selectedRole === role ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'
-            }`}>
+            className={`bg-white rounded-lg sm:rounded-xl p-3 sm:p-4 border cursor-pointer transition-all ${selectedRole === role ? 'border-blue-400 shadow-md' : 'border-gray-200 hover:border-gray-300'
+              }`}>
             <div className="flex items-center justify-between mb-2">
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${roleColors[role]}`}>{role}</span>
               <span className="text-xs text-gray-400">{members.filter(m => m.role === role).length} member{members.filter(m => m.role === role).length !== 1 ? 's' : ''}</span>
@@ -2595,11 +2670,10 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                 <p className="text-xs text-gray-500 truncate">{member.memberEmail}</p>
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
                   member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
-                  roleColors[member.role]
-                }`}>
+                    roleColors[member.role]
+                  }`}>
                   {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
                 </span>
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
@@ -2657,11 +2731,10 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                 <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-xl p-4 mb-4 shadow-lg">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-white font-bold text-sm">🔐 Login Credentials</span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      inviteCredentials.role === 'Owner' ? 'bg-blue-400 text-white' :
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${inviteCredentials.role === 'Owner' ? 'bg-blue-400 text-white' :
                       inviteCredentials.role === 'Recruiter' ? 'bg-orange-400 text-white' :
-                      'bg-gray-400 text-white'
-                    }`}>{inviteCredentials.role}</span>
+                        'bg-gray-400 text-white'
+                      }`}>{inviteCredentials.role}</span>
                   </div>
                   <div className="space-y-2.5">
                     <div className="bg-white/10 rounded-lg px-3 py-2">
@@ -2722,12 +2795,26 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                       onKeyDown={e => e.key === 'Enter' && handleInvite()} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Role Access</label>
                     <select value={inviteRole} onChange={e => setInviteRole(e.target.value as TeamRole)}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
                       <option value="Recruiter">Recruiter — Can post jobs & manage applications</option>
                       <option value="Viewer">Viewer — View only access</option>
                       <option value="Owner">Owner — Full access</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
+                    <select value={invitePosition} onChange={e => setInvitePosition(e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                      <option value="Senior Recruiter">Senior Recruiter</option>
+                      <option value="Junior Recruiter">Junior Recruiter</option>
+                      <option value="Hiring Manager">Hiring Manager</option>
+                      <option value="Junior Hiring Manager">Junior Hiring Manager</option>
+                      <option value="Senior Hiring Manager">Senior Hiring Manager</option>
+                      <option value="Recruiter">Recruiter</option>
+                      <option value="Manager">Manager</option>
+                      <option value="Lead">Lead</option>
                     </select>
                   </div>
                   <div>

@@ -35,10 +35,9 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user, onLogou
       const userEmail = user?.email;
       if (!userEmail) return;
 
-      // Fetch analytics data from multiple endpoints
       const [appsRes, jobsRes, interviewsRes, viewsRes] = await Promise.all([
         fetch(`${API_ENDPOINTS.BASE_URL}/analytics/applications?employerEmail=${encodeURIComponent(userEmail)}&range=${timeRange}`),
-        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/jobs?employerEmail=${encodeURIComponent(userEmail)}&range=${timeRange}`),
+        fetch(`${API_ENDPOINTS.BASE_URL}/analytics/jobs/${encodeURIComponent(userEmail)}?range=${timeRange}`),
         fetch(`${API_ENDPOINTS.BASE_URL}/analytics/interviews?employerEmail=${encodeURIComponent(userEmail)}&range=${timeRange}`),
         fetch(`${API_ENDPOINTS.BASE_URL}/analytics/views?employerEmail=${encodeURIComponent(userEmail)}&range=${timeRange}`)
       ]);
@@ -51,7 +50,6 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user, onLogou
       setData({ applications, jobs, interviews, views });
     } catch (error) {
       console.error('Error fetching analytics:', error);
-      // Generate mock data for demo
       setData(generateMockData());
     } finally {
       setLoading(false);
@@ -397,43 +395,49 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user, onLogou
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Job Title
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Applications
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Views
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Conversion
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Posted
-                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Code</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Title</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applications</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Views</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Posted</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {data.jobs.slice(0, 10).map((job, index) => (
-                      <tr key={index} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {job.title}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {job.applications}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {job.views}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {job.views > 0 ? ((job.applications / job.views) * 100).toFixed(1) : 0}%
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(job.posted).toLocaleDateString()}
-                        </td>
+                    {data.jobs.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-400">No jobs found for this period</td>
                       </tr>
-                    ))}
+                    ) : (
+                      data.jobs.slice(0, 10).map((job: any, index: number) => (
+                        <tr key={job.id || index} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-green-600 font-bold text-sm bg-green-50 px-2.5 py-1 rounded-full border border-green-200">
+                              {job.jobCode || job.positionId || '—'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {job.jobTitle || job.title || '—'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {job.company || '—'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {job.location || '—'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {job.applications ?? job.applicationCount ?? 0}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {job.views ?? 0}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {job.posted ? new Date(job.posted).toLocaleDateString() : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>

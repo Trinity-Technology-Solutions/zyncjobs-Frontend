@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import BackButton from './BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { getAuthHeaders, getApiHeaders } from '../utils/authUtils';
@@ -9,6 +9,10 @@ import { tokenStorage } from '../utils/tokenStorage';
 const InterviewScheduling = () => {
   const [interviews, setInterviews] = useState<any[]>([]);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalInterviews, setTotalInterviews] = useState(0);
+  const itemsPerPage = 5;
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
   const [formData, setFormData] = useState({
@@ -22,18 +26,35 @@ const InterviewScheduling = () => {
   });
 
   useEffect(() => {
-    fetchInterviews();
-  }, []);
+    fetchInterviews(currentPage);
+  }, [currentPage]);
 
-  const fetchInterviews = async () => {
+  const fetchInterviews = async (page = 1) => {
     try {
-      const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/my-interviews`, {
+      const userStr = localStorage.getItem('user');
+      let userEmail = '';
+      if (userStr) {
+        const userObj = JSON.parse(userStr);
+        userEmail = userObj.email || '';
+      }
+
+      const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}?employerEmail=${encodeURIComponent(userEmail)}&page=${page}&limit=${itemsPerPage}`, {
         headers: getAuthHeaders()
       });
       
       if (response.ok) {
         const data = await response.json();
-        setInterviews(Array.isArray(data) ? data : []);
+        if (data.interviews) {
+          setInterviews(Array.isArray(data.interviews) ? data.interviews : []);
+          setTotalPages(data.totalPages || 1);
+          setCurrentPage(data.currentPage || 1);
+          setTotalInterviews(data.totalInterviews || 0);
+        } else {
+          setInterviews(Array.isArray(data) ? data : []);
+          setTotalPages(1);
+          setCurrentPage(1);
+          setTotalInterviews(Array.isArray(data) ? data.length : 0);
+        }
       } else {
         console.error('Failed to fetch interviews:', response.status);
         setInterviews([]);
@@ -79,7 +100,7 @@ const InterviewScheduling = () => {
       
       if (response.ok) {
         setShowScheduleModal(false);
-        fetchInterviews();
+        fetchInterviews(currentPage);
         setFormData({
           scheduledDate: '',
           duration: 60,
@@ -131,7 +152,7 @@ const InterviewScheduling = () => {
         method: 'PATCH',
         headers: getAuthHeaders()
       });
-      fetchInterviews();
+      fetchInterviews(currentPage);
     } catch (error) {
       console.error('Error confirming interview:', error);
     }
@@ -144,7 +165,7 @@ const InterviewScheduling = () => {
         headers: getApiHeaders(),
         body: JSON.stringify({ scheduledDate: newDate.toISOString() })
       });
-      fetchInterviews();
+      fetchInterviews(currentPage);
     } catch (error) {
       console.error('Error rescheduling interview:', error);
     }
@@ -286,6 +307,28 @@ const InterviewScheduling = () => {
           ))
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-4 mt-6">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <span className="text-gray-600">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-50"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
+      )}
 
       {/* Schedule Interview Modal */}
       {showScheduleModal && (

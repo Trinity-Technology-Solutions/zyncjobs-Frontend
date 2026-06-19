@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, MoreVertical, CheckSquare, Mail, UserCheck } from 'lucide-react';
+import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, MoreVertical, CheckSquare, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -32,8 +32,8 @@ interface Job {
 }
 
 interface JobManagementPageProps {
-  onNavigate: (page: string) => void;
-  user: {name: string, type: 'candidate' | 'employer'} | null;
+  onNavigate: (page: string, params?: any) => void;
+  user: { name: string, type: 'candidate' | 'employer' } | null;
   onLogout: () => void;
 }
 
@@ -49,12 +49,17 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const [collaborateEmail, setCollaborateEmail] = useState('');
   const [collaborateMessage, setCollaborateMessage] = useState('');
   const [isSendingCollaborate, setIsSendingCollaborate] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter, searchTerm, sortBy]);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      const parsedUser = JSON.parse(userData);
-      fetchEmployerJobs(parsedUser);
+      fetchEmployerJobs();
     }
 
     const handleJobPosted = (e: Event) => {
@@ -69,20 +74,20 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
       }
       // Also re-fetch to ensure full sync
       const ud = localStorage.getItem('user');
-      if (ud) fetchEmployerJobs(JSON.parse(ud));
+      if (ud) fetchEmployerJobs();
     };
     window.addEventListener('jobPosted', handleJobPosted);
     return () => window.removeEventListener('jobPosted', handleJobPosted);
   }, []);
 
-  const fetchEmployerJobs = async (userData: any) => {
+  const fetchEmployerJobs = async () => {
     try {
       setLoading(true);
       const ownerEmail = getEffectiveEmployerEmail();
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
       if (response.ok) {
         const employerJobs = await response.json();
-        
+
         // Fetch application counts for each job
         const jobsWithCounts = await Promise.all(
           employerJobs.map(async (job: any) => {
@@ -93,10 +98,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 console.log('⚠️ Job without id:', job);
                 return { ...job, applicationCount: 0, hiredCount: 0 };
               }
-              
+
               console.log('🔍 Fetching applications for job:', jobId, job.jobTitle);
               const appResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/applications/job/${jobId}`);
-              
+
               if (appResponse.ok) {
                 const applications = await appResponse.json();
                 console.log('✅ Applications for', job.jobTitle, ':', applications.length);
@@ -112,7 +117,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
             return { ...job, applicationCount: 0, hiredCount: 0 };
           })
         );
-        
+
         console.log('📊 Jobs with counts:', jobsWithCounts);
         setJobs(jobsWithCounts);
       }
@@ -145,8 +150,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   };
 
   const handleSelectJob = (jobId: string) => {
-    setSelectedJobs(prev => 
-      prev.includes(jobId) 
+    setSelectedJobs(prev =>
+      prev.includes(jobId)
         ? prev.filter(id => id !== jobId)
         : [...prev, jobId]
     );
@@ -172,11 +177,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
         );
 
         const results = await Promise.allSettled(deletePromises);
-        
-        const successCount = results.filter(result => 
+
+        const successCount = results.filter(result =>
           result.status === 'fulfilled' && result.value.ok
         ).length;
-        
+
         const failedCount = selectedJobs.length - successCount;
 
         // Remove successfully deleted jobs from state
@@ -190,20 +195,20 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
 
         // Show result message
         if (failedCount === 0) {
-          window.dispatchEvent(new CustomEvent('zync:alert', { 
-            detail: { message: `Successfully deleted ${successCount} job(s)!` } 
+          window.dispatchEvent(new CustomEvent('zync:alert', {
+            detail: { message: `Successfully deleted ${successCount} job(s)!` }
           }));
         } else {
-          window.dispatchEvent(new CustomEvent('zync:alert', { 
-            detail: { 
-              message: `Deleted ${successCount} job(s). ${failedCount} job(s) failed to delete.` 
-            } 
+          window.dispatchEvent(new CustomEvent('zync:alert', {
+            detail: {
+              message: `Deleted ${successCount} job(s). ${failedCount} job(s) failed to delete.`
+            }
           }));
         }
       } catch (error) {
         console.error('Error deleting selected jobs:', error);
-        window.dispatchEvent(new CustomEvent('zync:alert', { 
-          detail: { message: 'Error deleting jobs. Please try again.' } 
+        window.dispatchEvent(new CustomEvent('zync:alert', {
+          detail: { message: 'Error deleting jobs. Please try again.' }
         }));
       }
     }
@@ -212,11 +217,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   const filteredJobs = jobs.filter(job => {
     const jobTitle = job.jobTitle || job.title || '';
     const matchesSearch = jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.location?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filter === 'all' || 
-                         (filter === 'active' && (job.status === 'active' || job.status === 'approved' || !job.status)) ||
-                         (filter === 'closed' && job.status === 'closed') ||
-                         (filter === 'expired' && job.status === 'expired');
+      job.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.jobCode || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.id || job._id || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = filter === 'all' ||
+      (filter === 'active' && (job.status === 'active' || job.status === 'approved' || !job.status)) ||
+      (filter === 'closed' && job.status === 'closed') ||
+      (filter === 'expired' && job.status === 'expired');
     return matchesSearch && matchesFilter;
   });
 
@@ -229,8 +236,8 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
 
   const sortJobs = (jobsToSort: Job[]) => {
     const sorted = [...jobsToSort];
-    
-    switch(sortBy) {
+
+    switch (sortBy) {
       case 'responses':
         return sorted.sort((a, b) => (b.applicationCount || 0) - (a.applicationCount || 0));
       case 'title':
@@ -244,14 +251,14 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
   return (
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-        <BackButton 
+        <BackButton
           onClick={() => onNavigate('dashboard')}
           text="Back to Dashboard"
           className="mb-4 sm:mb-6"
         />
-        
+
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Job Management</h1>
@@ -278,7 +285,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 onClick={() => {
                   const userData = localStorage.getItem('user');
                   if (userData) {
-                    fetchEmployerJobs(JSON.parse(userData));
+                    fetchEmployerJobs();
                   }
                 }}
                 className="flex items-center space-x-2 px-3 py-1.5 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
@@ -287,7 +294,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 <span>Refresh</span>
               </button>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 mb-3 sm:mb-4">
               <div className="flex-1 relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -310,7 +317,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
               </select>
             </div>
           </div>
-          
+
           {/* Job Status Filters */}
           <div className="border-t px-3 sm:px-4 py-3">
             <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-6">
@@ -325,7 +332,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   Select All ({selectedJobs.length} of {filteredJobs.length} selected)
                 </span>
               </label>
-              
+
               {selectedJobs.length > 0 && (
                 <button
                   onClick={handleDeleteSelectedJobs}
@@ -335,29 +342,26 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   <span>Delete Selected ({selectedJobs.length})</span>
                 </button>
               )}
-              
+
               <div className="flex flex-wrap gap-2 sm:gap-4">
                 <button
                   onClick={() => setFilter('all')}
-                  className={`text-xs sm:text-sm font-medium ${
-                    filter === 'all' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`text-xs sm:text-sm font-medium ${filter === 'all' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   Active Jobs {statusCounts.active}
                 </button>
                 <button
                   onClick={() => setFilter('closed')}
-                  className={`text-xs sm:text-sm font-medium ${
-                    filter === 'closed' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`text-xs sm:text-sm font-medium ${filter === 'closed' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   Closed Jobs {statusCounts.closed}
                 </button>
                 <button
                   onClick={() => setFilter('expired')}
-                  className={`text-xs sm:text-sm font-medium ${
-                    filter === 'expired' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`text-xs sm:text-sm font-medium ${filter === 'expired' ? 'text-blue-600' : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   Expired Jobs {statusCounts.expired}
                 </button>
@@ -396,7 +400,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   <span className="text-sm text-gray-600">
                     {selectedJobs.length} of {filteredJobs.length} jobs selected
                   </span>
-                  
+
                   <button
                     onClick={handleSelectAll}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
@@ -405,26 +409,25 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     <CheckSquare className="w-4 h-4" />
                     <span className="font-medium">Select All</span>
                   </button>
-                  
+
                   <button
                     onClick={handleDeleteSelectedJobs}
                     disabled={selectedJobs.length === 0}
-                    className={`flex items-center space-x-2 text-sm font-medium transition-colors ${
-                      selectedJobs.length === 0 
-                        ? 'text-gray-400 cursor-not-allowed' 
-                        : 'text-red-600 hover:text-red-700 cursor-pointer'
-                    }`}
+                    className={`flex items-center space-x-2 text-sm font-medium transition-colors ${selectedJobs.length === 0
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-red-600 hover:text-red-700 cursor-pointer'
+                      }`}
                     title="Delete selected jobs"
                   >
                     <Trash2 className="w-4 h-4" />
                     <span>Delete Selected</span>
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       const userData = localStorage.getItem('user');
                       if (userData) {
-                        fetchEmployerJobs(JSON.parse(userData));
+                        fetchEmployerJobs();
                       }
                     }}
                     className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
@@ -433,7 +436,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     <RefreshCw className="w-4 h-4" />
                     <span className="font-medium">Refresh</span>
                   </button>
-                  
+
                   {/* Bulk Refresh Component */}
                   <BulkJobRefresh
                     selectedJobIds={selectedJobs}
@@ -448,12 +451,12 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       // Refresh the jobs list and clear selection
                       const userData = localStorage.getItem('user');
                       if (userData) {
-                        fetchEmployerJobs(JSON.parse(userData));
+                        fetchEmployerJobs();
                       }
                       setSelectedJobs([]);
                     }}
                   />
-                  
+
                   <button
                     onClick={() => {
                       if (selectedJobs.length === 0) {
@@ -470,7 +473,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     <Users className="w-4 h-4" />
                     <span className="font-medium hidden sm:inline">Collaborate</span>
                   </button>
-                  
+
                   <button
                     onClick={() => {
                       if (selectedJobs.length === 0) {
@@ -486,11 +489,10 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       }
                     }}
                     disabled={selectedJobs.length === 0}
-                    className={`flex items-center space-x-2 text-sm transition-colors ${
-                      selectedJobs.length === 0
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:text-red-600 cursor-pointer'
-                    }`}
+                    className={`flex items-center space-x-2 text-sm transition-colors ${selectedJobs.length === 0
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-600 hover:text-red-600 cursor-pointer'
+                      }`}
                     title="Close selected jobs"
                   >
                     <span className="font-medium">Close Selected</span>
@@ -499,12 +501,18 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                 <span className="text-xs sm:text-sm text-gray-500 self-start sm:self-center">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>
             </div>
-            
-            <div className="divide-y divide-gray-200">
-              {sortJobs(filteredJobs).map((job: Job) => {
-                const jobId = job.id || job._id;
-                return (
-                <div key={jobId} className="p-3 sm:p-4 hover:bg-gray-50">
+            {(() => {
+              const totalPages = Math.ceil(filteredJobs.length / perPage);
+              const startIndex = (currentPage - 1) * perPage;
+              const paginatedJobs = sortJobs(filteredJobs).slice(startIndex, startIndex + perPage);
+
+              return (
+                <>
+                  <div className="divide-y divide-gray-200">
+                    {paginatedJobs.map((job: Job) => {
+                      const jobId = job.id || job._id;
+                      return (
+                        <div key={jobId} className="p-3 sm:p-4 hover:bg-gray-50">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                     <div className="flex items-start space-x-3 flex-1">
                       <input
@@ -516,8 +524,16 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                          <h3 className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm sm:text-base truncate">
+                          <h3 
+                            onClick={() => jobId && onNavigate('job-detail', { jobId })}
+                            className="font-medium text-blue-600 hover:text-blue-700 cursor-pointer text-sm sm:text-base truncate"
+                          >
                             {job.jobTitle || job.title || 'Job Position'}
+                            {job.jobCode && (
+                              <span className="text-xs font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded ml-2 inline-block">
+                                {job.jobCode}
+                              </span>
+                            )}
                           </h3>
                           {(job.applicationCount ?? 0) > 0 && (
                             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full font-medium self-start">
@@ -532,7 +548,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           {[job.country, (() => { const lang = job.language || job.languages; return Array.isArray(lang) ? lang.join(', ') : lang; })(), job.experienceRange || job.experience].filter(Boolean).join(' • ')}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
+                          {job.status === 'active' || job.status === 'approved' ? 'Active' : (job.status ? job.status.charAt(0).toUpperCase() + job.status.slice(1) : 'Active')} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
                           {job.postedByName && job.postedByEmail !== job.employerEmail && (
                             <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-medium">
                               Posted by: {job.postedByName}
@@ -653,18 +669,75 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                               <Trash2 className="w-4 h-4" />
                               <span>Delete Job</span>
                             </button>
+
                           </div>
                         )}
+                        </div>
+                             </div>
+                        </div>
+                            </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Pagination Controls */}
+                  {filteredJobs.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 py-4 px-6 border-t border-gray-200 bg-white rounded-b-xl shadow-sm">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                        <span>Show</span>
+                        <select
+                          value={perPage}
+                          onChange={(e) => {
+                            setPerPage(Number(e.target.value));
+                            setCurrentPage(1);
+                          }}
+                          className="bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-medium cursor-pointer"
+                        >
+                          <option value={5}>5</option>
+                          <option value={10}>10</option>
+                          <option value={20}>20</option>
+                          <option value={50}>50</option>
+                        </select>
+                        <span>entries</span>
+                        <span className="mx-2 text-gray-300">|</span>
+                        <span>Showing {filteredJobs.length > 0 ? startIndex + 1 : 0} to {Math.min(startIndex + perPage, filteredJobs.length)} of {filteredJobs.length} entries</span>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                          disabled={currentPage === 1}
+                          className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Previous Page"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                        
+                        <div className="flex items-center gap-1.5 px-2">
+                          <span className="text-sm text-gray-600">Page</span>
+                          <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">{currentPage}</span>
+                          <span className="text-sm text-gray-400">/</span>
+                          <span className="text-sm font-medium text-gray-700">{totalPages || 1}</span>
+                        </div>
+
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                          disabled={currentPage === totalPages || totalPages === 0}
+                          className="p-2 rounded-lg border border-gray-200 hover:bg-gray-50 text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Next Page"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )})}
-            </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>
-      
+
       <Footer onNavigate={onNavigate} />
 
       {showCollaborateModal && (

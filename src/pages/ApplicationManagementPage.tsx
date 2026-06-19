@@ -17,12 +17,12 @@ interface ApplicationManagementPageProps {
 }
 
 const COLUMNS = [
-  { id: 'pending',     label: 'Applied',     color: '#6366f1', light: '#eef2ff', border: '#c7d2fe' },
-  { id: 'reviewed',   label: 'Screening',   color: '#f59e0b', light: '#fffbeb', border: '#fde68a' },
-  { id: 'shortlisted',label: 'Shortlisted', color: '#10b981', light: '#ecfdf5', border: '#a7f3d0' },
-  { id: 'interviewed',label: 'Interview',   color: '#3b82f6', light: '#eff6ff', border: '#bfdbfe' },
-  { id: 'hired',      label: 'Hired',       color: '#8b5cf6', light: '#f5f3ff', border: '#ddd6fe' },
-  { id: 'rejected',   label: 'Rejected',    color: '#ef4444', light: '#fef2f2', border: '#fecaca' },
+  { id: 'pending', label: 'Applied', color: '#6366f1', light: '#eef2ff', border: '#c7d2fe' },
+  { id: 'reviewed', label: 'Screening', color: '#f59e0b', light: '#fffbeb', border: '#fde68a' },
+  { id: 'shortlisted', label: 'Shortlisted', color: '#10b981', light: '#ecfdf5', border: '#a7f3d0' },
+  { id: 'interviewed', label: 'Interview', color: '#3b82f6', light: '#eff6ff', border: '#bfdbfe' },
+  { id: 'hired', label: 'Hired', color: '#8b5cf6', light: '#f5f3ff', border: '#ddd6fe' },
+  { id: 'rejected', label: 'Rejected', color: '#ef4444', light: '#fef2f2', border: '#fecaca' },
 ];
 
 function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProfile, onDelete, isViewer }: any) {
@@ -31,7 +31,7 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
   const style = transform ? { transform: `translate(${transform.x}px,${transform.y}px)`, zIndex: 999, opacity: 0.95 } : undefined;
   const name = application.candidateName || 'Candidate';
   const initials = name.charAt(0).toUpperCase();
-  const avatarColors = ['#6366f1','#10b981','#f59e0b','#3b82f6','#8b5cf6','#ef4444','#06b6d4'];
+  const avatarColors = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4'];
   const avatarColor = avatarColors[name.charCodeAt(0) % avatarColors.length];
   const appliedDate = application.appliedDate || application.createdAt;
 
@@ -53,33 +53,34 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         )}
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
-          <p className="text-xs text-gray-400 truncate">{application.jobTitle || 'Position'}</p>
+          <p className="text-xs text-blue-600 font-medium truncate mt-0.5">
+            {application.jobTitle || 'Position'} {application.jobCode ? `(${application.jobCode})` : ''}
+          </p>
         </div>
       </div>
-      <p className="text-xs text-gray-400 truncate mb-1">{application.candidateEmail}</p>
+      <p className="text-xs text-gray-400 truncate mb-1.5">{application.candidateEmail}</p>
       {appliedDate && (
-        <p className="text-xs text-gray-300 mb-3">
-          {new Date(appliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+        <p className="text-[10px] text-gray-400 font-medium bg-gray-50 inline-block px-1.5 py-0.5 rounded border border-gray-100 mb-3">
+          Applied {new Date(appliedDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
         </p>
       )}
       {/* Action buttons — stop drag propagation */}
-      <div className="flex flex-wrap gap-1" onPointerDown={e => e.stopPropagation()}>
-        <button onClick={() => onViewProfile(application)} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-50">
+      <div className="flex flex-wrap gap-1 mt-1 pt-3 border-t border-gray-50" onPointerDown={e => e.stopPropagation()}>
+        <button onClick={() => onViewProfile(application)} className="text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold px-2 py-1 rounded bg-indigo-50 hover:bg-indigo-100 transition-colors">
           Profile
         </button>
-        <span className="text-gray-300 text-xs">·</span>
-        <button onClick={() => onViewResume(application)} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1.5 py-0.5 rounded hover:bg-blue-50">
+        <button onClick={() => onViewResume(application)} className="text-[11px] text-blue-600 hover:text-blue-800 font-semibold px-2 py-1 rounded bg-blue-50 hover:bg-blue-100 transition-colors">
           Resume
         </button>
         {!isViewer && (<>
-        <span className="text-gray-300 text-xs">·</span>
-        <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
-          Interview
-        </button>
-        <span className="text-gray-300 text-xs">·</span>
-        <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
-          Delete
-        </button>
+          <span className="text-gray-300 text-xs">·</span>
+          <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
+            Interview
+          </button>
+          <span className="text-gray-300 text-xs">·</span>
+          <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
+            Delete
+          </button>
         </>)}
       </div>
     </div>
@@ -150,8 +151,6 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [csvDownloading, setCsvDownloading] = useState(false);
   const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
-  const isViewer = (user?.teamRole === 'Viewer') || false; 
-
   const [confirm, setConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -166,7 +165,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
           if (job?.jobDescription) setJobDescription(job.jobDescription);
           else if (job?.description) setJobDescription(job.description);
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [jobId]);
 
@@ -178,24 +177,14 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       }
       const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`);
       if (!response.ok) throw new Error('Failed to fetch applications');
-      const fetched = await response.json();
-
-      const withDetails = await Promise.all(fetched.map(async (app: any) => {
-        try {
-          const appJobId = app.jobId?.id || app.jobId?._id || app.jobId;
-          if (!appJobId) return { ...app, jobTitle: 'Unknown Position', appliedDate: app.createdAt };
-          const jobRes = await fetch(`${API_ENDPOINTS.JOBS}/${appJobId}`);
-          const jobData = jobRes.ok ? await jobRes.json() : null;
-          return { ...app, jobTitle: jobData?.jobTitle || jobData?.title || 'Unknown Position', appliedDate: app.createdAt };
-        } catch { return { ...app, jobTitle: 'Unknown Position', appliedDate: app.createdAt }; }
-      }));
-
-      setApplications(withDetails);
+      const appsData = await response.json();
+      const apps = appsData.map((app: any) => ({ ...app, appliedDate: app.createdAt }));
+      setApplications(apps);
       setError(null);
 
       // Fetch interview rounds
       const roundsMap: Record<string, any[]> = {};
-      await Promise.all(withDetails.map(async (a: any) => {
+      await Promise.all(apps.map(async (a: any) => {
         const id = a.id || a._id;
         try {
           const r = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/interviews/application/${id}`);
@@ -467,170 +456,161 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
         </div>
       )}
       {!viewingCandidateId && (<>
-      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+        <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
-      <div style={{marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px'}}>
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div className="flex items-center gap-3">
-            <BackButton onClick={() => onNavigate('job-management')} />
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
-              </h1>
-              <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+        <div style={{ marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px' }}>
+          {/* Top bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div className="flex items-center gap-3">
+              <BackButton onClick={() => onNavigate('job-management')} />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
+                </h1>
+                <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Search */}
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search candidate..."
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="text-sm outline-none w-40 placeholder-gray-400"
-              />
-            </div>
-            {applications.length > 0 && (
-              <>
-                <button
-                  onClick={downloadAllResumes}
-                  disabled={bulkDownloading}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
-                >
-                  <FileDown className="w-4 h-4" />
-                  {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
-                </button>
-                <button
-                  onClick={downloadAllApplicationsCSV}
-                  disabled={csvDownloading}
-                  className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
-                >
-                  <FileDown className="w-4 h-4" />
-                  {csvDownloading ? 'Exporting...' : 'Export CSV'}
-                </button>
-                <button
-                  onClick={runAIShortlist}
-                  disabled={aiRunning}
-                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  <Zap className="w-4 h-4 text-yellow-300" />
-                  {aiRunning ? 'Generating AI Preview...' : 'AI Auto-Shortlist'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
-        )}
-
-        {/* Kanban Board */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        {applications.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">📋</div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
-            <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
-            <button onClick={fetchApplications} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
-          </div>
-        ) : (
-          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-            <div className="flex gap-4 overflow-x-auto pb-6" style={{ minHeight: 560 }}>
-              {COLUMNS.map(col => (
-                <KanbanColumn
-                  key={col.id}
-                  col={col}
-                  cards={getColCards(col.id)}
-                  onViewResume={onViewResume}
-                  onScheduleInterview={onScheduleInterview}
-                  onViewProfile={onViewProfile}
-                  onDelete={deleteApplication}
-                  isViewer={isViewer}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Search */}
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
+                <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search candidate..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="text-sm outline-none w-40 placeholder-gray-400"
                 />
-              ))}
+              </div>
+              {applications.length > 0 && (
+                <>
+                  <button
+                    onClick={downloadAllResumes}
+                    disabled={bulkDownloading}
+                    className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <Download className="w-4 h-4" />
+                    {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
+                  </button>
+                  <button
+                    onClick={runAIShortlist}
+                    disabled={aiRunning}
+                    className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    <Zap className="w-4 h-4 text-yellow-300" />
+                    {aiRunning ? 'Generating AI Preview...' : 'AI Auto-Shortlist'}
+                  </button>
+                </>
+              )}
             </div>
-            <DragOverlay>
-              {activeApp ? (
-                <div className="bg-white rounded-xl border-2 border-blue-400 p-3 shadow-2xl w-56 opacity-95">
-                  <p className="text-sm font-semibold text-gray-900">{activeApp.candidateName || 'Candidate'}</p>
-                  <p className="text-xs text-gray-400">{activeApp.jobTitle || 'Position'}</p>
-                </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-        )}
-        </div>{/* end kanban container */}
-      </div>{/* end white container */}
+          </div>
 
-      {aiPreview && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
-            <div className="flex items-center justify-between p-5 border-b">
-              <div className="flex items-center gap-2"><Zap className="w-5 h-5 text-indigo-600" /><h3 className="text-lg font-bold text-gray-900">AI Shortlist Preview</h3></div>
-              <button onClick={() => setAiPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
-            </div>
-            <div className="p-4 bg-indigo-50 border-b text-sm text-indigo-700">
-              {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0,5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length-5} more` : ''}</> : 'No job skills found — using profile completeness'}
-            </div>
-            <div className="overflow-y-auto flex-1 p-4 space-y-2">
-              {aiPreview.map(({ app, score, newStatus }) => (
-                <div key={app.id || app._id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border">
-                  <div><div className="font-medium text-gray-900 text-sm">{app.candidateName}</div><div className="text-xs text-gray-400">{app.candidateEmail}</div></div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right"><div className="text-xs text-gray-500">Score</div><div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div></div>
-                    <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : newStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
-                      {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : newStatus === 'rejected' ? <XCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
-                      {newStatus}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{error}</div>
+          )}
+
+          {/* Kanban Board */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            {applications.length === 0 ? (
+              <div className="text-center py-20">
+                <div className="text-6xl mb-4">📋</div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
+                <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
+                <button onClick={fetchApplications} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
+              </div>
+            ) : (
+              <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+                <div className="flex gap-4 overflow-x-auto pb-6" style={{ minHeight: 560 }}>
+                  {COLUMNS.map(col => (
+                    <KanbanColumn
+                      key={col.id}
+                      col={col}
+                      cards={getColCards(col.id)}
+                      onViewResume={onViewResume}
+                      onScheduleInterview={onScheduleInterview}
+                      onViewProfile={onViewProfile}
+                      onDelete={deleteApplication}
+                    />
+                  ))}
+                </div>
+                <DragOverlay>
+                  {activeApp ? (
+                    <div className="bg-white rounded-xl border-2 border-blue-400 p-3 shadow-2xl w-56 opacity-95">
+                      <p className="text-sm font-semibold text-gray-900">{activeApp.candidateName || 'Candidate'}</p>
+                      <p className="text-xs text-gray-400">{activeApp.jobTitle || 'Position'}</p>
+                    </div>
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </div>{/* end kanban container */}
+        </div>{/* end white container */}
+
+        {aiPreview && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[80vh] flex flex-col shadow-2xl">
+              <div className="flex items-center justify-between p-5 border-b">
+                <div className="flex items-center gap-2"><Zap className="w-5 h-5 text-indigo-600" /><h3 className="text-lg font-bold text-gray-900">AI Shortlist Preview</h3></div>
+                <button onClick={() => setAiPreview(null)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+              <div className="p-4 bg-indigo-50 border-b text-sm text-indigo-700">
+                {jobSkills.length > 0 ? <>Scoring against <strong>{jobSkills.length} skills</strong>: {jobSkills.slice(0, 5).join(', ')}{jobSkills.length > 5 ? ` +${jobSkills.length - 5} more` : ''}</> : 'No job skills found — using profile completeness'}
+              </div>
+              <div className="overflow-y-auto flex-1 p-4 space-y-2">
+                {aiPreview.map(({ app, score, newStatus }) => (
+                  <div key={app.id || app._id} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3 border">
+                    <div><div className="font-medium text-gray-900 text-sm">{app.candidateName}</div><div className="text-xs text-gray-400">{app.candidateEmail}</div></div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-right"><div className="text-xs text-gray-500">Score</div><div className={`font-bold text-sm ${score >= 50 ? 'text-emerald-600' : score >= 30 ? 'text-amber-600' : 'text-red-500'}`}>{score}%</div></div>
+                      <div className={`flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full ${newStatus === 'shortlisted' ? 'bg-emerald-100 text-emerald-700' : newStatus === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {newStatus === 'shortlisted' ? <CheckCircle className="w-3.5 h-3.5" /> : newStatus === 'rejected' ? <XCircle className="w-3.5 h-3.5" /> : <MinusCircle className="w-3.5 h-3.5" />}
+                        {newStatus}
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+              <div className="p-4 border-t flex items-center justify-between gap-3">
+                <div className="text-xs text-gray-500">✅ {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted &nbsp; 🔶 {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed &nbsp; ❌ {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
+                <div className="flex gap-2">
+                  <button onClick={() => setAiPreview(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
+                  <button onClick={confirmAIShortlist} disabled={aiRunning} className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2">
+                    {aiRunning ? <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Applying...</> : 'Confirm & Apply'}
+                  </button>
                 </div>
-              ))}
-            </div>
-            <div className="p-4 border-t flex items-center justify-between gap-3">
-              <div className="text-xs text-gray-500">✅ {aiPreview.filter(p => p.newStatus === 'shortlisted').length} shortlisted &nbsp; 🔶 {aiPreview.filter(p => p.newStatus === 'reviewed').length} reviewed &nbsp; ❌ {aiPreview.filter(p => p.newStatus === 'rejected').length} rejected</div>
-              <div className="flex gap-2">
-                <button onClick={() => setAiPreview(null)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
-                <button onClick={confirmAIShortlist} disabled={aiRunning} className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-60 flex items-center gap-2">
-                  {aiRunning ? <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />Applying...</> : 'Confirm & Apply'}
-                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <ResumeModal
-        applicationId={selectedApplicationId}
-        isOpen={showResumeModal}
-        onClose={() => { setShowResumeModal(false); setSelectedApplicationId(null); setSelectedResumeApp(null); }}
-        resumeUrl={selectedResumeApp?.resumeUrl}
-        candidateName={selectedResumeApp?.candidateName}
-        candidateEmail={selectedResumeApp?.candidateEmail}
-      />
-
-      {showScheduleModal && selectedApplication && (
-        <ScheduleInterviewModal
-          application={selectedApplication}
-          existingRounds={(interviewRounds[selectedApplication._id] || []).map((iv: any) => iv.round)}
-          onClose={() => { setShowScheduleModal(false); setSelectedApplication(null); }}
-          onSuccess={() => fetchApplications()}
+        <ResumeModal
+          applicationId={selectedApplicationId}
+          isOpen={showResumeModal}
+          onClose={() => { setShowResumeModal(false); setSelectedApplicationId(null); setSelectedResumeApp(null); }}
+          resumeUrl={selectedResumeApp?.resumeUrl}
+          candidateName={selectedResumeApp?.candidateName}
+          candidateEmail={selectedResumeApp?.candidateEmail}
         />
-      )}
 
-      <Footer onNavigate={onNavigate} />
+        {showScheduleModal && selectedApplication && (
+          <ScheduleInterviewModal
+            application={selectedApplication}
+            existingRounds={(interviewRounds[selectedApplication._id] || []).map((iv: any) => iv.round)}
+            onClose={() => { setShowScheduleModal(false); setSelectedApplication(null); }}
+            onSuccess={() => fetchApplications()}
+          />
+        )}
 
-      <ConfirmDialog
-        isOpen={confirm.isOpen}
-        title="Delete Application"
-        message="Delete this application? This action cannot be undone."
-        confirmLabel="OK"
-        onConfirm={confirmDelete}
-        onCancel={() => setConfirm({ isOpen: false, id: null })}
-      />
+        <Footer onNavigate={onNavigate} />
+
+        <ConfirmDialog
+          isOpen={confirm.isOpen}
+          title="Delete Application"
+          message="Delete this application? This action cannot be undone."
+          confirmLabel="OK"
+          onConfirm={confirmDelete}
+          onCancel={() => setConfirm({ isOpen: false, id: null })}
+        />
       </>)}
     </div>
   );
