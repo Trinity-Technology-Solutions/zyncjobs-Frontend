@@ -88,7 +88,7 @@ interface Filters {
 
 interface CandidateSearchPageProps {
   onNavigate: (page: string, params?: unknown) => void;
-  user?: { email?: string; id?: string; name?: string; fullName?: string; companyName?: string; company?: string; companyLogo?: string };
+  user?: { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin'; email?: string; id?: string; fullName?: string; companyName?: string; company?: string; companyLogo?: string };
   onLogout?: () => void;
 }
 
@@ -354,7 +354,7 @@ function normaliseCandidate(raw: Record<string, unknown>): Candidate {
 // ─────────────────────────────────────────────────────────────
 
 /** Debounce any value by `delay` ms. */
-function useDebounce<T>(value: T, delay = 300): T {
+function useDebounce<T>(value: T, delay = 150): T {
   const [debounced, setDebounced] = useState<T>(value);
   useEffect(() => {
     const t = setTimeout(() => setDebounced(value), delay);
@@ -414,18 +414,22 @@ function useEmployerJobs(userEmail?: string) {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   useEffect(() => {
-    fetch(String(API_ENDPOINTS.JOBS))
+    apiFetch(String(API_ENDPOINTS.JOBS))
       .then(r => r.ok ? r.json() as Promise<unknown> : Promise.resolve([]))
       .then(data => {
         const all: Job[] = Array.isArray(data) ? data as Job[] : ((data as Record<string, unknown>).jobs ?? []) as Job[];
-        if (!userEmail) { setJobs(all); if (all[0]) setSelectedJob(all[0]); return; }
-        const email = userEmail.toLowerCase();
-        const mine = all.filter(j =>
-          [j.postedBy, j.employerEmail, j.createdBy, j.userId].some(f => f?.toLowerCase() === email)
-        );
-        const use = mine.length > 0 ? mine : all;
+        let use: Job[];
+        if (!userEmail) {
+          use = all;
+        } else {
+          const email = userEmail.toLowerCase();
+          const mine = all.filter(j =>
+            [j.postedBy, j.employerEmail, j.createdBy, j.userId].some(f => f?.toLowerCase() === email)
+          );
+          use = mine.length > 0 ? mine : all;
+        }
         setJobs(use);
-        if (use[0]) setSelectedJob(use[0]);
+        setSelectedJob(prev => prev && use.some(j => j._id === prev._id) ? prev : (use[0] ?? null));
       })
       .catch(() => { });
   }, [userEmail]);
@@ -602,6 +606,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [sortBy, setSortBy] = useState<'ai_score' | 'name' | 'skills'>('ai_score');
   const [showJobDropdown, setShowJobDropdown] = useState(false);
   const [openContactMenu, setOpenContactMenu] = useState<string | null>(null);
+  const debouncing = filters.search !== dSearch || filters.booleanQuery !== dBoolean;
 
   // Close contact menu on outside click
   useEffect(() => {
@@ -813,11 +818,14 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
 
   // ── Tag helpers ────────────────────────────────────────────
   const addTag = (key: 'skills' | 'locations' | 'designations' | 'exCompanies', val: string) => {
-    if (!val || filters[key].includes(val)) return;
-    set(key, [...filters[key], val]);
+    if (!val) return;
+    setFilters(prev => {
+      if (prev[key].includes(val)) return prev;
+      return { ...prev, [key]: [...prev[key], val] };
+    });
   };
   const removeTag = (key: 'skills' | 'locations' | 'designations' | 'exCompanies', i: number) =>
-    set(key, filters[key].filter((_, idx) => idx !== i));
+    setFilters(prev => ({ ...prev, [key]: prev[key].filter((_, idx) => idx !== i) }));
 
   // ─────────────────────────────────────────────────────────────
   // Render
@@ -1130,6 +1138,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
               {filters.search && <span className="text-gray-500"> matching "{filters.search}"</span>}
               {filters.skills.length > 0 && <span className="text-gray-500"> with {filters.skills.join(', ')}</span>}
               {filters.locations.length > 0 && <span className="text-gray-500"> in {filters.locations.join(', ')}</span>}
+              {debouncing && <span className="inline-flex items-center gap-1 ml-2 text-amber-500 text-xs"><span className="animate-spin rounded-full h-3 w-3 border-b-2 border-amber-500" />updating…</span>}
             </div>
           }
         </div>
