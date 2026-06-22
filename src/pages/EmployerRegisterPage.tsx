@@ -7,6 +7,7 @@ import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
 import { generateEmployerId } from '../utils/employerIdUtils';
 import { EnhancedCompanyVerificationService as CompanyVerificationService, type DomainVerificationResult, type CompanyProfile } from '../services/enhancedCompanyVerificationService';
+import { updateUserInStorage } from '../utils/userStorage';
 
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
   const existingToast = document.getElementById('toast');
@@ -503,7 +504,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                               domainVerification,
                               companyProfile: selectedCompanyProfile
                             });
-                            if (response.user) localStorage.setItem('user', JSON.stringify(response.user));
+                            if (response.user) updateUserInStorage(response.user);
                             sessionStorage.setItem('isFirstVisitAfterRegistration', 'true');
                             setSuccess('Registered as team member! Redirecting...');
                             setTimeout(() => onNavigate('dashboard'), 1500);

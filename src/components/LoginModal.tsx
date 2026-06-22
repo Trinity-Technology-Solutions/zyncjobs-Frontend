@@ -3,6 +3,7 @@ import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import { LoadingButton, FormLoading } from './LoadingStates';
+import { updateUserInStorage } from '../utils/userStorage';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -91,7 +92,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       }
       
       // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify(response.user));
+      updateUserInStorage(response.user);
       
       // Use consistent name from backend - prioritize name field, fallback to fullName or email
       const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
