@@ -73,10 +73,10 @@ const CandidateRanking: React.FC<CandidateRankingProps> = ({
                   <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
                     #{index + 1}
                   </span>
-                  <div>
-                    <h3 className="font-medium text-gray-900">{candidate.resume.profile.name}</h3>
-                    <p className="text-sm text-gray-600">{candidate.fileName}</p>
-                  </div>
+                    <div>
+                     <h3 className="font-medium text-gray-900">{candidate.resume?.profile?.name || 'Unknown'}</h3>
+                     <p className="text-sm text-gray-600">{candidate.fileName}</p>
+                   </div>
                 </div>
               </div>
 
@@ -104,20 +104,20 @@ const CandidateRanking: React.FC<CandidateRankingProps> = ({
 
             {/* Quick Info */}
             <div className="mt-3 flex flex-wrap gap-2">
-              <span className="text-sm text-gray-600">📍 {candidate.resume.profile.location}</span>
-              <span className="text-sm text-gray-600">💼 {candidate.resume.workExperiences[0]?.jobTitle}</span>
-              <span className="text-sm text-gray-600">🎓 {candidate.resume.educations[0]?.degree}</span>
+              <span className="text-sm text-gray-600">📍 {candidate.resume?.profile?.location || 'N/A'}</span>
+              <span className="text-sm text-gray-600">💼 {candidate.resume?.workExperiences?.[0]?.jobTitle || 'N/A'}</span>
+              <span className="text-sm text-gray-600">🎓 {candidate.resume?.educations?.[0]?.degree || 'N/A'}</span>
             </div>
 
             {/* Skills Preview */}
             <div className="mt-2 flex flex-wrap gap-1">
-              {candidate.resume.skills.featuredSkills.slice(0, 4).map((skill: any, idx: number) => (
+              {candidate.resume?.skills?.featuredSkills?.slice(0, 4).map((skill: any, idx: number) => (
                 <span key={idx} className="bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs">
                   {skill.skill}
                 </span>
               ))}
-              {candidate.resume.skills.featuredSkills.length > 4 && (
-                <span className="text-xs text-gray-500">+{candidate.resume.skills.featuredSkills.length - 4} more</span>
+              {(candidate.resume?.skills?.featuredSkills?.length ?? 0) > 4 && (
+                <span className="text-xs text-gray-500">+{(candidate.resume?.skills?.featuredSkills?.length ?? 0) - 4} more</span>
               )}
             </div>
           </div>
