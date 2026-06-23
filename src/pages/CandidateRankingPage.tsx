@@ -10,236 +10,126 @@ import {
   Users, 
   Star, 
   AlertCircle,
+  HelpCircle,
   Mail,
   MapPin,
-  ChevronLeft,
-  Settings,
-  LogOut
+  Calendar
 } from 'lucide-react';
 
-// Static constants and fallback configs to guarantee the component compiles in any workspace
 const API_ENDPOINTS = {
-  BASE_URL: 'https://api.zyncjobs.local/v1',
-  APPLICATIONS: 'https://api.zyncjobs.local/v1/applications',
-  USERS: 'https://api.zyncjobs.local/v1/users',
+  BASE_URL: '/api',
+  APPLICATIONS: '/api/applications',
+  USERS: '/api/users'
 };
 
-const MOCK_JOBS = [
-  { _id: 'job-101', jobTitle: 'Lead React Developer', location: 'Remote, US', companyName: 'Trinity Technology Solutions' },
-  { _id: 'job-102', jobTitle: 'Senior Full-Stack Engineer', location: 'Hybrid, Chennai', companyName: 'Trinity Technology Solutions' },
-  { _id: 'job-103', jobTitle: 'UI/UX & Frontend Designer', location: 'Onsite, Chennai', companyName: 'Trinity Technology Solutions' }
-];
-
-const MOCK_APPLICATIONS = [
-  {
-    _id: 'app-001',
-    candidateUserId: 'user-001',
-    candidateName: 'Anthony George Agil',
-    candidateEmail: 'anthony.agil@example.com',
-    jobId: 'job-101',
-    status: 'shortlisted',
-    candidateSkills: ['React', 'TypeScript', 'Tailwind CSS', 'Redux', 'Node.js', 'AWS'],
-    candidateExperience: '5 Years',
-    candidateEducation: 'B.E. Computer Science',
-    candidateLocation: 'Chennai, India',
-    candidateProfilePicture: '',
-    resumeUrl: 'https://zyncjobs-resumes.s3.amazonaws.com/anthony_resume.pdf',
-    createdAt: '2026-06-15T09:30:00.000Z'
-  },
-  {
-    _id: 'app-002',
-    candidateUserId: 'user-002',
-    candidateName: 'Mutheeswaran S',
-    candidateEmail: 'mutheeswaran@example.com',
-    jobId: 'job-101',
-    status: 'interviewed',
-    candidateSkills: ['React', 'JavaScript', 'CSS3', 'HTML5', 'Git', 'REST APIs'],
-    candidateExperience: '3 Years',
-    candidateEducation: 'B.Tech Information Technology',
-    candidateLocation: 'Remote',
-    candidateProfilePicture: '',
-    resumeUrl: 'https://zyncjobs-resumes.s3.amazonaws.com/mutheeswaran_resume.pdf',
-    createdAt: '2026-06-16T11:15:00.000Z'
-  },
-  {
-    _id: 'app-003',
-    candidateUserId: 'user-003',
-    candidateName: 'Sarah Connor',
-    candidateEmail: 'sarah.connor@example.com',
-    jobId: 'job-102',
-    status: 'hired',
-    candidateSkills: ['Node.js', 'Express', 'MongoDB', 'React', 'Docker', 'Python'],
-    candidateExperience: '6 Years',
-    candidateEducation: 'M.S. Software Engineering',
-    candidateLocation: 'Hybrid, Chennai',
-    candidateProfilePicture: '',
-    resumeUrl: 'https://zyncjobs-resumes.s3.amazonaws.com/sarah_resume.pdf',
-    createdAt: '2026-06-10T14:20:00.000Z'
-  },
-  {
-    _id: 'app-004',
-    candidateUserId: 'user-004',
-    candidateName: 'John Doe',
-    candidateEmail: 'john.doe@example.com',
-    jobId: 'job-102',
-    status: 'not_scheduled',
-    candidateSkills: ['React', 'Node.js', 'JavaScript'],
-    candidateExperience: '2 Years',
-    candidateEducation: 'B.Sc Computer Science',
-    candidateLocation: 'Chennai, India',
-    candidateProfilePicture: '',
-    resumeUrl: '',
-    createdAt: '2026-06-18T08:00:00.000Z'
-  },
-  {
-    _id: 'app-005',
-    candidateUserId: 'user-005',
-    candidateName: 'Emily Watson',
-    candidateEmail: 'emily.w@example.com',
-    jobId: 'job-103',
-    status: 'shortlisted',
-    candidateSkills: ['Figma', 'UI/UX Design', 'Tailwind CSS', 'HTML5', 'Responsive Design'],
-    candidateExperience: '4 Years',
-    candidateEducation: 'B.Des Graphic Design',
-    candidateLocation: 'Onsite, Chennai',
-    candidateProfilePicture: '',
-    resumeUrl: 'https://zyncjobs-resumes.s3.amazonaws.com/emily_portfolio.pdf',
-    createdAt: '2026-06-19T10:45:00.000Z'
-  }
-];
-
-const toCloudFrontUrl = (url: string): string => {
-  if (!url) return '';
-  return url.replace('zyncjobs-resumes.s3.amazonaws.com', 'cdn.zyncjobs.com');
-};
-
-const getEffectiveEmployerEmail = (): string => {
-  return "employer@trinitytech.com";
-};
-
-const extractSkillsFromText = (text: string): string[] => {
-  const targetSkills = ['React', 'TypeScript', 'Tailwind CSS', 'Node.js', 'Express', 'MongoDB', 'AWS', 'Docker', 'Figma', 'UI/UX Design'];
-  return targetSkills.filter(skill => text.toLowerCase().includes(skill.toLowerCase()));
-};
-
-const computeMatchScore = (skills: string[], title: string, location: string, job: any) => {
-  let score = 40; // baseline score
-  const explanation: string[] = [];
-
-  if (skills.length > 0) {
-    const matchingSkills = skills.filter(s => 
-      (job.jobTitle || '').toLowerCase().includes(s.toLowerCase()) || 
-      ['React', 'TypeScript', 'Tailwind CSS', 'Node.js', 'Figma'].some(core => s.toLowerCase() === core.toLowerCase())
-    );
-    score += Math.min(matchingSkills.length * 10, 40);
-    if (matchingSkills.length > 0) {
-      explanation.push(`Matched ${matchingSkills.length} key technical skill(s)`);
-    }
-  }
-
-  if (title && job.jobTitle) {
-    const isSimilarTitle = title.toLowerCase().includes('developer') && job.jobTitle.toLowerCase().includes('developer') ||
-                          title.toLowerCase().includes('engineer') && job.jobTitle.toLowerCase().includes('engineer') ||
-                          title.toLowerCase().includes('design') && job.jobTitle.toLowerCase().includes('design');
-    if (isSimilarTitle) {
-      score += 15;
-      explanation.push('Strong background role matching');
-    }
-  }
-
-  if (location && job.location && location.toLowerCase().includes(job.location.toLowerCase())) {
-    score += 5;
-    explanation.push('Location alignment confirmed');
-  }
-
-  return {
-    overall: Math.min(score, 100),
-    explanation: explanation.length > 0 ? explanation : ['Candidate meets baseline requirements']
-  };
-};
-
-const readPdf = async (url: string): Promise<any[]> => {
-  // Simulated PDF parser returning sample parsed blocks
-  return [
-    { text: "Highly motivated Software Engineer specializing in React, TypeScript, and modern Tailwind CSS configurations." }
-  ];
-};
-
-const scoreColor = (s: number) => s >= 80 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : s >= 60 ? 'text-blue-600 bg-blue-50 border-blue-200' : s >= 40 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-500 bg-red-50 border-red-200';
-const barColor = (s: number) => s >= 80 ? 'bg-emerald-500' : s >= 60 ? 'bg-blue-500' : s >= 40 ? 'bg-amber-500' : 'bg-red-400';
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
-  not_scheduled: { label: 'Pending', color: 'text-gray-500 bg-gray-100', dot: 'bg-gray-400' },
-  scheduled:     { label: 'Scheduled', color: 'text-blue-600 bg-blue-50', dot: 'bg-blue-500' },
-  completed:     { label: 'Interviewed', color: 'text-violet-600 bg-violet-50', dot: 'bg-violet-500' },
-  hired:         { label: 'Hired', color: 'text-emerald-600 bg-emerald-50', dot: 'bg-emerald-500' },
-  rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
-};
-
-const skillsCache: Record<string, string[]> = {};
-
-async function resolveSkills(app: any): Promise<string[]> {
-  const cacheKey = app._id || app.id || app.candidateEmail || '';
-  if (cacheKey && skillsCache[cacheKey]) {
-    return skillsCache[cacheKey];
-  }
-
-  const profileSkills: string[] =
-    Array.isArray(app?.candidateSkills) && app.candidateSkills.length > 0 ? app.candidateSkills :
-    Array.isArray(app?.skills) && app.skills.length > 0 ? app.skills : [];
-
-  if (profileSkills.length > 0) {
-    if (cacheKey) skillsCache[cacheKey] = profileSkills;
-    return profileSkills;
-  }
-
-  const resumeUrl = app?.resumeUrl || app?.resume?.url || app?.resume?.fileUrl || '';
-  if (!resumeUrl) return [];
-
+function getEffectiveEmployerEmail(): string {
   try {
-    const cfUrl = toCloudFrontUrl(resumeUrl);
-    const textItems = await readPdf(cfUrl);
-    const resumeText = textItems.map((t: any) => t.text).join(' ');
-    const extracted = extractSkillsFromText(resumeText);
-    
-    if (cacheKey && extracted.length > 0) {
-      skillsCache[cacheKey] = extracted;
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      const parsed = JSON.parse(savedUser);
+      return parsed.email || 'employer@trinitytech.com';
     }
-    return extracted;
-  } catch (err) {
-    console.error("Failed to parse fallback PDF resume skills:", err);
-    return [];
-  }
+  } catch (e) {}
+  return 'employer@trinitytech.com';
 }
 
-const Header: React.FC<{ onNavigate?: (page: string) => void, user?: any }> = ({ onNavigate, user }) => {
+function toCdnUrl(url: string): string {
+  if (!url) return '';
+  return url.replace('s3.amazonaws.com', 'cloudfront.net');
+}
+
+function extractSkillsFromText(text: string): string[] {
+  if (!text) return [];
+  const programmingSkills = [
+    'React', 'Node.js', 'TypeScript', 'JavaScript', 'Python', 'Java', 
+    'C++', 'AWS', 'Docker', 'Kubernetes', 'MongoDB', 'PostgreSQL', 
+    'SQL', 'Tailwind CSS', 'Next.js', 'Express', 'Git', 'CI/CD'
+  ];
+  return programmingSkills.filter(skill => 
+    new RegExp(`\\b${skill}\\b`, 'i').test(text)
+  );
+}
+
+interface MatchScoreBreakdown {
+  overall: number;
+  explanation: string[];
+}
+
+// FIX: job typed as `any` to allow both `jobTitle` and optional `title`
+function computeMatchScore(
+  skills: string[], 
+  candidateTitle: string, 
+  location: string, 
+  job: any
+): MatchScoreBreakdown {
+  let score = 50;
+  const explanation: string[] = [];
+
+  const jobTitle = job?.jobTitle || job?.title || '';
+  const requiredSkills = Array.isArray(job?.skills) ? job.skills : [];
+
+  if (candidateTitle && jobTitle) {
+    if (candidateTitle.toLowerCase() === jobTitle.toLowerCase()) {
+      score += 20;
+      explanation.push('Exact Job Title match');
+    } else if (
+      candidateTitle.toLowerCase().includes(jobTitle.toLowerCase()) || 
+      jobTitle.toLowerCase().includes(candidateTitle.toLowerCase())
+    ) {
+      score += 10;
+      explanation.push('Related Job Title match');
+    }
+  }
+
+  if (skills.length > 0 && requiredSkills.length > 0) {
+    const matchingSkills = skills.filter(s => 
+      requiredSkills.some((req: string) => req.toLowerCase() === s.toLowerCase())
+    );
+    if (matchingSkills.length > 0) {
+      const percentage = Math.round((matchingSkills.length / requiredSkills.length) * 30);
+      score += percentage;
+      explanation.push(`Matched ${matchingSkills.length} required skills`);
+    }
+  } else if (skills.length > 0) {
+    score += 15;
+    explanation.push('Matches industry-standard skills');
+  }
+
+  score = Math.min(Math.max(score, 0), 100);
+
+  return {
+    overall: score,
+    explanation: explanation.length > 0 ? explanation : ['Candidate meets general core benchmarks']
+  };
+}
+
+async function readPdf(url: string): Promise<Array<{ text: string }>> {
+  console.log('Mock parsing resume PDF from URL:', url);
+  return [
+    { text: 'Experienced Developer skilled in React, Node.js, and TypeScript.' }
+  ];
+}
+
+const Header: React.FC<{ onNavigate?: (page: string) => void; user?: any }> = ({ onNavigate, user }) => {
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-8">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate?.('dashboard')}>
-            <div className="bg-blue-600 text-white p-2 rounded-lg font-black text-xl tracking-tight shadow-md flex items-center justify-center w-10 h-10">
-              Z
-            </div>
-            <span className="font-bold text-xl text-slate-800 tracking-tight">ZYNC<span className="text-blue-600">JOBS</span></span>
+    <header className="bg-slate-900 border-b border-slate-800 text-white px-6 py-4 shadow-md">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate?.('dashboard')}>
+          <div className="font-black tracking-wider text-xl flex items-center gap-1 text-blue-400">
+            ZYNC<span className="text-white px-1.5 py-0.5 bg-blue-600 rounded text-sm">JOBS</span>
           </div>
-          <nav className="hidden md:flex items-center gap-6">
-            <button onClick={() => onNavigate?.('dashboard')} className="text-gray-600 hover:text-blue-600 font-medium text-sm transition-colors">Candidate Search</button>
-            <button className="text-gray-600 hover:text-blue-600 font-medium text-sm transition-colors">Companies</button>
-            <button className="text-gray-600 hover:text-blue-600 font-medium text-sm transition-colors">Posted Jobs</button>
-            <button className="text-gray-600 hover:text-blue-600 font-medium text-sm transition-colors">Job Posting</button>
-          </nav>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-gray-800">{user?.name || "Mutheeswaran"}</p>
-              <p className="text-xs text-gray-400">Trinity Technology</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold ring-2 ring-blue-100 shadow-sm">
-              {user?.name ? user.name.charAt(0).toUpperCase() : 'M'}
-            </div>
+        <div className="flex items-center gap-6 text-sm text-slate-300">
+          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('candidates')}>Candidate Search</span>
+          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('companies')}>Companies</span>
+          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('posted-jobs')}>Posted Jobs</span>
+          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('job-posting')}>Job Posting</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
+            {user?.name ? user.name.charAt(0).toUpperCase() : 'M'}
           </div>
+          <span className="text-sm font-semibold text-slate-200">{user?.name || 'Mutheeswaran'}</span>
         </div>
       </div>
     </header>
@@ -248,46 +138,46 @@ const Header: React.FC<{ onNavigate?: (page: string) => void, user?: any }> = ({
 
 const Footer: React.FC<{ onNavigate?: (page: string) => void }> = ({ onNavigate }) => {
   return (
-    <footer className="bg-slate-900 text-slate-400 py-12 mt-20 border-t border-slate-800">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-8">
-        <div>
-          <div className="flex items-center gap-2 mb-4">
-            <div className="bg-blue-600 text-white px-2.5 py-1 rounded-lg font-black text-lg">Z</div>
-            <span className="font-bold text-lg text-white">ZYNC<span className="text-blue-500">JOBS</span></span>
-          </div>
-          <p className="text-xs text-slate-500">AI-powered enterprise recruitment matching engines.</p>
+    <footer className="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 px-6">
+      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
+        <p>© 2026 ZYNC JOBS Inc. All rights reserved.</p>
+        <div className="flex gap-6">
+          <span className="hover:text-white cursor-pointer">Terms of Service</span>
+          <span className="hover:text-white cursor-pointer">Privacy Policy</span>
+          <span className="hover:text-white cursor-pointer">Support Helpdesk</span>
         </div>
-        <div>
-          <h4 className="text-sm font-semibold text-slate-200 mb-4">For Employers</h4>
-          <ul className="space-y-2 text-xs">
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Candidate Search</a></li>
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Leaderboard Scoring</a></li>
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Integrations</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-sm font-semibold text-slate-200 mb-4">Resources</h4>
-          <ul className="space-y-2 text-xs">
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Hiring Blog</a></li>
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Documentation</a></li>
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Support center</a></li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-sm font-semibold text-slate-200 mb-4">Company</h4>
-          <ul className="space-y-2 text-xs">
-            <li><a href="#" className="hover:text-blue-400 transition-colors">About Us</a></li>
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Privacy Policy</a></li>
-            <li><a href="#" className="hover:text-blue-400 transition-colors">Terms of service</a></li>
-          </ul>
-        </div>
-      </div>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-slate-800 text-center text-xs text-slate-600">
-        © 2026 ZyncJobs Inc. All rights reserved. Registered Trademark.
       </div>
     </footer>
   );
 };
+
+// FIX: Added `title?` as an optional field so TypeScript accepts `j.title` accesses
+interface Job {
+  _id: string;
+  id: string;
+  jobTitle: string;
+  title?: string;
+  skills: string[];
+}
+
+const MOCK_JOBS: Job[] = [
+  { _id: 'job-1', id: 'job-1', jobTitle: 'Full Stack Engineer', skills: ['React', 'Node.js', 'TypeScript', 'PostgreSQL'] },
+  { _id: 'job-2', id: 'job-2', jobTitle: 'Frontend Developer', skills: ['React', 'JavaScript', 'Tailwind CSS'] },
+  { _id: 'job-3', id: 'job-3', jobTitle: 'Backend Engineer', skills: ['Node.js', 'Python', 'AWS', 'Kubernetes'] }
+];
+
+const MOCK_APPLICATIONS = [
+  { _id: 'app-1', id: 'app-1', jobId: 'job-1', candidateEmail: 'anthony.george@gmail.com', candidateName: 'Anthony George Agil', status: 'shortlisted', skills: ['React', 'Node.js', 'TypeScript', 'JavaScript'], candidateJobTitle: 'Full Stack Engineer', candidateLocation: 'Remote', resumeUrl: 'resume1.pdf' },
+  { _id: 'app-2', id: 'app-2', jobId: 'job-1', candidateEmail: 'muthee@trinitytech.com', candidateName: 'Mutheeswaran S', status: 'interviewed', skills: ['React', 'JavaScript', 'Node.js'], candidateJobTitle: 'Software Engineer', candidateLocation: 'Chennai', resumeUrl: 'resume2.pdf' },
+  { _id: 'app-3', id: 'app-3', jobId: 'job-2', candidateEmail: 'alice.johnson@dev.com', candidateName: 'Alice Johnson', status: 'hired', skills: ['React', 'JavaScript', 'Tailwind CSS'], candidateJobTitle: 'Frontend Engineer', candidateLocation: 'Bangalore' },
+  { _id: 'app-4', id: 'app-4', jobId: 'job-2', candidateEmail: 'bob.builder@infra.net', candidateName: 'Bob Builder', status: 'rejected', skills: ['TypeScript', 'Kubernetes', 'AWS'], candidateJobTitle: 'DevOps Specialist', candidateLocation: 'Remote' },
+  { _id: 'app-5', id: 'app-5', jobId: 'job-3', candidateEmail: 'carol.danvers@space.org', candidateName: 'Carol Danvers', status: 'shortlisted', skills: ['Python', 'AWS', 'Kubernetes', 'Docker'], candidateJobTitle: 'Backend Architect', candidateLocation: 'Remote' }
+];
+
+interface CandidateRankingPageProps {
+  onNavigate?: (page: string, data?: any) => void;
+  user?: any;
+}
 
 interface RankedCandidate {
   id: string;
@@ -302,28 +192,33 @@ interface RankedCandidate {
   education: string;
   interviewStatus: 'not_scheduled' | 'scheduled' | 'completed' | 'hired' | 'rejected';
   appliedAt: string;
-  profilePicture: string;
+  profilePicture?: string;
   matchReasons: string[];
 }
 
-interface CandidateRankingPageProps {
-  onNavigate?: (page: string) => void;
-  user?: any;
-}
+const scoreColor = (s: number) => s >= 80 ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : s >= 60 ? 'text-blue-600 bg-blue-50 border-blue-200' : s >= 40 ? 'text-amber-600 bg-amber-50 border-amber-200' : 'text-red-500 bg-red-50 border-red-200';
+const barColor = (s: number) => s >= 80 ? 'bg-emerald-500' : s >= 60 ? 'bg-blue-500' : s >= 40 ? 'bg-amber-500' : 'bg-red-400';
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
+  not_scheduled: { label: 'Pending', color: 'text-gray-500 bg-gray-100', dot: 'bg-gray-400' },
+  scheduled:     { label: 'Scheduled', color: 'text-blue-600 bg-blue-50', dot: 'bg-blue-500' },
+  completed:     { label: 'Interviewed', color: 'text-violet-600 bg-violet-50', dot: 'bg-violet-500' },
+  hired:         { label: 'Hired', color: 'text-emerald-600 bg-emerald-50', dot: 'bg-emerald-500' },
+  rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
+};
+
+const skillsCache: Record<string, string[]> = {};
 
 const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate, user }) => {
-  const [jobs, setJobs] = useState<any[]>([]);
+  // FIX: typed as Job[] so `j.title` is valid via the optional field above
+  const [jobs, setJobs] = useState<Job[]>(MOCK_JOBS);
   const [rankedCandidates, setRankedCandidates] = useState<RankedCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedJob, setSelectedJob] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  
-  // Set default sorting mode directly to 'score' so the leaderboard opens sorted by score first
   const [sortBy, setSortBy] = useState<'rank' | 'score' | 'name'>('score');
-
-  const activeUser = user || { name: 'Mutheeswaran', email: 'employer@trinitytech.com' };
 
   useEffect(() => { 
     fetchData(); 
@@ -333,11 +228,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
     setLoading(true);
     setError(null);
     try {
-      // Fetching is wrapped inside a safe sandbox with beautiful local state fallback to guarantee runtime execution
       const userEmail = getEffectiveEmployerEmail();
       
-      let allJobs: any[] = [];
-      let allApps: any[] = [];
+      let allJobs: Job[] = MOCK_JOBS;
+      let allApps = MOCK_APPLICATIONS;
 
       try {
         const [jobsRes, appsRes] = await Promise.all([
@@ -345,19 +239,13 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
         ]);
 
-        if (jobsRes.ok && appsRes.ok) {
-          allJobs = await jobsRes.json();
+        if (jobsRes.ok) allJobs = await jobsRes.json();
+        if (appsRes.ok) {
           const appsData = await appsRes.json();
-          allApps = appsData.applications || appsData || [];
-        } else {
-          // If connection is refused/not set up on localhost, gracefully fallback to Mock Datasets
-          allJobs = MOCK_JOBS;
-          allApps = MOCK_APPLICATIONS;
+          allApps = appsData.applications || appsData || MOCK_APPLICATIONS;
         }
       } catch (networkError) {
-        console.warn("Network unreachable, loading secure locally compiled demo states...");
-        allJobs = MOCK_JOBS;
-        allApps = MOCK_APPLICATIONS;
+        console.warn('Network endpoints unavailable, compiling in-memory mock datasets.');
       }
       
       setJobs(allJobs);
@@ -367,12 +255,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           const id = app.candidateId || app.userId || app.candidateUserId;
           let profile: any = null;
 
-          try {
-            if (id) { 
-              const r = await fetch(`${API_ENDPOINTS.USERS}/${id}`); 
-              if (r.ok) profile = await r.json(); 
-            }
-          } catch (err) { /* silent fallback */ }
+          if (id) { 
+            const r = await fetch(`${API_ENDPOINTS.USERS}/${id}`); 
+            if (r.ok) profile = await r.json(); 
+          }
 
           const merged = profile ? {
             ...app,
@@ -386,7 +272,24 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
             resumeUrl: app.resumeUrl || profile.resumeUrl || '',
           } : app;
 
-          const resolvedSkillsList = await resolveSkills(merged);
+          const cacheKey = merged._id || merged.id || merged.candidateEmail || '';
+          let resolvedSkillsList = merged.candidateSkills || [];
+
+          if (cacheKey && skillsCache[cacheKey]) {
+            resolvedSkillsList = skillsCache[cacheKey];
+          } else if (!resolvedSkillsList || resolvedSkillsList.length === 0) {
+            const resumeUrl = merged?.resumeUrl || '';
+            if (resumeUrl) {
+              const cfUrl = toCdnUrl(resumeUrl);
+              const textItems = await readPdf(cfUrl);
+              const resumeText = textItems.map((t: any) => t.text).join(' ');
+              resolvedSkillsList = extractSkillsFromText(resumeText);
+              if (cacheKey && resolvedSkillsList.length > 0) {
+                skillsCache[cacheKey] = resolvedSkillsList;
+              }
+            }
+          }
+
           return { ...merged, candidateSkills: resolvedSkillsList };
         } catch (singleItemError) {
           console.warn("Skipped profile enrichment for single applicant due to error:", singleItemError);
@@ -395,7 +298,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
       }));
 
       const scored: RankedCandidate[] = enriched.map((app: any) => {
-        const job = allJobs.find((j: any) => String(j._id || j.id) === String(app.jobId?._id || app.jobId?.id || app.jobId));
+        // FIX: compare against both _id/id fields safely
+        const job = allJobs.find((j: Job) => 
+          String(j._id || j.id) === String(app.jobId?._id || app.jobId?.id || app.jobId)
+        );
         const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
         const title = app.candidateJobTitle || app.jobTitle || job?.jobTitle || '';
         const location = app.candidateLocation || app.location || '';
@@ -410,6 +316,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           email: app.candidateEmail || '', 
           rank: 0, 
           score: breakdown.overall || 0, 
+          // FIX: use `job?.title` safely now that `title?` is declared on Job
           jobTitle: app.jobTitle || job?.jobTitle || job?.title || 'Position', 
           jobId: String(app.jobId?._id || app.jobId?.id || app.jobId || ''), 
           skills, 
@@ -455,14 +362,13 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
     const sz = size === 'lg' ? 'w-14 h-14 text-xl' : size === 'sm' ? 'w-8 h-8 text-sm' : 'w-11 h-11 text-base';
     return photo
       ? <img src={photo} alt={name} className={`${sz} rounded-full object-cover flex-shrink-0 ring-2 ring-white shadow`} />
-      : <div className={`${sz} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0 ring-2 ring-white shadow`}>{name.charAt(0).toUpperCase()}</div>;
+      : <div className={`${sz} rounded-full bg-gradient-to-br from-blue-500 to-violet-600 flex items-center justify-center text-white font-bold flex-shrink-0 ring-2 ring-white shadow`}>{name.charAt(0).toUpperCase()}</div>;
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
-      <Header onNavigate={onNavigate} user={activeUser} />
+    <div className="min-h-screen bg-slate-50">
+      <Header onNavigate={onNavigate} user={user} />
 
-      {/* Hero Header */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -472,7 +378,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                 aria-label="Go back"
                 className="inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/15 hover:bg-white/25 text-white shadow-sm hover:shadow-md transition-all backdrop-blur-sm"
               >
-                <ChevronLeft className="w-5 h-5 text-white" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12" />
+                  <polyline points="12 19 5 12 12 5" />
+                </svg>
               </button>
               <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
                 <Trophy className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
@@ -491,7 +400,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
         
-        {/* Error Notification */}
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl mb-6 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 flex-shrink-0" />
@@ -500,7 +408,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           </div>
         )}
 
-        {/* Stats Dashboard */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
           {[
             { label: 'Total Applicants', value: rankedCandidates.length, color: 'text-slate-700', icon: Users, bg: 'bg-slate-100' },
@@ -523,7 +430,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           })}
         </div>
 
-        {}
         {top3.length > 0 && !loading && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
             <div className="flex items-center gap-2 mb-5">
@@ -555,8 +461,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           </div>
         )}
 
-        {}
-        {/* Search & Select Filters */}
         <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-3 sm:p-4 mb-4 space-y-3">
           <div className="flex items-center gap-2 bg-slate-50 border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2">
             <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
@@ -565,6 +469,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
               <option value="all">All Jobs</option>
+              {/* FIX: `j.jobTitle || j.title` is now valid — `title?` is declared on Job */}
               {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{j.jobTitle || j.title}</option>)}
             </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
@@ -575,8 +480,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
               <option value="hired">Hired</option>
               <option value="rejected">Rejected</option>
             </select>
-            
-            {/* Bound dynamically to default 'score' state. Ordered 'Sort by Score' first in the select nodes. */}
             <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
               <option value="score">Sort by Score</option>
               <option value="rank">Sort by Rank</option>
@@ -588,8 +491,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           </div>
         </div>
 
-        {}
-        {/* Loading Spinner / Dynamic Table List */}
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-gray-100">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mb-4" />
@@ -609,24 +510,15 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
               return (
                 <div key={c.id} className={`bg-white rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 hover:shadow-md transition-all ${isTop && c.rank === 1 ? 'border-yellow-200' : 'border-gray-100'}`}>
                   <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
-
-                    {/* Mobile: Rank and Avatar layout */}
                     <div className="flex items-center gap-3 sm:gap-4 w-full sm:w-auto">
-                      {/* Ranking Badge */}
                       <div className={`w-8 sm:w-10 h-8 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 ${c.rank === 1 ? 'bg-yellow-400 text-yellow-900' : c.rank === 2 ? 'bg-gray-200 text-gray-700' : c.rank === 3 ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-600'}`}>
                         #{c.rank}
                       </div>
-
-                      {/* Photo Avatar */}
                       <Avatar name={c.name} photo={c.profilePicture} />
-
-                      {/* Mobile Fit Score */}
                       <div className="ml-auto sm:hidden">
                         <div className={`text-lg font-bold px-2 py-1 rounded-lg border ${scoreColor(c.score)}`}>{c.score}%</div>
                       </div>
                     </div>
-
-                    {/* Meta Info */}
                     <div className="flex-1 min-w-0 w-full">
                       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
                         <div className="min-w-0">
@@ -637,8 +529,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                             <span className="text-xs text-blue-600 font-medium truncate">{c.jobTitle}</span>
                           </div>
                         </div>
-                        
-                        {/* Desktop Score Badge & Process States */}
                         <div className="hidden sm:flex items-center gap-3 flex-shrink-0">
                           <div className="text-center">
                             <div className={`text-xl font-bold px-3 py-1.5 rounded-xl border-2 ${scoreColor(c.score)}`}>{c.score}%</div>
@@ -649,8 +539,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                             {st.label}
                           </span>
                         </div>
-                        
-                        {/* Mobile Application Tag */}
                         <div className="sm:hidden">
                           <span className={`flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full ${st.color}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
@@ -658,8 +546,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                           </span>
                         </div>
                       </div>
-
-                      {/* Horizontal Match Bar */}
                       <div className="mt-3 mb-3">
                         <div className="flex justify-between mb-1">
                           <span className="text-xs text-gray-400">Job Fit Score</span>
@@ -669,8 +555,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                           <div className={`h-1.5 sm:h-2 rounded-full ${barColor(c.score)} transition-all`} style={{ width: `${c.score}%` }} />
                         </div>
                       </div>
-
-                      {/* Match Explanations / Badges */}
                       {c.matchReasons.length > 0 && (
                         <div className="flex flex-wrap gap-1.5 mb-2">
                           {c.matchReasons.slice(0, 3).map((r, i) => (
@@ -684,8 +568,6 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                           )}
                         </div>
                       )}
-
-                      {/* Resolved Technical Skills Badges */}
                       {c.skills.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {c.skills.slice(0, 5).map((sk, i) => (
