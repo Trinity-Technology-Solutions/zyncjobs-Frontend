@@ -963,7 +963,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                   {/* Headquarters */}
                   <div>
                     <label className={labelCls}>Headquarters *</label>
-                    <input type="text" value={formData.headquarters} onChange={e => setFormData(p => ({ ...p, headquarters: e.target.value }))} placeholder="Chennai, Tamil Nadu, India" className={inputCls} required />
+                    <input type="text" value={formData.headquarters} onChange={e => setFormData(p => ({ ...p, headquarters: e.target.value }))} placeholder="City, State, Country (e.g. Muscat, Oman)" className={inputCls} required />
                   </div>
 
                   {/* Website */}

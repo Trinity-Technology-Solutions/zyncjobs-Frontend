@@ -443,9 +443,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        // Only send employerId if it's a valid non-numeric ID (UUID/ObjectId)
-        const isValidId = (id: any) => id && typeof id === 'string' && !/^\d+$/.test(id);
-        const interviewEmployerId = isValidId(ownerEmployerId) ? ownerEmployerId : isValidId(userId) ? userId : '';
+        // Use the available employer ID — prefer ownerEmployerId, fallback to userId
+        const interviewEmployerId = ownerEmployerId || userId || '';
         const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
@@ -475,7 +474,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         } else {
           setInterviews([]);
         }
-      } catch {
+      } catch (err) {
+        console.error('Error fetching interviews:', err);
         setInterviews([]);
       }
 
@@ -2296,11 +2296,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           }}
           onSuccess={() => {
             // Re-fetch interviews specifically after scheduling
-            if (user) {
-              const userId = user.id || user._id;
-              const userEmail = user.email;
-              const safeId = userId && typeof userId === 'string' && !/^\d+$/.test(userId) ? userId : '';
-              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(safeId)}&employerEmail=${encodeURIComponent(userEmail || '')}`)
+            const userData = localStorage.getItem('user');
+            if (userData) {
+              const u = JSON.parse(userData);
+              const ownerId = u.employerOwnerId || u.ownerEmail || u.id || u._id || '';
+              const ownerEmail = u.ownerEmail || u.employerOwnerId || u.email || '';
+              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(ownerId)}&employerEmail=${encodeURIComponent(ownerEmail)}`)
                 .then(r => r.ok ? r.json() : [])
                 .then((data: any[]) => {
                   setInterviews(Array.isArray(data) ? data : []);
