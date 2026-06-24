@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Search, MapPin, Bot, Sparkles, Brain, Zap, Palette, MessageCircle, Compass, CheckCircle, Rocket } from "lucide-react";
 import { API_ENDPOINTS } from '../config/env';
 import { useHeroSection } from '../store/useHeroSection';
@@ -6,12 +6,12 @@ import { strapiAPI } from '../api/strapi';
 import { searchAccuracy } from '../utils/searchAccuracy';
 
 const COMPANIES = [
-  { name: 'Birlasoft',   logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { name: 'LTIMindtree',logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { name: 'L&T',        logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { name: 'Cognizant',  logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { name: 'Accenture',  logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { name: 'Birlasoft',   logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
+  { name: 'Persistent', logo: 'https://www.google.com/s2/favicons?domain=persistent.com&sz=64' },
+  { name: 'LTIMindtree',logo: 'https://www.google.com/s2/favicons?domain=ltimindtree.com&sz=64' },
+  { name: 'L&T',        logo: 'https://www.google.com/s2/favicons?domain=larsentoubro.com&sz=64' },
+  { name: 'Cognizant',  logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
+  { name: 'Accenture',  logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
 ];
 
 const CompanyMarquee: React.FC = () => {
@@ -44,18 +44,19 @@ const CompanyMarquee: React.FC = () => {
               key={`${c.name}-${i}`}
               onMouseEnter={() => setPaused(true)}
               onMouseLeave={() => setPaused(false)}
-              className="flex flex-col items-center justify-center mx-8 gap-2 group"
-              style={{ minWidth: '110px' }}
+              className="flex flex-col items-center justify-center mx-7 gap-2 group"
+              style={{ minWidth: '100px' }}
             >
-              <div className="w-16 h-16 flex items-center justify-center">
+              <div className="w-14 h-14 flex items-center justify-center">
                 <img
                   src={c.logo}
                   alt={c.name}
-                  width={64}
-                  height={64}
+                  width={56}
+                  height={56}
                   loading="lazy"
                   decoding="async"
-                  className="w-16 h-16 object-contain"
+                  className="w-14 h-14 object-contain"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
               </div>
 
@@ -589,3 +590,4 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
 };
 
 export default NewHero;
+

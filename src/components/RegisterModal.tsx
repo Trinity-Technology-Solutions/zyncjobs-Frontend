@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import analytics from '../services/analytics';
@@ -57,32 +57,34 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] as string[] });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   if (!isOpen) return null;
 
+  const validateForm = () => {
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) errs.name = 'Name is required';
+    if (!formData.email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) errs.email = 'Invalid email format';
+    if (!formData.password) errs.password = 'Password is required';
+    else {
+      const strength = validatePassword(formData.password);
+      if (strength.score < 4) errs.password = 'Password must include 8+ characters, uppercase, lowercase, number, and special character';
+    }
+    if (!formData.confirmPassword) errs.confirmPassword = 'Please confirm your password';
+    else if (formData.password !== formData.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
     setSuccess('');
-
-    // Validate passwords match
-    if (formData.password !== formData.confirmPassword) {
-      const errorMsg = 'Passwords do not match';
-      setError(errorMsg);
-      showToast(errorMsg, 'error');
-      setLoading(false);
-      return;
-    }
-
-    // Validate password length
-    if (formData.password.length < 6) {
-      const errorMsg = 'Password must be at least 6 characters long';
-      setError(errorMsg);
-      showToast(errorMsg, 'error');
-      setLoading(false);
-      return;
-    }
+    setFieldErrors({});
+    if (!validateForm()) return;
+    setLoading(true);
 
     try {
       const response = await authAPI.register({
@@ -116,17 +118,31 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : 'Registration failed';
       setError(errorMsg);
+      setFieldErrors({});
       showToast(errorMsg, 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const validatePassword = (pwd: string) => {
+    const feedback: string[] = [];
+    let score = 0;
+    if (pwd.length >= 8) score++; else feedback.push('At least 8 characters');
+    if (/[A-Z]/.test(pwd)) score++; else feedback.push('One uppercase letter');
+    if (/[a-z]/.test(pwd)) score++; else feedback.push('One lowercase letter');
+    if (/\d/.test(pwd)) score++; else feedback.push('One number');
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) score++; else feedback.push('One special character');
+    return { score, feedback };
+  };
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    if (name === 'password') {
+      setPasswordStrength(validatePassword(value));
+    }
   };
 
   return (
@@ -163,50 +179,54 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
             <div>
               <label htmlFor="register-name" className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
+                <User className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${fieldErrors.name ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true" />
                 <input
                   id="register-name"
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   placeholder="Enter your full name"
                   required
                   autoComplete="name"
                 />
+                {fieldErrors.name && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
               </div>
+              {fieldErrors.name && <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>}
             </div>
 
             <div>
               <label htmlFor="register-email" className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
+                <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${fieldErrors.email ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true" />
                 <input
                   id="register-email"
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   placeholder="Enter your email"
                   required
                   autoComplete="email"
                 />
+                {fieldErrors.email && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
               </div>
+              {fieldErrors.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
             </div>
 
             <div>
               <label htmlFor="register-password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
+                <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${fieldErrors.password ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true" />
                 <input
                   id="register-password"
                   type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   placeholder="Create a password"
                   required
                   autoComplete="new-password"
@@ -220,19 +240,48 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
+              {formData.password && (
+                <div className="mt-2">
+                  <div className="flex gap-1 mb-1">
+                    {[1, 2, 3, 4, 5].map((level) => (
+                      <div
+                        key={level}
+                        className={`h-1.5 flex-1 rounded-full transition-colors ${
+                          passwordStrength.score >= level ? 'bg-green-500' : 'bg-gray-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {passwordStrength.feedback.length > 0 && (
+                    <ul className="text-xs text-gray-500 space-y-0.5">
+                      {passwordStrength.feedback.map((msg, i) => (
+                        <li key={i} className="flex items-center gap-1">
+                          <span className="text-red-400">●</span> {msg}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {passwordStrength.score >= 4 && (
+                    <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                      <span>✓</span> Strong password
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div>
               <label htmlFor="register-confirm-password" className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
+                <Lock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${fieldErrors.confirmPassword ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true" />
                 <input
                   id="register-confirm-password"
                   type={showConfirmPassword ? 'text' : 'password'}
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.confirmPassword ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   placeholder="Confirm your password"
                   required
                   autoComplete="new-password"
@@ -246,6 +295,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onNaviga
                   {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>}
             </div>
 
             <button

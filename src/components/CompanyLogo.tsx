@@ -19,34 +19,29 @@ function getSources(companyName: string, website?: string, storedLogo?: string):
   const local = getLocalCompanyLogo(companyName);
   if (local) urls.push(local);
 
-  // 2. Stored logo — route external logo services through proxy
-  if (storedLogo && storedLogo.startsWith('http') && !storedLogo.includes('ui-avatars.com') && !storedLogo.includes('google.com/s2/favicons')) {
-    if (storedLogo.includes('logo.clearbit.com')) {
-      const m = storedLogo.match(/logo\.clearbit\.com\/([^/?]+)/);
-      if (m) urls.push(`${API_BASE}/logo-proxy?domain=${encodeURIComponent(m[1])}`);
-    } else if (storedLogo.includes('img.logo.dev')) {
-      const m = storedLogo.match(/img\.logo\.dev\/([^?]+)/);
-      if (m) urls.push(`${API_BASE}/logo-proxy?domain=${encodeURIComponent(m[1])}`);
-    } else {
-      urls.push(storedLogo);
-    }
+  // 2. Stored logo from DB/S3 — works in all networks
+  if (storedLogo && storedLogo.startsWith('http') &&
+      !storedLogo.includes('ui-avatars.com') &&
+      !storedLogo.includes('google.com/s2/favicons')) {
+    urls.push(storedLogo);
   }
 
-  // 3. Resolve domain
+  // 3. Backend proxy (server-side fetch, bypasses client DNS blocks)
   let domain = getCompanyDomain(companyName);
   if (!domain && website) {
-    try { domain = new URL(website).hostname.replace('www.', ''); } catch {}
+    try { domain = new URL(website.startsWith('http') ? website : `https://${website}`).hostname.replace('www.', ''); } catch {}
   }
-
   if (domain) {
-    // 4. Backend proxy — server fetches logo, bypasses client network restrictions
     urls.push(`${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`);
   }
 
-  // 5. UI Avatars — always works
-  urls.push(
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`
-  );
+  // 4. Inline SVG initials — always works, no external dependency
+  const initials = (companyName || 'C')
+    .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+
+  urls.push(`data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#3B82F6" rx="12"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+  )}`);
 
   return urls;
 }

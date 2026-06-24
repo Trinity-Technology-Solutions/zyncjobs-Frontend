@@ -1,3 +1,5 @@
+const API_BASE = typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL || '/api' : '/api';
+
 export const getCompanyLogo = (companyName: string): string => {
   if (!companyName) {
     return '';
@@ -9,14 +11,17 @@ export const getCompanyLogo = (companyName: string): string => {
     return localLogo;
   }
 
-  // Known domain map — use Google favicon (most reliable, no token needed)
+  // Known domain map — use backend proxy (bypasses client-side DNS blocks)
   const domain = getCompanyDomain(companyName);
   if (domain) {
-    return `https://www.google.com/s2/favicons?domain=${domain}&sz=128`;
+    return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`;
   }
 
-  // If no domain mapping, return UI avatars directly
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
+  // Inline SVG initials as final fallback
+  const initials = companyName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#3B82F6" rx="12"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+  )}`;
 };
 
 export const getLocalCompanyLogo = (companyName: string): string => {
@@ -208,6 +213,7 @@ export const getCompanyDomain = (companyName: string): string => {
     'persistent': 'persistent.com',
     'persistent systems': 'persistent.com',
     'coforge': 'coforge.com',
+    'birlasoft': 'birlasoft.com',
     'niit technologies': 'niit.com',
     'kpit': 'kpit.com',
     'cyient': 'cyient.com',
@@ -513,16 +519,20 @@ export const getLogoWithFallbacks = (companyName: string, website?: string): str
   let domain = getCompanyDomain(companyName);
   if (!domain && website) {
     try {
-      domain = new URL(website).hostname.replace('www.', '');
+      domain = new URL(website.startsWith('http') ? website : `https://${website}`).hostname.replace('www.', '');
     } catch {}
   }
   
   if (domain) {
-    logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+    logos.push(`${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`);
   }
-  
-  // UI avatars as final fallback
-  logos.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`);
+
+  // Inline SVG initials as final fallback
+  const initials = (companyName || 'C')
+    .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  logos.push(`data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#3B82F6" rx="12"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+  )}`);
   
   return logos;
 };

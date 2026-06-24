@@ -505,7 +505,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   const extractSkills = (text: string): string[] => {
     const commonSkills = [
       // Programming Languages
-      'JavaScript', 'TypeScript', 'Python', 'Java', 'C#', 'C++', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Scala', 'R', 'MATLAB', 'Perl', 'Objective-C', 'Dart', 'Elixir', 'Haskell', 'Clojure', 'F#', 'VB.NET', 'COBOL', 'Fortran', 'Assembly', 'Shell', 'Bash', 'PowerShell',
+      'JavaScript', 'TypeScript', 'Python', 'Java', 'C#', 'C++', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Scala', 'MATLAB', 'Perl', 'Objective-C', 'Dart', 'Elixir', 'Haskell', 'Clojure', 'F#', 'VB.NET', 'COBOL', 'Fortran', 'Assembly', 'Shell', 'Bash', 'PowerShell',
       // Frontend Technologies
       'React', 'Angular', 'Vue.js', 'Svelte', 'Next.js', 'Nuxt.js', 'HTML', 'HTML5', 'CSS', 'CSS3', 'SCSS', 'SASS', 'Less', 'Bootstrap', 'Tailwind CSS', 'Material-UI', 'Ant Design', 'Chakra UI', 'jQuery', 'Webpack', 'Vite', 'Parcel', 'Rollup', 'Gulp', 'Grunt',
       // Backend Technologies
@@ -547,21 +547,28 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     // Enhanced skill detection with context awareness
     for (const skill of commonSkills) {
       const skillLower = skill.toLowerCase();
+      const escaped = skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      // Create regex patterns for better matching
-      const patterns = [
-        // Exact word boundary match
-        new RegExp(`\\b${skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
-        // Handle special cases with dots, slashes, etc.
-        new RegExp(skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\./g, '\\.?').replace(/\\\//g, '\\/?'), 'i'),
-        // Handle variations with spaces and hyphens
-        new RegExp(skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[\\s\\-]?'), 'i')
-      ];
+      // Always use exact word boundary match to prevent substring false positives
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
+        foundSkills.add(skill);
+        continue;
+      }
       
-      for (const pattern of patterns) {
-        if (pattern.test(text)) {
+      // For special-char skills (dots, slashes), try flexible dot/slash matching
+      if (skillLower.includes('.') || skillLower.includes('/')) {
+        const flexible = escaped.replace(/\\\./g, '\\.?').replace(/\\\//g, '\\/?');
+        if (new RegExp(`\\b${flexible}\\b`, 'i').test(text)) {
           foundSkills.add(skill);
-          break;
+          continue;
+        }
+      }
+      
+      // For multi-word skills, allow hyphen in place of space
+      if (skillLower.includes(' ')) {
+        const flexible = escaped.replace(/\s+/g, '[\\s\\-]');
+        if (new RegExp(`\\b${flexible}\\b`, 'i').test(text)) {
+          foundSkills.add(skill);
         }
       }
     }

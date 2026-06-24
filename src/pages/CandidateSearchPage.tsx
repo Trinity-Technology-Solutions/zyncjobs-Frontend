@@ -254,6 +254,10 @@ function scoreAgainstJob(candSkills: string[], job: Job): { score: number; match
   return { score: Math.round(skillPct), matched, missing };
 }
 
+function fitLabelFor(score: number): Candidate['fitLabel'] {
+  return score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : score >= 30 ? 'Fair' : 'Low';
+}
+
 function computeAIScore(candidate: Candidate, selectedJob: Job | null, allJobs: Job[]): ScoreResult {
   const candSkills = (candidate.skills ?? []).map(s => s.toLowerCase().trim()).filter(Boolean);
 
@@ -284,35 +288,13 @@ function computeAIScore(candidate: Candidate, selectedJob: Job | null, allJobs: 
       const { score, matched, missing } = scoreAgainstJob(candSkills, j);
       if (score > best.score) best = { score, matched, missing, job: j };
     }
-    let j = i;
-    while (j < input.length && !' \t()"'.includes(input[j])) j++;
-    const word = input.slice(i, j);
-    const upperWord = word.toUpperCase();
-    if (upperWord === 'AND' || upperWord === 'OR' || upperWord === 'NOT') tokens.push(upperWord);
-    else tokens.push(word);
-    i = j;
+    const total = Math.round(best.score + completeness);
+    return { aiScore: total, matchedSkills: best.matched, missingSkills: best.missing, fitLabel: fitLabelFor(total), bestJob: best.job };
   }
 
   // Absolute fallback: profile completeness only
   const total = Math.round(completeness * (100 / 30)); // rescale to 0-100
   return { aiScore: total, matchedSkills: [], missingSkills: [], fitLabel: fitLabelFor(total), bestJob: null };
-}
-
-function evalBoolNode(node: BoolNode, text: string): boolean {
-  switch (node.type) {
-    case 'TERM': return text.toLowerCase().includes(node.value);
-    case 'AND': return evalBoolNode(node.left, text) && evalBoolNode(node.right, text);
-    case 'OR': return evalBoolNode(node.left, text) || evalBoolNode(node.right, text);
-    case 'NOT': return !evalBoolNode(node.operand, text);
-  }
-
-  return {
-    ...(raw as unknown as Candidate),
-    _id: String(raw._id ?? raw.id ?? ''),
-    profilePhoto,
-    resumeUrl,
-    skills: skills.filter(Boolean),
-  };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -398,28 +380,6 @@ function getTop8DiverseCandidates(candidates: Candidate[]): Candidate[] {
     index++;
   }
   return selected;
-}
-
-const NOTICE_OPTIONS = ['Immediate', '15 Days', '1 Month', '2 Months', '3 Months'];
-
-    const EXCLUDED_ROLES = new Set(['employer', 'admin', 'super_admin']);
-    const normalised = raw
-      .filter(c => !EXCLUDED_ROLES.has(String(c.userType ?? c.type ?? c.role ?? '')))
-      .map(normaliseCandidate);
-
-    setCandidates(normalised);
-    setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
-    setLoading(false);
-  }, []);
-
-  // Fetch once on mount, then every 60 s
-  useEffect(() => { fetch_(); }, [fetch_]);
-  useEffect(() => {
-    const id = setInterval(fetch_, 60_000);
-    return () => clearInterval(id);
-  }, [fetch_]);
-
-  return { candidates, loading, lastRefreshed, refetch: fetch_ };
 }
 
 /** Fetch employer jobs once. */
@@ -569,7 +529,48 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const [messageCandidate, setMessageCandidate] = useState<Candidate | null>(null);
 
   // ── Data ───────────────────────────────────────────────────
-  const { candidates, loading, refetch } = useCandidates();
+  const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchCandidates = useCallback(async () => {
+    setLoading(true);
+    const endpoints = [
+      `${API_ENDPOINTS.BASE_URL}/users?role=candidate`,
+      `${API_ENDPOINTS.BASE_URL}/profiles`,
+      `${API_ENDPOINTS.BASE_URL}/candidates`,
+    ];
+    for (const url of endpoints) {
+      try {
+        const res = await apiFetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          const arr: any[] = Array.isArray(data) ? data : data.candidates || data.profiles || data.users || [];
+          if (arr.length > 0) {
+            const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace('/api', '');
+            const mapped: Candidate[] = arr
+              .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
+              .map((c: any) => {
+                const rawPhoto = c.profilePhoto || c.photo || c.avatar || c.image || '';
+                const profilePhoto = rawPhoto
+                  ? (rawPhoto.startsWith('http') || rawPhoto.startsWith('data:') ? rawPhoto : `${BASE}${rawPhoto.startsWith('/') ? rawPhoto : '/' + rawPhoto}`)
+                  : '';
+                const resumeUrl = c.resumeUrl || (c.resume && typeof c.resume === 'object' ? (c.resume.url || c.resume.fileUrl || '') : c.resume) || '';
+                const rawSkills = c.skills || c.skillSet || c.keySkills || c.tags || [];
+                const skills: string[] = Array.isArray(rawSkills)
+                  ? rawSkills.map((s: any) => typeof s === 'object' ? s.name || String(s) : String(s)).filter(Boolean)
+                  : typeof rawSkills === 'string' ? rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                return { ...c, _id: c._id || c.id, profilePhoto, resumeUrl, skills };
+              });
+            setCandidates(mapped);
+            break;
+          }
+        }
+      } catch { }
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { fetchCandidates(); }, [fetchCandidates]);
   const { jobs: employerJobs, selectedJob, setSelectedJob } = useEmployerJobs(user?.email);
   const trackSearch = useSearchAnalytics();
   const token = tokenStorage.getAccess() ?? tokenStorage.getAdmin();
@@ -603,6 +604,45 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   const dSearch = useDebounce(filters.search, 300);
   const dBoolean = useDebounce(filters.booleanQuery, 400);
 
+  // ── JSX-compatible aliases (bridge filters object → bare names) ──
+  const booleanQuery = filters.booleanQuery;
+  const setBooleanQuery = (v: string) => set('booleanQuery', v);
+  const searchTerm = filters.search;
+  const setSearchTerm = (v: string) => set('search', v);
+  const selectedSkills = filters.skills;
+  const setSelectedSkills = (updater: string[] | ((prev: string[]) => string[])) => {
+    set('skills', typeof updater === 'function' ? updater(filters.skills) : updater);
+  };
+  const selectedLocations = filters.locations;
+  const setSelectedLocations = (updater: string[] | ((prev: string[]) => string[])) => {
+    set('locations', typeof updater === 'function' ? updater(filters.locations) : updater);
+  };
+  const expRange: [number, number] = [filters.expMin, filters.expMax];
+  const setExpRange = ([min, max]: [number, number]) => { set('expMin', min); set('expMax', max); };
+  const salaryRange: [number, number] = [filters.ctcMin, filters.ctcMax];
+  const setSalaryRange = ([min, max]: [number, number]) => { set('ctcMin', min); set('ctcMax', max); };
+  const designations = filters.designations;
+  const setDesignations = (updater: string[] | ((prev: string[]) => string[])) => {
+    set('designations', typeof updater === 'function' ? updater(filters.designations) : updater);
+  };
+  const targetCompanies = filters.exCompanies;
+  const setTargetCompanies = (updater: string[] | ((prev: string[]) => string[])) => {
+    set('exCompanies', typeof updater === 'function' ? updater(filters.exCompanies) : updater);
+  };
+  const noticePeriod = filters.noticePeriods;
+  const setNoticePeriod = (updater: string[] | ((prev: string[]) => string[])) => {
+    set('noticePeriods', typeof updater === 'function' ? updater(filters.noticePeriods) : updater);
+  };
+  const relocationOnly = filters.relocationOnly;
+  const setRelocationOnly = (updater: boolean | ((prev: boolean) => boolean)) => {
+    set('relocationOnly', typeof updater === 'function' ? updater(filters.relocationOnly) : updater);
+  };
+
+  const experienceFilter = '';
+  const availabilityFilter = '';
+  const setExperienceFilter = (..._args: any[]) => {};
+  const setAvailabilityFilter = (..._args: any[]) => {};
+
   // ── Tag input UI state ─────────────────────────────────────
   const [skillInput, setSkillInput] = useState('');
   const [locationInput, setLocationInput] = useState('');
@@ -632,63 +672,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     return () => document.removeEventListener('mousedown', handler);
   }, [openContactMenu]);
 
-  // ── Load autocomplete lists ────────────────────────────────
-  useEffect(() => {
-    fetch(`${API_ENDPOINTS.JOBS}`)
-      .then(r => r.ok ? r.json() : [])
-      .then((jobs: any) => {
-        const allJobs = Array.isArray(jobs) ? jobs : jobs.jobs || [];
-        if (!user?.email) {
-          setEmployerJobs(allJobs);
-          if (allJobs.length > 0) setSelectedJob(allJobs[0]);
-          return;
-        }
-        const email = user.email.toLowerCase();
-        const mine = allJobs.filter((j: any) =>
-          (j.postedBy || '').toLowerCase() === email ||
-          (j.employerEmail || '').toLowerCase() === email ||
-          (j.createdBy || '').toLowerCase() === email ||
-          (j.userId || '').toLowerCase() === email
-        );
-        const jobsToUse = mine.length > 0 ? mine : allJobs;
-        setEmployerJobs(jobsToUse);
-        if (jobsToUse.length > 0) setSelectedJob(jobsToUse[0]);
-      })
-      .catch(() => { });
-  }, [user]);
-
-  // AI scoring function — pure frontend, no extra API call
-  const computeAIScore = (candidate: Candidate, job: any | null): { aiScore: number; matchedSkills: string[]; missingSkills: string[]; fitLabel: Candidate['fitLabel']; bestJob: any } => {
-    try {
-      const candSkills: string[] = (Array.isArray(candidate.skills) ? candidate.skills : []).map(s => String(s || '').toLowerCase().trim()).filter(Boolean);
-
-      const scoreAgainstJob = (j: any) => {
-        const rawJobSkills: string[] = Array.isArray(j.skills) ? j.skills : [];
-        const matched: string[] = [];
-        const missing: string[] = [];
-        rawJobSkills.forEach((js: string) => {
-          const jsLower = String(js || '').toLowerCase().trim();
-          if (!jsLower) return;
-          const isMatch = candSkills.some(cs => cs.includes(jsLower) || jsLower.includes(cs));
-          if (isMatch) matched.push(js);
-          else missing.push(js);
-        });
-        const skillScore = rawJobSkills.length > 0 ? (matched.length / rawJobSkills.length) * 70 : 0;
-        const profileFields = ['experience', 'location', 'profileSummary', 'education'];
-        const profileScore = profileFields.filter(f => {
-          const v = (candidate as any)[f];
-          return v && String(v).trim().length > 0;
-        }).length / profileFields.length * 30;
-        return { score: Math.round(skillScore + profileScore), matched, missing };
-      };
-
-      // If a specific job is selected, score against it
-      if (job) {
-        const { score, matched, missing } = scoreAgainstJob(job);
-        const fitLabel: Candidate['fitLabel'] = score >= 75 ? 'Excellent' : score >= 50 ? 'Good' : score >= 30 ? 'Fair' : 'Low';
-        return { aiScore: score, matchedSkills: matched, missingSkills: missing, fitLabel, bestJob: job };
-      }
-
   // Update skill suggestions when input changes
   useEffect(() => {
     if (skillInput.length >= 1) {
@@ -714,94 +697,79 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
 
   const scoredCandidates = useMemo(() => {
     try {
-      const q = searchTerm.toLowerCase().trim();
+      const q = dSearch.toLowerCase().trim();
       const loggedInEmail = (currentUser?.email || user?.email || '').toLowerCase();
 
-      const filtered = candidates.filter(c => {
-        // Exclude logged in candidate
-        if (loggedInEmail && c.email && c.email.toLowerCase() === loggedInEmail) {
+      const filtered = candidates.filter((c: Candidate) => {
+        if (loggedInEmail && c.email && c.email.toLowerCase() === loggedInEmail) return false;
+
+        const blob = candidateBlob(c);
+        const skills = (c.skills ?? []).map((s: string) => s.toLowerCase());
+
+        if (q && !blob.includes(q)) return false;
+        if (dBoolean.trim() && !matchesBoolean(dBoolean, blob)) return false;
+
+        if (filters.skills.length > 0 &&
+          !filters.skills.some(sq => skills.some(s => s.includes(sq.toLowerCase()) || sq.toLowerCase().includes(s))))
           return false;
+
+        if (filters.locations.length > 0 &&
+          !filters.locations.some(lq => (c.location ?? '').toLowerCase().includes(lq.toLowerCase())))
+          return false;
+
+        if (filters.designations.length > 0) {
+          const t = (c.jobTitle ?? c.title ?? '').toLowerCase();
+          if (!filters.designations.some(d => t.includes(d.toLowerCase()))) return false;
         }
 
-        const name = (c.fullName || c.name || '').toLowerCase();
-        const title = (c.jobTitle || c.title || '').toLowerCase();
-        const email = (c.email || '').toLowerCase();
-        const summary = (c.profileSummary || '').toLowerCase();
-        const skills = (c.skills || []).map((s: string) => s.toLowerCase());
-        const location = (c.location || '').toLowerCase();
-        const experience = (c.experience || '').toLowerCase();
-        const availability = (c.availability || c.noticePeriod || '').toLowerCase();
+        const exp = toExpYears(c.experience ?? c.experienceYears);
+        if (exp < filters.expMin || exp > filters.expMax) return false;
 
-        if (q && !name.includes(q) && !title.includes(q) && !email.includes(q) && !summary.includes(q) && !skills.some((s: string) => s.includes(q))) return false;
-        if (selectedSkills.length > 0 && !selectedSkills.some(skillQ => skills.some((s: string) => s.includes(skillQ.toLowerCase()) || skillQ.toLowerCase().includes(s)))) return false;
-        if (selectedLocations.length > 0 && !selectedLocations.some(locQ => location.includes(locQ.toLowerCase()))) return false;
-        if (experienceFilter && !experience.includes(experienceFilter.toLowerCase())) return false;
-        if (availabilityFilter && !availability.includes(availabilityFilter.toLowerCase())) return false;
+        const ctc = toCTCinLPA(c.expectedCTC ?? c.salary);
+        if (ctc !== -1 && (ctc < filters.ctcMin || ctc > filters.ctcMax)) return false;
 
-        // Boolean keyword search
-        if (booleanQuery.trim() && !matchesBoolean(booleanQuery, c)) return false;
-
-        // Designation / role multi-select
-        if (designations.length > 0) {
-          const cTitle = (c.jobTitle || c.title || '').toLowerCase();
-          if (!designations.some(d => cTitle.includes(d.toLowerCase()))) return false;
+        if (filters.noticePeriods.length > 0) {
+          const np = (c.noticePeriod ?? c.availability ?? '').toLowerCase();
+          if (!filters.noticePeriods.some(n => np.includes(n.toLowerCase()))) return false;
         }
 
-    const filtered = candidates.filter(c => {
-      const blob = candidateBlob(c);
-      const skills = (c.skills ?? []).map(s => s.toLowerCase());
+        if (filters.relocationOnly && !c.openToRelocation) return false;
 
-      // Text search
-      if (q && !blob.includes(q)) return false;
+        if (filters.exCompanies.length > 0) {
+          const empText = [
+            ...(c.workHistory ?? []).map((w) => (w as any).company ?? (w as any).employer ?? ''),
+            typeof c.employment === 'object' ? JSON.stringify(c.employment) : String(c.employment ?? ''),
+          ].join(' ').toLowerCase();
+          if (!filters.exCompanies.some(tc => empText.includes(tc.toLowerCase()))) return false;
+        }
 
-      // Boolean search
-      if (dBoolean.trim() && !matchesBoolean(dBoolean, blob)) return false;
+        return true;
+      });
 
-      // Skills multi-select (candidate must have at least one selected skill)
-      if (filters.skills.length > 0 &&
-        !filters.skills.some(sq => skills.some(s => s.includes(sq.toLowerCase()) || sq.toLowerCase().includes(s))))
-        return false;
+      const withScores = filtered.map((c: Candidate) => {
+        const result = computeAIScore(c, selectedJob, employerJobs);
+        return { ...c, ...result, _bestJob: result.bestJob } as Candidate & Required<ScoreResult>;
+      });
 
-      // Location multi-select
-      if (filters.locations.length > 0 &&
-        !filters.locations.some(lq => (c.location ?? '').toLowerCase().includes(lq.toLowerCase())))
-        return false;
+      const isNoFilterApplied =
+        !filters.search.trim() && !filters.booleanQuery.trim() &&
+        filters.skills.length === 0 && filters.locations.length === 0 &&
+        filters.designations.length === 0 && filters.exCompanies.length === 0 &&
+        filters.expMin === 0 && filters.expMax === 30 &&
+        filters.ctcMin === 0 && filters.ctcMax === 100 &&
+        filters.noticePeriods.length === 0 && !filters.relocationOnly;
 
-      // Designation
-      if (filters.designations.length > 0) {
-        const t = (c.jobTitle ?? c.title ?? '').toLowerCase();
-        if (!filters.designations.some(d => t.includes(d.toLowerCase()))) return false;
-      }
-
-      const withScores = filtered.map(c => { const scored = computeAIScore(c, selectedJob); return { ...c, ...scored, _bestJob: scored.bestJob }; });
-
-      const isNoFilterApplied = !searchTerm.trim() &&
-        !booleanQuery.trim() &&
-        selectedSkills.length === 0 &&
-        selectedLocations.length === 0 &&
-        !experienceFilter &&
-        !availabilityFilter &&
-        designations.length === 0 &&
-        expRange[0] === 0 && expRange[1] === 30 &&
-        salaryRange[0] === 0 && salaryRange[1] === 100 &&
-        noticePeriod.length === 0 &&
-        !relocationOnly &&
-        targetCompanies.length === 0;
-
-      let processed = withScores;
-      if (isNoFilterApplied) {
-        processed = getTop8DiverseCandidates(withScores);
-      }
+      const processed = isNoFilterApplied ? getTop8DiverseCandidates(withScores) : withScores;
 
       if (sortBy === 'ai_score') return [...processed].sort((a, b) => (b.aiScore ?? 0) - (a.aiScore ?? 0));
       if (sortBy === 'skills') return [...processed].sort((a, b) => (b.matchedSkills?.length ?? 0) - (a.matchedSkills?.length ?? 0));
       return [...processed].sort((a, b) =>
-        (getCandidateName(a) || '').localeCompare(getCandidateName(b) || '')
+        (a.fullName ?? a.name ?? '').localeCompare(b.fullName ?? b.name ?? '')
       );
     } catch {
       return candidates;
     }
-  }, [candidates, searchTerm, selectedSkills, selectedLocations, experienceFilter, availabilityFilter, selectedJob, sortBy, employerJobs, booleanQuery, designations, expRange, salaryRange, noticePeriod, relocationOnly, targetCompanies, user]);
+  }, [candidates, dSearch, dBoolean, filters, selectedJob, employerJobs, sortBy, currentUser, user]);
 
   useEffect(() => {
     const loadSkillsAndLocations = async () => {
@@ -811,157 +779,36 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           const skillsData = await skillsResponse.json();
           setAllSkills(Array.isArray(skillsData) ? skillsData : skillsData.skills || []);
         }
-
         const locationsResponse = await apiFetch(`${API_ENDPOINTS.BASE_URL}/autocomplete/locations`);
         if (locationsResponse.ok) {
           const locationsData = await locationsResponse.json();
           setAllLocations(Array.isArray(locationsData) ? locationsData : locationsData.locations || []);
         }
-      } catch (error) {
-        console.error('Error loading skills and locations:', error);
-      }
+      } catch { }
     };
-
     loadSkillsAndLocations();
   }, []);
 
-  const fetchCandidates = useCallback(async () => {
-    try {
-      setLoading(true);
-      let candidatesArray: any[] = [];
-      const endpoints = [
-        `${API_ENDPOINTS.BASE_URL}/users?role=candidate`,
-        `${API_ENDPOINTS.BASE_URL}/profiles`,
-        `${API_ENDPOINTS.BASE_URL}/candidates`,
-      ];
-      for (const url of endpoints) {
-        try {
-          const res = await apiFetch(url);
-          if (res.ok) {
-            const data = await res.json();
-            const arr = Array.isArray(data) ? data : data.candidates || data.profiles || data.users || [];
-            if (arr.length > 0) { candidatesArray = arr; break; }
-          }
-        } catch { }
-      }
-      const filtered = candidatesArray
-        .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
-        .map((c: any) => {
-          const rawPhoto = c.profilePhoto || c.photo || c.avatar || c.image || '';
-          let profilePhoto = '';
+  const getCandidateSkills = (candidate: Candidate) => candidate.skills ?? [];
+  const getCandidateName = (c: Candidate) => c.fullName ?? c.name ?? c.email ?? 'Unknown';
+  const getCandidateLocation = (c: Candidate) => c.location ?? (c as any).city ?? (c as any).address ?? '';
+  const getAvatar = (name: string) => name.charAt(0).toUpperCase();
 
-          if (rawPhoto) {
-            if (rawPhoto.startsWith('http') || rawPhoto.startsWith('data:')) {
-              // Already a complete URL or data URL
-              profilePhoto = rawPhoto;
-            } else {
-              // Construct full URL
-              const BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace('/api', '');
-              const cleanPath = rawPhoto.startsWith('/') ? rawPhoto : `/${rawPhoto}`;
-              profilePhoto = `${BASE}${cleanPath}`;
-            }
-          }
-
-          const resumeUrl = c.resumeUrl ||
-            (c.resume && typeof c.resume === 'object'
-              ? (c.resume.url || c.resume.fileUrl || (c.resume.filename ? `${API_ENDPOINTS.BASE_URL}/uploads/${c.resume.filename}` : ''))
-              : c.resume) || '';
-          // Normalize skills from any possible field name into a single `skills` array
-          const rawSkills = c.skills || c.skillSet || c.skill_set || c.keySkills || c.tags || [];
-          let skills: string[] = [];
-          if (Array.isArray(rawSkills)) {
-            skills = rawSkills.map((s: any) => (typeof s === 'object' && s !== null ? s.name || s.label || String(s) : String(s))).filter(Boolean);
-          } else if (typeof rawSkills === 'string' && rawSkills.trim()) {
-            // Handle JSON stringified array: '["React","Node.js"]'
-            if (rawSkills.trim().startsWith('[')) {
-              try { skills = JSON.parse(rawSkills).map((s: any) => String(s)).filter(Boolean); } catch { skills = rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean); }
-            } else {
-              skills = rawSkills.split(',').map((s: string) => s.trim()).filter(Boolean);
-            }
-          }
-          return { ...c, _id: c._id || c.id, profilePhoto, resumeUrl, skills };
-        });
-      setCandidates(filtered);
-      setTotalCandidates(filtered.length);
-      setLastRefreshed(new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }));
-
-      // Track search appearances for all candidates that appear in results
-      if (filtered.length > 0 && (searchTerm || selectedSkills.length > 0 || selectedLocations.length > 0)) {
-        const searchQuery = [searchTerm, selectedSkills.join(' '), selectedLocations.join(' ')].filter(Boolean).join(' ');
-
-        // Track search appearance for each candidate
-        filtered.forEach(async (candidate: any) => {
-          if (candidate.email) {
-            try {
-              await apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/search-appearance`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  userId: candidate._id || candidate.id,
-                  email: candidate.email,
-                  searchQuery: searchQuery,
-                  keyword: searchQuery
-                })
-              });
-            } catch (error) {
-              console.log('Search appearance tracking failed:', error);
-            }
-          }
-        });
-      }
-
-      // Relocation
-      if (filters.relocationOnly && !c.openToRelocation) return false;
-
-      // Ex-companies
-      if (filters.exCompanies.length > 0) {
-        const empText = [
-          ...(c.workHistory ?? []).map(w => w.company ?? w.employer ?? ''),
-          typeof c.employment === 'object' ? JSON.stringify(c.employment) : String(c.employment ?? ''),
-        ].join(' ').toLowerCase();
-        if (!filters.exCompanies.some(tc => empText.includes(tc.toLowerCase()))) return false;
-      }
-
-      return true;
-    });
-
-    // Score every filtered candidate
-    const withScores = filtered.map(c => {
-      const result = computeAIScore(c, selectedJob, employerJobs);
-      return { ...c, ...result } as Candidate & Required<ScoreResult>;
-    });
-
-    // Sort
-    if (sortBy === 'ai_score') return [...withScores].sort((a, b) => b.aiScore - a.aiScore);
-    if (sortBy === 'skills') return [...withScores].sort((a, b) => b.matchedSkills.length - a.matchedSkills.length);
-    return [...withScores].sort((a, b) =>
-      (a.fullName ?? a.name ?? '').localeCompare(b.fullName ?? b.name ?? '')
-    );
-  }, [candidates, dSearch, dBoolean, filters, selectedJob, employerJobs, sortBy]);
-
-  const getCandidateSkills = (candidate: Candidate) => {
-    const skills = candidate.skills || [];
-    return skills;
-  };
-
-  const handleViewProfile = (candidate: Candidate) => {
+  const handleViewProfile = useCallback((candidate: Candidate) => {
     const cid = candidate.email || candidate._id || '';
     if (!cid) return;
-
-    // Track profile view
     if (candidate.email) {
       apiFetch(`${API_ENDPOINTS.BASE_URL}/analytics-tracking/track/profile-view`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: c._id, email: c.email, viewedBy: user?.email ?? 'employer' }),
+        body: JSON.stringify({ userId: candidate._id, email: candidate.email, viewedBy: user?.email ?? 'employer' }),
       }).catch(() => { });
     }
-
     sessionStorage.setItem('viewCandidateId', cid);
     sessionStorage.setItem('viewCandidateData', JSON.stringify({
-      name: getName(c), email: c.email ?? '', skills: c.skills ?? [], resumeUrl: c.resumeUrl ?? '',
+      name: candidate.fullName ?? candidate.name ?? '', email: candidate.email ?? '', skills: candidate.skills ?? [], resumeUrl: candidate.resumeUrl ?? '',
     }));
-    setViewingCandidateId(id);
+    setViewingCandidateId(cid);
   }, [user?.email]);
 
   const handleSaveCandidate = useCallback((c: Candidate) => {
@@ -971,10 +818,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
     }
     const payload = {
       candidateId: c._id,
-      fullName: getName(c),
-      name: getName(c),
+      fullName: c.fullName ?? c.name ?? '',
+      name: c.fullName ?? c.name ?? '',
       title: c.title ?? c.jobTitle ?? 'Professional',
-      location: getLocation(c),
+      location: c.location ?? '',
       experience: c.experience ?? '',
       email: c.email ?? '',
       skills: c.skills ?? [],
@@ -1018,8 +865,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
   }, [token, selectedJob, currentUser]);
 
   // ── Derived stats ──────────────────────────────────────────
-  const excellentCount = scoredCandidates.filter(c => c.aiScore >= 70).length;
-  const goodCount = scoredCandidates.filter(c => c.aiScore >= 50 && c.aiScore < 70).length;
   const boolSyntaxOk = !filters.booleanQuery || Boolean(parseBooleanQuery(filters.booleanQuery));
 
   // ── Tag helpers ────────────────────────────────────────────
@@ -1171,7 +1016,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                 {skill}
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedSkills(prev => prev.filter((_, i) => i !== index))}
+                                  onClick={() => setSelectedSkills((prev: any[]) => prev.filter((_: any, i: any) => i !== index))}
                                   className="hover:bg-blue-200 rounded-full p-0.5"
                                 >
                                   <X className="w-3 h-3" />
@@ -1191,11 +1036,11 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                     'skill'
                                   ).slice(0, 12).map(m => m.item);
                                   setSkillSuggestions(filtered);
-                                  setShowSkillSuggestions(true);
+                                  setShowSkillSug(true);
                                 } else {
                                   const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'].filter(s => !selectedSkills.includes(s));
                                   setSkillSuggestions(popularSkills);
-                                  setShowSkillSuggestions(true);
+                                  setShowSkillSug(true);
                                 }
                               }}
                               onKeyDown={(e) => {
@@ -1203,10 +1048,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                   e.preventDefault();
                                   const newSkill = skillInput.trim();
                                   if (!selectedSkills.includes(newSkill)) {
-                                    setSelectedSkills(prev => [...prev, newSkill]);
+                                    setSelectedSkills((prev: any) => [...prev, newSkill]);
                                   }
                                   setSkillInput('');
-                                  setShowSkillSuggestions(false);
+                                  setShowSkillSug(false);
                                 } else if (e.key === 'Backspace' && skillInput === '' && selectedSkills.length > 0) {
                                   setSelectedSkills(prev => prev.slice(0, -1));
                                 }
@@ -1223,13 +1068,13 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                   const popularSkills = ['JavaScript', 'Python', 'React', 'Java', 'Node.js', 'Angular', 'SQL', 'HTML', 'CSS', 'AWS'].filter(s => !selectedSkills.includes(s));
                                   setSkillSuggestions(popularSkills);
                                 }
-                                setShowSkillSuggestions(true);
+                                setShowSkillSug(true);
                               }}
-                              onBlur={() => setTimeout(() => setShowSkillSuggestions(false), 150)}
+                              onBlur={() => setTimeout(() => setShowSkillSug(false), 150)}
                               className="flex-1 min-w-[120px] outline-none text-sm text-gray-900 bg-transparent"
                             />
                           </div>
-                          {showSkillSuggestions && skillSuggestions.length > 0 && (
+                          {showSkillSug && skillSuggestions.length > 0 && (
                             <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-xl overflow-hidden" style={{ maxHeight: '152px' }}>
                               <div className="overflow-y-auto" style={{ maxHeight: '152px' }}>
                                 {skillSuggestions.map((skill, index) => (
@@ -1238,10 +1083,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                     type="button"
                                     onMouseDown={() => {
                                       if (!selectedSkills.includes(skill)) {
-                                        setSelectedSkills(prev => [...prev, skill]);
+                                        setSelectedSkills((prev: any) => [...prev, skill]);
                                       }
                                       setSkillInput('');
-                                      setShowSkillSuggestions(false);
+                                      setShowSkillSug(false);
                                     }}
                                     className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
                                   >
@@ -1263,7 +1108,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                 {location}
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedLocations(prev => prev.filter((_, i) => i !== index))}
+                                  onClick={() => setSelectedLocations((prev: any[]) => prev.filter((_: any, i: any) => i !== index))}
                                   className="hover:bg-green-200 rounded-full p-0.5"
                                 >
                                   <X className="w-3 h-3" />
@@ -1282,11 +1127,11 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                     allLocations.filter(l => !selectedLocations.includes(l))
                                   ).slice(0, 12);
                                   setLocationSuggestions(filtered);
-                                  setShowLocationSuggestions(true);
+                                  setShowLocSug(true);
                                 } else {
                                   const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'].filter(l => !selectedLocations.includes(l));
                                   setLocationSuggestions(popularLocations);
-                                  setShowLocationSuggestions(true);
+                                  setShowLocSug(true);
                                 }
                               }}
                               onKeyDown={(e) => {
@@ -1294,10 +1139,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                   e.preventDefault();
                                   const newLocation = locationInput.trim();
                                   if (!selectedLocations.includes(newLocation)) {
-                                    setSelectedLocations(prev => [...prev, newLocation]);
+                                    setSelectedLocations((prev: any) => [...prev, newLocation]);
                                   }
                                   setLocationInput('');
-                                  setShowLocationSuggestions(false);
+                                  setShowLocSug(false);
                                 } else if (e.key === 'Backspace' && locationInput === '' && selectedLocations.length > 0) {
                                   setSelectedLocations(prev => prev.slice(0, -1));
                                 }
@@ -1313,13 +1158,13 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                   const popularLocations = ['Remote', 'Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Pune', 'Gurgaon', 'Noida', 'Kolkata'].filter(l => !selectedLocations.includes(l));
                                   setLocationSuggestions(popularLocations);
                                 }
-                                setShowLocationSuggestions(true);
+                                setShowLocSug(true);
                               }}
-                              onBlur={() => setTimeout(() => setShowLocationSuggestions(false), 150)}
+                              onBlur={() => setTimeout(() => setShowLocSug(false), 150)}
                               className="flex-1 min-w-[120px] outline-none text-sm text-gray-900 bg-transparent"
                             />
                           </div>
-                          {showLocationSuggestions && locationSuggestions.length > 0 && (
+                          {showLocSug && locationSuggestions.length > 0 && (
                             <div className="absolute z-[9999] w-full mt-1 bg-white border border-gray-200 rounded-lg sm:rounded-xl shadow-xl overflow-hidden" style={{ maxHeight: '152px' }}>
                               <div className="overflow-y-auto" style={{ maxHeight: '152px' }}>
                                 {locationSuggestions.map((location, index) => (
@@ -1328,10 +1173,10 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                     type="button"
                                     onMouseDown={() => {
                                       if (!selectedLocations.includes(location)) {
-                                        setSelectedLocations(prev => [...prev, location]);
+                                        setSelectedLocations((prev: any) => [...prev, location]);
                                       }
                                       setLocationInput('');
-                                      setShowLocationSuggestions(false);
+                                      setShowLocSug(false);
                                     }}
                                     className="w-full text-left px-4 py-2.5 hover:bg-blue-50 hover:text-blue-700 text-sm text-gray-800 font-medium transition-colors border-b border-gray-100 last:border-b-0"
                                   >
@@ -1398,14 +1243,14 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                               onKeyDown={e => {
                                 if ((e.key === 'Enter' || e.key === ',') && designationInput.trim()) {
                                   e.preventDefault();
-                                  if (!designations.includes(designationInput.trim())) setDesignations(d => [...d, designationInput.trim()]);
+                                  if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]);
                                   setDesignationInput('');
                                 }
                               }}
                               className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
                             />
                             {designationInput && (
-                              <button onMouseDown={() => { if (!designations.includes(designationInput.trim())) setDesignations(d => [...d, designationInput.trim()]); setDesignationInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
+                              <button onMouseDown={() => { if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]); setDesignationInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
                             )}
                           </div>
                         </div>
@@ -1422,14 +1267,14 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                               onKeyDown={e => {
                                 if ((e.key === 'Enter' || e.key === ',') && companyInput.trim()) {
                                   e.preventDefault();
-                                  if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies(c => [...c, companyInput.trim()]);
+                                  if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]);
                                   setCompanyInput('');
                                 }
                               }}
                               className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
                             />
                             {companyInput && (
-                              <button onMouseDown={() => { if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies(c => [...c, companyInput.trim()]); setCompanyInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
+                              <button onMouseDown={() => { if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]); setCompanyInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
                             )}
                           </div>
                         </div>
@@ -1441,13 +1286,13 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                         {NOTICE_OPTIONS.map(n => (
                           <button
                             key={n}
-                            onClick={() => setNoticePeriod(prev => prev.includes(n) ? prev.filter(x => x !== n) : [...prev, n])}
+                            onClick={() => setNoticePeriod((prev: string[]) => prev.includes(n) ? prev.filter((x: string) => x !== n) : [...prev, n])}
                             className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${noticePeriod.includes(n) ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-400'
                               }`}
                           >{n}</button>
                         ))}
                         <button
-                          onClick={() => setRelocationOnly(v => !v)}
+                          onClick={() => setRelocationOnly((v: any) => !v)}
                           className={`ml-auto flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${relocationOnly ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-600 border-gray-200 hover:border-green-400'
                             }`}
                         >
@@ -1458,14 +1303,14 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                       {/* Active filter tags */}
                       {(designations.length > 0 || targetCompanies.length > 0) && (
                         <div className="flex flex-wrap gap-1.5">
-                          {designations.map(d => (
-                            <span key={d} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full">
-                              {d}<button onClick={() => setDesignations(ds => ds.filter(x => x !== d))}><X className="w-3 h-3" /></button>
+                          {designations.map((d, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 bg-indigo-100 text-indigo-700 text-xs px-2 py-1 rounded-full">
+                              {d}<button onClick={() => setDesignations((ds: any[]) => ds.filter((_x: any, idx: number) => idx !== i))}><X className="w-3 h-3" /></button>
                             </span>
                           ))}
-                          {targetCompanies.map(tc => (
-                            <span key={tc} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
-                              {tc}<button onClick={() => setTargetCompanies(cs => cs.filter(x => x !== tc))}><X className="w-3 h-3" /></button>
+                          {targetCompanies.map((tc, i) => (
+                            <span key={i} className="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full">
+                              {tc}<button onClick={() => setTargetCompanies((cs: any[]) => cs.filter((_x: any, idx: number) => idx !== i))}><X className="w-3 h-3" /></button>
                             </span>
                           ))}
                         </div>
@@ -1562,9 +1407,9 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                   </div>
                   {/* Summary */}
                   <div className="text-xs text-white/80 w-full lg:w-auto lg:ml-auto">
-                    <span className="block sm:inline">{scoredCandidates.filter(c => (c.aiScore ?? 0) >= 70).length} excellent matches</span>
+                    <span className="block sm:inline">{scoredCandidates.filter((c: Candidate) => (c.aiScore ?? 0) >= 70).length} excellent matches</span>
                     <span className="hidden sm:inline"> · </span>
-                    <span className="block sm:inline">{scoredCandidates.filter(c => (c.aiScore ?? 0) >= 50 && (c.aiScore ?? 0) < 70).length} good fits</span>
+                    <span className="block sm:inline">{scoredCandidates.filter((c: Candidate) => (c.aiScore ?? 0) >= 50 && (c.aiScore ?? 0) < 70).length} good fits</span>
                   </div>
                 </div>
               </div>
@@ -1657,7 +1502,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-5">
-                {scoredCandidates.map((candidate) => {
+                {scoredCandidates.map((candidate: Candidate) => {
                   const score = candidate.aiScore ?? 0;
                   const fitLabel = candidate.fitLabel ?? 'Low';
                   const fitConfig: Record<string, { bg: string; text: string; dot: string }> = {
@@ -1734,7 +1579,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                       <div className="px-3 sm:px-4 md:px-5 py-2 sm:py-3 md:py-3 flex-grow">
                         <div className="flex flex-wrap gap-1 sm:gap-1.5">
                           {getCandidateSkills(candidate).slice(0, 5).map((skill, idx) => {
-                            const isMatched = candidate.matchedSkills?.map(s => s.toLowerCase()).includes(skill.toLowerCase());
+                            const isMatched = candidate.matchedSkills?.map((s: string) => s.toLowerCase()).includes(skill.toLowerCase());
                             return (
                               <span key={idx} className={`text-xs px-2.5 py-1 rounded-full font-medium ${isMatched ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
                                 }`}>
@@ -1795,7 +1640,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                           </button>
                           {openContactMenu === candidate._id && (
                             <div className="absolute bottom-full right-0 bg-white border border-gray-200 rounded-xl shadow-lg z-50 mb-1 w-full sm:w-48 overflow-hidden">
-                              <button onClick={() => { setSelectedCandidateForMessage(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
+                              <button onClick={() => { setMessageCandidate(candidate); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
                                 <MessageCircle className="w-4 h-4 text-gray-400" /> Send Message
                               </button>
                               <button onClick={() => { navigator.clipboard.writeText(candidate.email || ''); window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Email copied!" } })); setOpenContactMenu(null); }} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 text-sm flex items-center gap-2 border-b">
@@ -1817,7 +1662,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                                   companyName: userData.companyName || userData.company || '',
                                   companyLogo: userData.companyLogo || '',
                                   appliedJobTitle: selectedJob ? (selectedJob.jobTitle || selectedJob.title || '') : '',
-                                  appliedJobId: selectedJob ? (selectedJob._id || selectedJob.id || null) : null,
+                                  appliedJobId: selectedJob ? (selectedJob._id || null) : null,
                                 };
                                 fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(payload) })
                                   .then(async res => {
@@ -1869,7 +1714,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
       {messageCandidate && (
         <DirectMessage
           candidateId={messageCandidate._id}
-          candidateName={getName(messageCandidate)}
+          candidateName={messageCandidate.fullName ?? messageCandidate.name ?? ''}
           candidateEmail={messageCandidate.email ?? ''}
           employerId={currentUser.id ?? ''}
           employerName={currentUser.name ?? currentUser.fullName ?? ''}

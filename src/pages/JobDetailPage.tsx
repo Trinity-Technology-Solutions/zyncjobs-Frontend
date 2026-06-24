@@ -71,6 +71,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   const urlJobId = searchParams.get('id') || '';
   const [job, setJob] = useState<any>(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
+  const [companyWebsite, setCompanyWebsite] = useState<string>('');
   const [jobPoster, setJobPoster] = useState<any>(null);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,11 +86,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const getCompanyLogo = (app: any) => {
     const name = app?.company || app?.companyName || '';
-    // Always prefer local logo mapping first (handles Nambikkai, Trinity, etc.)
     const localLogo = getLogoFromUtils(name);
     if (localLogo) return localLogo;
-    // Fall back to API-fetched logo, then getSafeCompanyLogo
-    return companyLogoUrl || getSafeCompanyLogo(app);
+    if (companyLogoUrl) return companyLogoUrl;
+    if (companyWebsite) {
+      try {
+        const domain = new URL(companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`).hostname.replace('www.', '');
+        const BACKEND = import.meta.env.VITE_API_URL || '/api';
+        if (domain) return `${BACKEND}/logo-proxy?domain=${encodeURIComponent(domain)}`;
+      } catch {}
+    }
+    return getSafeCompanyLogo(app);
   };
 
   useEffect(() => {
@@ -190,6 +197,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               );
               const logoUrl = match?.logo || match?.logoUrl || match?.imageUrl || match?.image || '';
               if (logoUrl) setCompanyLogoUrl(logoUrl);
+              const site = match?.website || match?.companyWebsite || '';
+              if (site) setCompanyWebsite(site);
             }
           }
         } catch {}
@@ -457,11 +466,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   src={getCompanyLogo(job)}
                   alt={job.company}
                   className="w-full h-full object-contain rounded"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.onerror = null;
-                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
-                  }}
                 />
               </div>
               <div className="flex-1">
@@ -646,7 +650,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
                   // Insert newline before known section headers so they land on their own line
                   const SECTION_RE = /(Job Summary|About the Role|Role Overview|Key Responsibilities|Responsibilities|Role & Responsibilities|Role and Responsibilities|Requirements|Mandatory Skills|Required Skills|Qualifications|Good to Have|Nice to Have|What We Offer|About Us|How to Apply)/gi;
-                  const normalised = clean.replace(SECTION_RE, (m) => `\n${m}\n`);
+                  const normalised = clean.replace(SECTION_RE, (m: any) => `\n${m}\n`);
 
                   const sectionHeaders: Record<string, string> = {
                     'job summary': 'summary', 'about the role': 'summary', 'role overview': 'summary',
@@ -705,7 +709,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   if (!hasAnySections) {
                     return (
                       <div className="space-y-2">
-                        {normalised.split('\n').filter(l => l.trim()).map((line, i) => (
+                        {normalised.split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
                           <p key={i} className="text-sm text-gray-700 leading-relaxed">{line.trim()}</p>
                         ))}
                       </div>
@@ -801,11 +805,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   src={getCompanyLogo(job)}
                   alt={job.company}
                   style={{width:'160px', height:'80px', objectFit:'contain', display:'block'}}
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.onerror = null;
-                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
-                  }}
                 />
                 <p style={{fontSize:'18px', fontWeight:'700', color:'#111827', textAlign:'center', margin:'0', lineHeight:'1.3'}}>{job.company}</p>
                 <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0', lineHeight:'1.3'}}>Company</p>
@@ -828,29 +827,43 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             </div>
 
             {/* Benefits */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
-              <ul className="space-y-2">
-                {job.benefits && job.benefits.length > 0 ? (
-                  Array.isArray(job.benefits) ? job.benefits.map((benefit: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600 text-sm">{benefit}</span>
-                    </li>
-                  )) : (
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600 text-sm">{job.benefits}</span>
-                    </li>
-                  )
-                ) : (
-                  <li className="flex items-start">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    <span className="text-gray-600 text-sm">Competitive benefits package available.</span>
-                  </li>
-                )}
-              </ul>
-            </div>
+            {(() => {
+              // Normalise job.benefits to an array
+              let benefitsList: string[] = [];
+              if (Array.isArray(job.benefits) && job.benefits.length > 0) {
+                benefitsList = job.benefits.filter(Boolean);
+              } else if (typeof job.benefits === 'string' && job.benefits.trim()) {
+                benefitsList = job.benefits.split(',').map((s: string) => s.trim()).filter(Boolean);
+              }
+
+              // Fallback: extract from "What We Offer" section in jobDescription
+              if (!benefitsList.length) {
+                const desc = job.jobDescription || job.description || '';
+                const offerMatch = desc.match(/What We Offer[\s\S]*?\n([\s\S]*?)(?=\n[A-Z][^\n]{2,}\n|$)/i);
+                if (offerMatch) {
+                  benefitsList = offerMatch[1]
+                    .split('\n')
+                    .map((l: string) => l.replace(/^[•\-\*\u2022\d+\.\)\s]+/, '').trim())
+                    .filter((l: string) => l.length > 3);
+                }
+              }
+
+              if (!benefitsList.length) return null;
+
+              return (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
+                  <ul className="space-y-2">
+                    {benefitsList.map((benefit: string, index: number) => (
+                      <li key={index} className="flex items-start">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                        <span className="text-gray-600 text-sm">{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
 
             {/* Similar Jobs */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -875,7 +888,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             src={getCompanyLogo(sj)}
                             alt={sj.company}
                             className="w-8 h-8 rounded object-contain border border-gray-200 bg-white p-0.5"
-                            onError={(e) => { const img = e.target as HTMLImageElement; img.onerror = null; img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(sj.company || 'C')}&size=32&background=3b82f6&color=ffffff&bold=true&format=png`; }}
                           />
                           <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{sj.company}</span>
                         </div>

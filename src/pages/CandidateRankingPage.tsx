@@ -15,6 +15,8 @@ import {
   MapPin,
   Calendar
 } from 'lucide-react';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 
 const API_ENDPOINTS = {
   BASE_URL: '/api',
@@ -110,46 +112,7 @@ async function readPdf(url: string): Promise<Array<{ text: string }>> {
   ];
 }
 
-const Header: React.FC<{ onNavigate?: (page: string) => void; user?: any }> = ({ onNavigate, user }) => {
-  return (
-    <header className="bg-slate-900 border-b border-slate-800 text-white px-6 py-4 shadow-md">
-      <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-2 cursor-pointer" onClick={() => onNavigate?.('dashboard')}>
-          <div className="font-black tracking-wider text-xl flex items-center gap-1 text-blue-400">
-            ZYNC<span className="text-white px-1.5 py-0.5 bg-blue-600 rounded text-sm">JOBS</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-6 text-sm text-slate-300">
-          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('candidates')}>Candidate Search</span>
-          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('companies')}>Companies</span>
-          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('posted-jobs')}>Posted Jobs</span>
-          <span className="hover:text-white cursor-pointer" onClick={() => onNavigate?.('job-posting')}>Job Posting</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold text-sm">
-            {user?.name ? user.name.charAt(0).toUpperCase() : 'M'}
-          </div>
-          <span className="text-sm font-semibold text-slate-200">{user?.name || 'Mutheeswaran'}</span>
-        </div>
-      </div>
-    </header>
-  );
-};
 
-const Footer: React.FC<{ onNavigate?: (page: string) => void }> = ({ onNavigate }) => {
-  return (
-    <footer className="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 px-6">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-sm">
-        <p>© 2026 ZYNC JOBS Inc. All rights reserved.</p>
-        <div className="flex gap-6">
-          <span className="hover:text-white cursor-pointer">Terms of Service</span>
-          <span className="hover:text-white cursor-pointer">Privacy Policy</span>
-          <span className="hover:text-white cursor-pointer">Support Helpdesk</span>
-        </div>
-      </div>
-    </footer>
-  );
-};
 
 // FIX: Added `title?` as an optional field so TypeScript accepts `j.title` accesses
 interface Job {
@@ -369,31 +332,69 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
     <div className="min-h-screen bg-slate-50">
       <Header onNavigate={onNavigate} user={user} />
 
-      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3 sm:gap-4">
+      <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 via-indigo-950 to-slate-900 text-white">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNCI+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-60" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/10 rounded-full blur-3xl -translate-y-1/3 translate-x-1/3" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3" />
+        <div className="absolute top-1/2 left-1/3 w-64 h-64 bg-violet-500/5 rounded-full blur-3xl" />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-5 sm:gap-6">
               <button
                 onClick={() => onNavigate?.('dashboard')}
                 aria-label="Go back"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-full border-2 border-white/70 bg-white/15 hover:bg-white/25 text-white shadow-sm hover:shadow-md transition-all backdrop-blur-sm"
+                className="inline-flex items-center justify-center w-12 h-12 rounded-xl border border-white/20 bg-white/10 hover:bg-white/20 text-white shadow-lg hover:shadow-xl transition-all backdrop-blur-sm shrink-0"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="19" y1="12" x2="5" y2="12" />
                   <polyline points="12 19 5 12 12 5" />
                 </svg>
               </button>
-              <div className="w-10 sm:w-12 h-10 sm:h-12 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg">
-                <Trophy className="w-5 sm:w-6 h-5 sm:h-6 text-white" />
+              <div className="w-14 sm:w-16 h-14 sm:h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-500 rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-2xl shadow-orange-500/30 ring-1 ring-white/20">
+                <Trophy className="w-7 sm:w-8 h-7 sm:h-8 text-white" />
               </div>
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Candidate Ranking & Matching</h1>
-                <p className="text-blue-300 text-xs sm:text-sm mt-0.5">AI-powered scoring · Find your best candidates instantly</p>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-blue-100 to-indigo-200 bg-clip-text text-transparent leading-tight">Candidate Ranking &amp; Matching</h1>
+                <div className="flex items-center gap-3 mt-3">
+                  <span className="inline-flex items-center gap-1.5 text-blue-200/90 text-sm sm:text-base font-medium">
+                    <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
+                    AI-powered scoring
+                  </span>
+                  <span className="w-1 h-1 rounded-full bg-blue-300/40" />
+                  <span className="text-blue-200/70 text-sm sm:text-base">Find your best candidates instantly</span>
+                </div>
               </div>
             </div>
-            <button onClick={fetchData} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur px-4 py-2 rounded-xl border border-white/20 text-sm text-white transition-colors">
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <button onClick={fetchData} className="group hidden sm:inline-flex items-center justify-center gap-2.5 bg-white/10 hover:bg-white/20 backdrop-blur-md px-6 py-3 rounded-xl border border-white/20 hover:border-white/30 text-sm font-semibold text-white shadow-lg hover:shadow-xl transition-all duration-200">
+              <RefreshCw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+              <span>Refresh Data</span>
             </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-5 mt-10 sm:mt-12">
+            {[
+              { label: 'Total Applicants', value: rankedCandidates.length, color: 'text-blue-200', icon: Users, bar: 'bg-blue-400/30' },
+              { label: 'Avg Match Score', value: `${avgScore}%`, color: 'text-emerald-200', icon: TrendingUp, bar: 'bg-emerald-400/30' },
+              { label: 'Strong Matches', value: rankedCandidates.filter(c => c.score >= 80).length, color: 'text-amber-200', icon: Star, bar: 'bg-amber-400/30' },
+              { label: 'Hired', value: rankedCandidates.filter(c => c.interviewStatus === 'hired').length, color: 'text-violet-200', icon: CheckCircle, bar: 'bg-violet-400/30' },
+            ].map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <div key={i} className="relative group">
+                  <div className={`absolute inset-0 ${s.bar} rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                  <div className="relative bg-white/5 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-5 border border-white/10 hover:border-white/20 transition-all duration-200">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 ${s.bar} rounded-lg flex items-center justify-center`}>
+                        <Icon className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs text-blue-200/60 font-medium truncate">{s.label}</p>
+                        <p className={`text-xl sm:text-2xl font-bold ${s.color}`}>{s.value}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -408,27 +409,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           </div>
         )}
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
-          {[
-            { label: 'Total Applicants', value: rankedCandidates.length, color: 'text-slate-700', icon: Users, bg: 'bg-slate-100' },
-            { label: 'Avg Match Score', value: `${avgScore}%`, color: 'text-blue-600', icon: TrendingUp, bg: 'bg-blue-50' },
-            { label: 'Strong Matches', value: rankedCandidates.filter(c => c.score >= 80).length, color: 'text-emerald-600', icon: Star, bg: 'bg-emerald-50' },
-            { label: 'Hired', value: rankedCandidates.filter(c => c.interviewStatus === 'hired').length, color: 'text-violet-600', icon: CheckCircle, bg: 'bg-violet-50' },
-          ].map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <div key={i} className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-gray-100 shadow-sm flex items-center gap-2 sm:gap-4">
-                <div className={`w-8 sm:w-11 h-8 sm:h-11 ${s.bg} rounded-lg sm:rounded-xl flex items-center justify-center flex-shrink-0`}>
-                  <Icon className={`w-4 sm:w-5 h-4 sm:h-5 ${s.color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-500 font-medium truncate">{s.label}</p>
-                  <p className={`text-lg sm:text-2xl font-bold ${s.color}`}>{s.value}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+
 
         {top3.length > 0 && !loading && (
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
@@ -584,7 +565,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           </div>
         )}
       </div>
-      <Footer onNavigate={onNavigate} />
+      <Footer onNavigate={onNavigate} user={user} />
     </div>
   );
 };

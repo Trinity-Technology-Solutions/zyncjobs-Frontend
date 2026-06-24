@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp } from 'lucide-react';
 
 interface TalentedPeopleProps {
@@ -110,13 +110,13 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
         <p className="text-center text-gray-400 text-sm font-medium mb-8">Trusted by top companies</p>
         <div className="flex flex-wrap justify-center items-center gap-12 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
           {[
-            { name: 'Birlasoft', logo: 'https://img.logo.dev/birlasoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Persistent', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Saksoft', logo: 'https://img.logo.dev/saksoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'L&T', logo: 'https://img.logo.dev/larsentoubro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-            { name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+            { name: 'Birlasoft', logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
+            { name: 'Persistent', logo: 'https://www.google.com/s2/favicons?domain=persistent.com&sz=64' },
+            { name: 'LTIMindtree', logo: 'https://www.google.com/s2/favicons?domain=ltimindtree.com&sz=64' },
+            { name: 'Saksoft', logo: 'https://www.google.com/s2/favicons?domain=saksoft.com&sz=64' },
+            { name: 'L&T', logo: 'https://www.google.com/s2/favicons?domain=larsentoubro.com&sz=64' },
+            { name: 'Cognizant', logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
+            { name: 'Accenture', logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
           ].map((company, index) => (
             <img
               key={index}
@@ -136,3 +136,4 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
 };
 
 export default TalentedPeople;
+
