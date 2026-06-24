@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
@@ -11,7 +12,7 @@ import MobileHamburgerMenu from './MobileHamburgerMenu';
 
 interface HeaderProps {
   onNavigate?: (page: string, data?: any) => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin', email?: string} | null;
   onLogout?: () => void;
 }
 
@@ -24,6 +25,17 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [adminUnlocked, setAdminUnlocked] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
+  const isEmployerAuthPage = currentPath === '/employer-login' || currentPath === '/employer-register';
+
+  // Show Job Seeker links everywhere EXCEPT on Job Seeker Auth pages
+  const showJobSeekerLinks = !isJobSeekerAuthPage;
+  
+  // Show Employer links everywhere EXCEPT on Employer Auth pages
+  const showEmployerLinks = !isEmployerAuthPage;
 
   // Secret typed sequence to reveal admin login
   useEffect(() => {
@@ -669,19 +681,31 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 </button>
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" role="menu">
-                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
-                    <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                      Login
-                    </button>
-                    <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                      Register
-                    </button>
-                    <hr className="my-1" />
-                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
-                    <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                      For Employers / Post Jobs
-                    </button>
-                    <hr className="my-1" />
+                    {showJobSeekerLinks && (
+                      <>
+                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
+                        <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
+                          Login
+                        </button>
+                        <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
+                          Register
+                        </button>
+                      </>
+                    )}
+                    
+                    {showJobSeekerLinks && showEmployerLinks && <hr className="my-1" />}
+                    
+                    {showEmployerLinks && (
+                      <>
+                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
+                        <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
+                          For Employers / Post Jobs
+                        </button>
+                      </>
+                    )}
+                    
+                    {(showJobSeekerLinks || showEmployerLinks) && adminUnlocked && <hr className="my-1" />}
+                    
                     {adminUnlocked && (
                       <button
                         onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate && onNavigate('admin/login'); }}

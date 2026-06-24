@@ -1131,11 +1131,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 const visibleJobs = tabData[activeTab] || topPerforming;
 
                 const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
-                  if (pct >= 80) return { bar: '#10b981', label: '🔥 Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
-                  if (pct >= 40) return { bar: '#f59e0b', label: '📈 Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200' };
-                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '' };
-                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
-                  return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
+                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', iconPath: '/images/fire-svgrepo-com.svg' };
+                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', iconPath: null };
+                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', iconPath: null };
+                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
+                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
                 };
 
                 const tabs = [
@@ -1221,7 +1221,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         /* Top/Applied/Recent: performance card layout */
                         <div className="space-y-4">
                           {visibleJobs.map((job, idx) => {
-                            const { bar, label, labelCls } = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
+                            const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
+                            const { bar, label, labelCls } = status;
                             return (
                               <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
                                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -1237,7 +1238,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                    {label && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>{label}</span>}
+                                    {label && (
+                                      <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>
+                                        {status.iconPath && (
+                                          <img
+                                            src={status.iconPath}
+                                            alt=""
+                                            className="w-3 h-3 mr-1 inline-block object-contain"
+                                          />
+                                        )}
+                                        {label}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 {/* Progress bar */}
