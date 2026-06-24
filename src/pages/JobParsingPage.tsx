@@ -39,7 +39,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       
       setNotification({
         type: 'success',
-        message: 'Job description parsed successfully! ðŸŽ‰',
+        message: 'Job description parsed successfully!',
         isVisible: true
       });
 
@@ -420,7 +420,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     for (const city of knownCities) {
       // Only match if city appears with a location-related label, or alone on its own line
       const withLabel = new RegExp(
-        `(?:location|city|based\s+in|located\s+in|work\s+location|job\s+location)\s*[:\-,]?\s*${city}\b`,
+        `(?:location|city|based\\s+in|located\\s+in|work\\s+location|job\\s+location)\\s*[:\\-,]?\\s*${city}\\b`,
         'i'
       ).test(text);
       const aloneLine = new RegExp(`^\\s*${city}\\s*$`, 'im').test(text);
