@@ -31,12 +31,14 @@ import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
 
 interface CandidateDashboardPageProps {
+  user?: any;
   onNavigate: (page: string, data?: any) => void;
   readOnly?: boolean;
   viewEmail?: string;
 }
 
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
+  user: userProp,
   onNavigate,
   readOnly = false,
   viewEmail,
@@ -123,15 +125,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     }
   };
 
-  const candidateEmail =
-    user?.email ||
-    (() => {
-      try {
-        return JSON.parse(localStorage.getItem("user") || "{}").email;
-      } catch {
-        return undefined;
-      }
-    })();
+  const candidateEmail = user?.email || (() => {
+    try { return JSON.parse(localStorage.getItem("user") || "{}").email; } catch { return undefined; }
+  })();
   const {
     notifications: appNotifications,
     unreadCount,
@@ -366,11 +362,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         return;
       }
 
-      const userData =
-        localStorage.getItem("user") || sessionStorage.getItem("user");
+      // Prefer user prop (React state from App.tsx) over localStorage
+      const userData = userProp || localStorage.getItem("user") || sessionStorage.getItem("user");
       if (userData) {
         try {
-          const parsedUser = JSON.parse(userData);
+          const parsedUser = typeof userData === 'object' ? userData : JSON.parse(userData);
           let finalUser = parsedUser;
           // Fetch fresh data from database
           try {

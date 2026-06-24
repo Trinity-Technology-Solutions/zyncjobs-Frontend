@@ -1,6 +1,7 @@
 import { apiFetch } from './apiFetch';
 import { config, API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
+import { updateUserInStorage } from '../utils/userStorage';
 
 const API = config.API_URL;
 
@@ -51,10 +52,19 @@ export const accountAPI = {
               return null;
             }
             
+            // Cross-check: the returned user ID must match the requested ID
+            // Prevents session leakage when backend returns wrong user data
+            const returnedId = String(dbUser._id || dbUser.id || dbUser.userId || '');
+            if (returnedId && returnedId !== String(userId)) {
+              console.warn(`User ID mismatch! Requested ${userId}, got ${returnedId}. Falling back to JWT payload.`);
+              // fall through to JWT payload block below
+              throw new Error('User ID mismatch');
+            }
+            
             // Sync localStorage with latest DB data so fields persist across logout/login
             try {
               const merged = { ...stored, ...dbUser, teamRole: stored.teamRole || dbUser.teamRole || null, employerOwnerId: stored.employerOwnerId || dbUser.employerOwnerId || null, employerId: stored.employerId || dbUser.employerId || null };
-              localStorage.setItem('user', JSON.stringify(merged));
+              updateUserInStorage(merged);
             } catch { /* ignore storage errors */ }
 
             // Merge team context from stored login response

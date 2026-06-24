@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle, Info } from 'lucide-react';
 import Header from '../components/Header';
 import { apiFetch } from '../api/apiFetch';
+import { updateUserInStorage } from '../utils/userStorage';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -624,7 +625,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
       };
       
       console.log('Updating localStorage with:', updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      updateUserInStorage(updatedUser);
       
       // Mark profile as completed to prevent popup from showing again
       localStorage.setItem('hasSeenProfilePopup', 'true');

@@ -109,14 +109,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const fetchProfileMetrics = async () => {
       if (!user) return;
       try {
-        // Use user prop directly — don't rely on localStorage which may be stale
-        const userEmail = (user as any).email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+        const userEmail = user.email || (user as any).email;
         if (!userEmail) return;
 
         if (user.type === 'employer') {
           // For team members, use owner's email to show company-wide stats
-          const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-          const ownerEmail = storedUser.employerOwnerId || userEmail;
+          const ownerEmail = (user as any).employerOwnerId || userEmail;
           const [jobsRes, appsRes] = await Promise.all([
             apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`),
             apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(ownerEmail)}`),
@@ -152,7 +150,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const fetchNotifications = async () => {
       if (!user) return;
       try {
-        const userEmail = (user as any).email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+        const userEmail = user.email || (user as any).email;
         if (!userEmail) return;
 
         if (user.type === 'employer') {
