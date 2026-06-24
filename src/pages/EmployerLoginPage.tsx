@@ -5,6 +5,7 @@ import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import Header from '../components/Header';
 import { generateEmployerId } from '../utils/employerIdUtils';
+import { updateUserInStorage } from '../utils/userStorage';
 
 interface EmployerLoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -67,7 +68,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         ...response.user,
         ownerEmail: (response.user as any).ownerEmail || (isTeamMember ? response.user.employerId : null)
       };
-      localStorage.setItem('user', JSON.stringify(userToStore));
+      updateUserInStorage(userToStore);
       const displayName = response.user.name || response.user.companyName || response.user.company || response.user.fullName || response.user.email.split('@')[0];
       onLogin({ name: displayName, type: 'employer', email: response.user.email, id: response.user.id } as any);
 

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
 import analytics from '../services/analytics';
+import { updateUserInStorage } from '../utils/userStorage';
 
 interface LoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -54,7 +55,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         }
       } catch { /* silent — use auth response as fallback */ }
 
-      localStorage.setItem('user', JSON.stringify(fullUser));
+      updateUserInStorage(fullUser);
       const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
       const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
       onLogin({ name: displayName, type: userType, email: response.user.email, id: response.user.id } as any);

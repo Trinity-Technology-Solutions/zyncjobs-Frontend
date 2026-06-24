@@ -9,6 +9,7 @@ import { parseResumeFromText, type AIParseStatus } from "./parseLogic";
 import type { ParsedResume } from "./parseLogic";
 import { AIProgressLoader } from "../AIProgressLoader";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+import { updateUserInStorage } from '../../utils/userStorage';
 
 interface ResumeParserProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -790,7 +791,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                       role: currentUser.role || currentUser.userType || 'candidate',
                     };
 
-                    localStorage.setItem('user', JSON.stringify(updatedUser));
+                    updateUserInStorage(updatedUser);
 
                     setSaving(true);
                     try {
@@ -815,7 +816,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                         }).catch(() => {});
                       }
 
-                      localStorage.setItem('user', JSON.stringify(updatedUser));
+                      updateUserInStorage(updatedUser);
                       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Profile updated from resume!' } }));
                       onNavigate && onNavigate('dashboard');
                     } catch (e: any) {

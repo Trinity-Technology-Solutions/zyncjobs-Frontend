@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield, Eye, 
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import { accountAPI } from '../api/account';
+import { updateUserInStorage } from '../utils/userStorage';
 
 
 interface SettingsPageProps {
@@ -55,7 +56,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     if (result.success) {
       const updatedUser = { ...user, email: emailForm.newEmail };
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      updateUserInStorage(updatedUser);
       setEmailForm({ newEmail: '', confirmEmail: '' });
     }
     setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });

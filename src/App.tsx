@@ -23,6 +23,7 @@ import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
+import { mergeUserToStorage, updateUserInStorage } from './utils/userStorage';
 import { useAnalytics } from './hooks/useAnalytics';
 import './utils/extensionErrorHandler'; // Initialize extension error handling
 // Lazy-loaded pages
@@ -313,13 +314,13 @@ function App() {
     const userType = userData.type || userData.userType || userData.role || 'candidate';
     localStorage.setItem('lastUserType', userType);
 
-    // Persist user to localStorage for fast restore on refresh
-    // IMPORTANT: preserve teamRole, employerOwnerId, employerId from team invite flow
-    localStorage.setItem('user', JSON.stringify({
+    // Persist user to localStorage — MERGE with existing data so fields like
+    // companyName, companyLogo, employerId set by login pages are not lost
+    mergeUserToStorage({
       ...userData,
       userType: userData.type,
       role: userData.role || userData.type,
-    }));
+    });
     const token = tokenStorage.getAccess();
     if (token && (userData.type === 'candidate' || userData.type === 'employer')) {
       localStorageMigration.setToken(token);
@@ -386,7 +387,7 @@ function App() {
           let cleaned = false;
           if (parsed.profilePhoto?.startsWith('data:')) { parsed.profilePhoto = ''; cleaned = true; }
           if (parsed.coverPhoto?.startsWith('data:')) { parsed.coverPhoto = ''; cleaned = true; }
-          if (cleaned) localStorage.setItem('user', JSON.stringify(parsed));
+          if (cleaned) updateUserInStorage(parsed);
         }
       } catch { /* silent */ }
 
@@ -450,7 +451,10 @@ function App() {
           try {
             const ls = JSON.parse(localStorage.getItem('user') || '{}');
             if (ls.name !== freshName) {
-              localStorage.setItem('user', JSON.stringify({ ...ls, name: freshName }));
+              updateUserInStorage({ ...ls, name: freshName });
+            } else {
+              // Still dispatch to ensure listeners sync even if name didn't change
+              window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: { name: freshName, email: userData.email } }));
             }
           } catch { /* ignore */ }
         }
@@ -626,10 +630,10 @@ function App() {
                   ) : user?.type === 'employer' ? (
                     <>
                       <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-                      <EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} />
+                      <EmployerDashboardPage user={user as any} onNavigate={handleNavigation} onLogout={handleLogout} />
                     </>
                   ) : (
-                    <WithLayout {...nav}><CandidateDashboardPage onNavigate={handleNavigation} /></WithLayout>
+                    <WithLayout {...nav}><CandidateDashboardPage user={user as any} onNavigate={handleNavigation} /></WithLayout>
                   )}
                 </AuthGuard>
             } />

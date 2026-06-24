@@ -14,6 +14,7 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
+import { updateUserInStorage } from '../utils/userStorage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast, ToastType } from '../hooks/useToast';
 import NotificationComponent from '../components/Notification';
@@ -25,6 +26,7 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 const _missingJobIds = new Set<string>();
 
 interface EmployerDashboardPageProps {
+  user?: any;
   onNavigate: (page: string, params?: any) => void;
   onLogout?: () => void;
 }
@@ -196,19 +198,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   }, []); // Run once on mount only
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
+    // Prefer the user prop from App.tsx (React state) as primary source of truth.
+    // Fall back to localStorage only when prop is not available.
+    const sourceData = user || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    if (sourceData && Object.keys(sourceData).length > 0) {
       setJobs([]);
       setApplications([]);
       setInterviews([]);
       setDashboardStats(null);
       setRecentActivity([]);
       
-      setUser(parsedUser);
-      setEmployerName(parsedUser.name || 'Employer');
+      setUser(sourceData);
+      setEmployerName(sourceData.name || 'Employer');
       // Live fetch team role from backend on every load
-      const _ue = parsedUser.email;
+      const _ue = sourceData.email;
       if (_ue) {
         fetch(`${import.meta.env.VITE_API_URL || '/api'}/team/check?memberEmail=${encodeURIComponent(_ue)}`)
           .then(r => r.ok ? r.json() : null)
@@ -228,37 +231,37 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 _s.name = data.memberName;
                 setEmployerName(data.memberName);
               }
-              localStorage.setItem('user', JSON.stringify(_s));
+              updateUserInStorage(_s);
               // Pass ownerEmail so fetchDashboardData uses owner's data
-              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
+              fetchDashboardData({ ...sourceData, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
             } else {
               setTeamRole('Owner');
               setOwnerEmailState(_ue);
               // Owner — fetch with own email
-              fetchDashboardData({ ...parsedUser, employerOwnerId: null, ownerEmail: _ue });
+              fetchDashboardData({ ...sourceData, employerOwnerId: null, ownerEmail: _ue });
             }
           })
           .catch(() => {
-            if (parsedUser.teamRole) setTeamRole(parsedUser.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
-            const fallbackOwner = parsedUser.employerOwnerId || _ue;
+            if (sourceData.teamRole) setTeamRole(sourceData.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
+            const fallbackOwner = sourceData.employerOwnerId || _ue;
             setOwnerEmailState(fallbackOwner);
-            fetchDashboardData({ ...parsedUser, employerOwnerId: parsedUser.employerOwnerId || null });
+            fetchDashboardData({ ...sourceData, employerOwnerId: sourceData.employerOwnerId || null });
           });
       }
       // Fix: Use actual company name from registration, not generic 'Company'
       // For team members, prefer the owner's companyName stored in their profile
-      const actualCompanyName = parsedUser.companyName || parsedUser.ownerCompanyName || parsedUser.company || parsedUser.organizationName || 'Company';
+      const actualCompanyName = sourceData.companyName || sourceData.ownerCompanyName || sourceData.company || sourceData.organizationName || 'Company';
       setCompanyName(actualCompanyName);
-      setCompanyLogo(parsedUser.companyLogo || '');
+      setCompanyLogo(sourceData.companyLogo || '');
       
       // Check if profile completion popup should be shown
       // Only show for FIRST TIME after registration (not on subsequent visits)
-      const hasCompletedProfile = parsedUser.industry && 
-                                 parsedUser.companySize && 
-                                 parsedUser.headquarters && 
-                                 parsedUser.companyDescription &&
-                                 parsedUser.companyWebsite &&
-                                 parsedUser.tagline;
+      const hasCompletedProfile = sourceData.industry && 
+                                 sourceData.companySize && 
+                                 sourceData.headquarters && 
+                                 sourceData.companyDescription &&
+                                 sourceData.companyWebsite &&
+                                 sourceData.tagline;
       
       const hasSeenPopup = localStorage.getItem('hasSeenProfilePopup');
       const isFirstVisit = sessionStorage.getItem('isFirstVisitAfterRegistration'); // Only for current session
@@ -291,6 +294,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return () => {
       window.removeEventListener('showAlerts', handleShowAlerts);
       window.removeEventListener('showApplications', handleShowApplications);
+    };
+  }, []);
+
+  // Sync user state when App.tsx updates the user (session restore, etc.)
+  useEffect(() => {
+    const syncUser = () => {
+      const raw = localStorage.getItem('user');
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        setUser(parsed);
+        setEmployerName(parsed.name || 'Employer');
+        const actualCompanyName = parsed.companyName || parsed.ownerCompanyName || parsed.company || parsed.organizationName || 'Company';
+        setCompanyName(actualCompanyName);
+        setCompanyLogo(parsed.companyLogo || '');
+      } catch { /* ignore */ }
+    };
+
+    window.addEventListener('zync:user-updated', syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener('zync:user-updated', syncUser);
+      window.removeEventListener('storage', syncUser);
     };
   }, []);
 
@@ -346,8 +372,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const jobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const myEmployerId = storedUser.employerId;
+          const myEmployerId = userData.employerId;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
             const email = ownerEmail?.toLowerCase().trim();
             const selfEmail = userEmail?.toLowerCase().trim();
@@ -456,8 +481,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Dashboard Stats (non-critical, fail silently)
       try {
-        const storedUserForStats = JSON.parse(localStorage.getItem('user') || '{}');
-        const myCompanyForStats = storedUserForStats.companyName || storedUserForStats.company || '';
+        const myCompanyForStats = userData.companyName || userData.company || '';
         const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}&userName=${encodeURIComponent(userName || '')}&companyName=${encodeURIComponent(myCompanyForStats)}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
@@ -898,12 +922,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 openConfirm(
                 'Delete Account',
                 'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
-                async () => {
-                  closeConfirm();
-                  try {
-                    const stored = localStorage.getItem('user');
-                    const userData = stored ? JSON.parse(stored) : {};
-                    const userId = userData.id || userData._id;
+                  async () => {
+                    closeConfirm();
+                    try {
+                      const userId = user.id || user._id;
                                         if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
                     const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
@@ -1007,10 +1029,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   setShowNotifications(!showNotifications);
                   if (!showNotifications) {
                     try {
-                      const userData = localStorage.getItem('user');
-                      if (userData) {
-                        const { email } = JSON.parse(userData);
-                        const fresh = await NotificationService.fetchNotifications(email);
+                      if (user?.email) {
+                        const fresh = await NotificationService.fetchNotifications(user.email);
                         setNotifications(fresh);
                       }
                     } catch (e) { console.error('Bell fetch error:', e); }
@@ -2013,10 +2033,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <button
                     onClick={async () => {
                       try {
-                        const userData = localStorage.getItem('user');
-                        if (userData) {
-                          const parsedUser = JSON.parse(userData);
-                          const dynamicNotifications = await NotificationService.fetchNotifications(parsedUser.email);
+                        if (user?.email) {
+                          const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
                           setNotifications(dynamicNotifications);
                         }
                       } catch (error) {
