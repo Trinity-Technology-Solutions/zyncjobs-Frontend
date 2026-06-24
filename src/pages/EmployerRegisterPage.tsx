@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, Clock, Target, FileText, X, AlertTriangle, ArrowRight, ArrowLeft, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Search, BarChart2, Shield, Zap, CheckCircle, Clock, Target, FileText, X, AlertTriangle, ArrowRight, ArrowLeft, Building2, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { authAPI } from '../api/auth';
@@ -75,9 +75,27 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToDeclaration, setAgreedToDeclaration] = useState(false);
   const [gstMismatch, setGstMismatch] = useState<{ typed: string; gst: string } | null>(null);
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] as string[] });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const validatePassword = (pwd: string) => {
+    const feedback: string[] = [];
+    let score = 0;
+    if (pwd.length >= 8) score++; else feedback.push('At least 8 characters');
+    if (/[A-Z]/.test(pwd)) score++; else feedback.push('One uppercase letter');
+    if (/[a-z]/.test(pwd)) score++; else feedback.push('One lowercase letter');
+    if (/\d/.test(pwd)) score++; else feedback.push('One number');
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) score++; else feedback.push('One special character');
+    return { score, feedback };
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (fieldErrors[name]) setFieldErrors(prev => ({ ...prev, [name]: '' }));
+    if (name === 'password') {
+      setPasswordStrength(validatePassword(value));
+    }
   };
 
   const handleCompanyNameChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -190,14 +208,16 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
   };
 
   const handleStep1Next = async () => {
-    if (!formData.name.trim()) { setError('Please enter your full name.'); return; }
-    if (!formData.companyName.trim()) { setError('Please enter your company name.'); return; }
-    if (!formData.email.trim()) { setError('Please enter your company email.'); return; }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(formData.email.trim())) { setError('Please enter a valid email address.'); return; }
-    if (!formData.gstNumber.trim()) { setError('Please enter your GST number.'); return; }
-    if (!gstVerification) { setError('Please verify your GST number before continuing.'); return; }
-    if (!gstVerification.verified) { setError('GST verification failed. Please check your GST number.'); return; }
+    const errs: Record<string, string> = {};
+    if (!formData.name.trim()) errs.name = 'Name is required';
+    if (!formData.companyName.trim()) errs.companyName = 'Company name is required';
+    if (!formData.email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) errs.email = 'Invalid email format';
+    if (!formData.gstNumber.trim()) errs.gstNumber = 'GST number is required';
+    else if (!gstVerification) errs.gstNumber = 'Please verify your GST number';
+    else if (!gstVerification.verified) errs.gstNumber = 'GST verification failed';
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
 
     setError('');
     setLoading(true);
@@ -219,6 +239,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
       }
     } catch (err) {
       setError('Failed to send verification code');
+      setFieldErrors({});
       showToast('Failed to send verification code', 'error');
     } finally {
       setLoading(false);
@@ -285,8 +306,18 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.password !== formData.confirmPassword) { setError('Passwords do not match'); return; }
-    if (formData.password.length < 6) { setError('Password must be at least 6 characters'); return; }
+    const errs: Record<string, string> = {};
+    if (!formData.password) errs.password = 'Password is required';
+    else {
+      const strength = validatePassword(formData.password);
+      if (strength.score < 4) errs.password = 'Must include 8+ characters, uppercase, lowercase, number, and special character';
+    }
+    if (!formData.confirmPassword) errs.confirmPassword = 'Please confirm your password';
+    else if (formData.password !== formData.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+    if (!agreedToTerms) errs.terms = 'Please agree to the Terms & Conditions';
+    if (!agreedToDeclaration) errs.declaration = 'Please agree to the Employer Declaration';
+    setFieldErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setLoading(true);
     setError('');
     try {
@@ -546,9 +577,13 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
-                      <input type="text" name="name" value={formData.name} onChange={handleChange}
-                        className="w-full h-12 sm:h-14 px-4 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
-                        placeholder="Enter your full name" />
+                      <div className="relative">
+                        <input type="text" name="name" value={formData.name} onChange={handleChange}
+                          className={`w-full h-12 sm:h-14 px-4 pr-10 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.name ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                          placeholder="Enter your full name" />
+                        {fieldErrors.name && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
+                      </div>
+                      {fieldErrors.name && <p className="mt-1 text-xs text-red-500">{fieldErrors.name}</p>}
                     </div>
 
                     {/* GST Number */}
@@ -557,20 +592,24 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                         GST Number <span className="text-red-500">*</span>
                       </label>
                       <div className="flex gap-2">
-                        <input
-                          type="text"
-                          name="gstNumber"
-                          value={formData.gstNumber}
-                          onChange={(e) => {
-                            setFormData({ ...formData, gstNumber: e.target.value.toUpperCase(), companyName: '' });
-                            setGstVerification(null);
-                            setCompanyLogo('');
-                            setGstMismatch(null);
-                          }}
-                          className="flex-1 h-12 px-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white uppercase tracking-wider"
-                          placeholder="e.g. 22AAAAA0000A1Z5"
-                          maxLength={15}
-                        />
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            name="gstNumber"
+                            value={formData.gstNumber}
+                            onChange={(e) => {
+                              setFormData({ ...formData, gstNumber: e.target.value.toUpperCase(), companyName: '' });
+                              setGstVerification(null);
+                              setCompanyLogo('');
+                              setGstMismatch(null);
+                              if (fieldErrors.gstNumber) setFieldErrors(prev => ({ ...prev, gstNumber: '' }));
+                            }}
+                            className={`w-full h-12 px-4 pr-10 border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white uppercase tracking-wider ${fieldErrors.gstNumber ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                            placeholder="e.g. 22AAAAA0000A1Z5"
+                            maxLength={15}
+                          />
+                          {fieldErrors.gstNumber && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
+                        </div>
                         <button
                           type="button"
                           onClick={handleGSTVerification}
@@ -584,13 +623,14 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           )}
                           {gstLoading ? 'Verifying...' : 'Verify GST'}
                         </button>
+                    </div>
+                    {fieldErrors.gstNumber && <p className="mt-1 text-xs text-red-500">{fieldErrors.gstNumber}</p>}
+                    {gstVerification?.verified && !fieldErrors.gstNumber && (
+                      <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
+                        <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                        GST Verified - Company details filled automatically
                       </div>
-                      {gstVerification?.verified && (
-                        <div className="mt-2 p-3 rounded-lg border bg-green-50 border-green-200 text-green-700 flex items-center gap-2 text-sm font-medium">
-                          <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                          GST Verified - Company details filled automatically
-                        </div>
-                      )}
+                    )}
                     </div>
 
                     <div>
@@ -649,7 +689,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Company Email</label>
                       <div className="relative">
                         <input type="email" name="email" value={formData.email} onChange={handleChange}
-                          className="w-full h-12 sm:h-14 px-4 pr-12 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
+                          className={`w-full h-12 sm:h-14 px-4 pr-12 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                           placeholder="Enter company email"
                           autoComplete="email"
                           inputMode="email" />
@@ -669,6 +709,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           </button>
                         )}
                       </div>
+                      {fieldErrors.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
 
                       {domainVerification && (
                         <div className={`mt-2 p-3 rounded-lg border text-sm ${
@@ -841,27 +882,48 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Password</label>
                       <div className="relative">
                         <input type={showPassword ? 'text' : 'password'} name="password" value={formData.password} onChange={handleChange}
-                          className="w-full h-12 sm:h-14 px-4 pr-14 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
+                          className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                           placeholder="Create a password" required />
                         <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2 touch-manipulation">
                           {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </button>
                       </div>
+                      {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
+                      {formData.password && !fieldErrors.password && (
+                        <div className="mt-2">
+                          <div className="flex gap-1 mb-1">
+                            {[1, 2, 3, 4, 5].map((level) => (
+                              <div key={level} className={`h-1.5 flex-1 rounded-full transition-colors ${passwordStrength.score >= level ? 'bg-green-500' : 'bg-gray-200'}`} />
+                            ))}
+                          </div>
+                          {passwordStrength.feedback.length > 0 && (
+                            <ul className="text-xs text-gray-500 space-y-0.5">
+                              {passwordStrength.feedback.map((msg, i) => (
+                                <li key={i} className="flex items-center gap-1"><span className="text-red-400">●</span> {msg}</li>
+                              ))}
+                            </ul>
+                          )}
+                          {passwordStrength.score >= 4 && (
+                            <p className="text-xs text-green-600 flex items-center gap-1 mt-1"><span>✓</span> Strong password</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
                       <div className="relative">
                         <input type={showConfirmPassword ? 'text' : 'password'} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange}
-                          className="w-full h-12 sm:h-14 px-4 pr-14 border border-gray-200 rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation"
+                          className={`w-full h-12 sm:h-14 px-4 pr-14 border rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-orange-400 bg-gray-50 focus:bg-white transition-all duration-200 touch-manipulation ${fieldErrors.confirmPassword ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                           placeholder="Confirm your password" required />
                         <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-2 touch-manipulation">
                           {showConfirmPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </button>
                       </div>
+                      {fieldErrors.confirmPassword && <p className="mt-1 text-xs text-red-500">{fieldErrors.confirmPassword}</p>}
                     </div>
                     <div className="space-y-2">
-                      <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToTerms ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                        <input type="checkbox" id="terms-employer" checked={agreedToTerms} onChange={e => setAgreedToTerms(e.target.checked)}
+                      <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${fieldErrors.terms ? 'border-red-500 bg-red-50' : agreedToTerms ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <input type="checkbox" id="terms-employer" checked={agreedToTerms} onChange={e => { setAgreedToTerms(e.target.checked); if (fieldErrors.terms) setFieldErrors(prev => ({ ...prev, terms: '' })); }}
                           className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0" />
                         <label htmlFor="terms-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
                           I agree to ZyncJobs'{' '}
@@ -870,8 +932,9 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           <button type="button" onClick={() => onNavigate('privacy')} className="text-orange-500 hover:text-orange-700 underline font-semibold">Privacy Policy</button>.
                         </label>
                       </div>
-                      <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${agreedToDeclaration ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
-                        <input type="checkbox" id="declaration-employer" checked={agreedToDeclaration} onChange={e => setAgreedToDeclaration(e.target.checked)}
+                      {fieldErrors.terms && <p className="text-xs text-red-500 mt-1">{fieldErrors.terms}</p>}
+                      <div className={`flex items-start gap-3 p-3 rounded-xl border transition-colors ${fieldErrors.declaration ? 'border-red-500 bg-red-50' : agreedToDeclaration ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <input type="checkbox" id="declaration-employer" checked={agreedToDeclaration} onChange={e => { setAgreedToDeclaration(e.target.checked); if (fieldErrors.declaration) setFieldErrors(prev => ({ ...prev, declaration: '' })); }}
                           className="mt-0.5 w-4 h-4 accent-orange-500 cursor-pointer flex-shrink-0" />
                         <label htmlFor="declaration-employer" className="text-xs text-gray-600 cursor-pointer leading-relaxed select-none">
                           I am an authorized representative of this company and agree to the{' '}
@@ -879,6 +942,7 @@ const EmployerRegisterPage: React.FC<EmployerRegisterPageProps> = ({ onNavigate 
                           {' '}- including posting accurate jobs and lawful use of candidate data.
                         </label>
                       </div>
+                      {fieldErrors.declaration && <p className="text-xs text-red-500 mt-1">{fieldErrors.declaration}</p>}
                     </div>
 
                     <button type="submit" disabled={loading || !agreedToTerms || !agreedToDeclaration}

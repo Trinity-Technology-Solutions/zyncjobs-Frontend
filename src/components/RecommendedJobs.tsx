@@ -59,6 +59,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   const [error, setError] = useState<string | null>(null);
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState({
     salaryRange: '',
     jobType: ''
@@ -322,18 +323,22 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
       if (!res.ok) return;
       const data = await res.json();
       const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-      const map: Record<string, string> = {};
+      const logoMap: Record<string, string> = {};
+      const websiteMap: Record<string, string> = {};
       companies.forEach((c: any) => {
         const name = (c.name || c.companyName || '').toLowerCase();
         const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-        if (name && logo) map[name] = logo;
+        if (name && logo) logoMap[name] = logo;
+        const site = c.website || c.companyWebsite || '';
+        if (name && site) websiteMap[name] = site;
       });
       jobList.forEach((j: any) => {
         const name = (j.company || '').toLowerCase();
         const logo = j.companyLogo || j.logoUrl || '';
-        if (name && logo && !map[name]) map[name] = logo;
+        if (name && logo && !logoMap[name]) logoMap[name] = logo;
       });
-      setCompanyLogos(map);
+      setCompanyLogos(logoMap);
+      setCompanyWebsites(websiteMap);
     } catch {}
   };
   if (loading) {
@@ -544,6 +549,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                         <CompanyLogo
                           companyName={company}
                           storedLogo={companyLogos[company.toLowerCase()]}
+                          website={companyWebsites[company.toLowerCase()]}
                           size={40}
                           className="rounded-lg border border-gray-200"
                         />

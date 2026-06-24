@@ -188,7 +188,6 @@ function getInitialUser(): UserType | null {
     else if (rawType === 'admin') type = 'admin';
     else if (rawType === 'super_admin') type = 'super_admin';
     else if (rawType === 'manager') type = 'manager';
-    if (stored.email === 'antony@trinitetech.com') type = 'super_admin';
     return {
       name: stored.name || stored.email.split('@')[0] || 'User',
       type,
@@ -370,6 +369,7 @@ function App() {
       // Clear all storage
       tokenStorage.clear();
       sessionStorage.clear();
+      localStorage.removeItem('user');
       localStorage.removeItem('lastUserType');
 
       if (userType === 'employer') navigate('/employer-login');
@@ -474,12 +474,16 @@ function App() {
   useEffect(() => {
     const orig = window.fetch;
     window.fetch = async (...args) => {
-      const res = await orig(...args);
-      if (res.status === 503) {
-        const clone = res.clone();
-        try { const data = await clone.json(); if (data.maintenance) setMaintenance(true); } catch { }
+      try {
+        const res = await orig(...args);
+        if (res.status === 503) {
+          const clone = res.clone();
+          try { const data = await clone.json(); if (data.maintenance) setMaintenance(true); } catch { }
+        }
+        return res;
+      } catch (err) {
+        throw err;
       }
-      return res;
     };
     // Do not restore on unmount — App lives for the entire session
   }, []);

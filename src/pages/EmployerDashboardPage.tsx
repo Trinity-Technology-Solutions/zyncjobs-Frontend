@@ -543,6 +543,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     const isNambikkai = companyName?.toLowerCase().includes('nambikkai') || employerName?.toLowerCase().includes('nambikkai');
     if (isNambikkai) return '/images/company-logos/nambikkai-logo.png';
 
+    const API_BASE = (typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL || '/api' : '/api');
     const domainMap: Record<string, string> = {
       zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
       google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
@@ -551,13 +552,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     };
     const n = (companyName || '').toLowerCase();
     for (const [key, domain] of Object.entries(domainMap)) {
-      if (n.includes(key)) return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+      if (n.includes(key)) return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`;
     }
 
     if (user?.email?.includes('@')) {
       const emailDomain = user.email.split('@')[1];
       if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain)) {
-        return `https://img.logo.dev/${emailDomain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+        return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(emailDomain)}`;
       }
     }
 
@@ -1920,7 +1921,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div className="flex-shrink-0">
                           {photo ? (
                             <img src={photo} alt={name} className="w-16 h-16 rounded-full object-cover border-2 border-green-300 shadow"
-                              onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=10b981&color=ffffff&bold=true`; }} />
+                              onError={(e) => {
+                                const initials = (name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                                (e.target as HTMLImageElement).src = `data:image/svg+xml,${encodeURIComponent(
+                                  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#10B981" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+                                )}`;
+                              }} />
                           ) : (
                             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md text-white font-bold text-2xl">
                               {name.charAt(0).toUpperCase()}

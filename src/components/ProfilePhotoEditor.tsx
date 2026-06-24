@@ -38,18 +38,24 @@ const ProfilePhotoEditor: React.FC<ProfilePhotoEditorProps> = ({
     { id: 'gold', name: 'Premium', color: '#F59E0B' }
   ];
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+  const ALLOWED_EXTENSIONS = '.jpg,.jpeg,.png,.webp';
+
   const handlePhotoUpload = (file: File) => {
-    if (file && file.type.startsWith('image/')) {
-      if (file.size > 5 * 1024 * 1024) {
-        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "File size must be less than 5MB" } }));
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhoto(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Only JPG, JPEG, PNG, and WEBP files are allowed." } }));
+      return;
     }
+    if (file.size > 5 * 1024 * 1024) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "File size exceeds the maximum limit of 5 MB." } }));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPhoto(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -78,7 +84,11 @@ const ProfilePhotoEditor: React.FC<ProfilePhotoEditorProps> = ({
     setDragOver(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
+    const confirmed = await (window as any).confirmAsync(
+      'Are you sure you want to delete your profile photo?'
+    );
+    if (!confirmed) return;
     setPhoto('');
     setSelectedFrame('none');
   };
@@ -150,13 +160,13 @@ const ProfilePhotoEditor: React.FC<ProfilePhotoEditorProps> = ({
             >
               Choose Photo
             </button>
-            <p className="text-xs text-gray-500 mt-2">JPG, PNG up to 5MB</p>
+            <p className="text-xs text-gray-500 mt-2">Supported formats: JPG, JPEG, PNG, WEBP (Recommended) — Max size: 5 MB</p>
           </div>
 
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={ALLOWED_EXTENSIONS}
             onChange={handleFileChange}
             className="hidden"
           />

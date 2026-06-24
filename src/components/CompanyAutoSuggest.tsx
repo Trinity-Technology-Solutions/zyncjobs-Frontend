@@ -49,110 +49,7 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
   const searchCompanies = async (searchQuery: string) => {
     setLoading(true);
     
-    const fallbackCompanies = [
-      { id: '1', name: 'Google', logo: 'https://logo.clearbit.com/google.com', followers: 10000000 },
-      { id: '2', name: 'Microsoft', logo: 'https://logo.clearbit.com/microsoft.com', followers: 9000000 },
-      { id: '3', name: 'Apple', logo: 'https://logo.clearbit.com/apple.com', followers: 12000000 },
-      { id: '4', name: 'Amazon', logo: 'https://logo.clearbit.com/amazon.com', followers: 8000000 },
-      { id: '5', name: 'Meta', logo: 'https://logo.clearbit.com/meta.com', followers: 7000000 },
-      { id: '6', name: 'Netflix', logo: 'https://logo.clearbit.com/netflix.com', followers: 5000000 },
-      { id: '7', name: 'Tesla', logo: 'https://logo.clearbit.com/tesla.com', followers: 6000000 },
-      { id: '8', name: 'Uber', logo: 'https://logo.clearbit.com/uber.com', followers: 3000000 },
-      { id: '9', name: 'Airbnb', logo: 'https://logo.clearbit.com/airbnb.com', followers: 2500000 },
-      { id: '10', name: 'Spotify', logo: 'https://logo.clearbit.com/spotify.com', followers: 4000000 },
-      { id: '11', name: 'Twitter', logo: 'https://logo.clearbit.com/twitter.com', followers: 3500000 },
-      { id: '12', name: 'LinkedIn', logo: 'https://logo.clearbit.com/linkedin.com', followers: 8000000 },
-      { id: '13', name: 'Adobe', logo: 'https://logo.clearbit.com/adobe.com', followers: 2000000 },
-      { id: '14', name: 'Salesforce', logo: 'https://logo.clearbit.com/salesforce.com', followers: 1800000 },
-      { id: '15', name: 'Oracle', logo: 'https://logo.clearbit.com/oracle.com', followers: 1500000 },
-      { id: '16', name: 'SAP', logo: 'https://logo.clearbit.com/sap.com', followers: 1200000 },
-      { id: '17', name: 'IBM', logo: 'https://logo.clearbit.com/ibm.com', followers: 2000000 },
-      { id: '18', name: 'Intel', logo: 'https://logo.clearbit.com/intel.com', followers: 1700000 },
-      { id: '19', name: 'NVIDIA', logo: 'https://logo.clearbit.com/nvidia.com', followers: 3000000 },
-      { id: '20', name: 'Qualcomm', logo: 'https://logo.clearbit.com/qualcomm.com', followers: 900000 },
-      { id: '21', name: 'PayPal', logo: 'https://logo.clearbit.com/paypal.com', followers: 1500000 },
-      { id: '22', name: 'Stripe', logo: 'https://logo.clearbit.com/stripe.com', followers: 800000 },
-      { id: '23', name: 'Shopify', logo: 'https://logo.clearbit.com/shopify.com', followers: 700000 },
-      { id: '24', name: 'Zoom', logo: 'https://logo.clearbit.com/zoom.us', followers: 1200000 },
-      { id: '25', name: 'Slack', logo: 'https://logo.clearbit.com/slack.com', followers: 900000 },
-      { id: '26', name: 'Atlassian', logo: 'https://logo.clearbit.com/atlassian.com', followers: 700000 },
-      { id: '27', name: 'GitHub', logo: 'https://logo.clearbit.com/github.com', followers: 5000000 },
-      { id: '28', name: 'GitLab', logo: 'https://logo.clearbit.com/gitlab.com', followers: 600000 },
-      { id: '29', name: 'Docker', logo: 'https://logo.clearbit.com/docker.com', followers: 500000 },
-      { id: '30', name: 'MongoDB', logo: 'https://logo.clearbit.com/mongodb.com', followers: 600000 },
-      { id: '31', name: 'Snowflake', logo: 'https://logo.clearbit.com/snowflake.com', followers: 500000 },
-      { id: '32', name: 'Databricks', logo: 'https://logo.clearbit.com/databricks.com', followers: 400000 },
-      { id: '33', name: 'Cloudflare', logo: 'https://logo.clearbit.com/cloudflare.com', followers: 700000 },
-      { id: '34', name: 'Figma', logo: 'https://logo.clearbit.com/figma.com', followers: 800000 },
-      { id: '35', name: 'Notion', logo: 'https://logo.clearbit.com/notion.so', followers: 600000 },
-      { id: '36', name: 'Canva', logo: 'https://logo.clearbit.com/canva.com', followers: 900000 },
-      { id: '37', name: 'HubSpot', logo: 'https://logo.clearbit.com/hubspot.com', followers: 700000 },
-      { id: '38', name: 'Zendesk', logo: 'https://logo.clearbit.com/zendesk.com', followers: 500000 },
-      { id: '39', name: 'ServiceNow', logo: 'https://logo.clearbit.com/servicenow.com', followers: 600000 },
-      { id: '40', name: 'Workday', logo: 'https://logo.clearbit.com/workday.com', followers: 500000 },
-      { id: '41', name: 'Datadog', logo: 'https://logo.clearbit.com/datadoghq.com', followers: 400000 },
-      { id: '42', name: 'Twilio', logo: 'https://logo.clearbit.com/twilio.com', followers: 500000 },
-      { id: '43', name: 'OpenAI', logo: 'https://logo.clearbit.com/openai.com', followers: 5000000 },
-      { id: '44', name: 'Anthropic', logo: 'https://logo.clearbit.com/anthropic.com', followers: 1000000 },
-      { id: '45', name: 'Palantir', logo: 'https://logo.clearbit.com/palantir.com', followers: 800000 },
-      { id: '46', name: 'TCS', logo: 'https://logo.clearbit.com/tcs.com', followers: 6000000 },
-      { id: '47', name: 'Infosys', logo: 'https://logo.clearbit.com/infosys.com', followers: 5500000 },
-      { id: '48', name: 'Wipro', logo: 'https://logo.clearbit.com/wipro.com', followers: 4000000 },
-      { id: '49', name: 'HCL Technologies', logo: 'https://logo.clearbit.com/hcltech.com', followers: 3500000 },
-      { id: '50', name: 'Tech Mahindra', logo: 'https://logo.clearbit.com/techmahindra.com', followers: 2500000 },
-      { id: '51', name: 'Accenture', logo: 'https://logo.clearbit.com/accenture.com', followers: 7000000 },
-      { id: '52', name: 'Cognizant', logo: 'https://logo.clearbit.com/cognizant.com', followers: 4000000 },
-      { id: '53', name: 'Capgemini', logo: 'https://logo.clearbit.com/capgemini.com', followers: 3000000 },
-      { id: '54', name: 'Mphasis', logo: 'https://logo.clearbit.com/mphasis.com', followers: 800000 },
-      { id: '55', name: 'Hexaware', logo: 'https://logo.clearbit.com/hexaware.com', followers: 600000 },
-      { id: '56', name: 'LTIMindtree', logo: 'https://logo.clearbit.com/ltimindtree.com', followers: 1200000 },
-      { id: '57', name: 'Persistent Systems', logo: 'https://logo.clearbit.com/persistent.com', followers: 700000 },
-      { id: '58', name: 'Coforge', logo: 'https://logo.clearbit.com/coforge.com', followers: 400000 },
-      { id: '59', name: 'Zoho', logo: 'https://logo.clearbit.com/zoho.com', followers: 3000000 },
-      { id: '60', name: 'Freshworks', logo: 'https://logo.clearbit.com/freshworks.com', followers: 700000 },
-      { id: '61', name: 'Flipkart', logo: 'https://logo.clearbit.com/flipkart.com', followers: 4000000 },
-      { id: '62', name: 'Swiggy', logo: 'https://logo.clearbit.com/swiggy.com', followers: 2000000 },
-      { id: '63', name: 'Zomato', logo: 'https://logo.clearbit.com/zomato.com', followers: 2500000 },
-      { id: '64', name: 'Ola', logo: 'https://logo.clearbit.com/olacabs.com', followers: 1500000 },
-      { id: '65', name: 'Paytm', logo: 'https://logo.clearbit.com/paytm.com', followers: 2000000 },
-      { id: '66', name: 'Razorpay', logo: 'https://logo.clearbit.com/razorpay.com', followers: 800000 },
-      { id: '67', name: "BYJU'S", logo: 'https://logo.clearbit.com/byjus.com', followers: 1500000 },
-      { id: '68', name: 'Unacademy', logo: 'https://logo.clearbit.com/unacademy.com', followers: 700000 },
-      { id: '69', name: 'upGrad', logo: 'https://logo.clearbit.com/upgrad.com', followers: 600000 },
-      { id: '70', name: 'Meesho', logo: 'https://logo.clearbit.com/meesho.com', followers: 900000 },
-      { id: '71', name: 'Myntra', logo: 'https://logo.clearbit.com/myntra.com', followers: 1200000 },
-      { id: '72', name: 'Nykaa', logo: 'https://logo.clearbit.com/nykaa.com', followers: 800000 },
-      { id: '73', name: 'OYO', logo: 'https://logo.clearbit.com/oyorooms.com', followers: 1000000 },
-      { id: '74', name: 'Dream11', logo: 'https://logo.clearbit.com/dream11.com', followers: 1200000 },
-      { id: '75', name: 'PhonePe', logo: 'https://logo.clearbit.com/phonepe.com', followers: 1500000 },
-      { id: '76', name: 'Zerodha', logo: 'https://logo.clearbit.com/zerodha.com', followers: 900000 },
-      { id: '77', name: 'Groww', logo: 'https://logo.clearbit.com/groww.in', followers: 700000 },
-      { id: '78', name: 'CRED', logo: 'https://logo.clearbit.com/cred.club', followers: 600000 },
-      { id: '79', name: 'Delhivery', logo: 'https://logo.clearbit.com/delhivery.com', followers: 500000 },
-      { id: '80', name: 'Postman', logo: 'https://logo.clearbit.com/postman.com', followers: 800000 },
-      { id: '81', name: 'BrowserStack', logo: 'https://logo.clearbit.com/browserstack.com', followers: 400000 },
-      { id: '82', name: 'Deloitte', logo: 'https://logo.clearbit.com/deloitte.com', followers: 5000000 },
-      { id: '83', name: 'PwC', logo: 'https://logo.clearbit.com/pwc.com', followers: 4000000 },
-      { id: '84', name: 'KPMG', logo: 'https://logo.clearbit.com/kpmg.com', followers: 3500000 },
-      { id: '85', name: 'EY', logo: 'https://logo.clearbit.com/ey.com', followers: 4000000 },
-      { id: '86', name: 'McKinsey', logo: 'https://logo.clearbit.com/mckinsey.com', followers: 3000000 },
-      { id: '87', name: 'BCG', logo: 'https://logo.clearbit.com/bcg.com', followers: 2500000 },
-      { id: '88', name: 'HDFC Bank', logo: 'https://logo.clearbit.com/hdfcbank.com', followers: 3000000 },
-      { id: '89', name: 'ICICI Bank', logo: 'https://logo.clearbit.com/icicibank.com', followers: 2500000 },
-      { id: '90', name: 'JPMorgan', logo: 'https://logo.clearbit.com/jpmorgan.com', followers: 4000000 },
-      { id: '91', name: 'Goldman Sachs', logo: 'https://logo.clearbit.com/goldmansachs.com', followers: 3500000 },
-      { id: '92', name: 'Samsung', logo: 'https://logo.clearbit.com/samsung.com', followers: 8000000 },
-      { id: '93', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png', followers: 5000 },
-      { id: '94', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png', followers: 2500 },
-      { id: '95', name: 'TransUnion', logo: 'https://logo.clearbit.com/transunion.com', followers: 500000 },
-      { id: '96', name: 'Haverim Consulting', logo: 'https://logo.clearbit.com/haverimconsulting.com', followers: 3000 },
-      { id: '97', name: 'VTX Core', logo: 'https://logo.clearbit.com/vtxcore.com', followers: 5000 },
-      { id: '98', name: 'YAAT Group', logo: 'https://logo.clearbit.com/yaatgroup.com', followers: 8000 },
-      { id: '99', name: 'Grace Institutions', logo: 'https://logo.clearbit.com/graceinstitutions.com', followers: 4000 },
-      { id: '100', name: 'Trinity Consulting Asia', logo: 'https://logo.clearbit.com/trinityconsulting.asia', followers: 6000 },
-      { id: '101', name: 'Subros', logo: 'https://logo.clearbit.com/subros.com', followers: 15000 },
-      { id: '102', name: 'Lone Star Alpha', logo: 'https://logo.clearbit.com/lonestaralpha.com', followers: 5000 },
-    ];
+    const fallbackCompanies: Company[] = [];
     
     try {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(searchQuery)}`);
@@ -214,7 +111,8 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
       return '/images/company-logos/inypeople-logo.png';
     }
 
-    // Domain-based logos for new companies
+    // Backend proxy (bypasses client-side DNS blocks)
+    const apiBase = (typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL || '/api' : '/api');
     const domainMap: Record<string, string> = {
       'transunion': 'transunion.com',
       'haverim consulting': 'haverimconsulting.com',
@@ -229,19 +127,18 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
     const nameLower = company.name.toLowerCase();
     for (const [key, domain] of Object.entries(domainMap)) {
       if (nameLower.includes(key)) {
-        return `https://logo.clearbit.com/${domain}`;
+        return `${apiBase}/logo-proxy?domain=${encodeURIComponent(domain)}`;
       }
     }
 
-    // Try multiple logo sources
-    const logoSources = [
-      company.logo,
-      `https://logo.clearbit.com/${company.name.toLowerCase().replace(/\s+/g, '')}.com`,
-      `https://img.logo.dev/${company.name.toLowerCase().replace(/\s+/g, '')}.com?token=pk_X-NzP5XzTfCUQXerf-1rvQ&size=200`,
-      `https://www.google.com/s2/favicons?domain=${company.name.toLowerCase().replace(/\s+/g, '')}.com&sz=64`
-    ];
-    
-    return logoSources.find(url => url) || logoSources[1];
+    // Use company.logo if it's not a blocked external URL
+    if (company.logo && !company.logo.includes('clearbit.com') && !company.logo.includes('ui-avatars.com') && !company.logo.includes('google.com/s2/favicons') && !company.logo.includes('img.logo.dev')) {
+      return company.logo;
+    }
+
+    // Try backend proxy with guessed domain
+    const guessedDomain = company.name.toLowerCase().replace(/\s+/g, '') + '.com';
+    return `${apiBase}/logo-proxy?domain=${encodeURIComponent(guessedDomain)}`;
   };
 
   return (
@@ -315,39 +212,26 @@ const CompanyAutoSuggest: React.FC<CompanyAutoSuggestProps> = ({
                           return;
                         }
                         
-                        // Try next logo source for other companies
-                        const currentSrc = img.src;
-                        const logoSources = [
-                          `https://logo.clearbit.com/${company.name.toLowerCase().replace(/\s+/g, '')}.com`,
-                          `https://img.logo.dev/${company.name.toLowerCase().replace(/\s+/g, '')}.com?token=pk_X-NzP5XzTfCUQXerf-1rvQ&size=200`,
-                          `https://www.google.com/s2/favicons?domain=${company.name.toLowerCase().replace(/\s+/g, '')}.com&sz=64`
-                        ];
-                        
-                        const currentIndex = logoSources.indexOf(currentSrc);
-                        if (currentIndex < logoSources.length - 1) {
-                          img.src = logoSources[currentIndex + 1];
-                        } else {
-                          // All sources failed, show LinkedIn-style building icon
-                          const container = img.parentElement;
-                          if (container) {
-                            img.style.display = 'none';
-                            container.innerHTML = `
-                              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
-                                <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
-                                <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
-                              </svg>
-                            `;
-                            container.classList.add('bg-gray-50');
-                          }
+                        // Show building icon fallback (proxy already tried multiple backends server-side)
+                        const container = img.parentElement;
+                        if (container) {
+                          img.style.display = 'none';
+                          container.innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                              <rect x="4" y="6" width="16" height="16" rx="2" ry="2" fill="#F3F4F6" stroke="#D1D5DB"/>
+                              <rect x="6" y="8" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="10" y="8" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="14" y="8" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="6" y="12" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="10" y="12" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="14" y="12" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="6" y="16" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="10" y="16" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="14" y="16" width="2" height="2" fill="#9CA3AF"/>
+                              <rect x="8" y="2" width="8" height="4" rx="1" fill="#E5E7EB" stroke="#D1D5DB"/>
+                            </svg>
+                          `;
+                          container.classList.add('bg-gray-50');
                         }
                       }}
                     />
