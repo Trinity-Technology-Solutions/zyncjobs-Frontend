@@ -2100,7 +2100,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               View Details
                             </button>
                             <button 
-                              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                              onClick={async () => {
+                                await NotificationService.deleteNotification(notification.id);
+                                setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                              }}
                               className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
                             >
                               Dismiss
@@ -2178,7 +2181,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Notification Slide-in Drawer (same as candidate page) */}
-      {showNotifications && (
+      {showNotifications && ( 
         <>
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
@@ -2190,7 +2193,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="flex items-center gap-3">
                 {notifications.length > 0 && (
                   <button
-                    onClick={() => setNotifications([])}
+                    onClick={async () => {
+                      await Promise.allSettled(
+                        notifications.map(n => NotificationService.deleteNotification(n.id))
+                      );
+                      setNotifications([]);
+                    }}
                     className="text-xs text-gray-500 hover:text-red-600 transition-colors"
                   >
                     Clear all
@@ -2240,8 +2248,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <span className="text-xs text-gray-400">{NotificationService.formatTime(notification.time)}</span>
                         </div>
                         <button
-                          onClick={(e) => {
+                          onClick={async (e) => {
                             e.stopPropagation();
+                            await NotificationService.deleteNotification(notification.id);
                             setNotifications(prev => prev.filter(n => n.id !== notification.id));
                           }}
                           className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-lg leading-none ml-2"
