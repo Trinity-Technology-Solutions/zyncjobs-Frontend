@@ -9,7 +9,12 @@ const EMPLOYER_ID_KEY = 'zyncjobs_employer_counter';
 export const getEffectiveEmployerEmail = (): string => {
   try {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    return user.employerOwnerId || user.email || '';
+    // Only use employerOwnerId if this user is actually a team member (has teamRole)
+    // Regular employers should always use their own email
+    if (user.teamRole && user.employerOwnerId) {
+      return user.employerOwnerId;
+    }
+    return user.email || '';
   } catch {
     return '';
   }

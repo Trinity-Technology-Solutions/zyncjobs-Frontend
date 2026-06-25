@@ -37,7 +37,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
     setError('');
     setSuggestReset(false);
     try {
-      const response = await authAPI.login({ email, password });
+      const response = await authAPI.login({ email, password, portal: 'employer' } as any);
       const userType = response.user.userType || response.user.role;
       const isTeamMember = !!(response.user as any).teamRole;
 

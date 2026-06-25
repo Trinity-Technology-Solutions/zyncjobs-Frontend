@@ -206,6 +206,7 @@ function App() {
   const [maintenance, setMaintenance] = useState(false);
 
   const [user, setUser] = useState<UserType | null>(getInitialUser);
+  const loginTimestamp = React.useRef<number>(0);
   // If we already have user from localStorage and no refresh token, skip loading state
   const [userLoading, setUserLoading] = useState(() => {
     const hasRefreshToken = !!tokenStorage.getRefresh();
@@ -306,6 +307,7 @@ function App() {
   }, [navigate, user?.type]);
 
   const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {
+    loginTimestamp.current = Date.now();
     setUser(userData);
     closeModals();
 
@@ -430,12 +432,23 @@ function App() {
         } else {
           let userType: UserType['type'] = 'candidate';
           const rawType = userData.userType || userData.role || '';
-          if (rawType === 'employer') userType = 'employer';
-          else if (rawType === 'admin') userType = 'admin';
-          else if (rawType === 'super_admin') userType = 'super_admin';
+          // If user logged in as employer (stored in lastUserType), preserve that
+          // even if DB role is super_admin/admin (dual-role account)
+          const lastUserType = localStorage.getItem('lastUserType');
+          const resolvedRawType = (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
+            ? 'employer'
+            : rawType;
+          if (resolvedRawType === 'employer') userType = 'employer';
+          else if (resolvedRawType === 'admin') userType = 'admin';
+          else if (resolvedRawType === 'super_admin') userType = 'super_admin';
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
           const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
+          // Skip overwriting user if a login just happened in the last 5 seconds
+          if (Date.now() - loginTimestamp.current < 5000) {
+            setUserLoading(false);
+            return;
+          }
           setUser(prev => {
             if (prev?.type === userType && prev?.email === userData.email && prev?.name === freshName) return prev;
             return {
@@ -444,6 +457,7 @@ function App() {
               email: userData.email,
               ...(stored.teamRole && { teamRole: stored.teamRole }),
               ...(stored.employerOwnerId && { employerOwnerId: stored.employerOwnerId }),
+              ...((stored.ownerEmail || stored.employerOwnerId) && { ownerEmail: stored.ownerEmail || stored.employerOwnerId }),
               ...(stored.employerId && { employerId: stored.employerId }),
             } as any;
           });
