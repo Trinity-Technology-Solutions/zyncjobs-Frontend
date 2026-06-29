@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, MapPin, IndianRupee, X } from 'lucide-react';
+import { Star, MapPin, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -51,10 +51,22 @@ const formatSalary = (salary: any): string => {
   if (!salary) return '';
   if (typeof salary === 'string') return salary;
   if (typeof salary === 'object') {
-    const { min, max } = salary;
-    if (min && max) return `₹${Number(min).toLocaleString('en-IN')} - ₹${Number(max).toLocaleString('en-IN')}`;
-    if (min) return `₹${Number(min).toLocaleString('en-IN')}+`;
-    if (max) return `Up to ₹${Number(max).toLocaleString('en-IN')}`;
+    const { min, max, currency } = salary;
+    const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ', SAR: 'ر.س', SGD: 'S$', MYR: 'RM', THB: '฿', PHP: '₱', IDR: 'Rp', VND: '₫', KRW: '₩', JPY: '¥', CNY: '¥', TWD: 'NT$', HKD: 'HK$', CAD: 'C$', AUD: 'A$', NZD: 'NZ$', CHF: 'Fr', SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', TRY: '₺', ZAR: 'R', BRL: 'R$', MXN: '$', NGN: '₦', KES: 'KSh', EGP: 'E£' };
+    const sym = CURRENCY_SYMBOLS[currency] || (currency || '₹');
+    const fmtNum = (n: number): string => {
+      if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
+      if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
+      if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+      if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+      return n.toString();
+    };
+    if (min && max) {
+      if (min === max) return `${sym}${fmtNum(min)}`;
+      return `${sym}${fmtNum(min)} - ${sym}${fmtNum(max)}`;
+    }
+    if (min) return `${sym}${fmtNum(min)}+`;
+    if (max) return `Up to ${sym}${fmtNum(max)}`;
   }
   return '';
 };
@@ -986,7 +998,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         </span>
                         {job.salary && (
                           <span className="flex items-center gap-1">
-                            <IndianRupee className="w-4 h-4" />
                             {formatSalary(job.salary)}
                           </span>
                         )}
@@ -1071,7 +1082,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           {job.salary && (
                             <>
                               <span>•</span>
-                              <IndianRupee className="w-3 h-3" />
                               <span>{formatSalary(job.salary)}</span>
                             </>
                           )}
@@ -1155,7 +1165,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           </span>
                           {job.salary && (
                             <span className="flex items-center gap-1">
-                              <IndianRupee className="w-3 h-3" />
                               {formatSalary(job.salary)}
                             </span>
                           )}
@@ -1234,7 +1243,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           </span>
                           {job.salary && (
                             <span className="flex items-center gap-1">
-                              <IndianRupee className="w-4 h-4 flex-shrink-0" />
                               <span className="truncate">{formatSalary(job.salary)}</span>
                             </span>
                           )}

@@ -23,6 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
   const [, setNotifications] = useState<any[]>([]);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [displayName, setDisplayName] = useState(user?.name || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -62,6 +63,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     fetchNavigation();
     fetchSiteSettings();
   }, []);
+
+  // Sync display name from user prop and localStorage
+  useEffect(() => {
+    const updateName = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('user') || '{}');
+        const name = stored.name || user?.name || stored.email?.split('@')[0] || 'User';
+        setDisplayName(name);
+      } catch {
+        setDisplayName(user?.name || 'User');
+      }
+    };
+    
+    updateName();
+    
+    const handleUserUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.name) setDisplayName(detail.name);
+      else updateName();
+    };
+    
+    window.addEventListener('zync:user-updated', handleUserUpdate);
+    return () => window.removeEventListener('zync:user-updated', handleUserUpdate);
+  }, [user]);
 
   const handleLoginClick = () => {
     setIsDropdownOpen(false);
@@ -415,7 +440,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 >
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
-                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -448,11 +473,11 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         <div className="flex items-center space-x-4 mb-8">
                           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold text-lg">
-                              {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900 text-lg">{user.name}</p>
+                            <p className="font-semibold text-gray-900 text-lg">{displayName}</p>
                             <p className="text-sm text-gray-600 capitalize">{user.type}</p>
                           </div>
                         </div>

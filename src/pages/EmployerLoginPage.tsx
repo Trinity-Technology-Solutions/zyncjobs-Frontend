@@ -68,8 +68,11 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         ...response.user,
         ownerEmail: (response.user as any).ownerEmail || (isTeamMember ? response.user.employerId : null)
       };
-      updateUserInStorage(userToStore);
       const displayName = response.user.name || response.user.companyName || response.user.company || response.user.fullName || response.user.email.split('@')[0];
+      
+      // Immediately update localStorage with the correct name BEFORE calling onLogin
+      updateUserInStorage({ ...userToStore, name: displayName });
+      
       onLogin({ name: displayName, type: 'employer', email: response.user.email, id: response.user.id } as any);
 
       // If team member — show change password prompt before navigating
@@ -84,7 +87,13 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
       if (onShowNotification) onShowNotification({ type: 'success', message: 'Welcome back! Login successful.' });
     } catch (err) {
       const errData = (err as any)?.response?.data || err;
-      const errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
+      let errorMessage = errData?.error || (err instanceof Error ? err.message : 'Login failed');
+      
+      // Handle account lockout (HTTP 423)
+      if ((err as any)?.response?.status === 423 || errorMessage.includes('locked') || errorMessage.includes('too many')) {
+        errorMessage = '🔒 Account temporarily locked due to multiple failed login attempts. Please try again in 15 minutes or reset your password.';
+      }
+      
       setError(errorMessage);
       if (errData?.suggestReset) setSuggestReset(true);
       if (onShowNotification) onShowNotification({ type: 'error', message: errorMessage });

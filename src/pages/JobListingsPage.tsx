@@ -1713,9 +1713,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                           <MapPin className="w-4 h-4 text-gray-600" />
                           <span className="text-sm font-medium text-gray-700">{job.location}</span>
                         </div>
-                        {formatSalary(job.salary) && (
+                        {formatSalary(job.salary, job.currency || job.salary?.currency) && (
                           <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
                           </div>
                         )}
                         {(() => { const t = job.type || job.jobType; const display = Array.isArray(t) ? t.join(', ') : t; return display ? (

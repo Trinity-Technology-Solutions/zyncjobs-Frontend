@@ -22,7 +22,7 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
 };
 
 const formatSalaryDisplay = (job: any): string => {
-  const code = job.currency || job.salary?.currency || 'INR';
+  const code = job.currency || job.salary?.currency || 'USD';
   const sym = CURRENCY_SYMBOLS[code] || code;
   // salary object from DB: { min, max, currency, period }
   if (job.salary && typeof job.salary === 'object' && (job.salary.min || job.salary.max)) {

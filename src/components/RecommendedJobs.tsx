@@ -495,7 +495,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
             const title = job.title || job.jobTitle || 'Position';
             const company = job.company || job.companyName || 'Company';
             const loc = job.location || 'Location';
-            const salary = formatSalary(job.salary);
+            const salary = formatSalary(job.salary, job.currency || job.salary?.currency);
             const skills: string[] = job.skills || [];
             const jobType = Array.isArray(job.jobType) ? job.jobType[0] : job.type || job.jobType || '';
             const desc = (() => {

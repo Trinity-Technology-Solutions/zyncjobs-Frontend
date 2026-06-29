@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
+import { ChevronRight, Briefcase, MapPin, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
@@ -355,20 +355,39 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       console.log('Delete response status:', response.status);
       
       if (response.ok) {
-        console.log('Job deleted successfully, updating state');
+        console.log('✅ DELETE response OK - Job deleted successfully');
+        
+        // Immediately update state for instant UI feedback
         setPostedJobs(prev => {
           const updated = prev.filter(job => getId(job) !== jobId);
-          console.log('Updated posted jobs count:', updated.length);
+          console.log('📊 Immediate state update: removed job, count:', prev.length, '->', updated.length);
           return updated;
         });
+        
         showNotification('Job deleted successfully!');
-        
-        setTimeout(() => {
-          console.log('Refreshing jobs list after delete');
-          fetchPostedJobs();
-        }, 1000);
-        
         window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
+        
+        // Verify deletion after 2 seconds
+        setTimeout(async () => {
+          console.log('🔄 Verifying deletion by re-fetching...');
+          const ownerEmail = getEffectiveEmployerEmail();
+          const verifyResponse = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${encodeURIComponent(ownerEmail)}`);
+          
+          if (verifyResponse.ok) {
+            const jobs = await verifyResponse.json();
+            const stillExists = jobs.some((j: any) => getId(j) === jobId);
+            
+            if (stillExists) {
+              console.error('❌ BACKEND ISSUE: Job still exists after delete! JobId:', jobId);
+              showNotification('⚠️ Warning: Job may not be deleted from database. Contact support.', 'error');
+              // Force remove from UI anyway
+              setPostedJobs(jobs.filter((j: any) => getId(j) !== jobId));
+            } else {
+              console.log('✅ Verified: Job successfully deleted from backend');
+              setPostedJobs(jobs);
+            }
+          }
+        }, 2000);
       } else if (response.status === 401) {
         showNotification('Session expired. Please log in again.', 'error');
         if (onLogout) onLogout();
@@ -519,9 +538,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         <span className="text-sm font-medium text-gray-700">{job.location}</span>
                       </div>
                     )}
-                    {formatSalary(job.salary) && (
+                    {formatSalary(job.salary, job.currency || job.salary?.currency) && (
                       <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                        <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                        <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
                       </div>
                     )}
                     {job.type && (
@@ -641,10 +660,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <MapPin className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-700">{job.location}</span>
           </div>
-          {formatSalary(job.salary) && (
+          {formatSalary(job.salary, job.currency || job.salary?.currency) && (
             <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
-              <IndianRupee className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
             </div>
           )}
           <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
@@ -1241,10 +1259,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 <MapPin className="w-4 h-4 text-gray-600" />
                                 <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
                               </div>
-                              {formatSalary(application.jobId?.salary) && (
+                              {formatSalary(application.jobId?.salary, application.jobId?.currency || application.jobId?.salary?.currency) && (
                                 <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                                  <IndianRupee className="w-4 h-4 text-green-600" />
-                                  <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary)}</span>
+                                  <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary, application.jobId?.currency || application.jobId?.salary?.currency)}</span>
                                 </div>
                               )}
                               <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">

@@ -5,6 +5,7 @@
 export interface ApiError {
   status: number;
   message: string;
+  suggestion?: string;
   details?: any;
 }
 
@@ -15,6 +16,7 @@ export class ApiErrorHandler {
     const error: ApiError = {
       status: response.status,
       message: this.getErrorMessage(response.status, data),
+      suggestion: data?.suggestion,
       details: data
     };
 

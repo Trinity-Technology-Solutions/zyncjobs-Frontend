@@ -30,6 +30,8 @@ import './utils/extensionErrorHandler'; // Initialize extension error handling
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
+const PasswordExpiredModal = lazy(() => import('./components/PasswordExpiredModal'));
+const AccountLockedModal = lazy(() => import('./components/AccountLockedModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
 
 const RoleSelectionModal = lazy(() => import('./components/RoleSelectionModal'));
@@ -99,6 +101,7 @@ const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
+const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -218,6 +221,10 @@ function App() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const [showRoleSelectionModal, setShowRoleSelectionModal] = useState(false);
+  const [passwordExpired, setPasswordExpired] = useState(false);
+  const [expiredUserData, setExpiredUserData] = useState<any>(null);
+  const [accountLocked, setAccountLocked] = useState(false);
+  const [lockoutData, setLockoutData] = useState<{ lockoutMinutes: number; email: string }>({ lockoutMinutes: 15, email: '' });
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
@@ -306,7 +313,18 @@ function App() {
     else navigate('/');
   }, [navigate, user?.type]);
 
-  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {
+  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string; passwordExpired?: boolean; daysSinceChange?: number; tempToken?: string }) => {
+    // Check if password is expired
+    if (userData.passwordExpired) {
+      // Store temp token for password change
+      if (userData.tempToken) {
+        tokenStorage.setAccess(userData.tempToken);
+      }
+      setPasswordExpired(true);
+      setExpiredUserData(userData);
+      return;
+    }
+    
     loginTimestamp.current = Date.now();
     setUser(userData);
     closeModals();
@@ -314,6 +332,17 @@ function App() {
     // Store user type separately for reliable logout redirection
     const userType = userData.type || userData.userType || userData.role || 'candidate';
     localStorage.setItem('lastUserType', userType);
+
+    // If NOT a team member, clear employerOwnerId to prevent stale cross-account data
+    const isTeamMember = !!(userData as any).teamRole;
+    if (!isTeamMember) {
+      try {
+        const existing = JSON.parse(localStorage.getItem('user') || '{}');
+        delete existing.employerOwnerId;
+        delete existing.ownerEmail;
+        localStorage.setItem('user', JSON.stringify(existing));
+      } catch { /* ignore */ }
+    }
 
     // Persist user to localStorage — MERGE with existing data so fields like
     // companyName, companyLogo, employerId set by login pages are not lost
@@ -333,6 +362,66 @@ function App() {
     closeModals();
     navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
   }, [closeModals, navigate]);
+
+  const handlePasswordChange = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || '/api';
+      const userId = expiredUserData?.user?.id || expiredUserData?.user?._id;
+      
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+
+      const res = await fetch(`${API_BASE}/users/${userId}/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokenStorage.getAccess()}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to change password');
+      }
+      
+      // Password changed successfully - now do normal login
+      setPasswordExpired(false);
+      const userData = expiredUserData.user;
+      const userType = userData.userType || userData.role || 'candidate';
+      let type: UserType['type'] = 'candidate';
+      if (userType === 'employer') type = 'employer';
+      else if (userType === 'admin') type = 'admin';
+      else if (userType === 'super_admin') type = 'super_admin';
+      else if (userType === 'manager') type = 'manager';
+      
+      // Generate new tokens after password change
+      const loginRes = await fetch(`${API_BASE}/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: userData.email, 
+          password: newPassword,
+          portal: type === 'employer' ? 'employer' : type === 'admin' || type === 'super_admin' ? 'admin' : 'candidate'
+        })
+      });
+      
+      if (loginRes.ok) {
+        const loginData = await loginRes.json();
+        if (loginData.accessToken) tokenStorage.setAccess(loginData.accessToken);
+        if (loginData.refreshToken) tokenStorage.setRefresh(loginData.refreshToken);
+        
+        setUser({ name: userData.name || userData.email.split('@')[0], type, email: userData.email });
+        showNotification('Password updated successfully!', 'success');
+        navigate('/dashboard');
+      } else {
+        throw new Error('Failed to login after password change');
+      }
+    } catch (error: any) {
+      throw error;
+    }
+  }, [expiredUserData, navigate, showNotification]);
 
   useEffect(() => {
     initializeEmployerIdCounter();
@@ -379,6 +468,12 @@ function App() {
       else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
+    const handleAccountLocked = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setLockoutData({ lockoutMinutes: detail.lockoutMinutes || 15, email: detail.email || '' });
+      setAccountLocked(true);
+    };
+    window.addEventListener('zync:account-locked', handleAccountLocked);
 
     const restoreSession = async () => {
       // Clean up any base64 images stored in localStorage
@@ -464,11 +559,9 @@ function App() {
           // Keep localStorage in sync with the verified DB name
           try {
             const ls = JSON.parse(localStorage.getItem('user') || '{}');
-            if (ls.name !== freshName) {
+            // Only update name if it's explicitly different AND we didn't just login
+            if (ls.name !== freshName && Date.now() - loginTimestamp.current >= 5000) {
               updateUserInStorage({ ...ls, name: freshName });
-            } else {
-              // Still dispatch to ensure listeners sync even if name didn't change
-              window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: { name: freshName, email: userData.email } }));
             }
           } catch { /* ignore */ }
         }
@@ -481,7 +574,10 @@ function App() {
     };
 
     restoreSession();
-    return () => window.removeEventListener('zync:logout', handleForceLogout);
+    return () => {
+      window.removeEventListener('zync:logout', handleForceLogout);
+      window.removeEventListener('zync:account-locked', handleAccountLocked);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount only
 
@@ -633,6 +729,11 @@ function App() {
             <Route path="/privacy-settings" element={
               <AuthGuard user={user}>
                 <PrivacySettingsPage {...nav} />
+              </AuthGuard>
+            } />
+            <Route path="/verify-email" element={
+              <AuthGuard user={user}>
+                <EmailVerificationPage onNavigate={handleNavigation} user={user as any} />
               </AuthGuard>
             } />
             <Route path="/accessibility" element={<AccessibilityPage {...nav} />} />
@@ -1008,8 +1109,25 @@ function App() {
       <Suspense fallback={null}>
         <LoginModal isOpen={showLoginModal} onClose={closeModals} onNavigate={handleNavigation} onLogin={handleLogin} />
         <RegisterModal isOpen={showRegisterModal} onClose={closeModals} onNavigate={handleNavigation} />
-
         <RoleSelectionModal isOpen={showRoleSelectionModal} onClose={closeModals} onSelectRole={handleRoleSelection} />
+        
+        {passwordExpired && expiredUserData && (
+          <PasswordExpiredModal
+            isOpen={passwordExpired}
+            daysSinceChange={expiredUserData.daysSinceChange || 0}
+            onPasswordChange={handlePasswordChange}
+            onLogout={handleLogout}
+          />
+        )}
+        <AccountLockedModal
+          isOpen={accountLocked}
+          lockoutMinutes={lockoutData.lockoutMinutes}
+          onClose={() => setAccountLocked(false)}
+          onContactSupport={() => {
+            setAccountLocked(false);
+            handleNavigation('contact');
+          }}
+        />
       </Suspense>
     </>
   );

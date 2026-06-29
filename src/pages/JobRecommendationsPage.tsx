@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
+import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
 import { computeMatchBreakdown, normalizeSkill, getUserProfile } from '../utils/matchScore';
 
@@ -133,7 +134,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const formatSalary = (job: any) => {
     if (job.salaryMin && job.salaryMax) return `₹${Number(job.salaryMin).toLocaleString()} – ₹${Number(job.salaryMax).toLocaleString()}`;
     if (job.salary) {
-      if (typeof job.salary === 'object') return `₹${job.salary.min || ''} – ₹${job.salary.max || ''}`;
+      if (typeof job.salary === 'object') return formatSalary(job.salary, job.salary.currency);
       return String(job.salary);
     }
     return null;

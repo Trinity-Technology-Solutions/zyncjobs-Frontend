@@ -575,7 +575,7 @@ const NewHero: React.FC<NewHeroProps> = ({ onNavigate }) => {
                   style={{ maxHeight: '580px', display: 'block' }}
                   width={580}
                   height={580}
-                  fetchpriority="high"
+                  fetchPriority="high"
                   decoding="sync"
                 />
               </div>

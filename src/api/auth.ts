@@ -123,6 +123,16 @@ export const authAPI = {
       if (response.status === 429) {
         throw new Error('Too many login attempts. Please wait a few minutes and try again.');
       }
+      if (response.status === 423) {
+        const errorText = await response.text();
+        let error: any;
+        try { error = JSON.parse(errorText); } catch { error = { error: 'Account is locked' }; }
+        const err: any = new Error(error.error || 'Account is temporarily locked due to too many failed attempts.');
+        err.locked = true;
+        err.lockoutMinutes = error.lockoutMinutes || 15;
+        err.remainingAttempts = error.remainingAttempts;
+        throw err;
+      }
       const errorText = await response.text();
       let error: any;
       try { error = JSON.parse(errorText); } catch { error = { error: 'Login failed' }; }

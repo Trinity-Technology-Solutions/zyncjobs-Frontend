@@ -54,6 +54,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
 
   if (!isOpen) return null;
 
@@ -129,11 +130,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       sessionStorage.removeItem('pendingJobRole');
       
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
       setFieldErrors({});
+      if (err.locked) {
+        onClose();
+        const event = new CustomEvent('zync:account-locked', {
+          detail: { lockoutMinutes: err.lockoutMinutes || 15, email }
+        });
+        window.dispatchEvent(event);
+        return;
+      }
+      if (err.remainingAttempts !== undefined) {
+        setRemainingAttempts(err.remainingAttempts);
+      }
       showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
@@ -161,7 +173,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
 
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-              {error}
+              <p>{error}</p>
+              {remainingAttempts !== null && remainingAttempts <= 3 && (
+                <p className="text-xs mt-1 font-medium">{remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining before account lockout.</p>
+              )}
             </div>
           )}
 
@@ -251,15 +266,24 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
             </button>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 flex flex-col items-center gap-2">
             <button
               onClick={() => {
                 onClose();
                 onNavigate('forgot-password');
               }}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm"
             >
               Forgot Password?
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                onNavigate('verify-email');
+              }}
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+            >
+              Verify Email
             </button>
           </div>
 

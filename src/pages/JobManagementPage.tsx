@@ -533,9 +533,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         </div>
                         <div className="text-xs text-gray-500">
                           {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
-                          {job.postedByName && job.postedByEmail !== job.employerEmail && (
+                          {job.postedByName && job.postedByEmail && job.postedByEmail !== job.employerEmail && (
                             <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-medium">
-                              Posted by: {job.postedByName}
+                              Posted by: {job.postedByName} ({job.postedByEmail})
                             </span>
                           )}
                         </div>
