@@ -71,7 +71,8 @@ export const accountAPI = {
             return {
               ...dbUser,
               teamRole: stored.teamRole || dbUser.teamRole || null,
-              employerOwnerId: stored.employerOwnerId || dbUser.employerOwnerId || null,
+              employerOwnerId: stored.employerOwnerId || stored.ownerEmail || dbUser.employerOwnerId || null,
+              ownerEmail: stored.ownerEmail || stored.employerOwnerId || dbUser.ownerEmail || null,
               employerId: stored.employerId || dbUser.employerId || null,
             };
           }

@@ -339,14 +339,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   useEffect(() => {
     const handleFocus = () => {}; // removed aggressive refetch
     
-    const handleJobDeleted = () => { if (user) fetchDashboardData(user); };
+    const handleJobDeleted = (e: Event) => { 
+      console.log('🗑️ Dashboard: Job deleted event received', (e as CustomEvent).detail);
+      if (user) {
+        // Immediately update local state to remove the deleted job
+        const deletedJobId = (e as CustomEvent).detail?.jobId;
+        if (deletedJobId) {
+          setJobs(prev => prev.filter(job => (job.id || job._id) !== deletedJobId));
+          console.log('📊 Dashboard: Removed job from local state:', deletedJobId);
+        }
+        // Then fetch fresh data from server
+        fetchDashboardData(user);
+      }
+    };
     
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('jobDeleted', handleJobDeleted);
+    window.addEventListener('jobDeleted', handleJobDeleted as EventListener);
     
     return () => {
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('jobDeleted', handleJobDeleted);
+      window.removeEventListener('jobDeleted', handleJobDeleted as EventListener);
     };
   }, [user]);
 

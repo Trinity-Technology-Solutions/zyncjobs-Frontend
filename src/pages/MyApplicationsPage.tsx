@@ -491,7 +491,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                                 <span className="text-green-600 font-bold">💰</span>
                                 <span className="text-green-700 font-semibold text-sm">
                                   {typeof application.jobId.salary === 'object' 
-                                    ? `₹${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
+                                    ? `${application.jobId.salary.currency || ''} ${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
                                     : application.jobId.salary
                                   }
                                 </span>

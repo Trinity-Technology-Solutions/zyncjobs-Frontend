@@ -399,7 +399,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     minSalary: getSalaryMin(editJob) || (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0 ? parsedData.minSalary : ''),
     maxSalary: getSalaryMax(editJob) || (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0 ? parsedData.maxSalary : ''),
     payRate: editJob?.salary?.period === 'monthly' ? 'per month' : editJob?.salary?.period === 'hourly' ? 'per hour' : parsedData?.payRate || 'per year',
-    currency: editJob?.salary?.currency || parsedData?.currency || getCurrencyByCountry(parsedData?.country || '').code || 'INR',
+    currency: editJob?.salary?.currency || parsedData?.currency || getCurrencyByCountry(parsedData?.country || '').code || 'USD',
     benefits: editJob?.benefits || parsedData?.benefits || [],
     jobDescription: (() => {
       const stripHtml = (html: string) =>
@@ -1145,7 +1145,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       const context = {
         jobType: jobData.jobType,
         skills: jobData.skills,
-        salary: shouldIncludeSalary ? `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
+        salary: shouldIncludeSalary ? `${jobData.currency} ${formatSalary(jobData.minSalary)} - ${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
         benefits: jobData.benefits,
         educationLevel: jobData.educationLevel,
         existingDescription: (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') ? '' : jobData.jobDescription,
@@ -2685,7 +2685,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   updateJobData('payType', e.target.value);
                   if (e.target.value === 'Maximum amount') updateJobData('minSalary', '');
                   if (e.target.value === 'Starting amount') updateJobData('maxSalary', '');
-                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); }
+                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); updateJobData('maxSalary', ''); }
                 }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -3569,10 +3569,29 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       ...(shouldIncludeSalary && {
         salary: {
           min: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-          max: (() => { const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-          currency: 'INR',
+          max: (() => {
+            if (jobData.payType === 'Exact amount') {
+              const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
+              return v > 0 && v < 1000 ? v * 100000 : v;
+            }
+            const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
+            return v > 0 && v < 1000 ? v * 100000 : v;
+          })(),
+          currency: jobData.currency,
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
-        }
+        },
+        salaryMin: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
+        salaryMax: (() => {
+          if (jobData.payType === 'Exact amount') {
+            const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
+            return v > 0 && v < 1000 ? v * 100000 : v;
+          }
+          const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
+          return v > 0 && v < 1000 ? v * 100000 : v;
+        })(),
+        currency: jobData.currency,
+        payRate: jobData.payRate,
+        payType: jobData.payType
       }),
       benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
@@ -3655,7 +3674,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           minSalary: '',
           maxSalary: '',
           payRate: 'per year',
-          currency: jobData.currency || 'INR',
+          currency: jobData.currency || 'USD',
           benefits: [],
           jobDescription: '',
           responsibilities: [],

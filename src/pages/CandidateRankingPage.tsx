@@ -35,86 +35,8 @@ function getEffectiveEmployerEmail(): string {
   return 'employer@trinitytech.com';
 }
 
-function toCdnUrl(url: string): string {
-  if (!url) return '';
-  return url.replace('s3.amazonaws.com', 'cloudfront.net');
-}
+// Backend already provides AI-scored applications with candidate profiles
 
-function extractSkillsFromText(text: string): string[] {
-  if (!text) return [];
-  const programmingSkills = [
-    'React', 'Node.js', 'TypeScript', 'JavaScript', 'Python', 'Java', 
-    'C++', 'AWS', 'Docker', 'Kubernetes', 'MongoDB', 'PostgreSQL', 
-    'SQL', 'Tailwind CSS', 'Next.js', 'Express', 'Git', 'CI/CD'
-  ];
-  return programmingSkills.filter(skill => 
-    new RegExp(`\\b${skill}\\b`, 'i').test(text)
-  );
-}
-
-interface MatchScoreBreakdown {
-  overall: number;
-  explanation: string[];
-}
-
-// FIX: job typed as `any` to allow both `jobTitle` and optional `title`
-function computeMatchScore(
-  skills: string[], 
-  candidateTitle: string, 
-  location: string, 
-  job: any
-): MatchScoreBreakdown {
-  let score = 50;
-  const explanation: string[] = [];
-
-  const jobTitle = job?.jobTitle || job?.title || '';
-  const requiredSkills = Array.isArray(job?.skills) ? job.skills : [];
-
-  if (candidateTitle && jobTitle) {
-    if (candidateTitle.toLowerCase() === jobTitle.toLowerCase()) {
-      score += 20;
-      explanation.push('Exact Job Title match');
-    } else if (
-      candidateTitle.toLowerCase().includes(jobTitle.toLowerCase()) || 
-      jobTitle.toLowerCase().includes(candidateTitle.toLowerCase())
-    ) {
-      score += 10;
-      explanation.push('Related Job Title match');
-    }
-  }
-
-  if (skills.length > 0 && requiredSkills.length > 0) {
-    const matchingSkills = skills.filter(s => 
-      requiredSkills.some((req: string) => req.toLowerCase() === s.toLowerCase())
-    );
-    if (matchingSkills.length > 0) {
-      const percentage = Math.round((matchingSkills.length / requiredSkills.length) * 30);
-      score += percentage;
-      explanation.push(`Matched ${matchingSkills.length} required skills`);
-    }
-  } else if (skills.length > 0) {
-    score += 15;
-    explanation.push('Matches industry-standard skills');
-  }
-
-  score = Math.min(Math.max(score, 0), 100);
-
-  return {
-    overall: score,
-    explanation: explanation.length > 0 ? explanation : ['Candidate meets general core benchmarks']
-  };
-}
-
-async function readPdf(url: string): Promise<Array<{ text: string }>> {
-  console.log('Mock parsing resume PDF from URL:', url);
-  return [
-    { text: 'Experienced Developer skilled in React, Node.js, and TypeScript.' }
-  ];
-}
-
-
-
-// FIX: Added `title?` as an optional field so TypeScript accepts `j.title` accesses
 interface Job {
   _id: string;
   id: string;
@@ -123,19 +45,7 @@ interface Job {
   skills: string[];
 }
 
-const MOCK_JOBS: Job[] = [
-  { _id: 'job-1', id: 'job-1', jobTitle: 'Full Stack Engineer', skills: ['React', 'Node.js', 'TypeScript', 'PostgreSQL'] },
-  { _id: 'job-2', id: 'job-2', jobTitle: 'Frontend Developer', skills: ['React', 'JavaScript', 'Tailwind CSS'] },
-  { _id: 'job-3', id: 'job-3', jobTitle: 'Backend Engineer', skills: ['Node.js', 'Python', 'AWS', 'Kubernetes'] }
-];
 
-const MOCK_APPLICATIONS = [
-  { _id: 'app-1', id: 'app-1', jobId: 'job-1', candidateEmail: 'anthony.george@gmail.com', candidateName: 'Anthony George Agil', status: 'shortlisted', skills: ['React', 'Node.js', 'TypeScript', 'JavaScript'], candidateJobTitle: 'Full Stack Engineer', candidateLocation: 'Remote', resumeUrl: 'resume1.pdf' },
-  { _id: 'app-2', id: 'app-2', jobId: 'job-1', candidateEmail: 'muthee@trinitytech.com', candidateName: 'Mutheeswaran S', status: 'interviewed', skills: ['React', 'JavaScript', 'Node.js'], candidateJobTitle: 'Software Engineer', candidateLocation: 'Chennai', resumeUrl: 'resume2.pdf' },
-  { _id: 'app-3', id: 'app-3', jobId: 'job-2', candidateEmail: 'alice.johnson@dev.com', candidateName: 'Alice Johnson', status: 'hired', skills: ['React', 'JavaScript', 'Tailwind CSS'], candidateJobTitle: 'Frontend Engineer', candidateLocation: 'Bangalore' },
-  { _id: 'app-4', id: 'app-4', jobId: 'job-2', candidateEmail: 'bob.builder@infra.net', candidateName: 'Bob Builder', status: 'rejected', skills: ['TypeScript', 'Kubernetes', 'AWS'], candidateJobTitle: 'DevOps Specialist', candidateLocation: 'Remote' },
-  { _id: 'app-5', id: 'app-5', jobId: 'job-3', candidateEmail: 'carol.danvers@space.org', candidateName: 'Carol Danvers', status: 'shortlisted', skills: ['Python', 'AWS', 'Kubernetes', 'Docker'], candidateJobTitle: 'Backend Architect', candidateLocation: 'Remote' }
-];
 
 interface CandidateRankingPageProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -170,11 +80,8 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
 };
 
-const skillsCache: Record<string, string[]> = {};
-
 const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate, user }) => {
-  // FIX: typed as Job[] so `j.title` is valid via the optional field above
-  const [jobs, setJobs] = useState<Job[]>(MOCK_JOBS);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [rankedCandidates, setRankedCandidates] = useState<RankedCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -193,95 +100,69 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
     try {
       const userEmail = getEffectiveEmployerEmail();
       
-      let allJobs: Job[] = MOCK_JOBS;
-      let allApps = MOCK_APPLICATIONS;
+      const [jobsRes, appsRes] = await Promise.all([
+        fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
+        fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
+      ]);
 
-      try {
-        const [jobsRes, appsRes] = await Promise.all([
-          fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
-          fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
-        ]);
-
-        if (jobsRes.ok) allJobs = await jobsRes.json();
-        if (appsRes.ok) {
-          const appsData = await appsRes.json();
-          allApps = appsData.applications || appsData || MOCK_APPLICATIONS;
-        }
-      } catch (networkError) {
-        console.warn('Network endpoints unavailable, compiling in-memory mock datasets.');
+      if (!jobsRes.ok) {
+        throw new Error(`Failed to fetch jobs: ${jobsRes.status} ${jobsRes.statusText}`);
       }
+      if (!appsRes.ok) {
+        throw new Error(`Failed to fetch applications: ${appsRes.status} ${appsRes.statusText}`);
+      }
+
+      const allJobs: Job[] = await jobsRes.json();
+      const appsData = await appsRes.json();
+      const allApps = appsData.applications || appsData || [];
       
       setJobs(allJobs);
 
-      const enriched = await Promise.all(allApps.map(async (app: any) => {
-        try {
-          const id = app.candidateId || app.userId || app.candidateUserId;
-          let profile: any = null;
-
-          if (id) { 
-            const r = await fetch(`${API_ENDPOINTS.USERS}/${id}`); 
-            if (r.ok) profile = await r.json(); 
-          }
-
-          const merged = profile ? {
-            ...app,
-            candidateSkills: app.candidateSkills?.length ? app.candidateSkills : (profile.skills || []),
-            candidateExperience: app.candidateExperience || app.experience || profile.experience || '',
-            candidateEducation: app.candidateEducation || app.education || profile.education || '',
-            candidateLocation: app.candidateLocation || app.location || profile.location || '',
-            candidateJobTitle: app.candidateJobTitle || app.jobTitle || profile.jobTitle || profile.title || '',
-            candidateProfilePicture: app.candidateProfilePicture || profile.profilePicture || profile.profilePhoto || '',
-            candidateName: app.candidateName || profile.fullName || profile.name || app.candidateEmail,
-            resumeUrl: app.resumeUrl || profile.resumeUrl || '',
-          } : app;
-
-          const cacheKey = merged._id || merged.id || merged.candidateEmail || '';
-          let resolvedSkillsList = merged.candidateSkills || [];
-
-          if (cacheKey && skillsCache[cacheKey]) {
-            resolvedSkillsList = skillsCache[cacheKey];
-          } else if (!resolvedSkillsList || resolvedSkillsList.length === 0) {
-            const resumeUrl = merged?.resumeUrl || '';
-            if (resumeUrl) {
-              const cfUrl = toCdnUrl(resumeUrl);
-              const textItems = await readPdf(cfUrl);
-              const resumeText = textItems.map((t: any) => t.text).join(' ');
-              resolvedSkillsList = extractSkillsFromText(resumeText);
-              if (cacheKey && resolvedSkillsList.length > 0) {
-                skillsCache[cacheKey] = resolvedSkillsList;
-              }
-            }
-          }
-
-          return { ...merged, candidateSkills: resolvedSkillsList };
-        } catch (singleItemError) {
-          console.warn("Skipped profile enrichment for single applicant due to error:", singleItemError);
-          return app;
-        }
-      }));
+      const enriched = allApps.map((app: any) => {
+        // Backend already provides enriched data with candidateProfile
+        const profile = app.candidateProfile || {};
+        
+        return {
+          ...app,
+          candidateSkills: app.skills || profile.skills || [],
+          candidateExperience: profile.experience || profile.yearsExperience || 'Not specified',
+          candidateEducation: profile.education || 'Not specified',
+          candidateLocation: profile.location || '',
+          candidateJobTitle: profile.jobTitle || profile.title || '',
+          candidateProfilePicture: profile.profilePhoto || '',
+          candidateName: app.candidateName || profile.name || app.candidateEmail
+        };
+      });
 
       const scored: RankedCandidate[] = enriched.map((app: any) => {
-        // FIX: compare against both _id/id fields safely
-        const job = allJobs.find((j: Job) => 
-          String(j._id || j.id) === String(app.jobId?._id || app.jobId?.id || app.jobId)
-        );
+        // Use backend AI scores if available
+        const aiScore = app.aiAnalysis?.overallScore || app.aiScore || 0;
         const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
-        const title = app.candidateJobTitle || app.jobTitle || job?.jobTitle || '';
-        const location = app.candidateLocation || app.location || '';
         
-        const breakdown = computeMatchScore(skills, title, location, job || {});
-        const reasons = (breakdown.explanation || []).map(e => e.replace(/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*/u, ''));
+        // Build match reasons from AI analysis
+        const reasons: string[] = [];
+        if (app.aiAnalysis) {
+          if (app.aiAnalysis.skillsScore >= 70) reasons.push('Strong skills match');
+          if (app.aiAnalysis.experienceScore >= 70) reasons.push('Relevant experience');
+          if (app.aiAnalysis.reasons?.length > 0) {
+            reasons.push(...app.aiAnalysis.reasons.slice(0, 2));
+          }
+        }
         if (app.resumeUrl) reasons.push('Resume attached');
+        if (reasons.length === 0) reasons.push('Candidate profile available');
+
+        // Extract job info from embedded jobId object or find in jobs list
+        const jobData = app.jobId && typeof app.jobId === 'object' ? app.jobId : 
+          allJobs.find((j: Job) => String(j._id || j.id) === String(app.jobId));
 
         return { 
           id: app._id || app.id, 
           name: app.candidateName || app.candidateEmail || 'Candidate', 
           email: app.candidateEmail || '', 
           rank: 0, 
-          score: breakdown.overall || 0, 
-          // FIX: use `job?.title` safely now that `title?` is declared on Job
-          jobTitle: app.jobTitle || job?.jobTitle || job?.title || 'Position', 
-          jobId: String(app.jobId?._id || app.jobId?.id || app.jobId || ''), 
+          score: aiScore, 
+          jobTitle: app.jobTitle || jobData?.jobTitle || jobData?.title || 'Position', 
+          jobId: String(jobData?.id || jobData?._id || app.jobId || ''), 
           skills, 
           experience: app.candidateExperience || 'Not specified', 
           education: app.candidateEducation || 'Not specified', 

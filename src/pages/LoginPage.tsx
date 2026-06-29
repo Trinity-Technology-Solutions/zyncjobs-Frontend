@@ -67,8 +67,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         }
       } catch { /* silent — use auth response as fallback */ }
 
-      updateUserInStorage(fullUser);
-      const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
+      const displayName = fullUser.name || fullUser.fullName || response.user.name || response.user.fullName || response.user.email.split('@')[0];
+      
+      // Immediately update localStorage with the correct name BEFORE calling onLogin
+      updateUserInStorage({ ...fullUser, name: displayName });
+      
       const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
       onLogin({ name: displayName, type: userType, email: response.user.email, id: response.user.id } as any);
       // Navigate after onLogin updates App state
@@ -81,8 +84,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       } else {
         navigate('/dashboard', { replace: true });
       }
-    } catch (err) {
+    } catch (err: any) {
       let errorMessage = 'Login failed';
+      
+      // Handle account lockout (HTTP 423)
+      if (err.response?.status === 423 || err.message?.includes('locked')) {
+        errorMessage = '🔒 Account temporarily locked due to multiple failed login attempts. Please try again in 15 minutes or reset your password.';
+        setError(errorMessage);
+        setFieldErrors({});
+        setLoading(false);
+        return;
+      }
+      
       if (err instanceof Error) {
         if (err.message.includes('Account not found')) {
           errorMessage = 'Account not found. Please register first.';
