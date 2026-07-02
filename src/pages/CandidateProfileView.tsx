@@ -543,7 +543,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           candidateName={candidate.name}
           candidateEmail={candidate.email}
           employerId={currentUser.id || currentUser._id || 'employer'}
-          employerName={currentUser.name || 'Employer'}
           onClose={() => setShowMessage(false)}
         />
       )}

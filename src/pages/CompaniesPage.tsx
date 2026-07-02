@@ -694,7 +694,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                   
                   {/* Social Links */}
                   {company.socialLinks && Object.keys(company.socialLinks).length > 0 && (
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-3 pt-1">
                       {company.socialLinks.linkedin && (
                         <a 
                           href={company.socialLinks.linkedin} 

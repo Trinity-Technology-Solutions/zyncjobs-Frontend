@@ -1717,7 +1717,6 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
           candidateName={messageCandidate.fullName ?? messageCandidate.name ?? ''}
           candidateEmail={messageCandidate.email ?? ''}
           employerId={currentUser.id ?? ''}
-          employerName={currentUser.name ?? currentUser.fullName ?? ''}
           onClose={() => setMessageCandidate(null)}
         />
       )}
