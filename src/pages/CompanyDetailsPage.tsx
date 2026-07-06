@@ -965,6 +965,9 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       </a>
                     )}
                   </div>
+                </div>
+              )}
+            </div>
             
             {/* Current Job Openings */}
             {jobs.length > 0 && (
