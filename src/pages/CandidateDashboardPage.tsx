@@ -22,6 +22,7 @@ import CandidateNotificationBell from "../components/CandidateNotificationBell";
 import { useApplicationNotifications } from "../hooks/useApplicationNotifications";
 import { tokenStorage } from "../utils/tokenStorage";
 import { S3Service } from "../services/s3Service";
+import { updateUserInStorage } from "../utils/userStorage";
 
 import LinkedInConnect, {
   type LinkedInProfile,
@@ -3411,12 +3412,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 resume: resumeData,
                                 resumeUrl: fileUrl,
                               };
-                              setUser(updatedUser);
-                              localStorage.setItem(
-                                "user",
-                                JSON.stringify(updatedUser),
-                              );
-                              calculateProfileCompletion(updatedUser);
+                            setUser(updatedUser);
+                            updateUserInStorage(updatedUser);
+                            calculateProfileCompletion(updatedUser);
                               await apiFetch(
                                 `${API_ENDPOINTS.BASE_URL}/profile/save`,
                                 {
@@ -3467,7 +3465,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   try {
                                     const updatedUser = { ...user, resume: null, resumeUrl: "" };
                                     setUser(updatedUser);
-                                    localStorage.setItem("user", JSON.stringify(updatedUser));
+                                    updateUserInStorage(updatedUser);
                                     calculateProfileCompletion(updatedUser);
                                     const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                       method: "POST",
@@ -3549,29 +3547,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               resume: resumeData,
                               resumeUrl: fileUrl,
                             };
-                            setUser(updatedUser);
-                            localStorage.setItem(
-                              "user",
-                              JSON.stringify(updatedUser),
-                            );
-                            calculateProfileCompletion(updatedUser);
-                            await apiFetch(
-                              `${API_ENDPOINTS.BASE_URL}/profile/save`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                  email: userEmail,
-                                  resume: resumeData,
-                                  resumeUrl: fileUrl,
-                                }),
-                              },
-                            );
-                            setNotification({
-                              type: "success",
-                              message: "Resume uploaded successfully!",
-                              isVisible: true,
-                            });
+                              setUser(updatedUser);
+                              updateUserInStorage(updatedUser);
+                              calculateProfileCompletion(updatedUser);
+                              await apiFetch(
+                                `${API_ENDPOINTS.BASE_URL}/profile/save`,
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    email: userEmail,
+                                    resume: resumeData,
+                                    resumeUrl: fileUrl,
+                                  }),
+                                },
+                              );
+                              setNotification({
+                                type: "success",
+                                message: "Resume updated successfully!",
+                                isVisible: true,
+                              });
                           } catch (error: any) {
                             setNotification({
                               type: "error",
@@ -4246,7 +4241,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           : [],
                     };
                     setUser(merged);
-                    localStorage.setItem("user", JSON.stringify(merged));
+                    updateUserInStorage(merged);
                     calculateProfileCompletion(merged);
 
                     // 4. Save to backend

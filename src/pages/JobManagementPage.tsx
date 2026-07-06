@@ -556,15 +556,13 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       <div className="flex gap-2 sm:gap-6">
                         <button
                           onClick={() => {
-                            console.log('🔘 Button clicked for job:', jobId, job.jobTitle);
-                            sessionStorage.setItem('selectedJobId', jobId!);
+                            if (!jobId) {
+                              window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Invalid job ID. Please refresh and try again.' } }));
+                              return;
+                            }
+                            sessionStorage.setItem('selectedJobId', jobId);
                             sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
                             sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
-                            console.log('✅ SessionStorage set:', {
-                              jobId: sessionStorage.getItem('selectedJobId'),
-                              title: sessionStorage.getItem('selectedJobTitle'),
-                              company: sessionStorage.getItem('selectedJobCompany')
-                            });
                             onNavigate('application-management');
                           }}
                           className="flex-1 sm:flex-none text-center hover:bg-blue-50 p-2 rounded transition-colors cursor-pointer border border-blue-200 sm:border-none"
@@ -575,7 +573,11 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         
                         <button
                           onClick={() => {
-                            sessionStorage.setItem('selectedJobId', jobId!);
+                            if (!jobId) {
+                              window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Invalid job ID. Please refresh and try again.' } }));
+                              return;
+                            }
+                            sessionStorage.setItem('selectedJobId', jobId);
                             sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
                             sessionStorage.setItem('selectedJobCompany', job.company || 'Company');
                             onNavigate('application-management');
@@ -632,8 +634,12 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                             </button>
                             <button
                               onClick={() => {
-                                console.log('👁️ View applications for:', jobId);
-                                sessionStorage.setItem('selectedJobId', jobId!);
+                                if (!jobId) {
+                                  window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Invalid job ID. Please refresh and try again.' } }));
+                                  setOpenMenuId(null);
+                                  return;
+                                }
+                                sessionStorage.setItem('selectedJobId', jobId);
                                 sessionStorage.setItem('selectedJobTitle', job.jobTitle || job.title || 'Job Position');
                                 onNavigate('application-management');
                                 setOpenMenuId(null);

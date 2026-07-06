@@ -158,7 +158,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
   useEffect(() => {
     if (jobId) {
-      fetchApplications();
+      fetchApplications(jobId);
       fetch(`${API_ENDPOINTS.JOBS}/${jobId}`)
         .then(r => r.ok ? r.json() : null)
         .then(job => {
@@ -170,13 +170,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     }
   }, [jobId]);
 
-  const fetchApplications = async () => {
+  const fetchApplications = async (id?: string) => {
+    const resolvedJobId = id || jobId;
     try {
       setLoading(true);
-      if (!jobId || jobId === 'undefined' || jobId === 'null') {
+      if (!resolvedJobId || resolvedJobId === 'undefined' || resolvedJobId === 'null') {
         setApplications([]); setError('No job selected.'); setLoading(false); return;
       }
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${jobId}`);
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/job/${resolvedJobId}`);
+      if (response.status === 404) { setApplications([]); setError(null); setLoading(false); return; }
       if (!response.ok) throw new Error('Failed to fetch applications');
       const fetched = await response.json();
 

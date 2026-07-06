@@ -1060,6 +1060,7 @@ function App() {
 
             {/* -- Redirects for old paths -- */}
             <Route path="/employer-dashboard" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/responses" element={<Navigate to="/application-management" replace />} />
 
             {/* -- 404 -- */}
             <Route path="*" element={
