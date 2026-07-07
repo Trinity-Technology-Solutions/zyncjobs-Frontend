@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { apiFetch } from '../api/apiFetch';
 
 const API_ENDPOINTS = {
   BASE_URL: '/api',
@@ -50,6 +51,7 @@ interface Job {
 interface CandidateRankingPageProps {
   onNavigate?: (page: string, data?: any) => void;
   user?: any;
+  onLogout?: () => void;
 }
 
 interface RankedCandidate {
@@ -80,7 +82,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string 
   rejected:      { label: 'Rejected', color: 'text-red-500 bg-red-50', dot: 'bg-red-400' },
 };
 
-const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate, user }) => {
+const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate, user, onLogout }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [rankedCandidates, setRankedCandidates] = useState<RankedCandidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,8 +103,8 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
       const userEmail = getEffectiveEmployerEmail();
       
       const [jobsRes, appsRes] = await Promise.all([
-        fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
-        fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
+        apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
+        apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
       ]);
 
       if (!jobsRes.ok) {
@@ -112,8 +114,12 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         throw new Error(`Failed to fetch applications: ${appsRes.status} ${appsRes.statusText}`);
       }
 
-      const allJobs: Job[] = await jobsRes.json();
-      const appsData = await appsRes.json();
+      const jobsText = await jobsRes.text();
+      const appsText = await appsRes.text();
+      let allJobs: Job[];
+      let appsData: any;
+      try { allJobs = JSON.parse(jobsText); } catch { throw new Error('Invalid response from jobs API'); }
+      try { appsData = JSON.parse(appsText); } catch { throw new Error('Invalid response from applications API'); }
       const allApps = appsData.applications || appsData || [];
       
       setJobs(allJobs);
@@ -211,7 +217,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <Header onNavigate={onNavigate} user={user} />
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
 
       <div className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 via-indigo-950 to-slate-900 text-white">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNCI+PGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-60" />
