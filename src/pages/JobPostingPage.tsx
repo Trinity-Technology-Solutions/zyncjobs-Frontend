@@ -3629,7 +3629,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           type: 'success',
           message: isEditMode ? 'Job updated successfully!' : 'Job posted successfully!',
           isVisible: true
-        };
+        });
         
         // Trigger event to refresh latest jobs
         window.dispatchEvent(new CustomEvent('jobPosted', { detail: result }));
