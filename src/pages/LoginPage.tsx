@@ -67,7 +67,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         }
       } catch { /* silent — use auth response as fallback */ }
 
-      const displayName = fullUser.name || fullUser.fullName || response.user.name || response.user.fullName || response.user.email.split('@')[0];
+      const displayName = fullUser.fullName || fullUser.name || response.user.fullName || response.user.name || response.user.email.split('@')[0];
       
       // Immediately update localStorage with the correct name BEFORE calling onLogin
       updateUserInStorage({ ...fullUser, name: displayName });
