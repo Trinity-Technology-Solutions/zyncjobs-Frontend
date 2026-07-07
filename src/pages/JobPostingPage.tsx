@@ -3590,7 +3590,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
       postedByEmail: user.email,
-      postedByName: user.name || user.email,
       employerEmail: getEffectiveEmployerEmail(),
       employerName: user.name,
       employerCompany: user?.companyName || jobData.companyName || 'Your Company',
@@ -3631,7 +3630,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           message: isEditMode ? 'Job updated successfully!' : 'Job posted successfully!',
           isVisible: true
         });
-        console.log('Job Posted by:', user.email, result);
         
         // Trigger event to refresh latest jobs
         window.dispatchEvent(new CustomEvent('jobPosted', { detail: result }));
