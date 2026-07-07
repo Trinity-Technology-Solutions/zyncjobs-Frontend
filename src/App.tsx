@@ -101,7 +101,7 @@ const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
-const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage'));
+const ATSDashboard = lazy(() => import('./pages/ATSDashboard'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -917,6 +917,12 @@ function App() {
             <Route path="/candidate-profile-view" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
                 <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
+              </AuthGuard>
+            } />
+
+            <Route path="/ats-dashboard" element={
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
+                <ATSDashboard onNavigate={handleNavigation} />
               </AuthGuard>
             } />
 
