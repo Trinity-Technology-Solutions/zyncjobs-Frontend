@@ -193,7 +193,7 @@ function getInitialUser(): UserType | null {
     else if (rawType === 'super_admin') type = 'super_admin';
     else if (rawType === 'manager') type = 'manager';
     return {
-      name: stored.name || stored.email.split('@')[0] || 'User',
+      name: stored.fullName || stored.name || stored.email.split('@')[0] || 'User',
       type,
       email: stored.email,
       ...(stored.teamRole && { teamRole: stored.teamRole }),
