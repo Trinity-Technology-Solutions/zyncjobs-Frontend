@@ -102,6 +102,7 @@ const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
 const ATSDashboard = lazy(() => import('./pages/ATSDashboard'));
+const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>

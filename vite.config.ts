@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     build: {
+      outDir: mode === 'qa' ? 'zync-site' : 'dist',
       rollupOptions: {
         output: {
           manualChunks: {
@@ -29,7 +30,7 @@ export default defineConfig(({ mode }) => {
       chunkSizeWarningLimit: 600,
       minify: 'esbuild',
       esbuildOptions: {
-        drop: mode === 'production' ? ['console', 'debugger'] : ['debugger'],
+        drop: mode === 'production' ? ['console', 'debugger'] : ['debugger'], // qa keeps console logs
       },
       cssCodeSplit: true,
       sourcemap: false,
