@@ -3416,7 +3416,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 "user",
                                 JSON.stringify(updatedUser),
                               );
-                              // Dispatch event to notify listeners (ResumeStatusIndicator, etc.)
                               window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: updatedUser }));
                               calculateProfileCompletion(updatedUser);
                               await apiFetch(
@@ -3556,7 +3555,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               "user",
                               JSON.stringify(updatedUser),
                             );
-                            // Dispatch event to notify listeners (ResumeStatusIndicator, etc.)
                             window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: updatedUser }));
                             calculateProfileCompletion(updatedUser);
                             await apiFetch(
@@ -4251,7 +4249,6 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     };
                     setUser(merged);
                     localStorage.setItem("user", JSON.stringify(merged));
-                    // Dispatch event to notify listeners (ResumeStatusIndicator, etc.)
                     window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: merged }));
                     calculateProfileCompletion(merged);
 
