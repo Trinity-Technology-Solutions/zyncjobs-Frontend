@@ -45,7 +45,7 @@ interface Admin {
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
-
+}
 
 interface AddAdminForm {
   name: string;
