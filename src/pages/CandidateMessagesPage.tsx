@@ -267,12 +267,14 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {conv.companyLogo ? (
-                    <img src={conv.companyLogo} alt={conv.employerName} className="w-11 h-11 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                      {getInitials(conv.employerName || '?')}
-                    </div>
-                  )}
+                    <img src={conv.companyLogo} alt={conv.employerName}
+                      className="w-11 h-11 rounded-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                    />
+                  ) : null}
+                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm ${conv.companyLogo ? 'hidden' : ''}`}>
+                    {getInitials(conv.employerName || '?')}
+                  </div>
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
@@ -313,7 +315,15 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
               </button>
               {/* Avatar */}
               {selectedConversation.companyLogo ? (
-                <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                <>
+                  <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName}
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                  />
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 hidden">
+                    {getInitials(selectedConversation.employerName || '?')}
+                  </div>
+                </>
               ) : (
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                   {getInitials(selectedConversation.employerName || '?')}

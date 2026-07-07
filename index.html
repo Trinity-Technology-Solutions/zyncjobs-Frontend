@@ -167,21 +167,21 @@
     <!-- PWA Manifest -->
     <link rel="manifest" href="/manifest.json">
     
-    <!-- Preload LCP hero image -->
-    <link rel="preload" as="image" href="/images/women.png" fetchpriority="high">
+    <!-- Preconnect to external origins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://www.googletagmanager.com">
+    <link rel="dns-prefetch" href="https://unpkg.com">
+    <link rel="dns-prefetch" href="https://cdn.tailwindcss.com">
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
     <noscript><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"></noscript>
     <style>#root{background-color:#f9fafb;min-height:100vh;} body{font-family:'IBM Plex Sans',system-ui,sans-serif;}</style>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CDN for development - will be replaced by Vite plugin in production -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- dotlottie deferred -->
-    <script defer src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.10/dist/dotlottie-wc.js" type="module"></script>
-  </head>
   <body style="font-family: 'IBM Plex Sans', sans-serif !important; background-color: #f9fafb;">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script defer src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.9.10/dist/dotlottie-wc.js" type="module"></script>
   </body>
 </html>

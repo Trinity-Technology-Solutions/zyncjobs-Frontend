@@ -38,17 +38,19 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
 
   const fetchCompanyLogos = async (jobList: Job[]) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
-      const map: Record<string, string> = {};
+      const logoMap: Record<string, string> = {};
+      const websiteMap: Record<string, string> = {};
 
       // First, pull logos directly from job data
       jobList.forEach((j: any) => {
         const name = (j.company || '').toLowerCase();
         const logo = j.companyLogo || j.logoUrl || '';
-        if (name && logo) map[name] = logo;
+        if (name && logo) logoMap[name] = logo;
       });
 
       // Then overlay with company API logos (only non-empty, don't overwrite job-level logos)
@@ -58,11 +60,14 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
         companies.forEach((c: any) => {
           const name = (c.name || c.companyName || '').toLowerCase();
           const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-          if (name && logo && !map[name]) map[name] = logo;
+          if (name && logo && !logoMap[name]) logoMap[name] = logo;
+          const site = c.website || c.companyWebsite || '';
+          if (name && site && !websiteMap[name]) websiteMap[name] = site;
         });
       }
 
-      setCompanyLogos(map);
+      setCompanyLogos(logoMap);
+      setCompanyWebsites(websiteMap);
     } catch {}
   };
 
@@ -214,6 +219,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         <CompanyLogo
                           companyName={job.company || ''}
                           storedLogo={job.companyLogo || companyLogos[(job.company || '').toLowerCase()] || ''}
+                          website={companyWebsites[(job.company || '').toLowerCase()]}
                           size={40}
                           className="rounded"
                         />
@@ -258,7 +264,7 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                         <span className="font-semibold text-gray-900 text-sm">
                           {job.salary ? formatSalary(job.salary, job.currency || job.salary?.currency) :
                            job.salaryMin && job.salaryMax ?
-                           formatSalary({ min: job.salaryMin, max: job.salaryMax, currency: job.currency || 'INR' }) :
+                           formatSalary({ min: job.salaryMin, max: job.salaryMax, currency: job.currency }) :
                            'Salary not specified'}
                         </span>
                       </div>

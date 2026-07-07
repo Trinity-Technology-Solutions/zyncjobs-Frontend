@@ -108,11 +108,30 @@ export const getPostingFreshness = (dateString: string | Date): 'new' | 'recent'
 export const formatSalary = (salary: any, currencyCode?: string): string => {
   if (!salary) return '';
 
-  // Import currency symbol lookup inline to avoid circular deps
   const CURRENCY_SYMBOLS: Record<string, string> = {
-    INR: '₹', USD: '$', AED: 'د.إ', SAR: 'ر.س', OMR: 'ر.ع',
-    QAR: 'ر.ق', KWD: 'د.ك', BHD: '.د.ب', GBP: '£', EUR: '€',
-    CAD: 'C$', AUD: 'A$', SGD: 'S$', MYR: 'RM'
+    // Asia
+    INR: '₹', PKR: '₨', BDT: '৳', LKR: 'Rs', NPR: 'Rs',
+    THB: '฿', IDR: 'Rp', PHP: '₱', VND: '₫', KRW: '₩',
+    JPY: '¥', CNY: '¥', TWD: 'NT$', HKD: 'HK$', MOP: 'MOP$',
+    MYR: 'RM', SGD: 'S$', BND: 'B$', MMK: 'K', KHR: '៛',
+    MNT: '₮', KZT: '₸', UZS: 'soʻm', GEL: '₾', AMD: '֏',
+    AZN: '₼', TRY: '₺', ILS: '₪', JOD: 'JD', LBP: 'L£',
+    SYP: 'S£', IQD: 'IQD', IRR: '﷼', AFN: '؋',
+    // Gulf / Middle East
+    AED: 'د.إ', SAR: 'ر.س', OMR: 'ر.ع', QAR: 'ر.ق',
+    KWD: 'د.ك', BHD: '.د.ب', YER: '﷼',
+    // Europe
+    EUR: '€', GBP: '£', CHF: 'Fr', SEK: 'kr', NOK: 'kr',
+    DKK: 'kr', PLN: 'zł', CZK: 'Kč', HUF: 'Ft', RON: 'lei',
+    BGN: 'лв', HRK: 'kn', RSD: 'din', UAH: '₴', RUB: '₽',
+    // Americas
+    USD: '$', CAD: 'C$', MXN: '$', BRL: 'R$', ARS: '$',
+    CLP: '$', COP: '$', PEN: 'S/', VES: 'Bs.', UYU: '$U',
+    // Africa
+    ZAR: 'R', NGN: '₦', KES: 'KSh', GHS: 'GH₵', EGP: 'E£',
+    MAD: 'MAD', TND: 'DT', ETB: 'Br', TZS: 'TSh', UGX: 'USh',
+    // Oceania
+    AUD: 'A$', NZD: 'NZ$', FJD: 'FJ$',
   };
 
   const fmtNum = (n: number, code: string): string => {
@@ -130,9 +149,12 @@ export const formatSalary = (salary: any, currencyCode?: string): string => {
     const { min, max } = salary;
     if (!min && !max) return '';
     if (min === 0 && max === 0) return '';
-    const code = currencyCode || salary.currency || 'INR';
+    const code = currencyCode || salary.currency || 'USD';
     const sym = CURRENCY_SYMBOLS[code] || code;
-    if (min && max && min > 0 && max > 0) return `${sym}${fmtNum(min, code)} - ${sym}${fmtNum(max, code)}`;
+    if (min && max && min > 0 && max > 0) {
+      if (min === max) return `${sym}${fmtNum(min, code)}`;
+      return `${sym}${fmtNum(min, code)} - ${sym}${fmtNum(max, code)}`;
+    }
     if (min && min > 0) return `${sym}${fmtNum(min, code)}+`;
     if (max && max > 0) return `Up to ${sym}${fmtNum(max, code)}`;
     return '';

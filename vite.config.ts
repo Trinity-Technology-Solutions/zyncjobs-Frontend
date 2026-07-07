@@ -11,23 +11,32 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     build: {
-      // Split large chunks so browser can cache them separately
       rollupOptions: {
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-redux': ['@reduxjs/toolkit'],
-            'vendor-sentry': ['@sentry/react'],
+            'vendor-socket': ['socket.io-client'],
             'vendor-lucide': ['lucide-react'],
+            'vendor-charts': ['recharts'],
+            'vendor-pdf': ['jspdf', 'pdfjs-dist'],
+            'vendor-office': ['docx', 'mammoth', 'jszip'],
           },
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
         },
       },
-      // Warn when any chunk exceeds 500KB
-      chunkSizeWarningLimit: 500,
-      // Minify with esbuild (default, fast)
+      chunkSizeWarningLimit: 600,
       minify: 'esbuild',
-      // Enable source maps only in non-prod
-      sourcemap: mode !== 'production',
+      esbuildOptions: {
+        drop: mode === 'production' ? ['console', 'debugger'] : ['debugger'],
+      },
+      cssCodeSplit: true,
+      sourcemap: false,
+      assetsInlineLimit: 4096,
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom'],
     },
     server: {
       port: 5173,

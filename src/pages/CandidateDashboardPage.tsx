@@ -29,14 +29,17 @@ import LinkedInConnect, {
 import ProfileVisibilityToggle from "../components/ProfileVisibilityToggle";
 import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 interface CandidateDashboardPageProps {
+  user?: any;
   onNavigate: (page: string, data?: any) => void;
   readOnly?: boolean;
   viewEmail?: string;
 }
 
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
+  user: userProp,
   onNavigate,
   readOnly = false,
   viewEmail,
@@ -62,6 +65,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     src: string;
     file: File;
   } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean; title: string; message: string; onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const showConfirm = (title: string, message: string, onConfirm: () => void) =>
+    setConfirmDialog({ isOpen: true, title, message, onConfirm });
   const [showResumePopup, setShowResumePopup] = useState(false);
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
@@ -123,15 +131,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     }
   };
 
-  const candidateEmail =
-    user?.email ||
-    (() => {
-      try {
-        return JSON.parse(localStorage.getItem("user") || "{}").email;
-      } catch {
-        return undefined;
-      }
-    })();
+  const candidateEmail = user?.email || (() => {
+    try { return JSON.parse(localStorage.getItem("user") || "{}").email; } catch { return undefined; }
+  })();
   const {
     notifications: appNotifications,
     unreadCount,
@@ -366,11 +368,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         return;
       }
 
-      const userData =
-        localStorage.getItem("user") || sessionStorage.getItem("user");
+      // Prefer user prop (React state from App.tsx) over localStorage
+      const userData = userProp || localStorage.getItem("user") || sessionStorage.getItem("user");
       if (userData) {
         try {
-          const parsedUser = JSON.parse(userData);
+          const parsedUser = typeof userData === 'object' ? userData : JSON.parse(userData);
           let finalUser = parsedUser;
           // Fetch fresh data from database
           try {
@@ -1632,7 +1634,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     </span>
                                   )}
                                   <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       const userEmail =
                                         user?.email || user?.name || "user";
                                       const idsKey = `savedJobs_${userEmail}`;
@@ -1660,6 +1662,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       const isAlreadySaved =
                                         savedIds.includes(jobId);
                                       if (isAlreadySaved) {
+                                        const confirmed = await (window as any).confirmAsync(
+                                          'Remove this job from your saved list?'
+                                        );
+                                        if (!confirmed) return;
                                         const updatedIds = savedIds.filter(
                                           (id) => id !== jobId,
                                         );
@@ -1986,7 +1992,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     ) : null}
                     {/* Cover upload + remove buttons */}
                     {!readOnly && (
-                      <div className="absolute top-3 right-3 flex gap-2">
+                      <React.Fragment><div className="absolute top-3 right-3 flex gap-2">
                         <label
                           className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full cursor-pointer shadow transition-all"
                           title="Change cover photo"
@@ -2012,11 +2018,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           </svg>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept=".jpg,.jpeg,.png,.webp"
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                              if (!allowedTypes.includes(file.type)) {
+                                window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Only JPG, JPEG, PNG, and WEBP files are allowed." } }));
+                                e.target.value = "";
+                                return;
+                              }
+                              if (file.size > 5 * 1024 * 1024) {
+                                window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "File size exceeds the maximum limit of 5 MB." } }));
+                                e.target.value = "";
+                                return;
+                              }
                               const src = URL.createObjectURL(file);
                               setCoverCropModal({ src, file });
                               e.target.value = "";
@@ -2027,37 +2044,28 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           <button
                             title="Remove cover photo"
                             className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full shadow transition-all"
-                            onClick={async () => {
-                              const updatedUser = { ...user, coverPhoto: "" };
-                              setUser(updatedUser);
-                              localStorage.setItem(
-                                "user",
-                                JSON.stringify(updatedUser),
-                              );
-                              await apiFetch(
-                                `${API_ENDPOINTS.BASE_URL}/profile/save`,
-                                {
+                            onClick={() => showConfirm(
+                              'Remove Cover Photo',
+                              'Are you sure you want to remove your cover photo?',
+                              async () => {
+                                const updatedUser = { ...user, coverPhoto: "" };
+                                setUser(updatedUser);
+                                localStorage.setItem("user", JSON.stringify(updatedUser));
+                                await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                   method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    email: user?.email,
-                                    coverPhoto: "",
-                                  }),
-                                },
-                              );
-                              setNotification({
-                                type: "success",
-                                message: "Cover photo removed!",
-                                isVisible: true,
-                              });
-                            }}
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ email: user?.email, coverPhoto: "" }),
+                                });
+                                setNotification({ type: "success", message: "Cover photo removed!", isVisible: true });
+                              }
+                            )}
                           >
                             <X className="w-4 h-4 text-gray-600" />
                           </button>
                         )}
                       </div>
+                      <p className="text-xs text-gray-400 mt-1 text-right">Supported formats: JPG, JPEG, PNG, WEBP &mdash; Max 5 MB</p>
+                      </React.Fragment>
                     )}
                   </div>
 
@@ -3449,66 +3457,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             Update
                           </button>
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (
-                                !confirm(
-                                  "Are you sure you want to remove your resume? This action cannot be undone.",
-                                )
-                              )
-                                return;
-
-                              try {
-                                const updatedUser = {
-                                  ...user,
-                                  resume: null,
-                                  resumeUrl: "",
-                                };
-                                setUser(updatedUser);
-                                localStorage.setItem(
-                                  "user",
-                                  JSON.stringify(updatedUser),
-                                );
-                                calculateProfileCompletion(updatedUser);
-
-                                const res = await apiFetch(
-                                  `${API_ENDPOINTS.BASE_URL}/profile/save`,
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      email: user?.email,
-                                      resume: null,
-                                      resumeUrl: "",
-                                      removeResume: true,
-                                    }),
-                                  },
-                                );
-
-                                if (!res.ok) throw new Error("Save failed");
-                                setNotification({
-                                  type: "success",
-                                  message: "Resume removed successfully!",
-                                  isVisible: true,
-                                });
-                              } catch (error) {
-                                console.error("Error removing resume:", error);
-                                // Revert on failure
-                                setUser(user);
-                                localStorage.setItem(
-                                  "user",
-                                  JSON.stringify(user),
-                                );
-                                setNotification({
-                                  type: "error",
-                                  message:
-                                    "Failed to remove resume. Please try again.",
-                                  isVisible: true,
-                                });
-                              }
+                              showConfirm(
+                                'Remove Resume',
+                                'Are you sure you want to remove your resume? This action cannot be undone.',
+                                async () => {
+                                  try {
+                                    const updatedUser = { ...user, resume: null, resumeUrl: "" };
+                                    setUser(updatedUser);
+                                    localStorage.setItem("user", JSON.stringify(updatedUser));
+                                    calculateProfileCompletion(updatedUser);
+                                    const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: "", removeResume: true }),
+                                    });
+                                    if (!res.ok) throw new Error("Save failed");
+                                    setNotification({ type: "success", message: "Resume removed successfully!", isVisible: true });
+                                  } catch (error) {
+                                    setUser(user);
+                                    localStorage.setItem("user", JSON.stringify(user));
+                                    setNotification({ type: "error", message: "Failed to remove resume. Please try again.", isVisible: true });
+                                  }
+                                }
+                              );
                             }}
                             className="text-red-500 hover:text-red-700 text-sm font-medium"
                           >
@@ -4347,6 +4321,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       )}
 
       {/* Cover Photo Crop Modal */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => { confirmDialog.onConfirm(); setConfirmDialog(prev => ({ ...prev, isOpen: false })); }}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
       {coverCropModal && (
         <CoverPhotoCropModal
           src={coverCropModal.src}

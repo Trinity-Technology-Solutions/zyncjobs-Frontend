@@ -49,7 +49,6 @@ interface CompaniesPageProps {
 
 const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogout }) => {
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
   const [locations, setLocations] = useState<string[]>([]);
   const [industries, setIndustries] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,8 +93,11 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       return logoUtilsLogo;
     }
 
-    // Fallback to UI avatars
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(company.name)}&size=64&background=3b82f6&color=ffffff&bold=true`;
+    // Fallback to inline SVG initials
+    const initials = company.name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+    return `data:image/svg+xml,${encodeURIComponent(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#3B82F6" rx="12"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+    )}`;
   };
 
   // Normalize company name for comparison - enhanced version
@@ -306,7 +308,6 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
       }
       
       setCompanies(companiesWithJobCounts);
-      setJobs(jobsList);
       setLocations(locationsList);
       setIndustries(industriesList);
       setFiltersLoading(false);
@@ -693,7 +694,7 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
                   
                   {/* Social Links */}
                   {company.socialLinks && Object.keys(company.socialLinks).length > 0 && (
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="flex items-center gap-3 pt-1">
                       {company.socialLinks.linkedin && (
                         <a 
                           href={company.socialLinks.linkedin} 

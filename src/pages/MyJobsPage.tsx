@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, Briefcase, MapPin, IndianRupee, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
+import { ChevronRight, Briefcase, MapPin, Bookmark, Clock, Search, Filter, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import { decodeHtmlEntities, formatDate, formatSalary, formatJobDescription } from '../utils/textUtils';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
@@ -39,6 +39,10 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [loading, setLoading] = useState(true);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
+  const [postedJobsPage, setPostedJobsPage] = useState(1);
+  const [applicationsPage, setApplicationsPage] = useState(1);
+  const JOBS_PER_PAGE = 10;
+  const APPS_PER_PAGE = 10;
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     title: string;
@@ -70,9 +74,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const [searchQuery, setSearchQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [filteredJobs, setFilteredJobs] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [hasMoreJobs, setHasMoreJobs] = useState(true);
-  const jobsPerPage = 6;
 
   useEffect(() => {
     if (user?.type === 'candidate') {
@@ -204,7 +205,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         
         const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPostedJobs(sorted);
-        setHasMoreJobs(false); // all jobs loaded at once
+        setPostedJobsPage(1);
         
         console.log('Posted jobs updated in state:', sorted.length);
       } else {
@@ -354,20 +355,39 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       console.log('Delete response status:', response.status);
       
       if (response.ok) {
-        console.log('Job deleted successfully, updating state');
+        console.log('✅ DELETE response OK - Job deleted successfully');
+        
+        // Immediately update state for instant UI feedback
         setPostedJobs(prev => {
           const updated = prev.filter(job => getId(job) !== jobId);
-          console.log('Updated posted jobs count:', updated.length);
+          console.log('📊 Immediate state update: removed job, count:', prev.length, '->', updated.length);
           return updated;
         });
+        
         showNotification('Job deleted successfully!');
-        
-        setTimeout(() => {
-          console.log('Refreshing jobs list after delete');
-          fetchPostedJobs();
-        }, 1000);
-        
         window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
+        
+        // Verify deletion after 2 seconds
+        setTimeout(async () => {
+          console.log('🔄 Verifying deletion by re-fetching...');
+          const ownerEmail = getEffectiveEmployerEmail();
+          const verifyResponse = await apiFetch(`${API_ENDPOINTS.JOBS}/employer/email/${encodeURIComponent(ownerEmail)}`);
+          
+          if (verifyResponse.ok) {
+            const jobs = await verifyResponse.json();
+            const stillExists = jobs.some((j: any) => getId(j) === jobId);
+            
+            if (stillExists) {
+              console.error('❌ BACKEND ISSUE: Job still exists after delete! JobId:', jobId);
+              showNotification('⚠️ Warning: Job may not be deleted from database. Contact support.', 'error');
+              // Force remove from UI anyway
+              setPostedJobs(jobs.filter((j: any) => getId(j) !== jobId));
+            } else {
+              console.log('✅ Verified: Job successfully deleted from backend');
+              setPostedJobs(jobs);
+            }
+          }
+        }, 2000);
       } else if (response.status === 401) {
         showNotification('Session expired. Please log in again.', 'error');
         if (onLogout) onLogout();
@@ -426,7 +446,11 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
-  const handleRemoveSavedJob = (jobId: string) => {
+  const handleRemoveSavedJob = async (jobId: string) => {
+    const confirmed = await (window as any).confirmAsync(
+      'Are you sure you want to remove this job from your saved list?'
+    );
+    if (!confirmed) return;
     const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
     setSavedJobs(updatedJobs);
     
@@ -468,12 +492,6 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
   const handleSaveJob = (job: any) => {
     // Saving from MyJobsPage is handled via handleRemoveSavedJob for the saved tab
     // This stub is kept for the renderJobCard signature compatibility
-  };
-
-  const handleLoadMorePostedJobs = () => {
-    const nextPage = currentPage + 1;
-    setCurrentPage(nextPage);
-    fetchPostedJobs(nextPage, true);
   };
 
   const renderJobCard = (job: any, showActions: boolean = true, actionType: string = 'default', showCheckbox: boolean = false) => {
@@ -520,9 +538,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         <span className="text-sm font-medium text-gray-700">{job.location}</span>
                       </div>
                     )}
-                    {formatSalary(job.salary) && (
+                    {formatSalary(job.salary, job.currency || job.salary?.currency) && (
                       <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                        <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                        <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
                       </div>
                     )}
                     {job.type && (
@@ -642,10 +660,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <MapPin className="w-4 h-4 text-gray-600" />
             <span className="text-sm font-medium text-gray-700">{job.location}</span>
           </div>
-          {formatSalary(job.salary) && (
+          {formatSalary(job.salary, job.currency || job.salary?.currency) && (
             <div className="flex items-center gap-1.5 bg-green-50 border border-green-200 px-3 py-1.5 rounded-lg">
-              <IndianRupee className="w-4 h-4 text-green-600" />
-              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+              <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
             </div>
           )}
           <div className="flex items-center gap-1.5 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg">
@@ -1023,7 +1040,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                       </div>
                       
                       <div className="space-y-4">
-                        {postedJobs.map((job) => {
+                        {postedJobs.slice((postedJobsPage - 1) * JOBS_PER_PAGE, postedJobsPage * JOBS_PER_PAGE).map((job) => {
                           const jobId = getId(job);
                           const k = jobId || `posted-${Math.random()}`;
                           return (
@@ -1032,17 +1049,16 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                             </React.Fragment>
                           );
                         })}
-                        {hasMoreJobs && (
-                          <div className="col-span-full text-center py-6">
-                            <button
-                              onClick={handleLoadMorePostedJobs}
-                              className="bg-blue-600 text-white px-6 sm:px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-                            >
-                              Load More Jobs
-                            </button>
-                          </div>
-                        )}
                       </div>
+                      {postedJobs.length > JOBS_PER_PAGE && (
+                        <div className="flex items-center justify-center gap-2 pt-6">
+                          <button onClick={() => setPostedJobsPage(p => Math.max(1, p - 1))} disabled={postedJobsPage === 1} className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-40 hover:bg-gray-50">&#8592; Prev</button>
+                          {Array.from({ length: Math.ceil(postedJobs.length / JOBS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                            <button key={page} onClick={() => setPostedJobsPage(page)} className={`w-9 h-9 rounded-lg text-sm font-medium ${postedJobsPage === page ? 'bg-blue-600 text-white' : 'border hover:bg-gray-50'}`}>{page}</button>
+                          ))}
+                          <button onClick={() => setPostedJobsPage(p => Math.min(Math.ceil(postedJobs.length / JOBS_PER_PAGE), p + 1))} disabled={postedJobsPage === Math.ceil(postedJobs.length / JOBS_PER_PAGE)} className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-40 hover:bg-gray-50">Next &#8594;</button>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="text-center py-16">
@@ -1066,7 +1082,8 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
               {user?.type === 'employer' && activeTab === 'Applications' && (
                 <div className="space-y-4">
                   {employerApplications.length > 0 ? (
-                    employerApplications.map((application) => (
+                    <>
+                    {employerApplications.slice((applicationsPage - 1) * APPS_PER_PAGE, applicationsPage * APPS_PER_PAGE).map((application) => (
                       <div key={application._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-gray-300 transition-all bg-white">
                         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between">
                           <div className="flex-1">
@@ -1121,7 +1138,17 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                           </div>
                         </div>
                       </div>
-                    ))
+                    ))}
+                    {employerApplications.length > APPS_PER_PAGE && (
+                      <div className="flex items-center justify-center gap-2 pt-4">
+                        <button onClick={() => setApplicationsPage(p => Math.max(1, p - 1))} disabled={applicationsPage === 1} className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-40 hover:bg-gray-50">&#8592; Prev</button>
+                        {Array.from({ length: Math.ceil(employerApplications.length / APPS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+                          <button key={page} onClick={() => setApplicationsPage(page)} className={`w-9 h-9 rounded-lg text-sm font-medium ${applicationsPage === page ? 'bg-blue-600 text-white' : 'border hover:bg-gray-50'}`}>{page}</button>
+                        ))}
+                        <button onClick={() => setApplicationsPage(p => Math.min(Math.ceil(employerApplications.length / APPS_PER_PAGE), p + 1))} disabled={applicationsPage === Math.ceil(employerApplications.length / APPS_PER_PAGE)} className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-40 hover:bg-gray-50">Next &#8594;</button>
+                      </div>
+                    )}
+                    </>
                   ) : (
                     <div className="text-center py-16">
                       <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
@@ -1232,10 +1259,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                 <MapPin className="w-4 h-4 text-gray-600" />
                                 <span className="text-sm font-medium text-gray-700">{application.jobId?.location || 'Remote'}</span>
                               </div>
-                              {formatSalary(application.jobId?.salary) && (
+                              {formatSalary(application.jobId?.salary, application.jobId?.currency || application.jobId?.salary?.currency) && (
                                 <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-lg">
-                                  <IndianRupee className="w-4 h-4 text-green-600" />
-                                  <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary)}</span>
+                                  <span className="text-sm font-semibold text-green-700">{formatSalary(application.jobId?.salary, application.jobId?.currency || application.jobId?.salary?.currency)}</span>
                                 </div>
                               )}
                               <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-lg">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -139,98 +139,98 @@ const KNOWN_TOOLS = [
 ];
 
 const TRENDING_COMPANIES = [
-  { id: '1', name: 'Google', logo: 'https://img.logo.dev/google.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '2', name: 'Microsoft', logo: 'https://img.logo.dev/microsoft.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '3', name: 'Apple', logo: 'https://img.logo.dev/apple.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '4', name: 'Amazon', logo: 'https://img.logo.dev/amazon.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '5', name: 'Meta', logo: 'https://img.logo.dev/meta.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '6', name: 'Netflix', logo: 'https://img.logo.dev/netflix.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '7', name: 'Tesla', logo: 'https://img.logo.dev/tesla.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '8', name: 'Uber', logo: 'https://img.logo.dev/uber.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '9', name: 'Airbnb', logo: 'https://img.logo.dev/airbnb.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '10', name: 'Spotify', logo: 'https://img.logo.dev/spotify.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '11', name: 'Twitter', logo: 'https://img.logo.dev/twitter.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '12', name: 'LinkedIn', logo: 'https://img.logo.dev/linkedin.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '13', name: 'Adobe', logo: 'https://img.logo.dev/adobe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '14', name: 'Salesforce', logo: 'https://img.logo.dev/salesforce.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '15', name: 'Oracle', logo: 'https://img.logo.dev/oracle.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '16', name: 'SAP', logo: 'https://img.logo.dev/sap.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '17', name: 'IBM', logo: 'https://img.logo.dev/ibm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '18', name: 'Intel', logo: 'https://img.logo.dev/intel.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '19', name: 'NVIDIA', logo: 'https://img.logo.dev/nvidia.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '20', name: 'Qualcomm', logo: 'https://img.logo.dev/qualcomm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '21', name: 'PayPal', logo: 'https://img.logo.dev/paypal.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '22', name: 'Stripe', logo: 'https://img.logo.dev/stripe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '23', name: 'Shopify', logo: 'https://img.logo.dev/shopify.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '24', name: 'Zoom', logo: 'https://img.logo.dev/zoom.us?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '25', name: 'Slack', logo: 'https://img.logo.dev/slack.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '26', name: 'Atlassian', logo: 'https://img.logo.dev/atlassian.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '27', name: 'GitHub', logo: 'https://img.logo.dev/github.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '28', name: 'GitLab', logo: 'https://img.logo.dev/gitlab.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '29', name: 'Docker', logo: 'https://img.logo.dev/docker.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '30', name: 'MongoDB', logo: 'https://img.logo.dev/mongodb.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '31', name: 'Snowflake', logo: 'https://img.logo.dev/snowflake.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '32', name: 'Databricks', logo: 'https://img.logo.dev/databricks.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '33', name: 'Cloudflare', logo: 'https://img.logo.dev/cloudflare.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '34', name: 'Figma', logo: 'https://img.logo.dev/figma.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '35', name: 'Notion', logo: 'https://img.logo.dev/notion.so?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '36', name: 'Canva', logo: 'https://img.logo.dev/canva.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '37', name: 'HubSpot', logo: 'https://img.logo.dev/hubspot.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '38', name: 'Zendesk', logo: 'https://img.logo.dev/zendesk.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '39', name: 'ServiceNow', logo: 'https://img.logo.dev/servicenow.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '40', name: 'Workday', logo: 'https://img.logo.dev/workday.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '41', name: 'Datadog', logo: 'https://img.logo.dev/datadoghq.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '42', name: 'Twilio', logo: 'https://img.logo.dev/twilio.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '43', name: 'OpenAI', logo: 'https://img.logo.dev/openai.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '44', name: 'Anthropic', logo: 'https://img.logo.dev/anthropic.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '45', name: 'Palantir', logo: 'https://img.logo.dev/palantir.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '46', name: 'TCS', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '47', name: 'Infosys', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '48', name: 'Wipro', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '49', name: 'HCL Technologies', logo: 'https://img.logo.dev/hcltech.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '50', name: 'Tech Mahindra', logo: 'https://img.logo.dev/techmahindra.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '51', name: 'Accenture', logo: 'https://img.logo.dev/accenture.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '52', name: 'Cognizant', logo: 'https://img.logo.dev/cognizant.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '53', name: 'Capgemini', logo: 'https://img.logo.dev/capgemini.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '54', name: 'Mphasis', logo: 'https://img.logo.dev/mphasis.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '55', name: 'Hexaware', logo: 'https://img.logo.dev/hexaware.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '56', name: 'LTIMindtree', logo: 'https://img.logo.dev/ltimindtree.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '57', name: 'Persistent Systems', logo: 'https://img.logo.dev/persistent.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '58', name: 'Coforge', logo: 'https://img.logo.dev/coforge.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '59', name: 'Zoho', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '60', name: 'Freshworks', logo: 'https://img.logo.dev/freshworks.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '61', name: 'Flipkart', logo: 'https://img.logo.dev/flipkart.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '62', name: 'Swiggy', logo: 'https://img.logo.dev/swiggy.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '63', name: 'Zomato', logo: 'https://img.logo.dev/zomato.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '64', name: 'Ola', logo: 'https://img.logo.dev/olacabs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '65', name: 'Paytm', logo: 'https://img.logo.dev/paytm.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '66', name: 'Razorpay', logo: 'https://img.logo.dev/razorpay.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '67', name: "BYJU'S", logo: 'https://img.logo.dev/byjus.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '68', name: 'Unacademy', logo: 'https://img.logo.dev/unacademy.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '69', name: 'upGrad', logo: 'https://img.logo.dev/upgrad.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '70', name: 'Meesho', logo: 'https://img.logo.dev/meesho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '71', name: 'Myntra', logo: 'https://img.logo.dev/myntra.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '72', name: 'Nykaa', logo: 'https://img.logo.dev/nykaa.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '73', name: 'OYO', logo: 'https://img.logo.dev/oyorooms.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '74', name: 'Dream11', logo: 'https://img.logo.dev/dream11.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '75', name: 'PhonePe', logo: 'https://img.logo.dev/phonepe.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '76', name: 'Zerodha', logo: 'https://img.logo.dev/zerodha.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '77', name: 'Groww', logo: 'https://img.logo.dev/groww.in?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '78', name: 'CRED', logo: 'https://img.logo.dev/cred.club?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '79', name: 'Delhivery', logo: 'https://img.logo.dev/delhivery.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '80', name: 'Postman', logo: 'https://img.logo.dev/postman.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '81', name: 'BrowserStack', logo: 'https://img.logo.dev/browserstack.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '82', name: 'Deloitte', logo: 'https://img.logo.dev/deloitte.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '83', name: 'PwC', logo: 'https://img.logo.dev/pwc.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '84', name: 'KPMG', logo: 'https://img.logo.dev/kpmg.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '85', name: 'EY', logo: 'https://img.logo.dev/ey.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '86', name: 'McKinsey', logo: 'https://img.logo.dev/mckinsey.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '87', name: 'BCG', logo: 'https://img.logo.dev/bcg.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '88', name: 'HDFC Bank', logo: 'https://img.logo.dev/hdfcbank.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '89', name: 'ICICI Bank', logo: 'https://img.logo.dev/icicibank.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '90', name: 'JPMorgan', logo: 'https://img.logo.dev/jpmorgan.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '91', name: 'Goldman Sachs', logo: 'https://img.logo.dev/goldmansachs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
-  { id: '92', name: 'Samsung', logo: 'https://img.logo.dev/samsung.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80' },
+  { id: '1', name: 'Google', logo: '' },
+  { id: '2', name: 'Microsoft', logo: '' },
+  { id: '3', name: 'Apple', logo: '' },
+  { id: '4', name: 'Amazon', logo: '' },
+  { id: '5', name: 'Meta', logo: '' },
+  { id: '6', name: 'Netflix', logo: '' },
+  { id: '7', name: 'Tesla', logo: '' },
+  { id: '8', name: 'Uber', logo: '' },
+  { id: '9', name: 'Airbnb', logo: '' },
+  { id: '10', name: 'Spotify', logo: '' },
+  { id: '11', name: 'Twitter', logo: '' },
+  { id: '12', name: 'LinkedIn', logo: '' },
+  { id: '13', name: 'Adobe', logo: '' },
+  { id: '14', name: 'Salesforce', logo: '' },
+  { id: '15', name: 'Oracle', logo: '' },
+  { id: '16', name: 'SAP', logo: '' },
+  { id: '17', name: 'IBM', logo: '' },
+  { id: '18', name: 'Intel', logo: '' },
+  { id: '19', name: 'NVIDIA', logo: '' },
+  { id: '20', name: 'Qualcomm', logo: '' },
+  { id: '21', name: 'PayPal', logo: '' },
+  { id: '22', name: 'Stripe', logo: '' },
+  { id: '23', name: 'Shopify', logo: '' },
+  { id: '24', name: 'Zoom', logo: '' },
+  { id: '25', name: 'Slack', logo: '' },
+  { id: '26', name: 'Atlassian', logo: '' },
+  { id: '27', name: 'GitHub', logo: '' },
+  { id: '28', name: 'GitLab', logo: '' },
+  { id: '29', name: 'Docker', logo: '' },
+  { id: '30', name: 'MongoDB', logo: '' },
+  { id: '31', name: 'Snowflake', logo: '' },
+  { id: '32', name: 'Databricks', logo: '' },
+  { id: '33', name: 'Cloudflare', logo: '' },
+  { id: '34', name: 'Figma', logo: '' },
+  { id: '35', name: 'Notion', logo: '' },
+  { id: '36', name: 'Canva', logo: '' },
+  { id: '37', name: 'HubSpot', logo: '' },
+  { id: '38', name: 'Zendesk', logo: '' },
+  { id: '39', name: 'ServiceNow', logo: '' },
+  { id: '40', name: 'Workday', logo: '' },
+  { id: '41', name: 'Datadog', logo: '' },
+  { id: '42', name: 'Twilio', logo: '' },
+  { id: '43', name: 'OpenAI', logo: '' },
+  { id: '44', name: 'Anthropic', logo: '' },
+  { id: '45', name: 'Palantir', logo: '' },
+  { id: '46', name: 'TCS', logo: '' },
+  { id: '47', name: 'Infosys', logo: '' },
+  { id: '48', name: 'Wipro', logo: '' },
+  { id: '49', name: 'HCL Technologies', logo: '' },
+  { id: '50', name: 'Tech Mahindra', logo: '' },
+  { id: '51', name: 'Accenture', logo: '' },
+  { id: '52', name: 'Cognizant', logo: '' },
+  { id: '53', name: 'Capgemini', logo: '' },
+  { id: '54', name: 'Mphasis', logo: '' },
+  { id: '55', name: 'Hexaware', logo: '' },
+  { id: '56', name: 'LTIMindtree', logo: '' },
+  { id: '57', name: 'Persistent Systems', logo: '' },
+  { id: '58', name: 'Coforge', logo: '' },
+  { id: '59', name: 'Zoho', logo: '' },
+  { id: '60', name: 'Freshworks', logo: '' },
+  { id: '61', name: 'Flipkart', logo: '' },
+  { id: '62', name: 'Swiggy', logo: '' },
+  { id: '63', name: 'Zomato', logo: '' },
+  { id: '64', name: 'Ola', logo: '' },
+  { id: '65', name: 'Paytm', logo: '' },
+  { id: '66', name: 'Razorpay', logo: '' },
+  { id: '67', name: "BYJU'S", logo: '' },
+  { id: '68', name: 'Unacademy', logo: '' },
+  { id: '69', name: 'upGrad', logo: '' },
+  { id: '70', name: 'Meesho', logo: '' },
+  { id: '71', name: 'Myntra', logo: '' },
+  { id: '72', name: 'Nykaa', logo: '' },
+  { id: '73', name: 'OYO', logo: '' },
+  { id: '74', name: 'Dream11', logo: '' },
+  { id: '75', name: 'PhonePe', logo: '' },
+  { id: '76', name: 'Zerodha', logo: '' },
+  { id: '77', name: 'Groww', logo: '' },
+  { id: '78', name: 'CRED', logo: '' },
+  { id: '79', name: 'Delhivery', logo: '' },
+  { id: '80', name: 'Postman', logo: '' },
+  { id: '81', name: 'BrowserStack', logo: '' },
+  { id: '82', name: 'Deloitte', logo: '' },
+  { id: '83', name: 'PwC', logo: '' },
+  { id: '84', name: 'KPMG', logo: '' },
+  { id: '85', name: 'EY', logo: '' },
+  { id: '86', name: 'McKinsey', logo: '' },
+  { id: '87', name: 'BCG', logo: '' },
+  { id: '88', name: 'HDFC Bank', logo: '' },
+  { id: '89', name: 'ICICI Bank', logo: '' },
+  { id: '90', name: 'JPMorgan', logo: '' },
+  { id: '91', name: 'Goldman Sachs', logo: '' },
+  { id: '92', name: 'Samsung', logo: '' },
   { id: '93', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
   { id: '94', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
 ];
@@ -626,7 +626,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
         );
         
         if (matchedCompany) {
-          updateJobData('companyLogo', matchedCompany.logo);
+          const companyLogo = matchedCompany.logo || getCompanyLogo(parsedData.companyName);
+          updateJobData('companyLogo', companyLogo);
           updateJobData('companyId', matchedCompany.id);
         } else {
           const logo = getCompanyLogo(parsedData.companyName);
@@ -1134,7 +1135,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       if (match) {
         return match[1]
           .split('\n')
-          .map(l => l.replace(/^[•\-\*\d+\.\)\s]+/, '').trim())
+          .map(l => l.replace(/^[\u2022\-\*\d+\.\)\s]+/, '').trim())
           .filter(l => l.length > 10);
       }
     }
@@ -1150,7 +1151,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       const context = {
         jobType: jobData.jobType,
         skills: jobData.skills,
-        salary: shouldIncludeSalary ? `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
+        salary: shouldIncludeSalary ? `${jobData.currency} ${formatSalary(jobData.minSalary)} - ${formatSalary(jobData.maxSalary)} ${jobData.payRate}` : undefined,
         benefits: jobData.benefits,
         educationLevel: jobData.educationLevel,
         existingDescription: (jobData.jobDescription === '[object Object]' || jobData.jobDescription === 'undefined') ? '' : jobData.jobDescription,
@@ -1227,7 +1228,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       'kotlin': ['kotlin'],
       'swift': ['swift', 'ios'],
       'scala': ['scala'],
-      'r': [' r ', 'r programming'],
+      'r': ['r programming'],
       'matlab': ['matlab'],
       'perl': ['perl'],
       'shell': ['bash', 'shell', 'powershell', 'zsh'],
@@ -2700,7 +2701,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                   updateJobData('payType', e.target.value);
                   if (e.target.value === 'Maximum amount') updateJobData('minSalary', '');
                   if (e.target.value === 'Starting amount') updateJobData('maxSalary', '');
-                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); }
+                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); updateJobData('maxSalary', ''); }
                 }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
@@ -3580,10 +3581,29 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       ...(shouldIncludeSalary && {
         salary: {
           min: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-          max: (() => { const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
-          currency: 'INR',
+          max: (() => {
+            if (jobData.payType === 'Exact amount') {
+              const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
+              return v > 0 && v < 1000 ? v * 100000 : v;
+            }
+            const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
+            return v > 0 && v < 1000 ? v * 100000 : v;
+          })(),
+          currency: jobData.currency,
           period: jobData.payRate === 'per year' ? 'yearly' : jobData.payRate === 'per month' ? 'monthly' : 'hourly'
-        }
+        },
+        salaryMin: (() => { const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0; return v > 0 && v < 1000 ? v * 100000 : v; })(),
+        salaryMax: (() => {
+          if (jobData.payType === 'Exact amount') {
+            const v = parseInt(jobData.minSalary.replace(/,/g, '')) || 0;
+            return v > 0 && v < 1000 ? v * 100000 : v;
+          }
+          const v = parseInt(jobData.maxSalary.replace(/,/g, '')) || 0;
+          return v > 0 && v < 1000 ? v * 100000 : v;
+        })(),
+        currency: jobData.currency,
+        payRate: jobData.payRate,
+        payType: jobData.payType
       }),
       benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
@@ -3851,9 +3871,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               <div className="mt-6 bg-blue-50 p-4 rounded-lg border border-blue-200">
                 <h4 className="font-medium text-blue-800 mb-2">Quick Stats</h4>
                 <div className="space-y-2 text-sm text-blue-700">
-                  <div>• Average time to hire: 23 days</div>
-                  <div>• Jobs with salary: +30% applications</div>
-                  <div>• Remote jobs: +200% reach</div>
+                  <div className="flex items-start gap-2"><span className="text-blue-500 mt-1">&bull;</span> Average time to hire: 23 days</div>
+                  <div className="flex items-start gap-2"><span className="text-blue-500 mt-1">&bull;</span> Jobs with salary: +30% applications</div>
+                  <div className="flex items-start gap-2"><span className="text-blue-500 mt-1">&bull;</span> Remote jobs: +200% reach</div>
                 </div>
               </div>
             </div>
@@ -3865,3 +3885,4 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 };
 
 export default JobPostingPage;
+

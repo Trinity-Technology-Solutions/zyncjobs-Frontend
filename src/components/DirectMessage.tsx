@@ -7,7 +7,6 @@ interface DirectMessageProps {
   candidateName: string;
   candidateEmail: string;
   employerId: string;        // UUID
-  employerName: string;
   onClose: () => void;
 }
 
@@ -16,9 +15,10 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
   candidateName,
   candidateEmail,
   employerId,
-  employerName,
   onClose
 }) => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const senderName = currentUser.name || 'Employer';
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,7 +112,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
         body: JSON.stringify({
           senderId: employerId,
           receiverId: resolvedCandidateId,
-          senderName: employerName,
+          senderName,
           receiverName: candidateName,
           receiverEmail: candidateEmail,
           message: messageBody,
@@ -177,7 +177,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
                   action: 'nvite_sent',  // kept as nvite_sent in DB, displayed as Job Invite
                   recruiterId: currentUser.id || currentUser._id,
                   recruiterEmail: currentUser.email,
-                  recruiterName: currentUser.name,
+                  recruiterName: senderName,
                   recruiterTitle,
                   company,
                   location,

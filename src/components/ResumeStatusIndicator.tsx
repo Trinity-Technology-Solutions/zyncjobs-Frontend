@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FileText, AlertCircle, CheckCircle, Upload } from "lucide-react";
 import { quickResumeCheck } from "../utils/resumeValidation";
+import { getUserFromStorage, listenForUserChanges } from "../utils/userStorage";
 
 interface ResumeStatusIndicatorProps {
   user?: any;
@@ -20,19 +21,22 @@ const ResumeStatusIndicator: React.FC<ResumeStatusIndicatorProps> = ({
 
   useEffect(() => {
     checkResumeStatus();
+    const unlisten = listenForUserChanges(() => {
+      checkResumeStatus();
+    });
+    return unlisten;
   }, [user]);
 
   const checkResumeStatus = () => {
     setLoading(true);
     try {
-      const userData = user || JSON.parse(localStorage.getItem("user") || "{}");
+      const storedUser = getUserFromStorage();
+      const userData = { ...storedUser, ...(user || {}) };
       const resumeExists =
         !!userData?.resume?.url ||
         !!userData?.resumeUrl ||
-        quickResumeCheck(userData);
-      console.log("Resume object:", userData?.resume);
-      console.log("Resume URL:", userData?.resumeUrl);
-      console.log("Final resumeExists:", resumeExists);
+        quickResumeCheck(userData) ||
+        quickResumeCheck(storedUser);
       setHasResume(resumeExists);
     } catch (error) {
       console.error("Error checking resume status:", error);

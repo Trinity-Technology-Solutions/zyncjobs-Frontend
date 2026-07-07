@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { X, Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { authAPI } from '../api/auth';
 import { GOOGLE_AUTH_BASE } from '../config/env';
 import { LoadingButton, FormLoading } from './LoadingStates';
+import { updateUserInStorage } from '../utils/userStorage';
 
 // Toast notification function
 const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
@@ -52,13 +53,26 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [remainingAttempts, setRemainingAttempts] = useState<number | null>(null);
 
   if (!isOpen) return null;
 
+  const validateForm = () => {
+    const errs: Record<string, string> = {};
+    if (!email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = 'Invalid email format';
+    if (!password) errs.password = 'Password is required';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setFieldErrors({});
+    if (!validateForm()) return;
+    setLoading(true);
 
     console.log('Attempting login with:', { email });
 
@@ -91,7 +105,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       }
       
       // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify(response.user));
+      updateUserInStorage(response.user);
       
       // Use consistent name from backend - prioritize name field, fallback to fullName or email
       const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
@@ -116,10 +130,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       sessionStorage.removeItem('pendingJobRole');
       
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Login failed';
       setError(errorMessage);
+      setFieldErrors({});
+      if (err.locked) {
+        onClose();
+        const event = new CustomEvent('zync:account-locked', {
+          detail: { lockoutMinutes: err.lockoutMinutes || 15, email }
+        });
+        window.dispatchEvent(event);
+        return;
+      }
+      if (err.remainingAttempts !== undefined) {
+        setRemainingAttempts(err.remainingAttempts);
+      }
       showToast(errorMessage, 'error');
     } finally {
       setLoading(false);
@@ -147,7 +173,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
 
           {error && (
             <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-              {error}
+              <p>{error}</p>
+              {remainingAttempts !== null && remainingAttempts <= 3 && (
+                <p className="text-xs mt-1 font-medium">{remainingAttempts} attempt{remainingAttempts !== 1 ? 's' : ''} remaining before account lockout.</p>
+              )}
             </div>
           )}
 
@@ -155,30 +184,32 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
             <div>
               <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
+                <Mail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${fieldErrors.email ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true" />
                 <input
                   id="login-email"
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(e) => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' })); }}
+                  className={`w-full pl-10 pr-10 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   placeholder="Enter your email"
                   required
                   autoComplete="email"
                 />
+                {fieldErrors.email && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
               </div>
+              {fieldErrors.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
             </div>
 
             <div>
               <label htmlFor="login-password" className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <div className="relative flex items-center">
-                <Lock className="absolute left-3 text-gray-400 w-5 h-5 pointer-events-none" aria-hidden="true" />
+                <Lock className={`absolute left-3 w-5 h-5 pointer-events-none ${fieldErrors.password ? 'text-red-400' : 'text-gray-400'}`} aria-hidden="true" />
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full h-12 pl-10 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(e) => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' })); }}
+                  className={`w-full h-12 pl-10 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-300'}`}
                   placeholder="Enter Password"
                   required
                   autoComplete="current-password"
@@ -192,6 +223,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
+              {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
             </div>
 
             <LoadingButton
@@ -234,15 +266,24 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
             </button>
           </div>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 flex flex-col items-center gap-2">
             <button
               onClick={() => {
                 onClose();
                 onNavigate('forgot-password');
               }}
-              className="text-blue-600 hover:text-blue-700 font-medium"
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm"
             >
               Forgot Password?
+            </button>
+            <button
+              onClick={() => {
+                onClose();
+                onNavigate('verify-email');
+              }}
+              className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+            >
+              Verify Email
             </button>
           </div>
 

@@ -9,6 +9,7 @@ import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
 import Notification from '../components/Notification';
+import { stripHtmlTags } from '../utils/htmlUtils';
 
 interface Application {
   _id: string;
@@ -480,7 +481,10 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                             <div className="mb-3 bg-gray-50 p-3 rounded-lg border-l-4 border-blue-500">
                               <p className="text-sm text-gray-700 leading-relaxed font-medium">
                                 <span className="font-semibold text-blue-900">Job Description: </span>
-                                {application.jobId.jobDescription.substring(0, 300)}{application.jobId.jobDescription.length > 300 ? '...' : ''}
+                                {(() => {
+                                  const plainText = stripHtmlTags(application.jobId.jobDescription);
+                                  return plainText.substring(0, 300) + (plainText.length > 300 ? '...' : '');
+                                })()}
                               </p>
                             </div>
                           )}
@@ -491,7 +495,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                                 <span className="text-green-600 font-bold">💰</span>
                                 <span className="text-green-700 font-semibold text-sm">
                                   {typeof application.jobId.salary === 'object' 
-                                    ? `₹${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
+                                    ? `${application.jobId.salary.currency || ''} ${application.jobId.salary.min || ''}-${application.jobId.salary.max || ''}` 
                                     : application.jobId.salary
                                   }
                                 </span>

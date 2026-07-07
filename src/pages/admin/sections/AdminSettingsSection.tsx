@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, RefreshCw, AlertCircle, CheckCircle, Settings, ToggleLeft, ToggleRight, Server, Image } from 'lucide-react';
+import { Save, RefreshCw, AlertCircle, CheckCircle, Settings, ToggleLeft, ToggleRight, Server, Image, Shield } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
@@ -23,6 +23,30 @@ interface AppSettings {
   maxJobsPerEmployer: number;
 }
 
+interface PasswordPolicy {
+  minLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireDigit: boolean;
+  requireSpecial: boolean;
+  expiryDays: number;
+  historyCount: number;
+  maxLoginAttempts: number;
+  lockoutDurationMinutes: number;
+}
+
+const DEFAULT_PASSWORD_POLICY: PasswordPolicy = {
+  minLength: 8,
+  requireUppercase: true,
+  requireLowercase: true,
+  requireDigit: true,
+  requireSpecial: true,
+  expiryDays: 90,
+  historyCount: 5,
+  maxLoginAttempts: 5,
+  lockoutDurationMinutes: 15,
+};
+
 const DEFAULT: AppSettings = {
   maintenanceMode: false, allowRegistrations: true,
   requireEmailVerification: false, jobAutoApprove: false,
@@ -31,6 +55,7 @@ const DEFAULT: AppSettings = {
 
 export default function AdminSettingsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
   const [settings, setSettings] = useState<AppSettings>(DEFAULT);
+  const [passwordPolicy, setPasswordPolicy] = useState<PasswordPolicy>(DEFAULT_PASSWORD_POLICY);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -40,22 +65,43 @@ export default function AdminSettingsSection({ onUnauthorized }: { onUnauthorize
   const [pwStatus, setPwStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [logoFetching, setLogoFetching] = useState(false);
   const [logoStatus, setLogoStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [policySaving, setPolicySaving] = useState(false);
+  const [policyStatus, setPolicyStatus] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [settingsRes, healthRes] = await Promise.allSettled([
+        const [settingsRes, healthRes, policyRes] = await Promise.allSettled([
           authFetch(API_ENDPOINTS.ADMIN_SETTINGS),
           authFetch(API_ENDPOINTS.ADMIN_SYSTEM_HEALTH),
+          authFetch(`${API_ENDPOINTS.ADMIN_SETTINGS}/password-policy`),
         ]);
         if (settingsRes.status === 'fulfilled') setSettings({ ...DEFAULT, ...settingsRes.value });
         if (healthRes.status === 'fulfilled') setHealth(healthRes.value);
+        if (policyRes.status === 'fulfilled') setPasswordPolicy({ ...DEFAULT_PASSWORD_POLICY, ...policyRes.value });
       } catch (e: any) {
         if (e.message === '401') onUnauthorized();
       } finally { setLoading(false); }
     };
     load();
   }, [onUnauthorized]);
+
+  const savePasswordPolicy = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPolicySaving(true);
+    setPolicyStatus(null);
+    try {
+      await authFetch(`${API_ENDPOINTS.ADMIN_SETTINGS}/password-policy`, {
+        method: 'PUT',
+        body: JSON.stringify(passwordPolicy),
+      });
+      setPolicyStatus({ type: 'success', text: 'Password policy saved.' });
+    } catch {
+      setPolicyStatus({ type: 'error', text: 'Failed to save password policy.' });
+    } finally {
+      setPolicySaving(false);
+    }
+  };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -195,6 +241,74 @@ export default function AdminSettingsSection({ onUnauthorized }: { onUnauthorize
           <RefreshCw className={`w-4 h-4 ${logoFetching ? 'animate-spin' : ''}`} />
           {logoFetching ? 'Fetching...' : 'Bulk Fetch Company Logos'}
         </button>
+      </div>
+
+      {/* Password Policy */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+        <h2 className="text-lg font-semibold mb-1 flex items-center gap-2"><Shield className="w-5 h-5 text-purple-400" />Password Policy</h2>
+        <p className="text-xs text-gray-500 mb-5">Configure password complexity, expiry, and account lockout rules</p>
+        {policyStatus && (
+          <div className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm mb-4 ${policyStatus.type === 'success' ? 'bg-emerald-900/30 text-emerald-400' : 'bg-red-900/30 text-red-400'}`}>
+            {policyStatus.type === 'success' ? <CheckCircle className="w-4 h-4 shrink-0" /> : <AlertCircle className="w-4 h-4 shrink-0" />}
+            {policyStatus.text}
+          </div>
+        )}
+        <form onSubmit={savePasswordPolicy} className="space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Min Password Length</label>
+              <input type="number" min={4} max={64} value={passwordPolicy.minLength}
+                onChange={e => setPasswordPolicy(p => ({ ...p, minLength: Number(e.target.value) }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Password Expiry (days)</label>
+              <input type="number" min={0} max={365} value={passwordPolicy.expiryDays}
+                onChange={e => setPasswordPolicy(p => ({ ...p, expiryDays: Number(e.target.value) }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Password History (count)</label>
+              <input type="number" min={0} max={24} value={passwordPolicy.historyCount}
+                onChange={e => setPasswordPolicy(p => ({ ...p, historyCount: Number(e.target.value) }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Max Login Attempts (hackcount)</label>
+              <input type="number" min={1} max={20} value={passwordPolicy.maxLoginAttempts}
+                onChange={e => setPasswordPolicy(p => ({ ...p, maxLoginAttempts: Number(e.target.value) }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+            <div>
+              <label className="block text-xs text-gray-400 mb-1">Lockout Duration (minutes)</label>
+              <input type="number" min={1} max={1440} value={passwordPolicy.lockoutDurationMinutes}
+                onChange={e => setPasswordPolicy(p => ({ ...p, lockoutDurationMinutes: Number(e.target.value) }))}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-gray-400 font-medium uppercase tracking-wider">Complexity Requirements</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                { field: 'requireUppercase', label: 'Uppercase (A-Z)' },
+                { field: 'requireLowercase', label: 'Lowercase (a-z)' },
+                { field: 'requireDigit', label: 'Digit (0-9)' },
+                { field: 'requireSpecial', label: 'Special (!@#$%)' },
+              ] as const).map(({ field, label }) => (
+                <label key={field} className="flex items-center gap-2 bg-gray-800 rounded-lg px-3 py-2.5 cursor-pointer">
+                  <input type="checkbox" checked={passwordPolicy[field]}
+                    onChange={e => setPasswordPolicy(p => ({ ...p, [field]: e.target.checked }))}
+                    className="rounded border-gray-600 text-purple-500 focus:ring-purple-500" />
+                  <span className="text-sm text-gray-300">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <button type="submit" disabled={policySaving}
+            className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors">
+            <Save className="w-4 h-4" />{policySaving ? 'Saving...' : 'Save Password Policy'}
+          </button>
+        </form>
       </div>
 
       {/* Change Password */}

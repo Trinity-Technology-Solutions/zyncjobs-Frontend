@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   X, 
   Search, 
@@ -38,6 +39,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
   siteSettings 
 }) => {
   const [animateItems, setAnimateItems] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     if (isOpen) {
@@ -166,26 +168,47 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       hasArrow: false,
       isLogout: true
     }
-  ] : [
-    {
-      icon: LogIn,
-      label: 'Login',
-      action: () => handleNavigation('login'),
-      hasArrow: true
-    },
-    {
-      icon: UserPlus,
-      label: 'Register',
-      action: () => handleNavigation('role-selection'),
-      hasArrow: true
-    },
-    {
-      icon: Briefcase,
-      label: 'For Employers',
-      action: () => handleNavigation('employer-login'),
-      hasArrow: true
+  ] : (() => {
+    const isJobSeekerAuthPage = location.pathname === '/login' || location.pathname === '/role-selection' || location.pathname === '/candidate-register';
+    const isEmployerAuthPage = location.pathname === '/employer-login' || location.pathname === '/employer-register';
+
+    const showJobSeekerLinks = !isJobSeekerAuthPage;
+    const showEmployerLinks = !isEmployerAuthPage;
+
+    const links: Array<{
+      icon: any;
+      label: string;
+      subtitle?: string;
+      action: () => void;
+      hasArrow: boolean;
+      isLogout?: boolean;
+    }> = [];
+    if (showJobSeekerLinks) {
+      links.push(
+        {
+          icon: LogIn,
+          label: 'Login',
+          action: () => handleNavigation('login'),
+          hasArrow: true
+        },
+        {
+          icon: UserPlus,
+          label: 'Register',
+          action: () => handleNavigation('role-selection'),
+          hasArrow: true
+        }
+      );
     }
-  ];
+    if (showEmployerLinks) {
+      links.push({
+        icon: Briefcase,
+        label: 'For Employers',
+        action: () => handleNavigation('employer-login'),
+        hasArrow: true
+      });
+    }
+    return links;
+  })();
 
   return (
     <>

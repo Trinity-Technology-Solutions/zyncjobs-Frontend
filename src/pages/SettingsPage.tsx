@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield, Eye, 
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import { accountAPI } from '../api/account';
+import { updateUserInStorage } from '../utils/userStorage';
 
 
 interface SettingsPageProps {
@@ -25,6 +26,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
   const [emailForm, setEmailForm] = useState({ newEmail: '', confirmEmail: '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] as string[] });
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -55,10 +57,21 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     if (result.success) {
       const updatedUser = { ...user, email: emailForm.newEmail };
       setUser(updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      updateUserInStorage(updatedUser);
       setEmailForm({ newEmail: '', confirmEmail: '' });
     }
     setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
+  };
+
+  const validatePassword = (pwd: string) => {
+    const feedback: string[] = [];
+    let score = 0;
+    if (pwd.length >= 8) score++; else feedback.push('At least 8 characters');
+    if (/[A-Z]/.test(pwd)) score++; else feedback.push('One uppercase letter');
+    if (/[a-z]/.test(pwd)) score++; else feedback.push('One lowercase letter');
+    if (/\d/.test(pwd)) score++; else feedback.push('One number');
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) score++; else feedback.push('One special character');
+    return { score, feedback };
   };
 
   const handlePasswordUpdate = async (e: React.FormEvent) => {
@@ -67,8 +80,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
       setNotification({ type: 'error', message: 'New passwords do not match', isVisible: true });
       return;
     }
-    if (passwordForm.newPassword.length < 6) {
-      setNotification({ type: 'error', message: 'Password must be at least 6 characters long', isVisible: true });
+    const strength = validatePassword(passwordForm.newPassword);
+    if (strength.score < 4) {
+      setNotification({ type: 'error', message: 'Password must include at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character', isVisible: true });
       return;
     }
     const userId = user?.id || user?._id || accountAPI.getUserIdFromStorage();
@@ -81,6 +95,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     if (result.success) {
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswords({ current: false, new: false, confirm: false });
+      setPasswordStrength({ score: 0, feedback: [] });
     }
     setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
   };
@@ -317,9 +332,9 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                             <input
                               type={showPasswords.new ? 'text' : 'password'}
                               value={passwordForm.newPassword}
-                              onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                              onChange={(e) => { const val = e.target.value; setPasswordForm({...passwordForm, newPassword: val}); setPasswordStrength(validatePassword(val)); }}
                               className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                              placeholder="Enter new password (min 6 characters)"
+                              placeholder="Enter new password"
                               aria-label="New password"
                               required
                             />
@@ -332,6 +347,25 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                               {showPasswords.new ? <Eye className="w-5 h-5" /> : <EyeOff className="w-5 h-5" />}
                             </button>
                           </div>
+                          {passwordForm.newPassword && (
+                            <div className="mt-2">
+                              <div className="flex gap-1 mb-1">
+                                {[1, 2, 3, 4, 5].map((level) => (
+                                  <div key={level} className={`h-1.5 flex-1 rounded-full transition-colors ${passwordStrength.score >= level ? 'bg-green-500' : 'bg-gray-200'}`} />
+                                ))}
+                              </div>
+                              {passwordStrength.feedback.length > 0 && (
+                                <ul className="text-xs text-gray-500 space-y-0.5">
+                                  {passwordStrength.feedback.map((msg, i) => (
+                                    <li key={i} className="flex items-center gap-1"><span className="text-red-400">●</span> {msg}</li>
+                                  ))}
+                                </ul>
+                              )}
+                              {passwordStrength.score >= 4 && (
+                                <p className="text-xs text-green-600 flex items-center gap-1 mt-1"><span>✓</span> Strong password</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">

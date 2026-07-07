@@ -81,6 +81,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
   const [alertDismissed, setAlertDismissed] = useState(false);
   const jobsPerPage = 10;
 
@@ -457,10 +458,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       const data = await res.json();
       const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
       const map: Record<string, string> = {};
+      const websiteMap: Record<string, string> = {};
       companies.forEach((c: any) => {
         const name = (c.name || c.companyName || '').toLowerCase();
         const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
         if (name && logo) map[name] = logo;
+        const site = c.website || c.companyWebsite || '';
+        if (name && site) websiteMap[name] = site;
       });
       // Also check job.companyLogo field directly
       jobList.forEach((j: any) => {
@@ -469,6 +473,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         if (name && logo && !map[name]) map[name] = logo;
       });
       setCompanyLogos(map);
+      setCompanyWebsites(websiteMap);
     } catch {}
   };
 
@@ -877,6 +882,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     const jobId = getId(job);
     if (!jobId) return;
     const isAlreadySaved = savedJobs.includes(jobId);
+    if (isAlreadySaved) {
+      const confirmed = await (window as any).confirmAsync(
+        'Remove this job from your saved list?'
+      );
+      if (!confirmed) return;
+    }
     // Optimistic UI update
     setSavedJobs(prev => isAlreadySaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
 
@@ -1679,9 +1690,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     <div className="flex-1">
                       {/* Company logo + name row */}
                       <div className="flex items-center gap-3 mb-2">
-                        <CompanyLogo
+                         <CompanyLogo
                           companyName={job.company || ''}
                           storedLogo={companyLogos[(job.company || '').toLowerCase()]}
+                          website={companyWebsites[(job.company || '').toLowerCase()]}
                           size={40}
                           className="rounded-lg border border-gray-200"
                         />
@@ -1701,9 +1713,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                           <MapPin className="w-4 h-4 text-gray-600" />
                           <span className="text-sm font-medium text-gray-700">{job.location}</span>
                         </div>
-                        {formatSalary(job.salary) && (
+                        {formatSalary(job.salary, job.currency || job.salary?.currency) && (
                           <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
                           </div>
                         )}
                         {(() => { const t = job.type || job.jobType; const display = Array.isArray(t) ? t.join(', ') : t; return display ? (
