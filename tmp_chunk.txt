@@ -1,0 +1,14 @@
+e = await fetch(`${API_BASE_URL}/resume/hybrid-parse`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(tokenStorage.getAccess() ? { Authorization: `Bearer ${tokenStorage.getAccess()}` } : {})
+          },
+          body: JSON.stringify({ resume_text: text, layout_blocks: layoutBlocks }),
+          signal: AbortController ? new AbortController().signal : undefined,
+        });
+       if (!hybridResponse.ok) {
+         throw new Error(`Hybrid parse failed: ${hybridResponse.status}`);
+       }
+       const hybridData = await hybridResponse.json();
+        const parsed = transformHybridToFrontendFormat(hybridData.hybrid
