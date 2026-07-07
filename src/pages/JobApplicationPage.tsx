@@ -63,9 +63,30 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
     try {
       const s3Result = await S3Service.uploadResumeToS3(file);
       if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
-      setResumeUrl(s3Result.fileUrl || '');
+      
+      const fileUrl = s3Result.fileUrl || '';
+      setResumeUrl(fileUrl);
       setResumeFile(file);
       setResumeFileName(file.name);
+      
+      // Update localStorage with resume info so ResumeStatusIndicator picks it up
+      const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = {
+        ...storedUser,
+        resume: {
+          name: file.name,
+          size: file.size,
+          uploadDate: new Date().toLocaleDateString(),
+          url: fileUrl
+        },
+        resumeUrl: fileUrl
+      };
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      // Dispatch event to notify listeners (ResumeStatusIndicator, etc.)
+      window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: updatedUser }));
+      
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Resume uploaded successfully! ✓', type: 'success' } }));
     } catch (err: any) {
       window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: err.message || 'Resume upload failed' } }));
     }

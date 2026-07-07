@@ -162,8 +162,12 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   const deleteMessage = async (msgId: string) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.MESSAGES}/delete/${msgId}?userId=${encodeURIComponent(candidateId)}`, { method: 'DELETE' });
-      if (res.ok) setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
-      else setError('Failed to delete message');
+      if (res.ok || res.status === 204) {
+        setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to delete message');
+      }
     } catch { setError('Error deleting message'); }
   };
 
