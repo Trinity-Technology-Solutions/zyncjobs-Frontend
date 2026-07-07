@@ -68,7 +68,7 @@ const EmployerLoginPage: React.FC<EmployerLoginPageProps> = ({ onNavigate, onLog
         ...response.user,
         ownerEmail: (response.user as any).ownerEmail || (isTeamMember ? response.user.employerId : null)
       };
-      const displayName = response.user.name || response.user.companyName || response.user.company || response.user.fullName || response.user.email.split('@')[0];
+      const displayName = response.user.fullName || response.user.name || response.user.companyName || response.user.company || response.user.email.split('@')[0];
       
       // Immediately update localStorage with the correct name BEFORE calling onLogin
       updateUserInStorage({ ...userToStore, name: displayName });

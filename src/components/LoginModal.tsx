@@ -108,7 +108,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, on
       updateUserInStorage(response.user);
       
       // Use consistent name from backend - prioritize name field, fallback to fullName or email
-      const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
+      const displayName = response.user.fullName || response.user.name || response.user.email.split('@')[0];
       
       // Show success toast
       showToast(`Welcome back, ${displayName}!`, 'success');

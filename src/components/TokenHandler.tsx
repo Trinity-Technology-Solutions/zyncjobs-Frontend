@@ -52,7 +52,9 @@ const TokenHandler: React.FC<TokenHandlerProps> = ({ onLogin, onNavigate }) => {
           // Use accountRole from URL if available (most reliable), fallback to DB
           const userRole = (accountRoleFromUrl || userData.role || userData.userType || 'candidate') as string;
           const displayName =
-            userData.name && userData.name !== 'User'
+            userData.fullName && userData.fullName !== 'User'
+              ? userData.fullName
+              : userData.name && userData.name !== 'User'
               ? userData.name
               : userData.email?.split('@')[0] || 'User';
 
