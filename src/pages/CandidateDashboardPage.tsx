@@ -30,6 +30,8 @@ import ProfileVisibilityToggle from "../components/ProfileVisibilityToggle";
 import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
 import ConfirmDialog from "../components/ConfirmDialog";
+import { readPdf } from "../lib/parse-resume-from-pdf/read-pdf";
+import { transformHybridToFrontendFormat } from "../lib/transform-hybrid";
 
 interface CandidateDashboardPageProps {
   user?: any;
@@ -3359,7 +3361,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <input
                           type="file"
                           id="resume-update"
-                          accept=".doc,.docx,.rtf,.pdf"
+                          accept=".doc,.docx,.rtf,.pdf,.jpg,.jpeg,.png,.webp"
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
@@ -3499,7 +3501,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       <input
                         type="file"
                         id="resume-upload"
-                        accept=".doc,.docx,.rtf,.pdf"
+                        accept=".doc,.docx,.rtf,.pdf,.jpg,.jpeg,.png,.webp"
                         className="hidden"
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
@@ -4019,11 +4021,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     Click to upload resume
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    PDF, DOC, DOCX up to 5MB
+                    PDF, DOC, DOCX, JPG, JPEG, PNG, WEBP up to 5MB
                   </p>
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -4061,9 +4063,52 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   setResumePopupParsing(true);
                   setResumePopupError("");
                   try {
-                    // 1. Parse resume — use plain fetch with explicit token + 60s timeout
-                    const formData = new FormData();
-                    formData.append("resume", resumePopupFile);
+                    // 1. Parse resume using hybrid architecture:
+                    //    read PDF client-side → hybrid-parse API → transform
+                    const isPdf =
+                      resumePopupFile.type === "application/pdf" ||
+                      resumePopupFile.name.endsWith(".pdf");
+                    let resumeText = "";
+                    let layoutBlocks: any[] = [];
+
+                    if (isPdf) {
+                      // Read PDF client-side for text + layout blocks
+                      const url = URL.createObjectURL(resumePopupFile);
+                      const textItems = await readPdf(url);
+                      URL.revokeObjectURL(url);
+                      if (textItems.length > 0) {
+                        resumeText = textItems.map((t) => t.text).join("\n");
+                        layoutBlocks = textItems.map((t) => ({
+                          text: t.text,
+                          x: t.x,
+                          y: t.y,
+                          width: t.width,
+                          height: t.height,
+                          page: t.page,
+                          bold: t.bold,
+                        }));
+                      }
+                    }
+
+                    // If no text from client-side read (non-PDF or failed), fall back to backend extraction
+                    if (!resumeText.trim()) {
+                      const formData = new FormData();
+                      formData.append("resume", resumePopupFile);
+                      const extractRes = await fetch(
+                        `${API_ENDPOINTS.BASE_URL}/resume/extract-text`,
+                        { method: "POST", body: formData },
+                      );
+                      if (!extractRes.ok)
+                        throw new Error("Could not extract text from file");
+                      const extractData = await extractRes.json();
+                      resumeText = extractData.text || "";
+                      if (!resumeText.trim())
+                        throw new Error(
+                          "Could not extract text from file. Ensure the file is not empty or corrupted.",
+                        );
+                    }
+
+                    // Call hybrid-parse API
                     const accessToken = tokenStorage.getAccess();
                     const controller = new AbortController();
                     const timeoutId = setTimeout(
@@ -4073,13 +4118,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     let parseRes: Response;
                     try {
                       parseRes = await fetch(
-                        `${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`,
+                        `${API_ENDPOINTS.BASE_URL}/resume/hybrid-parse`,
                         {
                           method: "POST",
-                          headers: accessToken
-                            ? { Authorization: `Bearer ${accessToken}` }
-                            : {},
-                          body: formData,
+                          headers: {
+                            "Content-Type": "application/json",
+                            ...(accessToken
+                              ? { Authorization: `Bearer ${accessToken}` }
+                              : {}),
+                          },
+                          body: JSON.stringify({
+                            resume_text: resumeText,
+                            layout_blocks: layoutBlocks,
+                          }),
                           signal: controller.signal,
                         },
                       );
@@ -4093,29 +4144,41 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       clearTimeout(timeoutId);
                     }
 
-                    // Handle non-JSON or empty responses
-                    const rawText = await parseRes.text();
-                    if (!rawText || !rawText.trim()) {
+                    if (!parseRes.ok) {
+                      const errText = await parseRes.text().catch(() => "");
                       throw new Error(
-                        "Server returned empty response. Please try again.",
+                        errText
+                          ? `Parse failed: ${errText.slice(0, 200)}`
+                          : "Parse failed",
                       );
                     }
-                    let parseData: any;
-                    try {
-                      parseData = JSON.parse(rawText);
-                    } catch {
-                      throw new Error("Server error. Please try again.");
-                    }
-                    if (!parseRes.ok || !parseData.success) {
-                      throw new Error(parseData.error || "Parse failed");
-                    }
-                    const p = parseData.profileData;
+
+                    const hybridData = await parseRes.json();
                     console.log(
-                      "[ResumePopup] AI parsed profileData:",
-                      JSON.stringify(p, null, 2),
+                      "[ResumePopup] Hybrid-parse raw response:",
+                      JSON.stringify(hybridData, null, 2),
                     );
 
-                    // Sanitize AI name — reject section headings
+                    // Transform to frontend format using shared transform
+                    const transformed = transformHybridToFrontendFormat(
+                      hybridData.hybridData || hybridData,
+                    );
+                    console.log(
+                      "[ResumePopup] Transformed:",
+                      JSON.stringify(transformed, null, 2),
+                    );
+
+                    const tf = transformed || {
+                      profile: {} as any,
+                      skills: { featuredSkills: [] },
+                      workExperiences: [],
+                      educations: [],
+                      projects: [],
+                      certifications: [],
+                      summary: "",
+                    };
+
+                    // Sanitize name — reject section headings
                     const SECTION_HEADINGS = new Set([
                       "about me",
                       "about",
@@ -4142,7 +4205,31 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         return false;
                       return /[a-zA-Z]/.test(n);
                     };
-                    const cleanName = isValidName(p.name) ? p.name : "";
+                    const cleanName = isValidName(tf.profile.name)
+                      ? tf.profile.name
+                      : "";
+
+                    // Build profileData from transformed result
+                    const expArr = Array.isArray(tf.workExperiences)
+                      ? tf.workExperiences
+                      : [];
+                    const p = {
+                      name: cleanName,
+                      email: tf.profile.email,
+                      phone: tf.profile.phone,
+                      location: tf.profile.location,
+                      address: tf.profile.address,
+                      summary: tf.summary,
+                      skills: tf.skills.featuredSkills.map((s: any) => s.skill),
+                      workExperiences: expArr,
+                      educations: tf.educations,
+                      projects: tf.projects,
+                      certifications: tf.certifications,
+                      jobTitle:
+                        expArr[0]?.jobTitle ||
+                        expArr[0]?.title ||
+                        "",
+                    };
                     // 2. Upload resume file to S3
                     const s3Result =
                       await S3Service.uploadResumeToS3(resumePopupFile);
@@ -4158,28 +4245,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 
                     // 3. Resume is source of truth — replace each field with parsed value;
                     //    if resume has no value for a field, that field becomes empty.
-                    const workExps =
-                      p.workExperiences ||
-                      p.experience ||
-                      p.workExperience ||
-                      [];
-                    const educations = p.educations || p.education || [];
+                    const educations = p.educations || [];
                     const eduArr = Array.isArray(educations)
                       ? educations
                       : educations && typeof educations === "object"
                         ? [educations]
                         : [];
-                    const expArr = Array.isArray(workExps) ? workExps : [];
                     const extractYear = (dateStr: string) =>
                       String(dateStr || "").match(/\d{4}/)?.[0] || "";
-                    const rawSkillsArr: any[] = Array.isArray(p.skills)
-                      ? p.skills
+                    const normalizedSkills: string[] = Array.isArray(p.skills)
+                      ? p.skills.map((s: any) =>
+                          typeof s === "string" ? s : s?.skill || s?.name || "",
+                        ).filter(Boolean)
                       : [];
-                    const normalizedSkills: string[] = rawSkillsArr
-                      .map((s: any) =>
-                        typeof s === "string" ? s : s?.skill || s?.name || "",
-                      )
-                      .filter(Boolean);
 
                     const merged = {
                       ...user,
@@ -4189,19 +4267,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       name: cleanName || user?.name || "",
                       phone: p.phone || "",
                       location: p.location || "",
-                      country: p.country || user?.country || "",
-                      profileSummary: p.summary || p.profileSummary || "",
-                      skills:
-                        normalizedSkills.length > 0 ? normalizedSkills : [],
-                      jobTitle:
-                        p.title ||
-                        p.jobTitle ||
-                        expArr[0]?.jobTitle ||
-                        expArr[0]?.title ||
-                        "",
+                      address: p.address || {
+                        city: "",
+                        state: "",
+                        country: "",
+                        postal_code: "",
+                        full_address: "",
+                      },
+                      country: p.address?.country || user?.country || "",
+                      profileSummary: p.summary || "",
+                      skills: normalizedSkills,
+                      jobTitle: p.jobTitle || "",
                       employment:
-                        expArr.length > 0
-                          ? expArr.map((w: any) => {
+                        p.workExperiences.length > 0
+                          ? p.workExperiences.map((w: any) => {
                               const dateParts = String(w.date || "").split(
                                 /\s*[-–]\s*/,
                               );

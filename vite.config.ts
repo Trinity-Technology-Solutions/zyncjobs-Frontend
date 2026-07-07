@@ -62,6 +62,13 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           secure: false,
         },
+        '/recruitment-ai': {
+          target: 'http://localhost:8001',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/recruitment-ai/, ''),
+          configure: () => console.log('🔧 Recruitment AI proxy configured for http://localhost:8001'),
+        },
       },
     },
   }

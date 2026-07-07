@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
-import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
-import { sendAIMessageStream, callAIWithFallback } from '../services/aiChatService';
+import { sendAIMessageStream } from '../services/aiChatService';
 import { useTypewriter } from '../hooks/useTypewriter';
 
 interface AIRecruiterAssistantProps {
@@ -115,49 +114,19 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       ? `\n\nEmployer context — Active jobs: ${jobContext.map(j => j.jobTitle || j.title).join(', ')}`
       : '';
     try {
-      let usedBackend = false;
-      let backendReply = '';
-      try {
-        const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: updated.map(m => ({ role: m.role, content: m.content })),
-            systemPrompt: SYSTEM_PROMPT + jobContextStr,
-          }),
-          signal: abortRef.current.signal,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          backendReply = data.reply || data.message || data.content || data.text || data.answer || '';
-          if (backendReply) usedBackend = true;
-        }
-      } catch (e: any) {
-        if (e?.name === 'AbortError') return;
-      }
-
-      if (usedBackend) {
-        setCached(key, backendReply);
-        setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
-        setLoading(false);
-        typeText(backendReply, () => {
-          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: backendReply, timestamp: new Date() }; return u; });
-        });
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
-        setLoading(false);
-        let full = '';
-        await sendAIMessageStream(
-          updated.map(m => ({ role: m.role, content: m.content })),
-          SYSTEM_PROMPT + jobContextStr,
-          (chunk) => {
-            full += chunk;
-            setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
-          },
-          abortRef.current.signal
-        );
-        if (full) setCached(key, full);
-      }
+      setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
+      setLoading(false);
+      let full = '';
+      await sendAIMessageStream(
+        updated.map(m => ({ role: m.role, content: m.content })),
+        SYSTEM_PROMPT + jobContextStr,
+        (chunk) => {
+          full += chunk;
+          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
+        },
+        abortRef.current.signal
+      );
+      if (full) setCached(key, full);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed), timestamp: new Date() }]);

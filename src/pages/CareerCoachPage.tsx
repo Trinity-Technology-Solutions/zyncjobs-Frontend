@@ -4,9 +4,8 @@ import Footer from '../components/Footer';
 import RoleGuard from '../components/RoleGuard';
 import { Send, Mic, Search, MoreHorizontal, Zap, RefreshCw, Bot, User, TrendingUp, MessageCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
-import { API_BASE_URL } from '../config/env';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
-import { sendAIMessageStream, callAIWithFallback } from '../services/aiChatService';
+import { sendAIMessageStream } from '../services/aiChatService';
 import { useTypewriter } from '../hooks/useTypewriter';
 
 interface CareerCoachPageProps {
@@ -83,48 +82,19 @@ const CareerCoachPage: React.FC<CareerCoachPageProps> = ({ onNavigate, user, onL
       return;
     }
     try {
-      // Try backend first, fall back to direct OpenRouter streaming
-      let usedBackend = false;
-      let backendReply = '';
-      try {
-        const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: updated.map(m => ({ role: m.role, content: m.content })), systemPrompt: SYSTEM_PROMPT }),
-          signal: abortRef.current.signal,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          backendReply = data.reply || data.message || data.content || '';
-          if (backendReply) usedBackend = true;
-        }
-      } catch (e: any) {
-        if (e?.name === 'AbortError') return;
-      }
-
-      if (usedBackend) {
-        setCached(key, backendReply);
-        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-        setLoading(false);
-        typeText(backendReply, () => {
-          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: backendReply }; return u; });
-        });
-      } else {
-        // Stream directly from OpenRouter
-        setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
-        setLoading(false);
-        let full = '';
-        await sendAIMessageStream(
-          updated,
-          SYSTEM_PROMPT,
-          (chunk) => {
-            full += chunk;
-            setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full }; return u; });
-          },
-          abortRef.current.signal
-        );
-        if (full) setCached(key, full);
-      }
+      setMessages(prev => [...prev, { role: 'assistant', content: '' }]);
+      setLoading(false);
+      let full = '';
+      await sendAIMessageStream(
+        updated,
+        SYSTEM_PROMPT,
+        (chunk) => {
+          full += chunk;
+          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full }; return u; });
+        },
+        abortRef.current.signal
+      );
+      if (full) setCached(key, full);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed) }]);

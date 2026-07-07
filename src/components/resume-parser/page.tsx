@@ -1,13 +1,15 @@
-"use client";
-import { useState, useEffect } from "react";
+﻿"use client";
+import { useState, useEffect, useRef } from "react";
 import { readPdf } from "../../lib/parse-resume-from-pdf/read-pdf";
 import { ResumeDropzone } from "../ResumeDropzone";
 import MistralJobRecommendations from "../MistralJobRecommendations";
-import CandidateRanking from "../CandidateRanking";
+import CandidateRankingEngine from "../CandidateRankingEngine";
 import CandidateComparison from "../CandidateComparison";
 import { parseResumeFromText, type AIParseStatus } from "./parseLogic";
+import { tokenStorage } from '../../utils/tokenStorage';
 import type { ParsedResume } from "./parseLogic";
 import { AIProgressLoader } from "../AIProgressLoader";
+import { transformHybridToFrontendFormat } from '../../lib/transform-hybrid';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import { updateUserInStorage } from '../../utils/userStorage';
 
@@ -26,6 +28,7 @@ const emptyResume: ParsedResume = {
 export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {}) {
   const [fileUrl, setFileUrl] = useState('');
   const [currentFileName, setCurrentFileName] = useState('');
+  const uploadedFileRef = useRef<File | null>(null);
   const [resume, setResume] = useState<ParsedResume>(emptyResume);
   const [rawText, setRawText] = useState('');
   const [isFileUploaded, setIsFileUploaded] = useState(false);
@@ -82,21 +85,30 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     const candidates: any[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type === 'application/pdf') {
-        try {
+      try {
+        let text = '';
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
           const url = URL.createObjectURL(file);
           const textItems = await readPdf(url);
-          const text = textItems.map(t => t.text).join('\n');
-          const parsed = await parseResumeFromText(text);
-          candidates.push({
-            id: `candidate-${Date.now()}-${i}`,
-            fileName: file.name,
-            resume: parsed,
-            matchScore: selectedJob ? calculateMatchingScore(parsed, selectedJob) : null
-          });
-        } catch (error) {
-          console.error(`Error processing ${file.name}:`, error);
+          if (textItems.length > 0) {
+            text = textItems.map(t => t.text).join('\n');
+          } else {
+            // Scanned PDF — use backend OCR
+            text = await uploadToBackendOcr(file);
+          }
+        } else {
+          // Image file — use backend OCR
+          text = await uploadToBackendOcr(file);
         }
+        const parsed = await parseResumeFromText(text);
+        candidates.push({
+          id: `candidate-${Date.now()}-${i}`,
+          fileName: file.name,
+          resume: parsed,
+          matchScore: selectedJob ? calculateMatchingScore(parsed, selectedJob) : null
+        });
+      } catch (error) {
+        console.error(`Error processing ${file.name}:`, error);
       }
     }
     setUploadedCandidates(prev => [...prev, ...candidates]);
@@ -156,27 +168,95 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     };
   };
 
+  async function uploadToBackendOcr(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = tokenStorage.getAccess();
+    const res = await fetch(`${API_BASE_URL}/resume/extract-text`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(err || `Backend OCR failed (${res.status})`);
+    }
+    const json = await res.json();
+    if (!json.success || !json.text) throw new Error('Backend returned no text');
+    return json.text;
+  }
+
   useEffect(() => {
     if (!fileUrl) return;
-    async function parseResume() {
-      setParsing(true);
-      try {
-        setParseError(null);
-        const textItems = await readPdf(fileUrl);
-        if (!textItems.length) throw new Error('Could not extract text from PDF. The file may be scanned or image-based.');
-        const text = textItems.map(t => t.text).join('\n');
-        setRawText(text);
-        const parsed = await parseResumeFromText(text, (status, detail) => setAiStatus({ status, detail }));
-        setResume(parsed);
-        setIsFileUploaded(true);
-        if (selectedJob) {
-          setMatchingScore(calculateMatchingScore(parsed, selectedJob));
+   async function parseResume() {
+     setParsing(true);
+     try {
+       setParseError(null);
+       const file = uploadedFileRef.current;
+       if (!file) throw new Error('No file selected');
+       const isImage = /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(file.name);
+        let text = '';
+        let textItems: any[] = [];
+        if (isImage) {
+          // Image files — always use backend OCR
+          text = await uploadToBackendOcr(file);
+        } else {
+          // PDF — try client-side extraction first
+          textItems = await readPdf(fileUrl);
+          if (textItems.length > 0) {
+            text = textItems.map(t => t.text).join('\n');
+          } else {
+            // Scanned PDF — fall back to backend OCR
+            text = await uploadToBackendOcr(file);
+          }
         }
-      } catch (e: any) {
-        setParseError(e?.message || 'Failed to parse resume. Please try a different PDF.');
-      } finally {
-        setParsing(false);
-      }
+         setRawText(text);
+         // Build layout blocks from PDF text items (with bounding boxes)
+         const layoutBlocks = textItems.map((t: any) => ({
+          page: t.page,
+          x0: t.x,
+          y0: t.y,
+          x1: t.x + t.width,
+          y1: t.y + t.height,
+          text: t.text,
+        }));
+        // Try hybrid parser first, fall back to AI/local parser
+        let parsed: ParsedResume | null = null;
+        try {
+          const hybridCtrl = new AbortController();
+          const hybridTimer = setTimeout(() => hybridCtrl.abort(), 10000);
+          const hybridResponse = await fetch(`${API_BASE_URL}/resume/hybrid-parse`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(tokenStorage.getAccess() ? { Authorization: `Bearer ${tokenStorage.getAccess()}` } : {})
+            },
+            body: JSON.stringify({ resume_text: text, layout_blocks: layoutBlocks }),
+            signal: hybridCtrl.signal,
+          });
+          clearTimeout(hybridTimer);
+          if (hybridResponse.ok) {
+            const hybridData = await hybridResponse.json();
+            const transformed = transformHybridToFrontendFormat(hybridData.hybridData);
+            if (transformed && (transformed.profile.name || transformed.skills.featuredSkills.length > 0 || transformed.workExperiences.length > 0)) {
+              parsed = transformed as ParsedResume;
+            }
+          }
+        } catch (_) { /* hybrid failed - fall through */ }
+        if (!parsed) {
+          parsed = await parseResumeFromText(text, (status, detail) => setAiStatus({ status, detail }));
+        }
+        setResume(parsed);
+       setIsFileUploaded(true);
+       if (selectedJob) {
+         setMatchingScore(calculateMatchingScore(parsed, selectedJob));
+       }
+     } catch (e: any) {
+       const isTimeout = e?.name === 'AbortError';
+       setParseError(e?.message || (isTimeout ? 'AI timeout. Using local parser.' : 'Failed to parse resume. Please try a different file.'));
+     } finally {
+       setParsing(false);
+     }
     }
     parseResume();
   }, [fileUrl]);
@@ -244,11 +324,11 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
               <input
                 type="file"
                 multiple
-                accept=".pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
                 onChange={(e) => e.target.files && handleBulkUpload(e.target.files)}
                 className="w-full border border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors"
               />
-              <p className="text-sm text-gray-500 mt-2">Select multiple PDF resumes to upload and analyze</p>
+              <p className="text-sm text-gray-500 mt-2">Select multiple PDF or image resumes to upload and analyze</p>
             </div>
           )}
           
@@ -261,7 +341,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           <div className="mt-3">
             <ResumeDropzone
               onFileUrlChange={(fileUrl, file?: File) => {
-                if (file) setCurrentFileName(file.name);
+                if (file) { setCurrentFileName(file.name); uploadedFileRef.current = file; }
                 setFileUrl(fileUrl || '');
               }}
               playgroundView={true}
@@ -297,7 +377,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           )}
 
           {!parsing && !isFileUploaded && !parseError && (
-            <p className="text-gray-400 text-sm text-center py-8">Upload a PDF resume to see parsed information here.</p>
+            <p className="text-gray-400 text-sm text-center py-8">Upload a PDF or image resume to see parsed information here.</p>
           )}
           
           {/* Matching Score for Employers */}
@@ -401,7 +481,10 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
                 <p><span className="font-medium">Name:</span> {resume.profile.name}</p>
                 <p><span className="font-medium">Email:</span> {resume.profile.email}</p>
                 <p><span className="font-medium">Phone:</span> {resume.profile.phone}</p>
-                <p><span className="font-medium">Location:</span> {resume.profile.location}</p>
+                <p><span className="font-medium">Location:</span> {resume.profile.address?.city || resume.profile.location || ''}</p>
+                {resume.profile.address?.full_address && (
+                  <p className="text-xs text-gray-400 ml-1">{resume.profile.address.full_address}</p>
+                )}
               </div>
             </div>
 
@@ -514,11 +597,11 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
         </div>
       </div>
       
-      {/* Candidate Ranking & Filtering for Employers */}
+      {/* Candidate Ranking Engine v2 — Hybrid AI + Rule-based */}
       {user?.type === 'employer' && uploadedCandidates.length > 0 && (
         <>
-          <CandidateRanking
-            candidates={getFilteredAndRankedCandidates()}
+          <CandidateRankingEngine
+            candidates={uploadedCandidates}
             selectedJob={selectedJob}
             onSelectCandidate={(candidateId) => {
               setSelectedCandidates(prev => 
@@ -528,22 +611,21 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
               );
             }}
             selectedCandidates={selectedCandidates}
-            filterCriteria={filterCriteria}
-            onFilterChange={setFilterCriteria}
+            onNavigate={onNavigate}
           />
-          
-          {/* Comparison Actions */}
-          {selectedCandidates.length > 1 && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => setShowComparison(true)}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Compare Selected Candidates ({selectedCandidates.length})
-              </button>
-            </div>
-          )}
-        </>
+            
+            {/* Comparison Actions */}
+            {selectedCandidates.length > 1 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowComparison(true)}
+                  className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Compare Selected Candidates ({selectedCandidates.length})
+                </button>
+              </div>
+            )}
+          </>
       )}
       
       {/* Candidate Comparison Modal */}

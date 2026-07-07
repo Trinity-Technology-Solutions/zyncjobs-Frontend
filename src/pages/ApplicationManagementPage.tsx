@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -9,6 +9,7 @@ import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown } from 'luc
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
+import { executeAI } from '../services/aiChatService';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -300,29 +301,23 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       let aiSummary: string | undefined;
       let breakdown: any;
 
-      try {
-        const response = await fetch(`${API_ENDPOINTS.AI_FLOW_SCORE_CANDIDATE}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jobDescription: jobDesc,
-            candidateResume: buildCandidateResumeText(app),
-            jobId,
-            candidateId: app.candidateId || app.id || app._id,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (typeof data.overallScore === 'number') {
-            score = data.overallScore;
-            recommendation = data.recommendation;
-            aiSummary = data.aiSummary;
-            breakdown = data.breakdown;
-          }
+            try {
+        const aiResult = await executeAI(
+          `Score this candidate for the job. Job: ${jobDesc}. Candidate: ${buildCandidateResumeText(app)}`,
+          { jobDescription: jobDesc, candidateResume: buildCandidateResumeText(app) },
+          'employer'
+        ) as any;
+        const result = aiResult?.result || aiResult;
+        if (typeof result?.overallScore === 'number') {
+          score = result.overallScore;
+          recommendation = result.recommendation;
+          aiSummary = result.aiSummary || result.summary;
+          breakdown = result.breakdown;
+        } else if (typeof result?.score === 'number') {
+          score = result.score;
         }
       } catch (error) {
-        console.error('AI Auto-Shortlist preview failed', error);
+        console.error('AI Auto-Shortlist failed, using rule score', error);
       }
 
       const newStatus = score >= 50 ? 'shortlisted' : score < 30 ? 'rejected' : 'reviewed';

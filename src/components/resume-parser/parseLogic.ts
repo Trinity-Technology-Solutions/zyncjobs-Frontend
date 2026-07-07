@@ -1,5 +1,17 @@
 export interface ParsedResume {
-  profile: { name: string; email: string; phone: string; location: string };
+  profile: {
+    name: string;
+    email: string;
+    phone: string;
+    location: string;
+    address?: {
+      city: string;
+      state: string;
+      country: string;
+      postal_code: string;
+      full_address: string;
+    };
+  };
   skills: { featuredSkills: { skill: string }[] };
   workExperiences: { jobTitle: string; company: string; date: string; descriptions: string[] }[];
   educations: { degree: string; school: string; date: string }[];

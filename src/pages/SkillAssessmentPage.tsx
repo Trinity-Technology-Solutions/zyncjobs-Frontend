@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
+import { generateAssessmentQuestions } from '../services/aiChatService';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
@@ -164,10 +165,24 @@ const SkillAssessmentPage: React.FC<SkillAssessmentPageProps> = ({ onNavigate, u
       }
     }
 
-    // Use local questions if backend failed
+    // Use AI service if backend failed
     if (!data) {
-      console.log(`📝 Using local questions for ${selectedSkill}${backendError ? ` (${backendError})` : ''}`);
-      data = generateLocalAssessment(selectedSkill);
+      try {
+        console.log(`🤖 Generating AI questions for ${selectedSkill}...`);
+        const aiQuestions = await generateAssessmentQuestions(selectedSkill);
+        data = {
+          assessmentId: `local-${Date.now()}`,
+          skill: selectedSkill,
+          questions: aiQuestions,
+          totalQuestions: aiQuestions.length,
+          timeLimit: 30,
+          isLocal: true,
+        };
+        console.log(`✅ AI generated ${aiQuestions.length} questions`);
+      } catch {
+        console.log(`📝 Using local questions for ${selectedSkill}`);
+        data = generateLocalAssessment(selectedSkill);
+      }
     }
 
     setAssessment(data);

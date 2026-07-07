@@ -10,6 +10,7 @@ import { apiFetch } from '../api/apiFetch';
 import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
+import { generateCareerRoadmap } from '../services/aiChatService';
 
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
@@ -85,9 +86,18 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     const cached = getCached<CareerPath>(key);
     if (cached) { setCareerPath(cached); return; }
     setLoadingCareerPath(true);
-    fetch(`${API_BASE}/skill-assessments/career-path?jobTitle=${encodeURIComponent(jobTitle)}&skills=${encodeURIComponent(userSkills.join(','))}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setCached(key, data); setCareerPath(data); })
+    generateCareerRoadmap(jobTitle, jobTitle, '2-4 years')
+      .then(roadmap => {
+        const path: CareerPath = {
+          currentLevel: roadmap.currentRole || jobTitle,
+          nextRole: roadmap.targetRole || jobTitle,
+          timeframe: roadmap.totalTimeframe || '12-18 months',
+          skillsToLearn: roadmap.steps?.[0]?.skills || missing.slice(0, 4),
+          tip: roadmap.finalTip || roadmap.summary || 'Focus on the missing skills to qualify for this role.',
+        };
+        setCached(key, path);
+        setCareerPath(path);
+      })
       .catch(() => setCareerPath(null))
       .finally(() => setLoadingCareerPath(false));
   }, [selectedJob]);

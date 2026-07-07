@@ -239,7 +239,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
                 {resumeUrl && (
                   <label className="text-sm text-blue-600 hover:text-blue-700 cursor-pointer font-medium">
                     Change
-                    <input type="file" accept=".pdf,.doc,.docx" className="hidden"
+                    <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleResumeUpload(f); }} />
                   </label>
                 )}
@@ -259,8 +259,8 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
                 <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-xl py-10 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
                   <Upload className="w-9 h-9 text-gray-400 mb-2" />
                   <p className="text-sm font-medium text-gray-700">Click to upload resume</p>
-                  <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX · max 10MB</p>
-                  <input type="file" accept=".pdf,.doc,.docx" className="hidden"
+                  <p className="text-xs text-gray-400 mt-1">PDF, DOC, DOCX, JPG, JPEG, PNG, WEBP · max 10MB</p>
+                  <input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" className="hidden"
                     onChange={e => { const f = e.target.files?.[0]; if (f) handleResumeUpload(f); }} />
                 </label>
               )}

@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../api/apiFetch';
+import { API_ENDPOINTS as ENV_ENDPOINTS } from '../config/env';
 import { 
   Trophy, 
   Award, 
@@ -18,11 +20,7 @@ import {
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 
-const API_ENDPOINTS = {
-  BASE_URL: '/api',
-  APPLICATIONS: '/api/applications',
-  USERS: '/api/users'
-};
+
 
 function getEffectiveEmployerEmail(): string {
   try {
@@ -101,8 +99,8 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
       const userEmail = getEffectiveEmployerEmail();
       
       const [jobsRes, appsRes] = await Promise.all([
-        fetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
-        fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
+        apiFetch(`${ENV_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(userEmail)}`),
+        apiFetch(`${ENV_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`)
       ]);
 
       if (!jobsRes.ok) {
@@ -124,7 +122,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         
         return {
           ...app,
-          candidateSkills: app.skills || profile.skills || [],
+          candidateSkills: (Array.isArray(app.skills) && app.skills.length > 0) ? app.skills : (profile.skills || []),
           candidateExperience: profile.experience || profile.yearsExperience || 'Not specified',
           candidateEducation: profile.education || 'Not specified',
           candidateLocation: profile.location || '',
@@ -135,34 +133,53 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
       });
 
       const scored: RankedCandidate[] = enriched.map((app: any) => {
-        // Use backend AI scores if available
         const aiScore = app.aiAnalysis?.overallScore || app.aiScore || 0;
         const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
+
+        // Local rule-based score when backend AI score is missing
+        let score = aiScore;
+        if (!score) {
+          const rawJobId = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
+          const jobData = typeof app.jobId === 'object' ? app.jobId : allJobs.find((j: Job) => String(j._id || j.id) === String(rawJobId));
+          const jobSkills: string[] = Array.isArray(jobData?.skills) ? jobData.skills : [];
+          if (jobSkills.length > 0 && skills.length > 0) {
+            const jobSkillsLower = jobSkills.map((s: string) => s.toLowerCase());
+            const matched = skills.filter(s => jobSkillsLower.some(js => js.includes(s.toLowerCase()) || s.toLowerCase().includes(js)));
+            score = Math.round((matched.length / jobSkills.length) * 70); // skills = 70%
+          }
+          // Experience bonus (up to 20%)
+          const expText = (app.candidateExperience || '').toLowerCase();
+          const expYears = parseInt(expText.match(/(\d+)/)?.[1] || '0');
+          score += Math.min(20, expYears * 4);
+          // Resume attached bonus (10%)
+          if (app.resumeUrl) score += 10;
+          score = Math.min(99, Math.max(10, score));
+        }
         
         // Build match reasons from AI analysis
         const reasons: string[] = [];
         if (app.aiAnalysis) {
           if (app.aiAnalysis.skillsScore >= 70) reasons.push('Strong skills match');
           if (app.aiAnalysis.experienceScore >= 70) reasons.push('Relevant experience');
-          if (app.aiAnalysis.reasons?.length > 0) {
-            reasons.push(...app.aiAnalysis.reasons.slice(0, 2));
-          }
+          if (app.aiAnalysis.reasons?.length > 0) reasons.push(...app.aiAnalysis.reasons.slice(0, 2));
         }
+        if (score >= 70) reasons.push('Strong job match');
+        if (skills.length >= 3) reasons.push(`${skills.length} matching skills`);
         if (app.resumeUrl) reasons.push('Resume attached');
         if (reasons.length === 0) reasons.push('Candidate profile available');
 
         // Extract job info from embedded jobId object or find in jobs list
-        const jobData = app.jobId && typeof app.jobId === 'object' ? app.jobId : 
-          allJobs.find((j: Job) => String(j._id || j.id) === String(app.jobId));
+        const rawJobId = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
+          const jobData = typeof app.jobId === 'object' ? app.jobId : allJobs.find((j: Job) => String(j._id || j.id) === String(rawJobId));
 
-        return { 
-          id: app._id || app.id, 
-          name: app.candidateName || app.candidateEmail || 'Candidate', 
-          email: app.candidateEmail || '', 
-          rank: 0, 
-          score: aiScore, 
+        return {
+          id: app._id || app.id,
+          name: app.candidateName || app.candidateEmail || 'Candidate',
+          email: app.candidateEmail || '',
+          rank: 0,
+          score, 
           jobTitle: app.jobTitle || jobData?.jobTitle || jobData?.title || 'Position', 
-          jobId: String(jobData?.id || jobData?._id || app.jobId || ''), 
+          jobId: String(jobData?._id || jobData?.id || (typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId) || ''), 
           skills, 
           experience: app.candidateExperience || 'Not specified', 
           education: app.candidateEducation || 'Not specified', 

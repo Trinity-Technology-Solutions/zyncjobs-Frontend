@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Building2, BarChart2,
   Settings, LogOut, Menu, X, TrendingUp, UserCheck, FileText,
   Bell, RefreshCw, AlertCircle, CheckCircle, XCircle, Shield, ShieldOff,
-  Mail, Activity, ChevronDown, User, Crown, Trash2, Send
+  Mail, Activity, ChevronDown, User, Crown, Trash2, Send, Cpu
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -25,6 +25,7 @@ import TalentPoolSection from './sections/TalentPoolSection';
 import AdminManagementSection from './sections/AdminManagementSection';
 import AllUsersSection from './sections/AllUsersSection';
 import ReminderEmailSection from './sections/ReminderEmailSection';
+import AIMonitoringSection from './sections/AIMonitoringSection';
 
 interface Props {
   user: { name: string; email?: string; role?: string };
@@ -74,6 +75,7 @@ const navItems: NavItem[] = [
   { id: 'reminder-email', label: 'Reminder Email', icon: Send,            section: 'communication' },
   { id: 'talent',        label: 'Talent Pool',     icon: Users,           section: 'talent' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
+  { id: 'ai-monitor',    label: 'AI Monitoring',   icon: Cpu,             section: 'system' },
   { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
   { id: 'settings',      label: 'Settings',        icon: Settings,        section: 'system' },
 ];
@@ -341,6 +343,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
+      case 'ai-monitor':    return <AIMonitoringSection onUnauthorized={handleUnauthorized} />;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
       case 'settings':      return canAccessSystemSettings ? <AdminSettingsSection onUnauthorized={handleUnauthorized} /> : <AccessDeniedSection />;
       default:              return <OverviewSection loading={loading} stats={stats} growth={growth} quickStats={quickStats} />;
