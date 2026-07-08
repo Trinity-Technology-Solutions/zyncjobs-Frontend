@@ -155,7 +155,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         console.log('Found COMPLETE company profile in localStorage, pre-filling entire form');
         setFormData({
           companyName: currentUser.companyName || '',
-          companyEmail: currentUser.companyEmail || currentUser.email || '',
+          companyEmail: currentUser.email || '',
           companyWebsite: currentUser.companyWebsite || '',
           industry: currentUser.industry || '',
           companySize: currentUser.companySize || '',
@@ -191,7 +191,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         setFormData(prev => ({
           ...prev,
           companyName: currentUser.companyName || currentUser.company || '',
-          companyEmail: currentUser.companyEmail || currentUser.email || '',
+          companyEmail: currentUser.email || '',
           companyWebsite: currentUser.companyWebsite || '',
           // Keep other fields empty for first-time completion
         }));
@@ -316,7 +316,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
             setFormData(prev => ({
               ...prev,
               companyName: companyData.name || companyData.companyName || prev.companyName,
-              companyEmail: companyData.companyEmail || companyData.email || prev.companyEmail,
+              companyEmail: currentUser.email || prev.companyEmail,
               companyWebsite: companyData.website || companyData.companyWebsite || prev.companyWebsite,
               industry: companyData.industry || prev.industry,
               companySize: companyData.size || companyData.companySize || prev.companySize,
@@ -1020,11 +1020,11 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                       <input
                         type="email"
                         value={formData.companyEmail}
-                        onChange={e => setFormData(p => ({ ...p, companyEmail: e.target.value }))}
-                        placeholder="contact@yourcompany.com"
-                        className={inputCls}
-                        required
+                        readOnly
+                        className={`${inputCls} bg-gray-100 cursor-not-allowed text-gray-500`}
+                        title="Company email is your registered account email and cannot be changed here"
                       />
+                      <p className="text-xs text-gray-400 mt-1">This is your registered account email and cannot be changed here.</p>
                     </div>
                     <div>
                       <label className={labelCls}>Phone Number *</label>
