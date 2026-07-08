@@ -14,7 +14,6 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
-import { updateUserInStorage } from '../utils/userStorage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast, ToastType } from '../hooks/useToast';
 import NotificationComponent from '../components/Notification';
@@ -88,6 +87,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [closingJobId, setClosingJobId] = useState<string | null>(null);
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -196,6 +196,38 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       clearInterval(notificationInterval);
     };
   }, []); // Run once on mount only
+
+  const closeJob = async (jobId: string) => {
+    if (!jobId) return;
+    openConfirm(
+      'Close Job',
+      'Are you sure you want to close this job posting? This will stop new applications from being accepted.',
+      async () => {
+        closeConfirm();
+        setClosingJobId(jobId);
+        try {
+          const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/close`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'closed' })
+          });
+
+          if (response.ok) {
+            setJobs(prev => prev.map(job => (job._id || job.id) === jobId ? { ...job, status: 'closed' } : job));
+            showToast('Job closed successfully.', 'success');
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.error || 'Failed to close job');
+          }
+        } catch (error) {
+          console.error('Error closing job:', error);
+          showToast(error instanceof Error ? error.message : 'Failed to close job. Please try again.', 'error');
+        } finally {
+          setClosingJobId(null);
+        }
+      }
+    );
+  };
 
   useEffect(() => {
     // Prefer the user prop from App.tsx (React state) as primary source of truth.
