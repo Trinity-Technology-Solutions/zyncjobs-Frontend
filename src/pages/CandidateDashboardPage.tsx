@@ -8,9 +8,6 @@ import {
   Search,
   X,
   Lightbulb,
-  BarChart3,
-  Flame,
-  CheckCircle,
   Sparkles,
 } from "lucide-react";
 import { API_ENDPOINTS } from "../config/constants";
@@ -913,6 +910,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   ...prev,
                   openToWork: parsed.openToWork,
                   profileFrame: parsed.profileFrame,
+                  visibilityStatus: parsed.visibilityStatus ?? prev.visibilityStatus,
+                  profileVisibility: parsed.profileVisibility ?? prev.profileVisibility,
                 }
               : prev,
           );
@@ -922,7 +921,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       }
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("zync:user-updated", handleStorage as EventListener);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("zync:user-updated", handleStorage as EventListener);
+    };
   }, []);
 
   return (

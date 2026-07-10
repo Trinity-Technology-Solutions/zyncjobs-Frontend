@@ -89,18 +89,40 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
       const isBackendStream = rawUrl.startsWith('/') || rawUrl.includes('localhost') || rawUrl.includes(window.location.hostname);
 
       if (isBackendStream) {
-        // Backend stream URL — set directly on iframe, backend sends inline Content-Disposition
-        setBlobUrl(rawUrl);
-      } else {
-        // S3 direct URL — blob-fetch to override Content-Disposition: attachment
         try {
           const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
           if (!res.ok) throw new Error('fetch failed');
-          const blob = await res.blob();
-          const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-          const url = URL.createObjectURL(pdfBlob);
-          prevBlobUrl.current = url;
-          setBlobUrl(url);
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('text/plain') || contentType.includes('application/json')) {
+            const text = await res.text();
+            const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+            prevBlobUrl.current = url;
+            setBlobUrl(url);
+          } else {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            prevBlobUrl.current = url;
+            setBlobUrl(url);
+          }
+        } catch {
+          setBlobUrl(rawUrl);
+        }
+      } else {
+        try {
+          const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
+          if (!res.ok) throw new Error('fetch failed');
+          const contentType = res.headers.get('content-type') || '';
+          if (contentType.includes('text/plain') || contentType.includes('application/json')) {
+            const text = await res.text();
+            const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+            prevBlobUrl.current = url;
+            setBlobUrl(url);
+          } else {
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            prevBlobUrl.current = url;
+            setBlobUrl(url);
+          }
         } catch {
           setBlobUrl(rawUrl);
         }

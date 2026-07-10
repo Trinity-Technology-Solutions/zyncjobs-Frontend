@@ -73,6 +73,7 @@ interface JobData {
   companyName: string;
   companyLogo: string;
   companyId: string;
+  companyTagline: string;
 }
 
 const formatSalary = (value: string): string => {
@@ -501,6 +502,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || '') || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.companyName || u.company || ''; } catch { return ''; } })() || (user?.companyName || user?.company || ''),
     companyLogo: editJob?.companyLogo || '',
     companyId: '',
+    companyTagline: editJob?.companyTagline || editJob?.tagline || parsedData?.tagline || parsedData?.companyTagline || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.tagline || ''; } catch { return ''; } })() || (user?.tagline || ''),
     jobHeaderImage: editJob?.jobHeaderImage || ''
   });
 
@@ -1859,7 +1861,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           return {
             id: company._id || company.id || name,
             name,
-            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || ''
+            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || '',
+            tagline: company.tagline || company.companyTagline || company.companySlogan || ''
           };
         });
 
@@ -1946,6 +1949,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     updateJobData('companyName', company.name);
     updateJobData('companyLogo', company.logo);
     updateJobData('companyId', company.id);
+    updateJobData('companyTagline', company.tagline || company.companyTagline || company.companySlogan || '');
     setShowCompanyDropdown(false);
   };
 
@@ -3495,6 +3499,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
     // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
+    const companyTagline = (jobData.companyTagline || user?.tagline || '').trim();
     
     // Ensure banner image is set — always derive from category if jobHeaderImage is missing/default
     const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
@@ -3549,6 +3554,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       company: jobData.companyName || user?.companyName || 'Your Company',
       companyName: jobData.companyName || user?.companyName || 'Your Company',
       companyLogo: logoUrl,
+      companyTagline,
+      companySlogan: companyTagline,
+      tagline: companyTagline,
       location: jobData.jobLocation,
       jobLocation: jobData.jobLocation,
       jobType: formatArrayField(jobData.jobType),
