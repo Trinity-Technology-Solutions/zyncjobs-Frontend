@@ -21,7 +21,7 @@ async function getToken(): Promise<string> {
   const data = await res.json();
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + 55 * 60 * 1000;
-  return cachedToken;
+  return cachedToken!;
 }
 
 export async function executeAI(
@@ -42,6 +42,26 @@ export async function executeAI(
   return res.json();
 }
 
+// Extract human-readable reply from any brain response shape
+function extractReply(data: any): string {
+  const r = data?.result;
+  const intent = (data as any)?.intent || '';
+  if (!r) return '';
+  if (r.reply) return r.reply;
+  if (r.advice) return r.advice;
+  if (r.search_strategy) return r.search_strategy;
+  if (r.job_description) return r.job_description;
+  if (r.roadmap) return typeof r.roadmap === 'string' ? r.roadmap : `Roadmap generated! Visit the Career Roadmap page for full details.`;
+  if (r.assessment) return r.assessment;
+  if (r.career_path && Array.isArray(r.career_path)) return `Career path ready with ${r.career_path.length} steps. ${r.advice || ''} Visit the Career Roadmap page for full details.`;
+  if (r.questions && Array.isArray(r.questions)) return `Generated ${r.questions.length} questions. Visit the Skill Assessment page to take the test.`;
+  if (r.missing_skills) return `Skill gap: missing ${(r.missing_skills as string[]).slice(0, 4).join(', ')}. Visit Skill Gap Analysis for details.`;
+  if (intent === 'RESUME_BUILDER' && r.summary) return `Resume outline:\n\nSummary: ${r.summary}\n\nKey Skills: ${[...(r.skills_formatted?.technical || []), ...(r.skills_formatted?.soft || [])].slice(0, 6).join(', ')}\n\nATS Keywords: ${(r.ats_keywords || []).slice(0, 5).join(', ')}\n\nVisit the Resume Builder page to build your full resume!`;
+  if (intent === 'JD_GENERATOR' && r.title) return `Job Description for ${r.title}:\n\n${r.description || ''}\n\nRequirements: ${(r.requirements || []).slice(0, 4).join(', ')}`;
+  if (typeof r === 'string') return r;
+  return 'I processed your request! Visit the relevant page in ZyncJobs for full details.';
+}
+
 // Non-streaming — for JSON responses (Roadmap, Assessment, Skill suggestions)
 export async function sendAIMessage(
   messages: ChatMessage[],
@@ -50,23 +70,17 @@ export async function sendAIMessage(
   maxTokens = 800
 ): Promise<string> {
   const userMsg = messages.find(m => m.role === 'user')?.content || '';
+  const history = messages.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+  const isCareerCoach = systemPrompt.toLowerCase().includes('career coach') || systemPrompt.toLowerCase().includes('career advisor');
+  const isRecruiter = systemPrompt.toLowerCase().includes('recruiter') || systemPrompt.toLowerCase().includes('hiring');
+  const query = isRecruiter ? `recruiter: ${userMsg}` : isCareerCoach ? `career advice: ${userMsg}` : userMsg;
   try {
-    const data = await executeAI(userMsg, { systemPrompt, maxTokens });
-    const reply = (data as any).result?.reply || (data as any).result?.job_description || JSON.stringify((data as any).result);
+    const data = await executeAI(query, { systemPrompt, maxTokens, history });
+    const reply = extractReply(data);
     if (reply) return reply;
     throw new Error('Empty response');
   } catch {
-    // Fallback to old backend
-    const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
-    const res = await fetch(`${API_BASE}/ai/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, systemPrompt, maxTokens }),
-      signal,
-    });
-    if (!res.ok) throw new Error(`AI chat error: ${res.status}`);
-    const data = await res.json();
-    return data.content?.trim() || data.reply?.trim() || data.message?.trim() || '';
+    throw new Error('AI agent unavailable');
   }
 }
 
@@ -75,87 +89,46 @@ export async function sendAIMessageStream(
   messages: ChatMessage[],
   systemPrompt: string,
   onChunk: (text: string) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  userContext?: Record<string, unknown>
 ): Promise<void> {
   const userMsg = messages[messages.length - 1]?.content || '';
-  // Detect career coach context from system prompt to route correctly
-  const isCareerCoach = systemPrompt.toLowerCase().includes('career coach') || systemPrompt.toLowerCase().includes('career advisor');
+  const history = messages.slice(0, -1).map(m => ({ role: m.role, content: m.content }));
+  const isCareerCoach = systemPrompt.toLowerCase().includes('career') || systemPrompt.toLowerCase().includes('mentor');
   const isRecruiter = systemPrompt.toLowerCase().includes('recruiter') || systemPrompt.toLowerCase().includes('hiring');
-  const query = isRecruiter
-    ? `recruiter: ${userMsg}`
-    : isCareerCoach
-    ? `career advice: ${userMsg}`
-    : userMsg;
-  try {
-    const data = await executeAI(query, { systemPrompt, stream: true });
-    const reply = (data as any).result?.reply || (data as any).result?.advice || (data as any).result?.search_strategy || '';
-    if (reply) {
-      const words = reply.split(' ');
-      for (let i = 0; i < words.length; i++) {
-        if (signal?.aborted) break;
-        onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
-        await new Promise(resolve => setTimeout(resolve, 30));
-      }
-      return;
-    }
-    throw new Error('Empty stream response');
-  } catch {
-    // Fallback to old backend streaming
-    const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
-    const res = await fetch(`${API_BASE}/ai/chat/stream`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages, systemPrompt, maxTokens: 600 }),
-      signal,
-    });
-    if (!res.ok) throw new Error(`AI stream error: ${res.status}`);
-    if (!res.body) throw new Error('No response body');
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const lines = decoder.decode(value).split('\n');
-      for (const line of lines) {
-        if (!line.startsWith('data: ') || line === 'data: [DONE]') continue;
-        try {
-          const json = JSON.parse(line.slice(6));
-          const token = json.choices?.[0]?.delta?.content || json.chunk;
-          if (token) onChunk(token);
-        } catch { /* skip malformed chunks */ }
-      }
-    }
+  const query = isRecruiter ? `recruiter: ${userMsg}` : isCareerCoach ? `career advice: ${userMsg}` : userMsg;
+  const context = { systemPrompt, history, ...(userContext || {}) };
+  const data = await executeAI(query, context);
+  const reply = extractReply(data);
+  if (!reply) throw new Error('Empty AI response');
+  // Simulate streaming word by word
+  const words = reply.split(' ');
+  for (let i = 0; i < words.length; i++) {
+    if (signal?.aborted) break;
+    onChunk(words[i] + (i < words.length - 1 ? ' ' : ''));
+    await new Promise(r => setTimeout(r, 25));
   }
 }
 
-// Assessment questions
+// Assessment questions — calls AI agent (Ollama via /recruitment-ai/ai/execute)
 export async function generateAssessmentQuestions(skill: string): Promise<any[]> {
-  try {
-    const data = await executeAI(`Generate skill assessment for ${skill}`, { skill, level: 'intermediate', count: 10 });
-    const questions = (data as any).result?.questions;
-    if (questions) return questions.slice(0, 10).map((q: any, i: number) => ({
-      id: i + 1,
-      question: q.question,
-      options: q.options,
-      correctAnswer: q.correctAnswer || 0,
-    }));
-  } catch { /* fallthrough */ }
-
-  // Fallback
-  const prompt = `Generate exactly 10 MCQ questions for "${skill}".
-Return ONLY a JSON array, no markdown, no explanation:
-[{"question":"...","options":["A","B","C","D"],"correctAnswer":0}]
-correctAnswer is 0-3 index. Mix difficulty levels.`;
-  const reply = await sendAIMessage(
-    [{ role: 'user', content: prompt }],
-    'You are a technical assessment expert. Return only a valid JSON array, nothing else.',
-    undefined,
-    1200
+  const data = await executeAI(
+    `generate assessment for ${skill}`,
+    { skill, level: 'intermediate', count: 10 }
   );
-  const match = reply.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error('Invalid AI response');
-  const questions = JSON.parse(match[0]);
-  return questions.slice(0, 10).map((q: any, i: number) => ({
+
+  const questions: any[] = (data as any).result?.questions;
+  if (!Array.isArray(questions) || questions.length === 0) throw new Error('No questions from AI agent');
+
+  const valid = questions.filter((q: any) =>
+    q.question &&
+    Array.isArray(q.options) && q.options.length === 4 &&
+    typeof q.correctAnswer === 'number' && q.correctAnswer >= 0 && q.correctAnswer <= 3
+  );
+
+  if (valid.length < 5) throw new Error('Too few valid questions from AI agent');
+
+  return valid.slice(0, 10).map((q: any, i: number) => ({
     id: i + 1,
     question: q.question,
     options: q.options,
@@ -163,37 +136,43 @@ correctAnswer is 0-3 index. Mix difficulty levels.`;
   }));
 }
 
-// Career roadmap
+// Career roadmap — calls AI agent with CAREER_ADVICE intent
 export async function generateCareerRoadmap(
   currentRole: string,
   targetRole: string,
   experience: string
 ): Promise<any> {
-  try {
-    const data = await executeAI('Career roadmap', {
-      current_role: currentRole,
-      target_role: targetRole,
-      experience_years: parseInt(experience) || 3,
-      current_skills: ['Python', 'JavaScript'],
-    });
-    const result = (data as any).result;
-    if (result?.career_path) return result;
-  } catch { /* fallthrough */ }
-
-  // Fallback
-  const prompt = `Career roadmap from "${currentRole}" to "${targetRole}", experience: ${experience}.
-Return ONLY valid JSON:
-{"currentRole":"...","targetRole":"...","totalTimeframe":"...","summary":"...","steps":[{"step":1,"title":"...","timeframe":"...","skills":["s1","s2","s3","s4"],"description":"...","milestone":"..."}],"finalTip":"..."}
-Exactly 4 steps. Skills must be specific tech skills.`;
-  const reply = await sendAIMessage(
-    [{ role: 'user', content: prompt }],
-    'You are a career coach. Return only valid JSON, no markdown.',
-    undefined,
-    1200
+  const data = await executeAI(
+    `career roadmap from ${currentRole} to ${targetRole}`,
+    { current_role: currentRole, target_role: targetRole, experience_years: experience }
   );
-  const match = reply.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Invalid response');
-  return JSON.parse(match[0]);
+
+  const result = (data as any).result;
+  if (!result) throw new Error('No result from AI agent');
+
+  // AI agent returns career_path array — map to frontend Roadmap shape
+  if (result.career_path && Array.isArray(result.career_path)) {
+    return {
+      currentRole,
+      targetRole,
+      totalTimeframe: result.timeline_months ? `${result.timeline_months} months` : '12-18 months',
+      summary: result.advice || `Roadmap from ${currentRole} to ${targetRole}.`,
+      steps: result.career_path.map((s: any, i: number) => ({
+        step: s.step || i + 1,
+        title: s.title || `Phase ${i + 1}`,
+        timeframe: s.estimated_months ? `${s.estimated_months} months` : '',
+        skills: Array.isArray(s.skills_to_learn) ? s.skills_to_learn : [],
+        description: s.description || s.title || '',
+        milestone: s.milestone || `Complete phase ${i + 1}`,
+      })),
+      finalTip: result.advice || 'Stay consistent and keep building.',
+    };
+  }
+
+  // If reply is conversational text (CHAT fallback), throw so caller uses local fallback
+  if (result.reply) throw new Error('AI returned chat reply instead of roadmap');
+
+  throw new Error('Invalid roadmap response from AI agent');
 }
 
 // Generic AI call — CareerCoach, Recruiter backend fallback
@@ -203,4 +182,34 @@ export async function callAIWithFallback(
   signal?: AbortSignal
 ): Promise<string> {
   return sendAIMessage(messages, systemPrompt, signal, 600);
+}
+
+// Build rich user context from localStorage for Career Mentor
+export function buildUserContext(): Record<string, unknown> {
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    const resumeStore = JSON.parse(localStorage.getItem('zyncjobs-resume-builder') || '{}');
+    const resumeData = resumeStore?.state?.data || {};
+    // Resume builder stores skills as {name, level} objects — extract name only
+    const resumeSkills: string[] = (resumeData.skills || []).map((s: any) =>
+      typeof s === 'string' ? s : (s?.name || '')
+    ).filter(Boolean);
+    const skills: string[] = [
+      ...(u.skills || []),
+      ...resumeSkills,
+    ].filter((s, i, a) => s && a.indexOf(s) === i).slice(0, 15);
+    return {
+      user_name: u.name || u.fullName || '',
+      current_role: u.jobTitle || u.currentRole || '',
+      target_role: u.targetRole || u.careerGoal || '',
+      skills,
+      experience_years: u.experience || u.yearsOfExperience || '',
+      ats_score: u.atsScore || null,
+      applications_count: u.applicationsCount || null,
+      missing_skills: u.missingSkills || [],
+      location: u.location || '',
+    };
+  } catch {
+    return {};
+  }
 }

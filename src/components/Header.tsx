@@ -4,7 +4,7 @@ import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
-import { useNavigation } from '../store/useNavigation';
+import { useNavigation, CAREER_RESOURCE_URLS } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
@@ -322,7 +322,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
             {navItems.length > 0 ? (
-              navItems.map((item) => (
+              navItems
+                .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
+                .map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate && onNavigate(item.url)}

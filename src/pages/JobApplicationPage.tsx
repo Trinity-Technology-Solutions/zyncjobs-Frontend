@@ -6,6 +6,7 @@ import { apiFetch } from '../api/apiFetch';
 import { validateUserResume } from '../utils/resumeValidation';
 import { S3Service } from '../services/s3Service';
 import Header from '../components/Header';
+import { parseResumeFromText } from '../components/resume-parser/parseLogic';
 
 interface JobApplicationPageProps {
   onNavigate: (page: string) => void;
@@ -19,6 +20,7 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
   const [, setResumeFile] = useState<File | null>(null);
   const [resumeFileName, setResumeFileName] = useState('');
   const [resumeUrl, setResumeUrl] = useState('');
+  const [resumeSkills, setResumeSkills] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -63,11 +65,19 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
     try {
       const s3Result = await S3Service.uploadResumeToS3(file);
       if (!s3Result.success) throw new Error(s3Result.error || 'Upload failed');
-      
+
       const fileUrl = s3Result.fileUrl || '';
       setResumeUrl(fileUrl);
       setResumeFile(file);
       setResumeFileName(file.name);
+
+      // Parse resume and extract skills
+      try {
+        const text = await file.text();
+        const parsed = await parseResumeFromText(text);
+        const skills = parsed.skills?.featuredSkills?.map((s: any) => s.skill).filter(Boolean) || [];
+        setResumeSkills(skills);
+      } catch { /* skills extraction failure is non-blocking */ }
       
       // Update localStorage with resume info so ResumeStatusIndicator picks it up
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -104,6 +114,10 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
     }
     setSubmitting(true);
     try {
+      // Merge profile skills + resume skills (deduplicated)
+      const profileSkills: string[] = Array.isArray(profile?.skills) ? profile.skills : [];
+      const mergedSkills = [...new Set([...profileSkills, ...resumeSkills])];
+
       const res = await apiFetch(API_ENDPOINTS.APPLICATIONS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,6 +130,8 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
           resumeUrl,
           coverLetter: coverLetter.trim() || 'No cover letter provided',
           workAuthorization: 'Not specified',
+          skills: mergedSkills,           // profile + resume skills merged
+          resumeSkills,                   // resume-only skills for reference
         }),
       });
       const result = await res.json();

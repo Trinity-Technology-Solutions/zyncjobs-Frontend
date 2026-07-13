@@ -60,7 +60,7 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
     try {
       let rawUrl: string | null = null;
 
-      // Step 1: get presigned URL from backend
+      // Step 1: get presigned URL from backend (uploaded file for this application)
       if (applicationId) {
         const result = await getResumeByApplicationId(applicationId);
         if (result.presignedUrl) {
@@ -69,14 +69,15 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
         }
       }
 
+      // Step 2: direct S3/upload URL from application data (e.g. Quick Apply generated resume)
+      if (!rawUrl && directResumeUrl && directResumeUrl !== 'resume_from_quick_apply') {
+        rawUrl = directResumeUrl;
+      }
+
+      // Step 3: try by email (backend serve presigned)
       if (!rawUrl && candidateEmail) {
         const result = await getResumeByEmail(candidateEmail);
         if (result.presignedUrl) rawUrl = result.presignedUrl;
-      }
-
-      // Fallback to direct S3 URL from application data
-      if (!rawUrl && directResumeUrl && directResumeUrl !== 'resume_from_quick_apply') {
-        rawUrl = directResumeUrl;
       }
 
       if (!rawUrl) {
@@ -87,9 +88,11 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
       setPresignedUrl(rawUrl);
 
       const isBackendStream = rawUrl.startsWith('/') || rawUrl.includes('localhost') || rawUrl.includes(window.location.hostname);
+      const isHTML = rawUrl.endsWith('.html') || rawUrl.includes('resume_from_quick_apply');
 
       if (isBackendStream) {
-        // Backend stream URL — set directly on iframe, backend sends inline Content-Disposition
+        setBlobUrl(rawUrl);
+      } else if (isHTML) {
         setBlobUrl(rawUrl);
       } else {
         // S3 direct URL — blob-fetch to override Content-Disposition: attachment
@@ -97,7 +100,8 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
           const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
           if (!res.ok) throw new Error('fetch failed');
           const blob = await res.blob();
-          const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+          const type = blob.type === 'text/html' ? 'text/html' : 'application/pdf';
+          const pdfBlob = new Blob([blob], { type });
           const url = URL.createObjectURL(pdfBlob);
           prevBlobUrl.current = url;
           setBlobUrl(url);

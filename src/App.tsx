@@ -884,7 +884,9 @@ function App() {
 
             <Route path="/resume-builder" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <ResumeBuilderPage {...nav} />
+                <WithLayout {...nav}>
+                  <ResumeBuilderPage {...nav} />
+                </WithLayout>
               </AuthGuard>
             } />
 

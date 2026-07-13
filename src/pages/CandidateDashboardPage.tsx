@@ -31,7 +31,6 @@ import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { readPdf } from "../lib/parse-resume-from-pdf/read-pdf";
-import { transformHybridToFrontendFormat } from "../lib/transform-hybrid";
 
 interface CandidateDashboardPageProps {
   user?: any;
@@ -4160,11 +4159,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     );
 
                     // Transform to frontend format using shared transform
-                    const transformed = transformHybridToFrontendFormat(
-                      hybridData.hybridData || hybridData,
-                    );
+                    // NOTE: hybrid-parse returns parsed resume directly, NOT rankings.
+                    // The transformHybridToFrontendFormat is for RANKING results only.
+                    // Use hybridData directly as it should match ParsedResume format.
+                    const transformed = hybridData.hybridData || hybridData;
                     console.log(
-                      "[ResumePopup] Transformed:",
+                      "[ResumePopup] Parsed resume data:",
                       JSON.stringify(transformed, null, 2),
                     );
 

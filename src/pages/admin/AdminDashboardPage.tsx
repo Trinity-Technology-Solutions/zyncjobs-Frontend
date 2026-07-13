@@ -25,7 +25,7 @@ import TalentPoolSection from './sections/TalentPoolSection';
 import AdminManagementSection from './sections/AdminManagementSection';
 import AllUsersSection from './sections/AllUsersSection';
 import ReminderEmailSection from './sections/ReminderEmailSection';
-import AIMonitoringSection from './sections/AIMonitoringSection';
+// import AIMonitoringSection from './sections/AIMonitoringSection';
 
 interface Props {
   user: { name: string; email?: string; role?: string };
@@ -343,7 +343,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
       case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
-      case 'ai-monitor':    return <AIMonitoringSection onUnauthorized={handleUnauthorized} />;
+      case 'ai-monitor':    return <div className="p-6 text-center text-gray-500">AI Monitoring — component removed</div>;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
       case 'settings':      return canAccessSystemSettings ? <AdminSettingsSection onUnauthorized={handleUnauthorized} /> : <AccessDeniedSection />;
       default:              return <OverviewSection loading={loading} stats={stats} growth={growth} quickStats={quickStats} />;

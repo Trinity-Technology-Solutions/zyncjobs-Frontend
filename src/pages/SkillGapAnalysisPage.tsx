@@ -7,7 +7,6 @@ import Footer from '../components/Footer';
 import { tokenStorage } from '../utils/tokenStorage';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
-import { advancedJobMatchingEngine, JobMatchResult, CandidateProfile, JobProfile } from '../services/advancedJobMatchingEngine';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { generateCareerRoadmap } from '../services/aiChatService';
@@ -33,8 +32,6 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
   const [loadingResources, setLoadingResources] = useState<Record<string, boolean>>({});
   const [careerPath, setCareerPath] = useState<CareerPath | null>(null);
   const [loadingCareerPath, setLoadingCareerPath] = useState(false);
-  const [jobMatchResults, setJobMatchResults] = useState<JobMatchResult[]>([]);
-  const [candidateProfile, setCandidateProfile] = useState<CandidateProfile | null>(null);
 
   useEffect(() => {
     const loadSkills = async () => {
@@ -86,13 +83,14 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     const cached = getCached<CareerPath>(key);
     if (cached) { setCareerPath(cached); return; }
     setLoadingCareerPath(true);
-    generateCareerRoadmap(jobTitle, jobTitle, '2-4 years')
+    const currentRole = userSkills.length > 0 ? 'Professional' : 'Entry Level';
+    generateCareerRoadmap(currentRole, jobTitle, '2-4 years')
       .then(roadmap => {
         const path: CareerPath = {
           currentLevel: roadmap.currentRole || jobTitle,
           nextRole: roadmap.targetRole || jobTitle,
           timeframe: roadmap.totalTimeframe || '12-18 months',
-          skillsToLearn: roadmap.steps?.[0]?.skills || missing.slice(0, 4),
+          skillsToLearn: roadmap.steps?.[0]?.skills || [],
           tip: roadmap.finalTip || roadmap.summary || 'Focus on the missing skills to qualify for this role.',
         };
         setCached(key, path);

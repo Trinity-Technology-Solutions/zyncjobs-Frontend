@@ -246,6 +246,53 @@ h6 { font-size: 1rem; line-height: 1.5; }
 @import './styles/mobile-auth-fixes.css';
 @import './styles/accessibility.css';
 
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Thin overlay scrollbar (ChatGPT-style) */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.15);
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.25);
+}
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0,0,0,0.15) transparent;
+}
+
+/* Dark sidebar thin scrollbar */
+.scrollbar-thin-dark::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin-dark::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin-dark::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 4px;
+}
+.scrollbar-thin-dark::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.25);
+}
+.scrollbar-thin-dark {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.15) transparent;
+}
+
 /* Hide scrollbar for employer dashboard sidebar */
 .employer-sidebar::-webkit-scrollbar {
   display: none;

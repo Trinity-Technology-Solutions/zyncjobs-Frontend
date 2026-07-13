@@ -18,7 +18,7 @@ interface Message {
   timestamp: Date;
 }
 
-const SYSTEM_PROMPT = `You are ZyncJobs AI Recruiter Assistant — an expert recruitment automation assistant for employers and HR teams.
+const SYSTEM_PROMPT = `You are ZyncJobs AI Recruiter Assistant — an expert recruitment automation assistant for employers and HR teams on ZyncJobs.
 
 You help recruiters with:
 - Analyzing candidate profiles and ranking them for job fit
@@ -31,7 +31,7 @@ You help recruiters with:
 - Creating job descriptions from scratch
 - Advising on employer branding and candidate experience
 
-Keep responses concise, professional, and actionable. Use bullet points for lists. Focus on practical recruitment advice.`;
+NEVER mention other job sites (LinkedIn, Indeed, Glassdoor, Naukri, Monster, etc.). Focus ONLY on ZyncJobs platform and its features. Keep responses concise, professional, and actionable. Use bullet points for lists. Focus on practical recruitment advice.`;
 
 const QUICK_ACTIONS = [
   { icon: FileText, label: 'Optimize Job Posting', desc: 'Improve your JD for better reach', prompt: 'Help me optimize my job posting to attract better candidates. What key elements should I include?', color: 'from-blue-500 to-blue-600' },
@@ -53,7 +53,7 @@ const getFallback = (input: string): string => {
   if (q.includes('reject') || q.includes('email') || q.includes('template'))
     return `Professional rejection email template:\n\n---\nSubject: Your Application at [Company] — Update\n\nDear [Candidate Name],\n\nThank you for taking the time to interview with us for the [Role] position. We genuinely appreciated learning about your background and experience.\n\nAfter careful consideration, we've decided to move forward with another candidate whose experience more closely aligns with our current needs.\n\nWe were impressed by [specific positive] and encourage you to apply for future openings.\n\nWarm regards,\n[Your Name]\n---\n\nWant me to customize this for a specific stage?`;
   if (q.includes('salary') || q.includes('benchmark') || q.includes('pay'))
-    return `Salary benchmarking tips:\n\n• **Use multiple sources** — Glassdoor, LinkedIn Salary, AmbitionBox\n• **Factor in location** — Bangalore/Mumbai command 20-30% premium\n• **Consider total comp** — base + bonus + equity + benefits\n\n**India tech salary ranges (2024):**\n• Junior Dev (0-2 yrs): ₹4-8 LPA\n• Mid Dev (2-5 yrs): ₹8-18 LPA\n• Senior Dev (5-8 yrs): ₹18-35 LPA\n• Lead/Architect (8+ yrs): ₹35-60 LPA\n\nWhat role and location are you benchmarking for?`;
+    return `Salary benchmarking tips on ZyncJobs:\n\n• **Check ZyncJobs salary insights** for role-specific data\n• **Factor in location** — Bangalore/Mumbai command 20-30% premium\n• **Consider total comp** — base + bonus + equity + benefits\n\n**India tech salary ranges (2024):**\n• Junior Dev (0-2 yrs): ₹4-8 LPA\n• Mid Dev (2-5 yrs): ₹8-18 LPA\n• Senior Dev (5-8 yrs): ₹18-35 LPA\n• Lead/Architect (8+ yrs): ₹35-60 LPA\n\nWhat role and location are you benchmarking for?`;
   return `I can help you with that! Here are some key recruitment best practices:\n\n• **Speed matters** — Top candidates are off the market in 10 days\n• **Clear communication** — Update candidates at every stage\n• **Structured interviews** — Use consistent questions for fair comparison\n• **Data-driven decisions** — Track time-to-hire, offer acceptance rate\n\nCould you share more details about your specific challenge?`;
 };
 
