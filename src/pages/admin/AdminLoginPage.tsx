@@ -21,10 +21,10 @@ export default function AdminLoginPage({ onLogin, onNavigate }: Props) {
     setError('');
     setLoading(true);
     try {
-      const res = await fetch(API_ENDPOINTS.LOGIN, {
+      const res = await fetch(API_ENDPOINTS.ADMIN_LOGIN, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, portal: 'admin' })
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Login failed'); return; }
