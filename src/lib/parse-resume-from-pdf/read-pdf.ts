@@ -14,10 +14,18 @@ export async function readPdf(fileUrl: string): Promise<TextItems> {
         pdf.getPage(i + 1).then(page => page.getTextContent())
       )
     );
-    return pageResults.flatMap(content =>
+    return pageResults.flatMap((content, pageIdx) =>
       content.items
         .filter((item): item is typeof item & { str: string } => 'str' in item && !!(item as any).str.trim())
-        .map(item => ({ text: (item as any).str, x: 0, y: 0, width: 0, height: 0 }))
+        .map(item => ({
+          text: (item as any).str,
+          x: (item as any).transform?.[4] ?? 0,
+          y: (item as any).transform?.[5] ?? 0,
+          width: (item as any).width ?? 0,
+          height: (item as any).height ?? 0,
+          page: pageIdx + 1,
+          bold: /bold/i.test((item as any).fontName || ''),
+        }))
     );
   } catch (e) {
     console.error('PDF read error:', e);

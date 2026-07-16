@@ -1,15 +1,65 @@
-"use client";
-import { useState, useEffect } from "react";
+﻿"use client";
+import { useState, useEffect, useRef, type ReactNode } from "react";
 import { readPdf } from "../../lib/parse-resume-from-pdf/read-pdf";
 import { ResumeDropzone } from "../ResumeDropzone";
 import MistralJobRecommendations from "../MistralJobRecommendations";
 import CandidateRanking from "../CandidateRanking";
 import CandidateComparison from "../CandidateComparison";
 import { parseResumeFromText, type AIParseStatus } from "./parseLogic";
+import { tokenStorage } from '../../utils/tokenStorage';
 import type { ParsedResume } from "./parseLogic";
 import { AIProgressLoader } from "../AIProgressLoader";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import { updateUserInStorage } from '../../utils/userStorage';
+
+// ── Column-aware PDF text extractor ─────────────────────────────────────────
+// For 2-column resumes, groups items by column (left/right) using X midpoint,
+// then outputs left column fully before right column so section headings stay intact.
+function convertTextItemsToText(items: { text: string; x: number; y: number; page: number }[]): string {
+  if (!items.length) return '';
+
+  // Group by page
+  const pages = new Map<number, typeof items>();
+  for (const item of items) {
+    if (!pages.has(item.page)) pages.set(item.page, []);
+    pages.get(item.page)!.push(item);
+  }
+
+  const pageTexts: string[] = [];
+
+  for (const [, pageItems] of [...pages.entries()].sort((a, b) => a[0] - b[0])) {
+    const xs = pageItems.map(i => i.x);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const midX = (minX + maxX) / 2;
+
+    // Detect if truly 2-column: check if items are spread across both halves
+    const leftItems = pageItems.filter(i => i.x < midX);
+    const rightItems = pageItems.filter(i => i.x >= midX);
+    // Sort both by Y before gap detection
+    const sortByY = (a: typeof items[0], b: typeof items[0]) => b.y - a.y;
+    leftItems.sort(sortByY);
+    rightItems.sort(sortByY);
+    // Two-column: both sides have content AND there's a clear horizontal gap
+    const leftMaxX = leftItems.length ? Math.max(...leftItems.map(i => i.x + ((i as any).width ?? 0))) : 0;
+    const rightMinX = rightItems.length ? Math.min(...rightItems.map(i => i.x)) : 0;
+    const gap = rightMinX - leftMaxX;
+    const pageWidth = maxX - minX;
+    const isTwoColumn = leftItems.length > 5 && rightItems.length > 5 && gap > pageWidth * 0.05;
+
+    if (isTwoColumn) {
+      const leftText = leftItems.map(i => i.text).join('\n');
+      const rightText = rightItems.map(i => i.text).join('\n');
+      pageTexts.push(leftText + '\n' + rightText);
+    } else {
+      // Single column — sort top-to-bottom
+      pageTexts.push(pageItems.sort((a, b) => b.y - a.y).map(i => i.text).join('\n'));
+    }
+  }
+
+  return pageTexts.join('\n');
+}
+
 
 interface ResumeParserProps {
   onNavigate?: (page: string, data?: any) => void;
@@ -23,9 +73,179 @@ const emptyResume: ParsedResume = {
   educations: [],
 };
 
+// ── Parsed Results Table (OpenResume-style) ──────────────────────────────────
+
+function CollapsibleSection({ title, children, defaultOpen = true }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <>
+      <tr
+        className="cursor-pointer select-none bg-gray-50 hover:bg-gray-100 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        <td colSpan={2} className="px-4 py-2.5 font-semibold text-gray-800 text-sm border-b border-gray-200">
+          <span className="flex items-center gap-2">
+            <svg
+              className={`w-3.5 h-3.5 text-gray-500 transition-transform ${open ? 'rotate-90' : ''}`}
+              fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+            {title}
+          </span>
+        </td>
+      </tr>
+      {open && children}
+    </>
+  );
+}
+
+function TableRow({ label, value }: { label: string; value?: ReactNode }) {
+  return (
+    <tr className="border-b border-gray-100 last:border-0">
+      <td className="px-4 py-2.5 text-sm font-medium text-gray-600 w-36 align-top whitespace-nowrap">{label}</td>
+      <td className="px-4 py-2.5 text-sm text-gray-800 align-top">{value || <span className="text-gray-300">—</span>}</td>
+    </tr>
+  );
+}
+
+function ParsedResultsTable({ resume }: { resume: ParsedResume }) {
+  const r = resume as any;
+  return (
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <table className="w-full border-collapse">
+        <tbody>
+          {/* Profile */}
+          <CollapsibleSection title="Profile">
+            <TableRow label="Name" value={resume.profile.name} />
+            <TableRow label="Email" value={resume.profile.email} />
+            <TableRow label="Phone" value={resume.profile.phone} />
+            <TableRow label="Location" value={resume.profile.address?.city || resume.profile.location} />
+            <TableRow label="Link" value={resume.profile.url} />
+            {r.summary && <TableRow label="Summary" value={r.summary} />}
+          </CollapsibleSection>
+
+          {/* Education */}
+          {resume.educations.length > 0 && (
+            <CollapsibleSection title="Education">
+              {resume.educations.map((edu: any, i: number) => (
+                <>
+                  <TableRow key={`school-${i}`} label="School" value={edu.school} />
+                  <TableRow key={`degree-${i}`} label="Degree" value={edu.degree} />
+                  <TableRow key={`gpa-${i}`} label="GPA" value={edu.gpa} />
+                  <TableRow key={`date-${i}`} label="Date" value={edu.date} />
+                  {edu.descriptions?.length > 0 && (
+                    <TableRow key={`desc-${i}`} label="Descriptions" value={
+                      <ul className="space-y-0.5">{edu.descriptions.map((d: string, j: number) => <li key={j}>• {d}</li>)}</ul>
+                    } />
+                  )}
+                </>
+              ))}
+            </CollapsibleSection>
+          )}
+
+          {/* Work Experience */}
+          {resume.workExperiences.length > 0 && (
+            <CollapsibleSection title="Work Experience">
+              {resume.workExperiences.map((exp: any, i: number) => (
+                <>
+                  <TableRow key={`company-${i}`} label="Company" value={exp.company} />
+                  <TableRow key={`title-${i}`} label="Job Title" value={exp.jobTitle} />
+                  <TableRow key={`expdate-${i}`} label="Date" value={exp.date} />
+                  {exp.descriptions?.length > 0 && (
+                    <TableRow key={`expdesc-${i}`} label="Descriptions" value={
+                      <ul className="space-y-0.5">{exp.descriptions.map((d: string, j: number) => <li key={j}>• {d}</li>)}</ul>
+                    } />
+                  )}
+                </>
+              ))}
+            </CollapsibleSection>
+          )}
+
+          {/* Projects */}
+          {r.projects?.length > 0 && (
+            <CollapsibleSection title="Projects">
+              {r.projects.map((proj: any, i: number) => (
+                <>
+                  <TableRow key={`proj-${i}`} label="Project" value={proj.name} />
+                  <TableRow key={`projdate-${i}`} label="Date" value={proj.date} />
+                  {proj.descriptions?.length > 0 && (
+                    <TableRow key={`projdesc-${i}`} label="Descriptions" value={
+                      <ul className="space-y-0.5">{proj.descriptions.map((d: string, j: number) => <li key={j}>• {d}</li>)}</ul>
+                    } />
+                  )}
+                  {proj.description && !proj.descriptions?.length && (
+                    <TableRow key={`projdesc2-${i}`} label="Descriptions" value={proj.description} />
+                  )}
+                </>
+              ))}
+            </CollapsibleSection>
+          )}
+
+          {/* Skills */}
+          {resume.skills.featuredSkills.length > 0 && (
+            <CollapsibleSection title="Skills">
+              <TableRow label="Featured Skills" value={
+                <div className="flex flex-wrap gap-1.5">
+                  {resume.skills.featuredSkills.map((s: any, i: number) => (
+                    <span key={i} className="bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded text-xs">{s.skill}</span>
+                  ))}
+                </div>
+              } />
+              {r.softSkills?.length > 0 && (
+                <TableRow label="Soft Skills" value={
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.softSkills.map((s: string, i: number) => (
+                      <span key={i} className="bg-green-50 text-green-700 border border-green-100 px-2 py-0.5 rounded text-xs">{s}</span>
+                    ))}
+                  </div>
+                } />
+              )}
+              {r.tools?.length > 0 && (
+                <TableRow label="Tools" value={
+                  <div className="flex flex-wrap gap-1.5">
+                    {r.tools.map((t: string, i: number) => (
+                      <span key={i} className="bg-gray-100 text-gray-700 border border-gray-200 px-2 py-0.5 rounded text-xs">{t}</span>
+                    ))}
+                  </div>
+                } />
+              )}
+            </CollapsibleSection>
+          )}
+
+          {/* Certifications */}
+          {r.certifications?.length > 0 && (
+            <CollapsibleSection title="Certifications">
+              {r.certifications.map((cert: any, i: number) => (
+                <>
+                  <TableRow key={`cert-${i}`} label="Name" value={cert.name} />
+                  <TableRow key={`certprov-${i}`} label="Provider" value={cert.provider} />
+                  <TableRow key={`certdate-${i}`} label="Date" value={cert.date} />
+                </>
+              ))}
+            </CollapsibleSection>
+          )}
+
+          {/* Competitions */}
+          {r.competitions?.length > 0 && (
+            <CollapsibleSection title="Competitions" defaultOpen={false}>
+              {r.competitions.map((c: string, i: number) => (
+                <TableRow key={i} label={`#${i + 1}`} value={c} />
+              ))}
+            </CollapsibleSection>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {}) {
   const [fileUrl, setFileUrl] = useState('');
   const [currentFileName, setCurrentFileName] = useState('');
+  const uploadedFileRef = useRef<File | null>(null);
   const [resume, setResume] = useState<ParsedResume>(emptyResume);
   const [rawText, setRawText] = useState('');
   const [isFileUploaded, setIsFileUploaded] = useState(false);
@@ -82,21 +302,30 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     const candidates: any[] = [];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (file.type === 'application/pdf') {
-        try {
+      try {
+        let text = '';
+        if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
           const url = URL.createObjectURL(file);
           const textItems = await readPdf(url);
-          const text = textItems.map(t => t.text).join('\n');
-          const parsed = await parseResumeFromText(text);
-          candidates.push({
-            id: `candidate-${Date.now()}-${i}`,
-            fileName: file.name,
-            resume: parsed,
-            matchScore: selectedJob ? calculateMatchingScore(parsed, selectedJob) : null
-          });
-        } catch (error) {
-          console.error(`Error processing ${file.name}:`, error);
+          if (textItems.length > 0) {
+            text = convertTextItemsToText(textItems);
+          } else {
+            // Scanned PDF — use backend OCR
+            text = await uploadToBackendOcr(file);
+          }
+        } else {
+          // Image file — use backend OCR
+          text = await uploadToBackendOcr(file);
         }
+        const parsed = await parseResumeFromText(text);
+        candidates.push({
+          id: `candidate-${Date.now()}-${i}`,
+          fileName: file.name,
+          resume: parsed,
+          matchScore: selectedJob ? calculateMatchingScore(parsed, selectedJob) : null
+        });
+      } catch (error) {
+        console.error(`Error processing ${file.name}:`, error);
       }
     }
     setUploadedCandidates(prev => [...prev, ...candidates]);
@@ -156,27 +385,61 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     };
   };
 
+  async function uploadToBackendOcr(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = tokenStorage.getAccess();
+    const res = await fetch(`${API_BASE_URL}/resume/extract-text`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.text().catch(() => '');
+      throw new Error(err || `Backend OCR failed (${res.status})`);
+    }
+    const json = await res.json();
+    if (!json.success || !json.text) throw new Error('Backend returned no text');
+    return json.text;
+  }
+
   useEffect(() => {
     if (!fileUrl) return;
-    async function parseResume() {
-      setParsing(true);
-      try {
-        setParseError(null);
-        const textItems = await readPdf(fileUrl);
-        if (!textItems.length) throw new Error('Could not extract text from PDF. The file may be scanned or image-based.');
-        const text = textItems.map(t => t.text).join('\n');
-        setRawText(text);
+   async function parseResume() {
+     setParsing(true);
+     try {
+       setParseError(null);
+       const file = uploadedFileRef.current;
+       if (!file) throw new Error('No file selected');
+       const isImage = /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(file.name);
+        let text = '';
+        let textItems: any[] = [];
+        if (isImage) {
+          // Image files — always use backend OCR
+          text = await uploadToBackendOcr(file);
+        } else {
+          // PDF — try client-side extraction first
+          textItems = await readPdf(fileUrl);
+          if (textItems.length > 0) {
+            text = convertTextItemsToText(textItems);
+          } else {
+            // Scanned PDF — fall back to backend OCR
+            text = await uploadToBackendOcr(file);
+          }
+        }
+         setRawText(text);
         const parsed = await parseResumeFromText(text, (status, detail) => setAiStatus({ status, detail }));
         setResume(parsed);
-        setIsFileUploaded(true);
-        if (selectedJob) {
-          setMatchingScore(calculateMatchingScore(parsed, selectedJob));
-        }
-      } catch (e: any) {
-        setParseError(e?.message || 'Failed to parse resume. Please try a different PDF.');
-      } finally {
-        setParsing(false);
-      }
+       setIsFileUploaded(true);
+       if (selectedJob) {
+         setMatchingScore(calculateMatchingScore(parsed, selectedJob));
+       }
+     } catch (e: any) {
+       const isTimeout = e?.name === 'AbortError';
+       setParseError(e?.message || (isTimeout ? 'AI timeout. Using local parser.' : 'Failed to parse resume. Please try a different file.'));
+     } finally {
+       setParsing(false);
+     }
     }
     parseResume();
   }, [fileUrl]);
@@ -244,11 +507,11 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
               <input
                 type="file"
                 multiple
-                accept=".pdf"
+                accept=".pdf,.jpg,.jpeg,.png,.webp"
                 onChange={(e) => e.target.files && handleBulkUpload(e.target.files)}
                 className="w-full border border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-blue-400 transition-colors"
               />
-              <p className="text-sm text-gray-500 mt-2">Select multiple PDF resumes to upload and analyze</p>
+              <p className="text-sm text-gray-500 mt-2">Select multiple PDF or image resumes to upload and analyze</p>
             </div>
           )}
           
@@ -261,7 +524,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           <div className="mt-3">
             <ResumeDropzone
               onFileUrlChange={(fileUrl, file?: File) => {
-                if (file) setCurrentFileName(file.name);
+                if (file) { setCurrentFileName(file.name); uploadedFileRef.current = file; }
                 setFileUrl(fileUrl || '');
               }}
               playgroundView={true}
@@ -297,7 +560,7 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           )}
 
           {!parsing && !isFileUploaded && !parseError && (
-            <p className="text-gray-400 text-sm text-center py-8">Upload a PDF resume to see parsed information here.</p>
+            <p className="text-gray-400 text-sm text-center py-8">Upload a PDF or image resume to see parsed information here.</p>
           )}
           
           {/* Matching Score for Employers */}
@@ -393,136 +656,19 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
               </div>
             </div>
           )}
-          <div className="space-y-6">
-            {/* Personal Info */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Personal Information</h3>
-              <div className="space-y-2">
-                <p><span className="font-medium">Name:</span> {resume.profile.name}</p>
-                <p><span className="font-medium">Email:</span> {resume.profile.email}</p>
-                <p><span className="font-medium">Phone:</span> {resume.profile.phone}</p>
-                <p><span className="font-medium">Location:</span> {resume.profile.location}</p>
-              </div>
-            </div>
-
-            {/* Skills */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Skills</h3>
-              <div className="flex flex-wrap gap-2">
-                {resume.skills.featuredSkills.map((skill: any, index: number) => (
-                  <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                    {skill.skill}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Experience */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Experience</h3>
-              {resume.workExperiences.map((exp: any, index: number) => (
-                <div key={index} className="border-l-4 border-blue-200 pl-4 mb-4">
-                  <h4 className="font-medium text-gray-900">{exp.jobTitle}</h4>
-                  <p className="text-blue-600">{exp.company}</p>
-                  <p className="text-sm text-gray-500">{exp.date}</p>
-                  <ul className="mt-1 space-y-1">
-                    {exp.descriptions.map((d: string, i: number) => (
-                      <li key={i} className="text-gray-700 text-sm">• {d}</li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-
-            {/* Education */}
-            <div>
-              <h3 className="text-lg font-medium text-gray-900 mb-3">Education</h3>
-              {resume.educations.map((edu: any, index: number) => (
-                <div key={index} className="border-l-4 border-green-200 pl-4 mb-4">
-                  <h4 className="font-medium text-gray-900">{edu.degree}</h4>
-                  <p className="text-green-600">{edu.school}</p>
-                  <p className="text-sm text-gray-500">{edu.date}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Projects */}
-            {(resume as any).projects?.length > 0 && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Projects</h3>
-                {(resume as any).projects.map((proj: any, index: number) => (
-                  <div key={index} className="border-l-4 border-purple-200 pl-4 mb-3">
-                    <h4 className="font-medium text-gray-900">{proj.name}</h4>
-                    {proj.description && <p className="text-gray-600 text-sm mt-1">{proj.description}</p>}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Competitions */}
-            {(resume as any).competitions?.length > 0 && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Competitions</h3>
-                <div className="flex flex-wrap gap-2">
-                  {(resume as any).competitions.map((c: string, i: number) => (
-                    <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm">{c}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Certifications */}
-            {(resume as any).certifications?.length > 0 && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Certifications</h3>
-                {(resume as any).certifications.map((cert: any, index: number) => (
-                  <div key={index} className="border-l-4 border-orange-200 pl-4 mb-3">
-                    <h4 className="font-medium text-gray-900">{cert.name}</h4>
-                    <p className="text-orange-600 text-sm">{cert.provider}</p>
-                    <p className="text-gray-500 text-sm">{cert.date}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Tools */}
-            {(resume as any).tools?.length > 0 && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Tools</h3>
-                <div className="flex flex-wrap gap-2">
-                  {(resume as any).tools.map((t: string, i: number) => (
-                    <span key={i} className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-sm">{t}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Soft Skills */}
-            {(resume as any).softSkills?.length > 0 && (
-              <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Soft Skills</h3>
-                <div className="flex flex-wrap gap-2">
-                  {(resume as any).softSkills.map((s: string, i: number) => (
-                    <span key={i} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-
-          </div>
+          <ParsedResultsTable resume={resume} />
         </div>
       </div>
       
-      {/* Candidate Ranking & Filtering for Employers */}
+      {/* Candidate Ranking Engine v2 — Hybrid AI + Rule-based */}
       {user?.type === 'employer' && uploadedCandidates.length > 0 && (
         <>
           <CandidateRanking
             candidates={getFilteredAndRankedCandidates()}
             selectedJob={selectedJob}
             onSelectCandidate={(candidateId) => {
-              setSelectedCandidates(prev => 
-                prev.includes(candidateId) 
+              setSelectedCandidates(prev =>
+                prev.includes(candidateId)
                   ? prev.filter(id => id !== candidateId)
                   : [...prev, candidateId]
               );
@@ -531,19 +677,19 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
             filterCriteria={filterCriteria}
             onFilterChange={setFilterCriteria}
           />
-          
-          {/* Comparison Actions */}
-          {selectedCandidates.length > 1 && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => setShowComparison(true)}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
-              >
-                Compare Selected Candidates ({selectedCandidates.length})
-              </button>
-            </div>
-          )}
-        </>
+            
+            {/* Comparison Actions */}
+            {selectedCandidates.length > 1 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => setShowComparison(true)}
+                  className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Compare Selected Candidates ({selectedCandidates.length})
+                </button>
+              </div>
+            )}
+          </>
       )}
       
       {/* Candidate Comparison Modal */}

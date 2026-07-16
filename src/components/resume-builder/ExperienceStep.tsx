@@ -1,299 +1,389 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Sparkles, Loader2, Lightbulb } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Sparkles, Loader2, Check, X, Copy } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
-import { resumeBuilderAPI } from '../../services/resumeBuilderAPI';
+import { executeResumeAI } from '../../services/resumeAIClient';
 
 export default function ExperienceStep() {
   const { data, addExperience, updateExperience, removeExperience } = useResumeStore();
   const [aiLoading, setAiLoading] = useState<string | null>(null);
-  const [suggestions, setSuggestions] = useState<{ [key: string]: any }>({});
-  const [showSuggestions, setShowSuggestions] = useState<string | null>(null);
+  const [aiError, setAiError] = useState('');
+  const [suggestion, setSuggestion] = useState<{
+    expId: string;
+    bIdx: number;
+    suggested: string;
+  } | null>(null);
+  const [roleSummary, setRoleSummary] = useState<Record<string, string>>({});
+  const [roleSummaryLoading, setRoleSummaryLoading] = useState<string | null>(null);
+  const [generatedCount, setGeneratedCount] = useState<Record<string, number>>({});
+  const debounceTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const prevTitles = useRef<Record<string, string>>({});
+  const MAX_AUTO_BULLETS = 6;
 
-  // AI Generate bullets for specific experience
+  const fetchRoleSummary = async (expId: string, title: string, company: string) => {
+    setRoleSummaryLoading(expId);
+    try {
+      const count = generatedCount[expId] || 0;
+      const prompt = count === 0
+        ? `Write 1 brief sentence describing the core responsibilities of a ${title} at ${company || 'a company'}. Keep it under 20 words. No markdown. No quotes.`
+        : `Write another achievement bullet point for a ${title} at ${company || 'a company'}. Start with a strong action verb. Keep it under 20 words. No markdown. No quotes. Don't repeat previous points.`;
+      const res = await executeResumeAI({
+        section: 'experience', action: 'generate',
+        content: prompt,
+        experienceId: expId,
+      });
+      if (res.result) {
+        const clean = res.result.replace(/^["'"]|["'"]$/g, '').trim();
+        setRoleSummary(prev => ({ ...prev, [expId]: clean }));
+      }
+    } catch {} finally { setRoleSummaryLoading(null); }
+  };
+
+  // Auto-fetch role summary when title changes
+  useEffect(() => {
+    data.experience.forEach(exp => {
+      if (!exp.title?.trim() || !exp.company?.trim()) return;
+      if (roleSummary[exp.id] && prevTitles.current[exp.id] === exp.title) return;
+      prevTitles.current[exp.id] = exp.title;
+      setGeneratedCount(prev => ({ ...prev, [exp.id]: 0 }));
+
+      const existing = debounceTimers.current.get(exp.id);
+      if (existing) clearTimeout(existing);
+
+      const timer = setTimeout(() => fetchRoleSummary(exp.id, exp.title, exp.company), 1200);
+      debounceTimers.current.set(exp.id, timer);
+    });
+    return () => { debounceTimers.current.forEach(t => clearTimeout(t)); };
+  }, [data.experience.map(e => `${e.title}|${e.company}`).join('||')]);
+
+
+
+  const improveBullet = async (expId: string, bIdx: number, text: string) => {
+    if (!text.trim()) return;
+    setAiLoading(`${expId}-${bIdx}`);
+    setAiError('');
+    try {
+      const res = await executeResumeAI({ section: 'experience', action: 'improve', content: text, experienceId: expId });
+      setSuggestion({ expId, bIdx, suggested: res.result || '' });
+    } catch {
+      setAiError('AI unavailable.');
+    } finally {
+      setAiLoading(null);
+    }
+  };
+
   const generateBullets = async (expId: string) => {
-    const exp = data.experience.find((e) => e.id === expId);
-    if (!exp || !exp.title || !exp.company) {
-      alert('Please enter job title and company first');
-      return;
-    }
-
+    const exp = data.experience.find(e => e.id === expId);
+    if (!exp || !exp.title || !exp.company) return;
     setAiLoading(expId);
+    setAiError('');
     try {
-      let bullets: string[] = [];
-      try {
-        const result = await resumeBuilderAPI.generateContent({
-          jobTitle: exp.title,
-          experience: `${exp.title} at ${exp.company}`,
-        });
-        bullets = result.bullets;
-      } catch {
-        // Local fallback bullets
-        bullets = [
-          `Led key initiatives as ${exp.title} at ${exp.company}, improving team efficiency by 25%`,
-          `Collaborated with cross-functional teams to deliver projects on time and within budget`,
-          `Implemented process improvements that reduced errors by 30% and enhanced quality`,
-          `Mentored junior team members and facilitated knowledge-sharing sessions`,
-          `Optimized workflows resulting in 20% reduction in delivery time`,
-        ];
+      const context = `Job Title: ${exp.title}\nCompany: ${exp.company}${exp.location ? `\nLocation: ${exp.location}` : ''}\n\nGenerate 4 achievement-focused bullet points for this role. Each bullet must start with a strong action verb and include measurable impact where possible. Return as a simple numbered list, one per line.`;
+      const res = await executeResumeAI({ section: 'experience', action: 'generate', content: context, experienceId: expId });
+      if (res.result) {
+        const bullets = res.result.split('\n').map(l => l.replace(/^[\d.▪•\-*\s]+/, '').trim()).filter(Boolean).slice(0, 4);
+        if (bullets.length > 0) updateExperience(expId, 'bullets', bullets);
       }
-      updateExperience(expId, 'bullets', bullets);
+    } catch {
+      setAiError('AI unavailable.');
     } finally {
       setAiLoading(null);
     }
   };
 
-  // Get AI suggestions for a specific bullet
-  const getSuggestions = async (expId: string, bulletIdx: number, text: string) => {
-    if (!text.trim() || text.length < 10) return;
-
-    const key = `${expId}-${bulletIdx}`;
-    setAiLoading(key);
-
-    try {
-      let suggestionList: any[] = [];
-      try {
-        const exp = data.experience.find((e) => e.id === expId);
-        const result = await resumeBuilderAPI.suggestBullets({
-          text,
-          jobTitle: exp?.title,
-        });
-        suggestionList = result.suggestions;
-      } catch {
-        // Local fallback suggestions
-        const verbs = ['Spearheaded','Engineered','Optimized','Delivered','Implemented','Streamlined'];
-        const v1 = verbs[Math.floor(Math.random() * verbs.length)];
-        const v2 = verbs[Math.floor(Math.random() * verbs.length)];
-        suggestionList = [
-          { original: text, improved: `${v1} ${text.charAt(0).toLowerCase() + text.slice(1)}, resulting in measurable improvement in team productivity`, reason: 'Added strong action verb and quantified impact' },
-          { original: text, improved: `${v2} ${text.charAt(0).toLowerCase() + text.slice(1)}, achieving 20% efficiency gain`, reason: 'Alternative with specific metric' },
-        ];
-      }
-      setSuggestions((prev) => ({ ...prev, [key]: suggestionList }));
-      setShowSuggestions(key);
-    } finally {
-      setAiLoading(null);
-    }
-  };
-
-  // Apply AI suggestion
-  const applySuggestion = (expId: string, bulletIdx: number, improved: string) => {
-    const exp = data.experience.find((e) => e.id === expId);
+  const duplicateExperience = (id: string) => {
+    const exp = data.experience.find(e => e.id === id);
     if (!exp) return;
+    addExperience();
+    const newId = data.experience[data.experience.length - 1]?.id;
+    if (newId) {
+      updateExperience(newId, 'title', exp.title);
+      updateExperience(newId, 'company', exp.company);
+      updateExperience(newId, 'location', exp.location || '');
+      updateExperience(newId, 'duration', exp.duration);
+      updateExperience(newId, 'current', exp.current);
+      updateExperience(newId, 'bullets', [...exp.bullets]);
+    }
+  };
 
-    const newBullets = [...exp.bullets];
-    newBullets[bulletIdx] = improved;
-    updateExperience(expId, 'bullets', newBullets);
-    setShowSuggestions(null);
+  const acceptSuggestion = () => {
+    if (!suggestion) return;
+    const exp = data.experience.find(e => e.id === suggestion.expId);
+    if (exp) {
+      const bullets = [...exp.bullets];
+      bullets[suggestion.bIdx] = suggestion.suggested;
+      updateExperience(suggestion.expId, 'bullets', bullets);
+    }
+    setSuggestion(null);
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-5">
+      <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Work Experience</h2>
-          <p className="text-gray-600">Add your professional experience</p>
+          <h2 className="text-xl font-bold text-gray-900">Work Experience</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Showcase your professional journey and achievements</p>
         </div>
-        <button
-          onClick={addExperience}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Add Experience
+        <button onClick={addExperience} className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+          <Plus className="w-4 h-4" /> Add Experience
         </button>
       </div>
 
+      {aiError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 flex items-center justify-between">
+          <span>{aiError}</span>
+          <button onClick={() => setAiError('')} className="text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+
       {data.experience.length === 0 ? (
         <div className="text-center py-12 border-2 border-dashed border-gray-200 rounded-xl">
-          <p className="text-gray-500 mb-4">No experience added yet</p>
-          <button
-            onClick={addExperience}
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            + Add your first experience
-          </button>
+          <p className="text-gray-500 mb-3">No experience added yet</p>
+          <button onClick={addExperience} className="text-blue-600 hover:text-blue-700 font-medium text-sm">+ Add your first experience</button>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {data.experience.map((exp, idx) => (
-            <div key={exp.id} className="p-6 border border-gray-200 rounded-xl space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-900">Experience {idx + 1}</h3>
-                <button
-                  onClick={() => removeExperience(exp.id)}
-                  className="text-red-500 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Job Title *</label>
-                  <input
-                    type="text"
-                    value={exp.title}
-                    onChange={(e) => updateExperience(exp.id, 'title', e.target.value)}
-                    placeholder="e.g. Software Engineer"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Company *</label>
-                  <input
-                    type="text"
-                    value={exp.company}
-                    onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                    placeholder="e.g. TCS"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                  <input
-                    type="text"
-                    value={exp.location ?? ''}
-                    onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
-                    placeholder="e.g. Chennai, India"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration *</label>
-                  <input
-                    type="text"
-                    value={exp.duration}
-                    onChange={(e) => updateExperience(exp.id, 'duration', e.target.value)}
-                    placeholder="e.g. Jan 2020 - Present"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="flex items-center pt-6">
-                  <input
-                    type="checkbox"
-                    checked={exp.current}
-                    onChange={(e) => updateExperience(exp.id, 'current', e.target.checked)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                  <label className="ml-2 text-sm text-gray-700">Currently working here</label>
-                </div>
-              </div>
-
-              {/* AI Generate Bullets Button */}
-              <div className="border-t border-gray-100 pt-2 space-y-2">
-                <div className="flex items-center justify-between pb-2">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Key Achievements (bullet points)
-                  </label>
-                  <button
-                    onClick={() => generateBullets(exp.id)}
-                    disabled={aiLoading === exp.id || !exp.title || !exp.company}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {aiLoading === exp.id ? (
-                      <>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Generating...
-                      </>
+              <div key={exp.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden hover:border-gray-300 transition-colors">
+              {/* Card header */}
+              <div className="flex items-center justify-between px-5 py-3 bg-gray-50/80 border-b border-gray-100">
+                <div className="min-w-0 flex-1 mr-3">
+                  <h3 className="text-sm font-semibold text-gray-800 truncate">
+                    {exp.title || exp.company ? (
+                      <>{exp.title || 'Untitled'}{exp.company ? <span className="font-normal text-gray-500"> at {exp.company}</span> : null}</>
                     ) : (
-                      <>
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Write with AI
-                      </>
+                      <>Experience {idx + 1}</>
                     )}
+                  </h3>
+                  {exp.duration && <p className="text-[11px] text-gray-400 mt-0.5">{exp.duration}</p>}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={() => generateBullets(exp.id)} disabled={aiLoading === exp.id || !exp.title || !exp.company}
+                    className="flex items-center gap-1 px-2 py-1 text-xs bg-purple-50 text-purple-700 rounded-md hover:bg-purple-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    {aiLoading === exp.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    Auto-fill
+                  </button>
+                  <button onClick={() => duplicateExperience(exp.id)}
+                    className="p-1.5 text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded transition-colors" title="Duplicate">
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                  <button onClick={() => removeExperience(exp.id)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors">
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                {exp.bullets.map((bullet, bIdx) => {
-                  const key = `${exp.id}-${bIdx}`;
-                  const hasSuggestions = suggestions[key]?.length > 0;
+              </div>
 
-                  return (
-                    <div key={bIdx} className="space-y-2">
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="text"
-                          value={bullet}
-                          onChange={(e) => {
-                            const newBullets = [...exp.bullets];
-                            newBullets[bIdx] = e.target.value;
-                            updateExperience(exp.id, 'bullets', newBullets);
-                          }}
-                          onBlur={(e) => {
-                            if (e.target.value.trim().length >= 10) {
-                              getSuggestions(exp.id, bIdx, e.target.value);
-                            }
-                          }}
-                          placeholder="• Led team of 5 developers to deliver project 2 weeks ahead of schedule"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
-                        <button
-                          onClick={() => getSuggestions(exp.id, bIdx, bullet)}
-                          disabled={aiLoading === key || !bullet.trim() || bullet.length < 10}
-                          className="w-full sm:w-auto px-3 py-2 text-purple-600 hover:bg-purple-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                          title="Get AI suggestions"
-                        >
-                          {aiLoading === key ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Lightbulb className="w-4 h-4" />
-                          )}
-                        </button>
-                        {exp.bullets.length > 1 && (
-                          <button
-                            onClick={() => {
-                              const newBullets = exp.bullets.filter((_, i) => i !== bIdx);
-                              updateExperience(exp.id, 'bullets', newBullets);
-                            }}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
+              {/* Fields */}
+              <div className="p-5 space-y-4">
+                <p className="text-[10px] text-gray-400 flex items-center gap-1 -mt-1"><span className="text-amber-400">💡</span> Start each bullet with a strong action verb: <span className="text-amber-500 font-medium">Led</span>, <span className="text-amber-500 font-medium">Built</span>, <span className="text-amber-500 font-medium">Optimized</span>, <span className="text-amber-500 font-medium">Designed</span></p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Job Title <span className="text-red-500">*</span></label>
+                    <input type="text" value={exp.title} onChange={(e) => updateExperience(exp.id, 'title', e.target.value)}
+                      placeholder="e.g. Software Engineer"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Company <span className="text-red-500">*</span></label>
+                    <input type="text" value={exp.company} onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
+                      placeholder="e.g. TCS"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
+                    <input type="text" value={exp.location ?? ''} onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
+                      placeholder="e.g. Chennai, India"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1.5">Duration <span className="text-red-500">*</span></label>
+                    <input type="text" value={exp.duration} onChange={(e) => updateExperience(exp.id, 'duration', e.target.value)}
+                      placeholder="e.g. Jan 2020 - Present"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id={`current-${exp.id}`} checked={exp.current}
+                      onChange={(e) => {
+                        updateExperience(exp.id, 'current', e.target.checked);
+                        if (e.target.checked && !exp.duration?.toLowerCase().includes('present')) {
+                          const start = exp.duration?.split('–')[0]?.trim() || exp.duration?.split('-')[0]?.trim() || '';
+                          updateExperience(exp.id, 'duration', start ? `${start} – Present` : 'Present');
+                        }
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500" />
+                    <label htmlFor={`current-${exp.id}`} className="text-sm text-gray-600">Currently working here</label>
+                  </div>
+                </div>
+
+                {/* Role summary - loading skeleton */}
+                {exp.title && exp.company && roleSummaryLoading === exp.id && !roleSummary[exp.id] && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-5 overflow-hidden relative">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-100/40 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" style={{ backgroundSize: '200% 100%' }} />
+                    <div className="relative flex items-center gap-4">
+                      <div className="w-10 h-10 bg-indigo-200/50 rounded-xl flex items-center justify-center animate-pulse">
+                        <Sparkles className="w-5 h-5 text-indigo-400" />
                       </div>
+                      <div className="flex-1 space-y-2.5">
+                        <div className="h-3 bg-indigo-200/50 rounded-full w-24 animate-pulse" />
+                        <div className="h-3 bg-indigo-200/30 rounded-full w-full animate-pulse" />
+                        <div className="h-3 bg-indigo-200/30 rounded-full w-3/4 animate-pulse" />
+                      </div>
+                    </div>
+                    <div className="relative flex items-center gap-2 mt-4">
+                      <Loader2 className="w-3.5 h-3.5 text-indigo-400 animate-spin" />
+                      <p className="text-xs text-indigo-500 font-medium">AI is analyzing this role...</p>
+                    </div>
+                  </div>
+                )}
 
-                      {/* AI Suggestions Dropdown */}
-                      {showSuggestions === key && hasSuggestions && (
-                        <div className="ml-2 p-3 bg-purple-50 border border-purple-200 rounded-lg space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-purple-700 flex items-center gap-1">
-                              <Sparkles className="w-3 h-3" />
-                              AI Suggestions
+                {/* Role summary - suggestion card */}
+                {exp.title && exp.company && (roleSummary[exp.id] || roleSummaryLoading === exp.id) && (roleSummary[exp.id] || generatedCount[exp.id] === 0) && (
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-5">
+                    <div className="flex items-start gap-4">
+                      <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                        <Sparkles className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">
+                            {generatedCount[exp.id] === 0 ? 'AI Suggestion' : `AI Suggestion #${(generatedCount[exp.id] || 0) + 1}`}
+                          </span>
+                          {roleSummaryLoading === exp.id && roleSummary[exp.id] && (
+                            <span className="flex items-center gap-1.5 text-[11px] text-indigo-400 font-medium">
+                              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping" />
+                              preparing next...
                             </span>
-                            <button
-                              onClick={() => setShowSuggestions(null)}
-                              className="text-xs text-gray-500 hover:text-gray-700"
-                            >
-                              ✕
+                          )}
+                        </div>
+
+                        {/* Skeleton while loading next */}
+                        {roleSummaryLoading === exp.id && !roleSummary[exp.id] ? (
+                          <div className="space-y-2.5 py-1">
+                            <div className="h-4 bg-indigo-200/50 rounded-full w-full animate-pulse" />
+                            <div className="h-4 bg-indigo-200/30 rounded-full w-2/3 animate-pulse" />
+                            <div className="flex items-center gap-2 mt-3">
+                              <div className="h-8 bg-indigo-200/30 rounded-lg w-28 animate-pulse" />
+                              <div className="h-8 bg-indigo-200/30 rounded-lg w-24 animate-pulse" />
+                            </div>
+                          </div>
+                        ) : roleSummary[exp.id] ? (
+                          <p className="text-sm text-gray-700 leading-relaxed">{roleSummary[exp.id]}</p>
+                        ) : null}
+
+                        {roleSummaryLoading !== exp.id && roleSummary[exp.id] && (
+                          <div className="flex items-center gap-2 mt-4 flex-wrap">
+                            <button onClick={() => {
+                              const bullet = roleSummary[exp.id];
+                              updateExperience(exp.id, 'bullets', [...exp.bullets.filter(b => b.trim()), bullet]);
+                              setRoleSummary(prev => { const n = { ...prev }; delete n[exp.id]; return n; });
+                              setGeneratedCount(prev => ({ ...prev, [exp.id]: (prev[exp.id] || 0) + 1 }));
+                              if ((generatedCount[exp.id] || 0) + 1 < MAX_AUTO_BULLETS) {
+                                fetchRoleSummary(exp.id, exp.title, exp.company);
+                              }
+                            }}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 shadow-sm transition-all">
+                              <Plus className="w-3.5 h-3.5" /> Add as Bullet
+                            </button>
+                            <button onClick={() => {
+                              generateBullets(exp.id);
+                              setRoleSummary(prev => { const n = { ...prev }; delete n[exp.id]; return n; });
+                              setGeneratedCount(prev => ({ ...prev, [exp.id]: MAX_AUTO_BULLETS }));
+                            }}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-white text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-50 transition-all">
+                              <Sparkles className="w-3.5 h-3.5" /> Full Bullets
+                            </button>
+                            <button onClick={() => setGeneratedCount(prev => ({ ...prev, [exp.id]: MAX_AUTO_BULLETS }))}
+                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-white/60 rounded-lg transition-colors ml-auto" title="Dismiss">
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
-                          {suggestions[key].map((sug: any, i: number) => (
-                            <div key={i} className="bg-white p-2 rounded border border-purple-100">
-                              <p className="text-sm text-gray-800 mb-1">{sug.improved}</p>
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">{sug.reason}</span>
-                                <button
-                                  onClick={() => applySuggestion(exp.id, bIdx, sug.improved)}
-                                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                                >
-                                  Use this
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  );
-                })}
-                <button
-                  onClick={() => updateExperience(exp.id, 'bullets', [...exp.bullets, ''])}
-                  className="text-sm text-blue-600 hover:text-blue-700 mt-2"
-                >
-                  + Add bullet point
-                </button>
+
+                    {/* Progress dots */}
+                    {(generatedCount[exp.id] || 0) > 0 && (
+                      <div className="flex items-center gap-1.5 mt-4 pt-3 border-t border-indigo-200/50">
+                        {Array.from({ length: Math.min((generatedCount[exp.id] || 0) + 1, MAX_AUTO_BULLETS) }).map((_, i) => (
+                          <div key={i} className={`w-2 h-2 rounded-full ${i < (generatedCount[exp.id] || 0) ? 'bg-indigo-400' : 'bg-indigo-200'} ${i === (generatedCount[exp.id] || 0) - 1 ? 'animate-pulse' : ''}`} />
+                        ))}
+                        <span className="text-[10px] text-indigo-400 ml-1 font-medium">
+                          {Math.min((generatedCount[exp.id] || 0), MAX_AUTO_BULLETS)}/{MAX_AUTO_BULLETS}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Bullets */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-2">Key Achievements</label>
+                  <p className="text-[10px] text-gray-400 mb-2 flex items-center gap-1"><span className="text-blue-400">💡</span> Use numbers — recruiters love measurable impact (<span className="text-blue-500 font-medium">40%</span>, <span className="text-blue-500 font-medium">$50K</span>, <span className="text-blue-500 font-medium">200+ users</span>)</p>
+                  <div className="space-y-2">
+                    {exp.bullets.map((bullet, bIdx) => (
+                      <div key={bIdx} className="flex gap-2">
+                        <span className="text-gray-400 mt-2.5 shrink-0">•</span>
+                        <div className="flex-1">
+                          <input type="text" value={bullet}
+                            onChange={(e) => {
+                              const b = [...exp.bullets]; b[bIdx] = e.target.value;
+                              updateExperience(exp.id, 'bullets', b);
+                            }}
+                            placeholder="e.g. Worked on REST APIs"
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {suggestion?.expId === exp.id && suggestion?.bIdx === bIdx ? (
+                            <div className="flex items-center gap-1">
+                              <button onClick={acceptSuggestion}
+                                className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="Accept">
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button onClick={() => setSuggestion(null)}
+                                className="p-1.5 text-gray-400 hover:bg-gray-100 rounded" title="Reject">
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <button onClick={() => improveBullet(exp.id, bIdx, bullet)}
+                              disabled={aiLoading === `${exp.id}-${bIdx}` || !bullet.trim()}
+                              className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded disabled:opacity-30 transition-colors" title="Improve with AI">
+                              {aiLoading === `${exp.id}-${bIdx}` ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                            </button>
+                          )}
+                          {exp.bullets.length > 1 && (
+                            <button onClick={() => {
+                              if (exp.bullets.length > 1) updateExperience(exp.id, 'bullets', exp.bullets.filter((_, i) => i !== bIdx));
+                            }}
+                              className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Delete">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => updateExperience(exp.id, 'bullets', [...exp.bullets, ''])}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium mt-2">+ Add bullet point</button>
+                </div>
+
+                {/* Inline suggestion */}
+                {suggestion && suggestion.expId === exp.id && (
+                  <div className="flex items-center gap-2 p-3 bg-purple-50 border border-purple-200 rounded-lg text-sm">
+                    <Sparkles className="w-4 h-4 text-purple-500 shrink-0" />
+                    <input type="text" value={suggestion.suggested} readOnly
+                      className="flex-1 text-purple-900 bg-transparent border-none focus:outline-none text-sm"
+                    />
+                    <button onClick={acceptSuggestion}
+                      className="px-3 py-1 text-xs font-semibold bg-purple-600 text-white rounded-md hover:bg-purple-700">
+                      Accept
+                    </button>
+                    <button onClick={() => setSuggestion(null)}
+                      className="px-3 py-1 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">
+                      X
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

@@ -6,7 +6,10 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:5000'
 
+  const aiProxyTarget = env.VITE_AI_PROXY_TARGET || 'http://localhost:8001'
+
   console.log('🔧 Vite proxy target:', proxyTarget)
+  console.log('🔧 AI proxy target:', aiProxyTarget)
 
   return {
     plugins: [react(), tailwindcss()],
@@ -61,6 +64,13 @@ export default defineConfig(({ mode }) => {
           target: proxyTarget,
           changeOrigin: true,
           secure: false,
+        },
+        '/recruitment-ai': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/recruitment-ai/, ''),
+          configure: () => console.log(`🔧 Recruitment AI proxy configured for ${aiProxyTarget}`),
         },
       },
     },

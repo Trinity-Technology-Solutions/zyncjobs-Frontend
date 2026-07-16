@@ -87,6 +87,7 @@ const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
 const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
 const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
+
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
@@ -883,7 +884,9 @@ function App() {
 
             <Route path="/resume-builder" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <ResumeBuilderPage {...nav} />
+                <WithLayout {...nav}>
+                  <ResumeBuilderPage {...nav} />
+                </WithLayout>
               </AuthGuard>
             } />
 
