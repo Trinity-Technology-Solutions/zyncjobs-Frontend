@@ -90,6 +90,9 @@ export const API_ENDPOINTS = {
   // Surepass GST Verification (sandbox)
   SUREPASS_GST: 'https://kyc-api.surepass.io/api/v1/corporate/gstin',
 
+  // Admin Login
+  ADMIN_LOGIN: `${config.API_URL}/users/login`,
+
   // Admin Invite
   ADMIN_INVITE: `${config.API_URL}/admin/users/invite-admin`,
   ADMIN_ACCEPT_INVITE: `${config.API_URL}/admin/users/accept-invite`,
