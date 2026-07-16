@@ -322,17 +322,26 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
-  const deleteJob = async (jobId: string) => {
+  const deleteJob = (jobId: string) => {
     if (!jobId) { 
       console.error('Delete job called with invalid ID:', jobId);
       showNotification('Invalid job ID.', 'error'); 
       return; 
     }
     
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Job Post',
+      message: 'Are you sure you want to delete this job posting? This action cannot be undone.',
+      onConfirm: () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        performDeleteJob(jobId);
+      }
+    });
+  };
+
+  const performDeleteJob = async (jobId: string) => {
     console.log('Attempting to delete job with ID:', jobId);
-    
-    const ok = await (window as any).confirmAsync('Are you sure you want to delete this job posting?');
-    if (!ok) return;
     
     try {
       // Check if user is authenticated
@@ -416,8 +425,18 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       return; 
     }
     
-    const ok = await (window as any).confirmAsync(`Delete ${selectedJobs.length} selected job(s)?`);
-    if (!ok) return;
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Delete Selected Jobs',
+      message: `Are you sure you want to delete ${selectedJobs.length} selected job${selectedJobs.length > 1 ? 's' : ''}? This action cannot be undone.`,
+      onConfirm: () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        performBulkDelete();
+      }
+    });
+  };
+
+  const performBulkDelete = async () => {
     
     try {
       // Check authentication
@@ -446,27 +465,27 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
     }
   };
 
-  const handleRemoveSavedJob = async (jobId: string) => {
-    const confirmed = await (window as any).confirmAsync(
-      'Are you sure you want to remove this job from your saved list?'
-    );
-    if (!confirmed) return;
-    const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
-    setSavedJobs(updatedJobs);
-    
-    // Get user email from localStorage user object for consistency
-    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-    const userKey = userData?.email || user?.name || 'user';
-    const detailsKey = `savedJobDetails_${userKey}`;
-    const idsKey = `savedJobs_${userKey}`;
-    
-    localStorage.setItem(detailsKey, JSON.stringify(updatedJobs));
-    try {
-      const ids = JSON.parse(localStorage.getItem(idsKey) || '[]');
-      localStorage.setItem(idsKey, JSON.stringify(ids.filter((id: string) => id !== jobId)));
-    } catch { /* ignore */ }
-    // Notify dashboard to sync bookmark state
-    window.dispatchEvent(new CustomEvent('zync:savedJobsUpdated', { detail: { removedId: jobId } }));
+  const handleRemoveSavedJob = (jobId: string) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Remove Saved Job',
+      message: 'Are you sure you want to remove this job from your saved list?',
+      onConfirm: () => {
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
+        setSavedJobs(updatedJobs);
+        const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
+        const userKey = userData?.email || user?.name || 'user';
+        const detailsKey = `savedJobDetails_${userKey}`;
+        const idsKey = `savedJobs_${userKey}`;
+        localStorage.setItem(detailsKey, JSON.stringify(updatedJobs));
+        try {
+          const ids = JSON.parse(localStorage.getItem(idsKey) || '[]');
+          localStorage.setItem(idsKey, JSON.stringify(ids.filter((id: string) => id !== jobId)));
+        } catch { /* ignore */ }
+        window.dispatchEvent(new CustomEvent('zync:savedJobsUpdated', { detail: { removedId: jobId } }));
+      }
+    });
   };
 
   const handleSearch = () => {
@@ -957,66 +976,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                                   showNotification('Please select jobs to delete', 'error');
                                   return;
                                 }
-                                
-                                const confirmed = await (window as any).confirmAsync(
-                                  `Are you sure you want to delete ${selectedJobs.length} selected job${selectedJobs.length > 1 ? 's' : ''}? This action cannot be undone.`
-                                );
-                                
-                                if (!confirmed) return;
-                                
-                                try {
-                                  console.log('Deleting selected jobs:', selectedJobs);
-                                  
-                                  // Check authentication
-                                  const { tokenStorage } = await import('../utils/tokenStorage');
-                                  const accessToken = tokenStorage.getAccess();
-                                  
-                                  if (!accessToken) {
-                                    showNotification('Please log in again to delete jobs.', 'error');
-                                    if (onLogout) onLogout();
-                                    return;
-                                  }
-                                  
-                                  // Delete jobs one by one
-                                  const deletePromises = selectedJobs.map(jobId => 
-                                    apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' })
-                                  );
-                                  
-                                  const results = await Promise.allSettled(deletePromises);
-                                  
-                                  const successCount = results.filter(result => 
-                                    result.status === 'fulfilled' && result.value.ok
-                                  ).length;
-                                  
-                                  const failCount = results.length - successCount;
-                                  
-                                  if (successCount > 0) {
-                                    // Remove successfully deleted jobs from state
-                                    setPostedJobs(prev => prev.filter(job => !selectedJobs.includes(getId(job))));
-                                    setSelectedJobs([]);
-                                    
-                                    // Dispatch events for dashboard sync
-                                    selectedJobs.forEach(jobId => {
-                                      window.dispatchEvent(new CustomEvent('jobDeleted', { detail: { jobId } }));
-                                    });
-                                    
-                                    if (failCount === 0) {
-                                      showNotification(`Successfully deleted ${successCount} job${successCount > 1 ? 's' : ''}!`);
-                                    } else {
-                                      showNotification(`Deleted ${successCount} job${successCount > 1 ? 's' : ''}, ${failCount} failed.`, 'error');
-                                    }
-                                    
-                                    // Refresh the jobs list
-                                    setTimeout(() => {
-                                      fetchPostedJobs();
-                                    }, 1000);
-                                  } else {
-                                    showNotification('Failed to delete selected jobs. Please try again.', 'error');
-                                  }
-                                } catch (error) {
-                                  console.error('Error deleting jobs:', error);
-                                  showNotification('Error deleting jobs. Please try again.', 'error');
-                                }
+                                bulkDeleteJobs();
                               }}
                               disabled={selectedJobs.length === 0}
                               className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${

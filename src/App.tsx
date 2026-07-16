@@ -857,7 +857,7 @@ function App() {
             } />
 
             <Route path="/candidate-ranking" element={
-              <CandidateRankingPage onNavigate={nav.onNavigate} user={user} />
+              <CandidateRankingPage onNavigate={nav.onNavigate} user={user} onLogout={handleLogout} />
             } />
 
             <Route path="/ai-recruiter" element={

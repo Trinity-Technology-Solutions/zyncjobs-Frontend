@@ -14,7 +14,6 @@ import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import { tokenStorage } from '../utils/tokenStorage';
 import ResumeModal from '../components/ResumeModal';
 import NotificationService, { Notification } from '../services/notificationService';
-import { updateUserInStorage } from '../utils/userStorage';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { useToast, ToastType } from '../hooks/useToast';
 import NotificationComponent from '../components/Notification';
@@ -88,6 +87,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [closingJobId, setClosingJobId] = useState<string | null>(null);
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -196,6 +196,38 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       clearInterval(notificationInterval);
     };
   }, []); // Run once on mount only
+
+  const closeJob = async (jobId: string) => {
+    if (!jobId) return;
+    openConfirm(
+      'Close Job',
+      'Are you sure you want to close this job posting? This will stop new applications from being accepted.',
+      async () => {
+        closeConfirm();
+        setClosingJobId(jobId);
+        try {
+          const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/close`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'closed' })
+          });
+
+          if (response.ok) {
+            setJobs(prev => prev.map(job => (job._id || job.id) === jobId ? { ...job, status: 'closed' } : job));
+            showToast('Job closed successfully.', 'success');
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.error || 'Failed to close job');
+          }
+        } catch (error) {
+          console.error('Error closing job:', error);
+          showToast(error instanceof Error ? error.message : 'Failed to close job. Please try again.', 'error');
+        } finally {
+          setClosingJobId(null);
+        }
+      }
+    );
+  };
 
   useEffect(() => {
     // Prefer the user prop from App.tsx (React state) as primary source of truth.
@@ -896,7 +928,6 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
                 { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
                 { key: 'analytics',        label: 'Analytics',         icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true },
-
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
@@ -2114,10 +2145,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               View Details
                             </button>
                             <button 
-                              onClick={async () => {
-                                await NotificationService.deleteNotification(notification.id);
-                                setNotifications(prev => prev.filter(n => n.id !== notification.id));
-                              }}
+                              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
                               className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
                             >
                               Dismiss
@@ -2195,7 +2223,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       </div>
 
       {/* Notification Slide-in Drawer (same as candidate page) */}
-      {showNotifications && ( 
+      {showNotifications && (
         <>
           <div
             className="fixed inset-0 bg-black bg-opacity-50 z-40"
@@ -2207,12 +2235,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="flex items-center gap-3">
                 {notifications.length > 0 && (
                   <button
-                    onClick={async () => {
-                      await Promise.allSettled(
-                        notifications.map(n => NotificationService.deleteNotification(n.id))
-                      );
-                      setNotifications([]);
-                    }}
+                    onClick={() => setNotifications([])}
                     className="text-xs text-gray-500 hover:text-red-600 transition-colors"
                   >
                     Clear all
@@ -2262,9 +2285,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <span className="text-xs text-gray-400">{NotificationService.formatTime(notification.time)}</span>
                         </div>
                         <button
-                          onClick={async (e) => {
+                          onClick={(e) => {
                             e.stopPropagation();
-                            await NotificationService.deleteNotification(notification.id);
                             setNotifications(prev => prev.filter(n => n.id !== notification.id));
                           }}
                           className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-lg leading-none ml-2"
