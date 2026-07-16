@@ -5,7 +5,7 @@ export interface ChatMessage {
   content: string;
 }
 
-const AI_BASE = '/recruitment-ai';
+const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
