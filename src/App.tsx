@@ -87,6 +87,7 @@ const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
 const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
 const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
+
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
@@ -192,7 +193,7 @@ function getInitialUser(): UserType | null {
     else if (rawType === 'super_admin') type = 'super_admin';
     else if (rawType === 'manager') type = 'manager';
     return {
-      name: stored.name || stored.email.split('@')[0] || 'User',
+      name: stored.fullName || stored.name || stored.email.split('@')[0] || 'User',
       type,
       email: stored.email,
       ...(stored.teamRole && { teamRole: stored.teamRole }),
@@ -860,7 +861,7 @@ function App() {
             } />
 
             <Route path="/ai-recruiter" element={
-              <AIRecruiterAssistant onNavigate={nav.onNavigate} user={user} />
+              <AIRecruiterAssistant onNavigate={nav.onNavigate} onLogout={handleLogout} user={user} />
             } />
 
             <Route path="/skill-gap-analysis" element={
@@ -883,7 +884,9 @@ function App() {
 
             <Route path="/resume-builder" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <ResumeBuilderPage {...nav} />
+                <WithLayout {...nav}>
+                  <ResumeBuilderPage {...nav} />
+                </WithLayout>
               </AuthGuard>
             } />
 
@@ -919,6 +922,7 @@ function App() {
                 <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
               </AuthGuard>
             } />
+
 
             <Route path="/bulk-job-import" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
@@ -985,7 +989,7 @@ function App() {
 
             <Route path="/application-management" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
-                <ApplicationManagementPage {...nav} />
+                <ApplicationManagementPage {...nav} onLogout={handleLogout} />
               </AuthGuard>
             } />
 
@@ -1060,7 +1064,6 @@ function App() {
 
             {/* -- Redirects for old paths -- */}
             <Route path="/employer-dashboard" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/responses" element={<Navigate to="/application-management" replace />} />
 
             {/* -- 404 -- */}
             <Route path="*" element={

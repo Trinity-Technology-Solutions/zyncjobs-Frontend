@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User, Sparkles, Briefcase, Users, FileText, Zap, Target, MessageSquare, ChevronRight, RotateCcw } from 'lucide-react';
-import { API_BASE_URL } from '../config/env';
 import { API_ENDPOINTS } from '../config/constants';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
-import { sendAIMessageStream, callAIWithFallback } from '../services/aiChatService';
+import { sendAIMessageStream } from '../services/aiChatService';
 import { useTypewriter } from '../hooks/useTypewriter';
 
 interface AIRecruiterAssistantProps {
   onNavigate?: (page: string, data?: any) => void;
+  onLogout?: () => void;
   user?: any;
 }
+
 
 interface Message {
   role: 'user' | 'assistant';
@@ -19,7 +20,7 @@ interface Message {
   timestamp: Date;
 }
 
-const SYSTEM_PROMPT = `You are ZyncJobs AI Recruiter Assistant — an expert recruitment automation assistant for employers and HR teams.
+const SYSTEM_PROMPT = `You are ZyncJobs AI Recruiter Assistant — an expert recruitment automation assistant for employers and HR teams on ZyncJobs.
 
 You help recruiters with:
 - Analyzing candidate profiles and ranking them for job fit
@@ -32,7 +33,7 @@ You help recruiters with:
 - Creating job descriptions from scratch
 - Advising on employer branding and candidate experience
 
-Keep responses concise, professional, and actionable. Use bullet points for lists. Focus on practical recruitment advice.`;
+NEVER mention other job sites (LinkedIn, Indeed, Glassdoor, Naukri, Monster, etc.). Focus ONLY on ZyncJobs platform and its features. Keep responses concise, professional, and actionable. Use bullet points for lists. Focus on practical recruitment advice.`;
 
 const QUICK_ACTIONS = [
   { icon: FileText, label: 'Optimize Job Posting', desc: 'Improve your JD for better reach', prompt: 'Help me optimize my job posting to attract better candidates. What key elements should I include?', color: 'from-blue-500 to-blue-600' },
@@ -54,11 +55,11 @@ const getFallback = (input: string): string => {
   if (q.includes('reject') || q.includes('email') || q.includes('template'))
     return `Professional rejection email template:\n\n---\nSubject: Your Application at [Company] — Update\n\nDear [Candidate Name],\n\nThank you for taking the time to interview with us for the [Role] position. We genuinely appreciated learning about your background and experience.\n\nAfter careful consideration, we've decided to move forward with another candidate whose experience more closely aligns with our current needs.\n\nWe were impressed by [specific positive] and encourage you to apply for future openings.\n\nWarm regards,\n[Your Name]\n---\n\nWant me to customize this for a specific stage?`;
   if (q.includes('salary') || q.includes('benchmark') || q.includes('pay'))
-    return `Salary benchmarking tips:\n\n• **Use multiple sources** — Glassdoor, LinkedIn Salary, AmbitionBox\n• **Factor in location** — Bangalore/Mumbai command 20-30% premium\n• **Consider total comp** — base + bonus + equity + benefits\n\n**India tech salary ranges (2024):**\n• Junior Dev (0-2 yrs): ₹4-8 LPA\n• Mid Dev (2-5 yrs): ₹8-18 LPA\n• Senior Dev (5-8 yrs): ₹18-35 LPA\n• Lead/Architect (8+ yrs): ₹35-60 LPA\n\nWhat role and location are you benchmarking for?`;
+    return `Salary benchmarking tips on ZyncJobs:\n\n• **Check ZyncJobs salary insights** for role-specific data\n• **Factor in location** — Bangalore/Mumbai command 20-30% premium\n• **Consider total comp** — base + bonus + equity + benefits\n\n**India tech salary ranges (2024):**\n• Junior Dev (0-2 yrs): ₹4-8 LPA\n• Mid Dev (2-5 yrs): ₹8-18 LPA\n• Senior Dev (5-8 yrs): ₹18-35 LPA\n• Lead/Architect (8+ yrs): ₹35-60 LPA\n\nWhat role and location are you benchmarking for?`;
   return `I can help you with that! Here are some key recruitment best practices:\n\n• **Speed matters** — Top candidates are off the market in 10 days\n• **Clear communication** — Update candidates at every stage\n• **Structured interviews** — Use consistent questions for fair comparison\n• **Data-driven decisions** — Track time-to-hire, offer acceptance rate\n\nCould you share more details about your specific challenge?`;
 };
 
-const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate, user }) => {
+const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate, onLogout, user }) => {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
     content: `Hello${user?.name ? ` ${user.name.split(' ')[0]}` : ''}! 👋 I'm your **AI Recruiter Assistant**.\n\nI can help you streamline your hiring process — from writing job descriptions to evaluating candidates and automating communications.\n\nSelect a quick action below or type your question to get started.`,
@@ -115,49 +116,19 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
       ? `\n\nEmployer context — Active jobs: ${jobContext.map(j => j.jobTitle || j.title).join(', ')}`
       : '';
     try {
-      let usedBackend = false;
-      let backendReply = '';
-      try {
-        const res = await fetch(`${API_BASE_URL}/ai-suggestions/career-coach`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: updated.map(m => ({ role: m.role, content: m.content })),
-            systemPrompt: SYSTEM_PROMPT + jobContextStr,
-          }),
-          signal: abortRef.current.signal,
-        });
-        if (res.ok) {
-          const data = await res.json();
-          backendReply = data.reply || data.message || data.content || data.text || data.answer || '';
-          if (backendReply) usedBackend = true;
-        }
-      } catch (e: any) {
-        if (e?.name === 'AbortError') return;
-      }
-
-      if (usedBackend) {
-        setCached(key, backendReply);
-        setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
-        setLoading(false);
-        typeText(backendReply, () => {
-          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: backendReply, timestamp: new Date() }; return u; });
-        });
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
-        setLoading(false);
-        let full = '';
-        await sendAIMessageStream(
-          updated.map(m => ({ role: m.role, content: m.content })),
-          SYSTEM_PROMPT + jobContextStr,
-          (chunk) => {
-            full += chunk;
-            setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
-          },
-          abortRef.current.signal
-        );
-        if (full) setCached(key, full);
-      }
+      setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date() }]);
+      setLoading(false);
+      let full = '';
+      await sendAIMessageStream(
+        updated.map(m => ({ role: m.role, content: m.content })),
+        SYSTEM_PROMPT + jobContextStr,
+        (chunk) => {
+          full += chunk;
+          setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });
+        },
+        abortRef.current.signal
+      );
+      if (full) setCached(key, full);
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
       setMessages(prev => [...prev, { role: 'assistant', content: getFallback(trimmed), timestamp: new Date() }]);
@@ -180,9 +151,10 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
 
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-  return (
+return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Header onNavigate={onNavigate} user={user} />
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+
 
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">
