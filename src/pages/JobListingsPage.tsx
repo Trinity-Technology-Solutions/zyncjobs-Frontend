@@ -13,13 +13,13 @@ import { searchAccuracy } from '../utils/searchAccuracy';
 import { JobCardSkeleton, SearchLoading } from '../components/LoadingStates';
 import { decodeHtmlEntities, formatDate, formatSalary, getPostingFreshness } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
-import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
+
+import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
-import EnhancedSearchInput from '../components/EnhancedSearchInput';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -62,6 +62,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     companySize: [] as string[],
     freshness: [] as string[]
   });
+  const [jobTitleDropdown, setJobTitleDropdown] = useState<string[]>([]);
   const [jobSuggestions, setJobSuggestions] = useState<{keywords: string[], jobTitles: string[], companies: string[]}>({keywords: [], jobTitles: [], companies: []});
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showJobSuggestions, setShowJobSuggestions] = useState(false);
@@ -80,6 +81,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [statsJobSeekers, setStatsJobSeekers] = useState<number>(0);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
   const [alertDismissed, setAlertDismissed] = useState(false);
   const jobsPerPage = 10;
 
@@ -191,37 +193,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   const clientFilter = useCallback((jobList: any[], term: string, loc: string) => {
     return jobList.filter(job => {
-      // Enhanced search matching using searchAccuracy engine
-      const searchableFields = [
-        job.title, job.jobTitle, job.description,
-        job.company, job.skills, job.requirements,
-        job.jobCategory, job.category
-      ].filter(Boolean);
-      
-      const searchText = searchableFields.join(' ').toLowerCase();
-      
-      let matchTerm = true;
-      if (term) {
-        const termLower = term.toLowerCase();
-        // Check for exact matches first
-        if (searchText.includes(termLower)) {
-          matchTerm = true;
-        } else {
-          // Use enhanced matching for partial matches
-          const jobTitleMatches = searchAccuracy.getAccurateMatches(term, [job.title || job.jobTitle || ''], 'job');
-          const companyMatches = searchAccuracy.getAccurateMatches(term, [job.company || ''], 'company');
-          const skillMatches = job.skills ? searchAccuracy.getAccurateMatches(term, job.skills, 'skill') : [];
-          
-          matchTerm = jobTitleMatches.length > 0 || companyMatches.length > 0 || skillMatches.length > 0 ||
-                     termLower.split(/\s+/).some(word => searchText.includes(word));
-        }
-      }
-      
-      const matchLoc = !loc || 
+      // Search only on job title
+      const jobTitle = (job.title || job.jobTitle || '').toLowerCase();
+      const matchTerm = !term || jobTitle.includes(term.toLowerCase());
+
+      // Location filter only
+      const matchLoc = !loc ||
         (job.location || '').toLowerCase().includes(loc.toLowerCase()) ||
-        (job.country || '').toLowerCase().includes(loc.toLowerCase()) ||
-        searchAccuracy.getLocationMatches(loc, [job.location || '']).length > 0;
-      
+        (job.country || '').toLowerCase().includes(loc.toLowerCase());
+
       return matchTerm && matchLoc;
     });
   }, []);
@@ -235,7 +215,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     try {
       let url = API_ENDPOINTS.JOBS;
 
-      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || filters.freshness.length > 0 || categoryTerms.length > 0) {
+      if (activeTerm || activeLoc || filters.industry.length > 0 || filters.companySize.length > 0 || categoryTerms.length > 0) {
         const searchQuery = categoryTerms.length > 0 ? categoryTerms.join(' OR ') : activeTerm;
         const searchParams = {
           query: searchQuery,
@@ -478,10 +458,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       const data = await res.json();
       const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
       const map: Record<string, string> = {};
+      const websiteMap: Record<string, string> = {};
       companies.forEach((c: any) => {
         const name = (c.name || c.companyName || '').toLowerCase();
         const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
         if (name && logo) map[name] = logo;
+        const site = c.website || c.companyWebsite || '';
+        if (name && site) websiteMap[name] = site;
       });
       // Also check job.companyLogo field directly
       jobList.forEach((j: any) => {
@@ -490,6 +473,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
         if (name && logo && !map[name]) map[name] = logo;
       });
       setCompanyLogos(map);
+      setCompanyWebsites(websiteMap);
     } catch {}
   };
 
@@ -596,6 +580,16 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     } else {
       // select only this one — clear ALL quick-filter related state first
       setActiveQuickFilter(key);
+      // For freshness filters, ensure we have all jobs loaded first
+      if (filterType === 'freshness' && jobs.length === 0) {
+        fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=500`)
+          .then(r => r.json())
+          .then(data => {
+            const arr = Array.isArray(data) ? data : (data.jobs || []);
+            setJobs(arr);
+          })
+          .catch(() => {});
+      }
       setFilters(prev => ({
         ...prev,
         freshness: filterType === 'freshness' ? [value] : [],
@@ -650,7 +644,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     );
   };
 
-  // Enhanced search function with better accuracy
+  // Enhanced search function — title + location only
   const performEnhancedSearch = useCallback(async (searchQuery: string, locationQuery: string) => {
     if (!searchQuery && !locationQuery) {
       fetchJobs(1, false, { term: '', loc: '', freshness: filters.freshness });
@@ -659,70 +653,39 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
     setLoading(true);
     try {
-      // First try the advanced search API
-      const searchParams = {
-        query: searchQuery,
-        location: locationQuery,
-        jobType: filters.jobType ? [filters.jobType] : [],
-        industry: filters.industry,
-        companySize: filters.companySize,
-        freshness: filters.freshness,
-        page: 1,
-        limit: 100
-      };
-
       const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/advanced`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(searchParams)
+        body: JSON.stringify({
+          query: searchQuery,
+          location: locationQuery,
+          jobType: filters.jobType ? [filters.jobType] : [],
+          industry: filters.industry,
+          companySize: filters.companySize,
+          freshness: filters.freshness,
+          page: 1,
+          limit: 200
+        })
       });
 
       if (response.ok) {
         const data = await response.json();
         let jobsArray = Array.isArray(data.jobs) ? data.jobs : (Array.isArray(data) ? data : []);
-        
-        // If we got results, enhance them with client-side scoring
-        if (jobsArray.length > 0 && searchQuery) {
-          jobsArray = jobsArray.map((job: any) => {
-            let score = 0;
-            const queryLower = searchQuery.toLowerCase();
-            const jobTitleLower = (job.title || job.jobTitle || '').toLowerCase();
-            const companyLower = (job.company || '').toLowerCase();
-            const skillsText = (job.skills || []).join(' ').toLowerCase();
-            
-            // Title matching (highest priority)
-            if (jobTitleLower.includes(queryLower)) score += 100;
-            
-            // Company matching
-            if (companyLower.includes(queryLower)) score += 80;
-            
-            // Skills matching using enhanced accuracy
-            if (job.skills && job.skills.length > 0) {
-              const skillMatches = searchAccuracy.getAccurateMatches(searchQuery, job.skills, 'skill');
-              score += skillMatches.length * 20;
-            }
-            
-            // Description matching
-            if ((job.description || '').toLowerCase().includes(queryLower)) score += 40;
-            
-            return { ...job, searchScore: score };
-          }).sort((a: any, b: any) => (b.searchScore || 0) - (a.searchScore || 0));
-        }
-        
-        setJobs(jobsArray);
-        setFilteredJobs(jobsArray);
+
+        // Re-filter client-side: title + location only
+        const filtered = clientFilter(jobsArray.length > 0 ? jobsArray : jobs, searchQuery, locationQuery);
+        setJobs(jobsArray.length > 0 ? jobsArray : jobs);
+        setFilteredJobs(filtered);
         setCurrentPage(1);
-        setTotalPages(Math.ceil(jobsArray.length / jobsPerPage) || 1);
+        setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
       } else {
-        // Fallback to client-side filtering
         const filtered = clientFilter(jobs, searchQuery, locationQuery);
         setFilteredJobs(filtered);
         setCurrentPage(1);
         setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
       }
     } catch (error) {
-      console.error('Enhanced search error:', error);
-      // Fallback to client-side filtering
+      console.error('Search error:', error);
       const filtered = clientFilter(jobs, searchQuery, locationQuery);
       setFilteredJobs(filtered);
       setCurrentPage(1);
@@ -919,6 +882,12 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     const jobId = getId(job);
     if (!jobId) return;
     const isAlreadySaved = savedJobs.includes(jobId);
+    if (isAlreadySaved) {
+      const confirmed = await (window as any).confirmAsync(
+        'Remove this job from your saved list?'
+      );
+      if (!confirmed) return;
+    }
     // Optimistic UI update
     setSavedJobs(prev => isAlreadySaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
 
@@ -1105,35 +1074,89 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
           {/* Search Bar - Only show in search tab */}
           {activeTab === 'search' && (
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
-              <div className="flex-1">
-                <label htmlFor="job-search-input" className="sr-only">Job title, skill, company or keyword</label>
-                <EnhancedSearchInput
+              {/* Job Title with backend /jobs/titles dropdown */}
+              <div className="flex-1 relative">
+                <label htmlFor="job-search-input" className="sr-only">Job title</label>
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
+                <input
                   id="job-search-input"
-                  placeholder="Job title, skill, company, keyword"
+                  type="text"
+                  autoComplete="off"
+                  placeholder="Job title"
                   value={searchTerm}
-                  onChange={setSearchTerm}
-                  type="mixed"
-                  showCategories={true}
-                  maxSuggestions={12}
-                  onSelect={(suggestion) => {
-                    setSearchTerm(suggestion.text);
-                    setTimeout(() => handleSearch(), 100);
+                  onChange={async e => {
+                    const val = e.target.value;
+                    setSearchTerm(val);
+                    const fromJobs = [...new Set(
+                      jobs.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean)
+                    )] as string[];
+                    if (!val.trim()) { setJobTitleDropdown(fromJobs.slice(0, 8)); return; }
+                    const q = val.toLowerCase();
+                    try {
+                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/titles`);
+                      if (res.ok) {
+                        const d = await res.json();
+                        const backendTitles: string[] = d.job_titles || d.titles || (Array.isArray(d) ? d : []);
+                        const merged = [...new Set([...backendTitles, ...fromJobs])] as string[];
+                        setJobTitleDropdown(merged.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
+                      } else {
+                        setJobTitleDropdown(fromJobs.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
+                      }
+                    } catch {
+                      setJobTitleDropdown(fromJobs.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
+                    }
                   }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { setJobTitleDropdown([]); handleSearch(); }
+                    if (e.key === 'Escape') setJobTitleDropdown([]);
+                  }}
+                  onBlur={() => setTimeout(() => setJobTitleDropdown([]), 150)}
+                  onFocus={() => {
+                    const fromJobs = [...new Set(
+                      jobs.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean)
+                    )] as string[];
+                    if (!searchTerm.trim()) {
+                      setJobTitleDropdown(fromJobs.slice(0, 8));
+                    } else {
+                      const q = searchTerm.toLowerCase();
+                      setJobTitleDropdown(fromJobs.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
+                    }
+                  }}
+                  className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 />
+                {jobTitleDropdown.length > 0 && (
+                  <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    {jobTitleDropdown.map((title, i) => (
+                      <li key={i}>
+                        <button
+                          type="button"
+                          onMouseDown={() => {
+                            setSearchTerm(title);
+                            setJobTitleDropdown([]);
+                            setTimeout(() => handleSearch(), 80);
+                          }}
+                          className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 border-b border-gray-100 last:border-b-0"
+                        >
+                          <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+                          {title}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-              <div className="flex-1">
+              {/* Location */}
+              <div className="flex-1 relative">
                 <label htmlFor="location-search-input" className="sr-only">Location</label>
-                <EnhancedSearchInput
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <input
                   id="location-search-input"
-                  placeholder="Location (ex. Denver, remote)"
+                  type="text"
+                  placeholder="Location (e.g. Chennai, Remote)"
                   value={location}
-                  onChange={setLocation}
-                  type="location"
-                  showCategories={false}
-                  maxSuggestions={10}
-                  onSelect={(suggestion) => {
-                    setLocation(suggestion.text);
-                  }}
+                  onChange={e => setLocation(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
+                  className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 />
               </div>
             <div className="flex gap-2">
@@ -1193,9 +1216,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             )}
             <button
-              onClick={() => handleQuickFilter('24h', 'freshness', '24h')}
+              onClick={() => handleQuickFilter('48h', 'freshness', '48h')}
               className={`px-3 py-1 rounded-full text-sm border font-medium ${
-                activeQuickFilter === '24h'
+                activeQuickFilter === '48h'
                   ? 'bg-blue-100 border-blue-400 text-blue-800'
                   : 'bg-white border-gray-400 text-gray-800 hover:bg-gray-50'
               }`}
@@ -1667,25 +1690,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     <div className="flex-1">
                       {/* Company logo + name row */}
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                          <img
-                            src={getLocalCompanyLogo(job.company || '') || companyLogos[(job.company || '').toLowerCase()] || getCompanyLogo(job.company || '') || getSafeCompanyLogo(job)}
-                            alt={`${job.company} logo`}
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              const name = job.company || '';
-                              const local = getLocalCompanyLogo(name);
-                              if (local && img.src !== window.location.origin + local) {
-                                img.src = local;
-                                return;
-                              }
-                              img.onerror = null;
-                              const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'C';
-                              img.src = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" fill="#3B82F6" rx="6"/><text x="16" y="21" text-anchor="middle" fill="white" font-family="Arial" font-size="12" font-weight="bold">${initials}</text></svg>`)}`;
-                            }}
-                          />
-                        </div>
+                         <CompanyLogo
+                          companyName={job.company || ''}
+                          storedLogo={companyLogos[(job.company || '').toLowerCase()]}
+                          website={companyWebsites[(job.company || '').toLowerCase()]}
+                          size={40}
+                          className="rounded-lg border border-gray-200"
+                        />
                         <span className="text-blue-600 font-semibold text-base">{job.company}</span>
                       </div>
 
@@ -1702,9 +1713,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                           <MapPin className="w-4 h-4 text-gray-600" />
                           <span className="text-sm font-medium text-gray-700">{job.location}</span>
                         </div>
-                        {formatSalary(job.salary) && (
+                        {formatSalary(job.salary, job.currency || job.salary?.currency) && (
                           <div className="flex items-center gap-1 bg-green-50 px-3 py-1.5 rounded-lg">
-                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary)}</span>
+                            <span className="text-sm font-semibold text-green-700">{formatSalary(job.salary, job.currency || job.salary?.currency)}</span>
                           </div>
                         )}
                         {(() => { const t = job.type || job.jobType; const display = Array.isArray(t) ? t.join(', ') : t; return display ? (

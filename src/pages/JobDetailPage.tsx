@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '../config/constants';
 import { formatDetailedTime, getPostingFreshness, formatSalary } from '../utils/textUtils';
 import { validateUserResume, handleResumeValidationAlert } from '../utils/resumeValidation';
 import Notification from '../components/Notification';
+import { getCategoryBanner } from '../utils/categoryBannerImages';
 
 const fmtNum = (n: number): string => {
   if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
@@ -14,18 +15,26 @@ const fmtNum = (n: number): string => {
   return n.toString();
 };
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  INR: '₹', USD: '$', AED: 'د.إ', SAR: 'ر.س', OMR: 'ر.ع',
+  QAR: 'ر.ق', KWD: 'د.ك', BHD: '.د.ب', GBP: '£', EUR: '€',
+  CAD: 'C$', AUD: 'A$', SGD: 'S$', MYR: 'RM'
+};
+
 const formatSalaryDisplay = (job: any): string => {
+  const code = job.currency || job.salary?.currency || 'USD';
+  const sym = CURRENCY_SYMBOLS[code] || code;
   // salary object from DB: { min, max, currency, period }
   if (job.salary && typeof job.salary === 'object' && (job.salary.min || job.salary.max)) {
-    const s = formatSalary(job.salary);
+    const s = formatSalary(job.salary, code);
     if (s) return s + (job.salary.period ? ` ${job.salary.period}` : '');
   }
   // flat salaryMin/salaryMax fields
   const min = Number(job.salaryMin) || 0;
   const max = Number(job.salaryMax) || 0;
-  if (min && max) return `₹${fmtNum(min)} - ₹${fmtNum(max)}`;
-  if (min) return `₹${fmtNum(min)}+`;
-  if (max) return `Up to ₹${fmtNum(max)}`;
+  if (min && max) return `${sym}${fmtNum(min)} - ${sym}${fmtNum(max)}`;
+  if (min) return `${sym}${fmtNum(min)}+`;
+  if (max) return `Up to ${sym}${fmtNum(max)}`;
   return 'Salary not disclosed';
 };
 
@@ -62,6 +71,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
   const urlJobId = searchParams.get('id') || '';
   const [job, setJob] = useState<any>(null);
   const [companyLogoUrl, setCompanyLogoUrl] = useState<string>('');
+  const [companyWebsite, setCompanyWebsite] = useState<string>('');
   const [jobPoster, setJobPoster] = useState<any>(null);
   const [similarJobs, setSimilarJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,11 +86,17 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const getCompanyLogo = (app: any) => {
     const name = app?.company || app?.companyName || '';
-    // Always prefer local logo mapping first (handles Nambikkai, Trinity, etc.)
     const localLogo = getLogoFromUtils(name);
     if (localLogo) return localLogo;
-    // Fall back to API-fetched logo, then getSafeCompanyLogo
-    return companyLogoUrl || getSafeCompanyLogo(app);
+    if (companyLogoUrl) return companyLogoUrl;
+    if (companyWebsite) {
+      try {
+        const domain = new URL(companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`).hostname.replace('www.', '');
+        const BACKEND = import.meta.env.VITE_API_URL || '/api';
+        if (domain) return `${BACKEND}/logo-proxy?domain=${encodeURIComponent(domain)}`;
+      } catch {}
+    }
+    return getSafeCompanyLogo(app);
   };
 
   useEffect(() => {
@@ -181,6 +197,8 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               );
               const logoUrl = match?.logo || match?.logoUrl || match?.imageUrl || match?.image || '';
               if (logoUrl) setCompanyLogoUrl(logoUrl);
+              const site = match?.website || match?.companyWebsite || '';
+              if (site) setCompanyWebsite(site);
             }
           }
         } catch {}
@@ -448,11 +466,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   src={getCompanyLogo(job)}
                   alt={job.company}
                   className="w-full h-full object-contain rounded"
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.onerror = null;
-                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
-                  }}
                 />
               </div>
               <div className="flex-1">
@@ -610,12 +623,13 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
               {/* Banner */}
               <div className="relative h-64 bg-gray-900">
                 <img
-                  src={job.jobHeaderImage || 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop'}
+                  src={job.jobHeaderImage || getCategoryBanner(job.jobCategory || job.category || '') || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'}
                   alt={`${job.jobTitle || job.title} at ${job.company}`}
                   className="w-full h-full object-cover opacity-80"
                   onError={(e) => {
                     const img = e.target as HTMLImageElement;
-                    img.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+                    img.onerror = null;
+                    img.src = getCategoryBanner(job.jobCategory || job.category || '') || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
                   }}
                 />
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-900/50 to-purple-900/50"></div>
@@ -625,143 +639,92 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Job description</h2>
                 
                 {(() => {
-                  const sourceDesc = job.jobDescription || job.description || 'Job description not available.';
-                  
-                  // Always use our custom parsing logic instead of HTML rendering
-                  // This ensures we get the clean 3-section format
-                  
-                  // Parse the job description into structured sections
-                  const lines = sourceDesc.split('\n').filter((line: string) => line.trim());
-                  const sections: { [key: string]: string[] } = {};
-                  let currentSection = 'summary';
-                  let currentContent: string[] = [];
+                  const rawDesc = job.jobDescription || job.description || '';
+                  if (!rawDesc.trim()) return <p className="text-sm text-gray-500">No description available.</p>;
 
-                  // Enhanced section headers detection
+                  // Normalise: strip HTML, decode entities, then split inline section headers into their own lines
+                  const clean = rawDesc
+                    .replace(/<[^>]*>/g, ' ')
+                    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"')
+                    .replace(/\s{2,}/g, ' ');
+
+                  // Insert newline before known section headers so they land on their own line
+                  const SECTION_RE = /(Job Summary|About the Role|Role Overview|Key Responsibilities|Responsibilities|Role & Responsibilities|Role and Responsibilities|Requirements|Mandatory Skills|Required Skills|Qualifications|Good to Have|Nice to Have|What We Offer|About Us|How to Apply)/gi;
+                  const normalised = clean.replace(SECTION_RE, (m: any) => `\n${m}\n`);
+
                   const sectionHeaders: Record<string, string> = {
-                    'job summary': 'summary',
-                    'summary': 'summary',
-                    'key responsibilities': 'responsibilities', 
-                    'responsibilities': 'responsibilities',
-                    'role & responsibilities': 'responsibilities',
-                    'role and responsibilities': 'responsibilities',
-                    'requirements': 'mandatory-skills',
-                    'mandatory skills': 'mandatory-skills',
-                    'required skills': 'mandatory-skills',
-                    'qualifications': 'mandatory-skills',
-                    'good to have skills': 'good-to-have',
-                    'nice to have': 'good-to-have',
-                    'preferred candidate profile': 'candidate-profile',
-                    'candidate profile': 'candidate-profile',
-                    'interview process': 'interview-process',
-                    'locations open for sourcing': 'locations',
-                    'location': 'locations',
-                    'recruitment drive details': 'recruitment-details',
-                    'drive details': 'recruitment-details'
+                    'job summary': 'summary', 'about the role': 'summary', 'role overview': 'summary',
+                    'key responsibilities': 'responsibilities', 'responsibilities': 'responsibilities',
+                    'role & responsibilities': 'responsibilities', 'role and responsibilities': 'responsibilities',
+                    'requirements': 'requirements', 'mandatory skills': 'requirements',
+                    'required skills': 'requirements', 'qualifications': 'requirements',
+                    'good to have': 'goodtohave', 'nice to have': 'goodtohave',
+                    'what we offer': 'offer', 'about us': 'about', 'how to apply': 'apply',
                   };
 
-                  for (const line of lines) {
-                    // Decode HTML entities and strip HTML tags
-                    const decoded = line.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-                    const stripped = decoded.replace(/<[^>]*>/g, '').trim();
-                    const trimmed = stripped.trim();
-                    const lowerLine = trimmed.toLowerCase();
-                    
-                    // Check if this line is a section header
-                    const matchedSection = Object.keys(sectionHeaders).find(header => 
-                      lowerLine === header || lowerLine.startsWith(header) || lowerLine.includes(header)
-                    );
-                    
-                    if (matchedSection) {
-                      // Save previous section
-                      if (currentContent.length > 0) {
-                        sections[currentSection] = [...currentContent];
-                      }
-                      // Start new section
-                      currentSection = sectionHeaders[matchedSection] as string;
-                      currentContent = [];
-                    } else if (trimmed && !trimmed.match(/^(Job Title|Work Location|Experience Required|Notice Period|Employment Type|Salary Range)$/)) {
-                      // Skip empty lines and HTML tags
-                      if (trimmed && !trimmed.match(/^<\/?[^>]+>$/)) {
-                        currentContent.push(trimmed);
+                  const sections: Record<string, string[]> = {};
+                  let current = 'summary';
+                  let buf: string[] = [];
+
+                  for (const raw of normalised.split('\n')) {
+                    const line = raw.trim();
+                    if (!line) continue;
+                    const lower = line.toLowerCase();
+                    const matched = Object.keys(sectionHeaders).find(h => lower === h);
+                    if (matched) {
+                      if (buf.length) sections[current] = [...(sections[current] || []), ...buf];
+                      current = sectionHeaders[matched];
+                      buf = [];
+                    } else {
+                      // skip pure metadata lines
+                      if (!/^(job title|company|work location|employment type|salary|notice period|experience required)\s*:/i.test(line)) {
+                        buf.push(line);
                       }
                     }
                   }
-                  
-                  // Save the last section
-                  if (currentContent.length > 0) {
-                    sections[currentSection] = currentContent;
+                  if (buf.length) sections[current] = [...(sections[current] || []), ...buf];
+
+                  const renderLines = (lines: string[], forceBullet = false) => lines.map((line, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      {forceBullet || /^[•\-\*]/.test(line)
+                        ? <><span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span><span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span></>
+                        : <p className="text-sm text-gray-700 leading-relaxed">{line}</p>
+                      }
+                    </div>
+                  ));
+
+                  const sectionOrder: Array<[string, string]> = [
+                    ['summary', 'Job Summary'],
+                    ['responsibilities', 'Key Responsibilities'],
+                    ['requirements', 'Requirements'],
+                    ['goodtohave', 'Good to Have'],
+                    ['offer', 'What We Offer'],
+                    ['about', 'About Us'],
+                    ['apply', 'How to Apply'],
+                  ];
+
+                  const hasAnySections = sectionOrder.some(([key]) => sections[key]?.length);
+
+                  // Fallback: if no sections matched, just render the full text as paragraphs
+                  if (!hasAnySections) {
+                    return (
+                      <div className="space-y-2">
+                        {normalised.split('\n').filter((l: string) => l.trim()).map((line: string, i: number) => (
+                          <p key={i} className="text-sm text-gray-700 leading-relaxed">{line.trim()}</p>
+                        ))}
+                      </div>
+                    );
                   }
 
                   return (
                     <div className="space-y-6">
-                      {/* Job Summary Section */}
-                      {sections.summary && sections.summary.length > 0 && (
-                        <div>
-                          <h4 className="text-xl font-bold text-gray-900 mb-3">Job Summary</h4>
-                          <div className="text-gray-700 space-y-2">
-                            {sections.summary.map((line: string, i: number) => (
-                              <p key={i} className="text-sm leading-relaxed">{line}</p>
-                            ))}
+                      {sectionOrder.map(([key, label]) =>
+                        sections[key]?.length ? (
+                          <div key={key}>
+                            <h4 className="text-xl font-bold text-gray-900 mb-3">{label}</h4>
+                            <div className="space-y-2">{renderLines(sections[key], key === 'responsibilities' || key === 'requirements')}</div>
                           </div>
-                        </div>
-                      )}
-
-                      {/* Key Responsibilities Section */}
-                      {sections.responsibilities && sections.responsibilities.length > 0 && (
-                        <div>
-                          <h4 className="text-xl font-bold text-gray-900 mb-3">Role & Responsibilities</h4>
-                          <div className="space-y-2">
-                            {sections.responsibilities.map((line: string, i: number) => {
-                              const isBulletPoint = /^[•\-\*]/.test(line) || 
-                                line.toLowerCase().includes('design') || 
-                                line.toLowerCase().includes('build') || 
-                                line.toLowerCase().includes('develop') || 
-                                line.toLowerCase().includes('implement') || 
-                                line.toLowerCase().includes('write') || 
-                                line.toLowerCase().includes('monitor') || 
-                                line.toLowerCase().includes('collaborate') || 
-                                line.toLowerCase().includes('ensure') ||
-                                line.toLowerCase().includes('integrate') ||
-                                line.toLowerCase().includes('migrate');
-                              
-                              if (isBulletPoint) {
-                                return (
-                                  <div key={i} className="flex items-start gap-2">
-                                    <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
-                                    <span className="text-sm text-gray-700 leading-relaxed">{line.replace(/^[•\-\*]\s*/, '')}</span>
-                                  </div>
-                                );
-                              }
-                              return (
-                                <p key={i} className="text-sm text-gray-700 leading-relaxed">{line}</p>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Requirements Section - Combining Mandatory Skills and Candidate Profile */}
-                      {((sections['mandatory-skills'] && sections['mandatory-skills'].length > 0) || 
-                        (sections['candidate-profile'] && sections['candidate-profile'].length > 0)) && (
-                        <div>
-                          <h4 className="text-xl font-bold text-gray-900 mb-3">Requirements</h4>
-                          <div className="space-y-2">
-                            {/* Mandatory Skills */}
-                            {sections['mandatory-skills'] && sections['mandatory-skills'].map((skill: string, i: number) => (
-                              <div key={`skill-${i}`} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
-                                <span className="text-sm text-gray-700 leading-relaxed">{skill}</span>
-                              </div>
-                            ))}
-                            {/* Candidate Profile */}
-                            {sections['candidate-profile'] && sections['candidate-profile'].map((requirement: string, i: number) => (
-                              <div key={`req-${i}`} className="flex items-start gap-2">
-                                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full mt-2 flex-shrink-0"></span>
-                                <span className="text-sm text-gray-700 leading-relaxed">{requirement}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        ) : null
                       )}
                     </div>
                   );
@@ -842,11 +805,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   src={getCompanyLogo(job)}
                   alt={job.company}
                   style={{width:'160px', height:'80px', objectFit:'contain', display:'block'}}
-                  onError={(e) => {
-                    const img = e.target as HTMLImageElement;
-                    img.onerror = null;
-                    img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || 'C')}&size=80&background=3b82f6&color=ffffff&bold=true&format=png`;
-                  }}
                 />
                 <p style={{fontSize:'18px', fontWeight:'700', color:'#111827', textAlign:'center', margin:'0', lineHeight:'1.3'}}>{job.company}</p>
                 <p style={{fontSize:'13px', color:'#6b7280', textAlign:'center', margin:'0', lineHeight:'1.3'}}>Company</p>
@@ -869,29 +827,43 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
             </div>
 
             {/* Benefits */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
-              <ul className="space-y-2">
-                {job.benefits && job.benefits.length > 0 ? (
-                  Array.isArray(job.benefits) ? job.benefits.map((benefit: string, index: number) => (
-                    <li key={index} className="flex items-start">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600 text-sm">{benefit}</span>
-                    </li>
-                  )) : (
-                    <li className="flex items-start">
-                      <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                      <span className="text-gray-600 text-sm">{job.benefits}</span>
-                    </li>
-                  )
-                ) : (
-                  <li className="flex items-start">
-                    <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
-                    <span className="text-gray-600 text-sm">Competitive benefits package available.</span>
-                  </li>
-                )}
-              </ul>
-            </div>
+            {(() => {
+              // Normalise job.benefits to an array
+              let benefitsList: string[] = [];
+              if (Array.isArray(job.benefits) && job.benefits.length > 0) {
+                benefitsList = job.benefits.filter(Boolean);
+              } else if (typeof job.benefits === 'string' && job.benefits.trim()) {
+                benefitsList = job.benefits.split(',').map((s: string) => s.trim()).filter(Boolean);
+              }
+
+              // Fallback: extract from "What We Offer" section in jobDescription
+              if (!benefitsList.length) {
+                const desc = job.jobDescription || job.description || '';
+                const offerMatch = desc.match(/What We Offer[\s\S]*?\n([\s\S]*?)(?=\n[A-Z][^\n]{2,}\n|$)/i);
+                if (offerMatch) {
+                  benefitsList = offerMatch[1]
+                    .split('\n')
+                    .map((l: string) => l.replace(/^[•\-\*\u2022\d+\.\)\s]+/, '').trim())
+                    .filter((l: string) => l.length > 3);
+                }
+              }
+
+              if (!benefitsList.length) return null;
+
+              return (
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Benefits & Perks</h3>
+                  <ul className="space-y-2">
+                    {benefitsList.map((benefit: string, index: number) => (
+                      <li key={index} className="flex items-start">
+                        <span className="w-2 h-2 bg-green-500 rounded-full mt-2 mr-3 flex-shrink-0"></span>
+                        <span className="text-gray-600 text-sm">{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
 
             {/* Similar Jobs */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -916,7 +888,6 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                             src={getCompanyLogo(sj)}
                             alt={sj.company}
                             className="w-8 h-8 rounded object-contain border border-gray-200 bg-white p-0.5"
-                            onError={(e) => { const img = e.target as HTMLImageElement; img.onerror = null; img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(sj.company || 'C')}&size=32&background=3b82f6&color=ffffff&bold=true&format=png`; }}
                           />
                           <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">{sj.company}</span>
                         </div>

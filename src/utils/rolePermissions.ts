@@ -1,28 +1,34 @@
 // Frontend role and permission utilities
-export type UserRole = 'super_admin' | 'admin' | 'employer' | 'candidate' | 'moderator';
+export type UserRole = 'super_admin' | 'admin' | 'manager' | 'employer' | 'candidate' | 'moderator';
 export type AccountStatus = 'active' | 'suspended' | 'deleted';
 
 export const PERMISSIONS = {
   // Super Admin permissions
   MANAGE_ADMINS: 'manage_admins',
   SYSTEM_SETTINGS: 'system_settings',
-  
-  // Admin permissions
+
+  // View-only permissions (Admin & Manager)
+  VIEW_USERS: 'view_users',
+  VIEW_JOBS: 'view_jobs',
+  VIEW_ANALYTICS: 'view_analytics',
+  VIEW_REPORTS: 'view_reports',
+
+  // Admin permissions (write operations)
   MANAGE_USERS: 'manage_users',
   MANAGE_JOBS: 'manage_jobs', 
   MANAGE_COMPANIES: 'manage_companies',
-  VIEW_ANALYTICS: 'view_analytics',
   MODERATE_CONTENT: 'moderate_content',
   MANAGE_USER_STATUS: 'manage_user_status',
-  
+  MANAGE_VERIFICATIONS: 'manage_verifications',
+  SEND_COMMUNICATIONS: 'send_communications',
+
   // Employer permissions
   POST_JOBS: 'post_jobs',
   VIEW_APPLICANTS: 'view_applicants',
   MANAGE_OWN_JOBS: 'manage_own_jobs',
-  
+
   // Candidate permissions
   APPLY_JOBS: 'apply_jobs',
-  VIEW_JOBS: 'view_jobs',
   MANAGE_PROFILE: 'manage_profile',
   USE_RESUME_BUILDER: 'use_resume_builder',
   TAKE_SKILL_ASSESSMENT: 'take_skill_assessment',
@@ -34,16 +40,20 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   super_admin: [
     PERMISSIONS.MANAGE_ADMINS,
     PERMISSIONS.SYSTEM_SETTINGS,
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.VIEW_JOBS,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_REPORTS,
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.MANAGE_JOBS,
     PERMISSIONS.MANAGE_COMPANIES,
-    PERMISSIONS.VIEW_ANALYTICS,
     PERMISSIONS.MODERATE_CONTENT,
     PERMISSIONS.MANAGE_USER_STATUS,
+    PERMISSIONS.MANAGE_VERIFICATIONS,
+    PERMISSIONS.SEND_COMMUNICATIONS,
     PERMISSIONS.POST_JOBS,
     PERMISSIONS.VIEW_APPLICANTS,
     PERMISSIONS.APPLY_JOBS,
-    PERMISSIONS.VIEW_JOBS,
     PERMISSIONS.MANAGE_PROFILE,
     PERMISSIONS.USE_RESUME_BUILDER,
     PERMISSIONS.TAKE_SKILL_ASSESSMENT,
@@ -51,21 +61,33 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     PERMISSIONS.ACCESS_CAREER_COACH
   ],
   admin: [
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.VIEW_JOBS,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_REPORTS,
     PERMISSIONS.MANAGE_USERS,
     PERMISSIONS.MANAGE_JOBS,
     PERMISSIONS.MANAGE_COMPANIES,
-    PERMISSIONS.VIEW_ANALYTICS,
     PERMISSIONS.MODERATE_CONTENT,
     PERMISSIONS.MANAGE_USER_STATUS,
+    PERMISSIONS.MANAGE_VERIFICATIONS,
+    PERMISSIONS.SEND_COMMUNICATIONS,
     PERMISSIONS.POST_JOBS,
     PERMISSIONS.VIEW_APPLICANTS,
     PERMISSIONS.APPLY_JOBS,
-    PERMISSIONS.VIEW_JOBS,
     PERMISSIONS.MANAGE_PROFILE,
     PERMISSIONS.USE_RESUME_BUILDER,
     PERMISSIONS.TAKE_SKILL_ASSESSMENT,
     PERMISSIONS.USE_RESUME_PARSER,
     PERMISSIONS.ACCESS_CAREER_COACH
+  ],
+  manager: [
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.VIEW_JOBS,
+    PERMISSIONS.VIEW_ANALYTICS,
+    PERMISSIONS.VIEW_REPORTS,
+    PERMISSIONS.VIEW_APPLICANTS,
+    PERMISSIONS.MANAGE_PROFILE
   ],
   employer: [
     PERMISSIONS.POST_JOBS,
@@ -127,6 +149,7 @@ export const getRoleDisplayName = (role: UserRole): string => {
   const roleNames: Record<UserRole, string> = {
     super_admin: 'Super Administrator',
     admin: 'Administrator',
+    manager: 'Manager',
     employer: 'Employer',
     candidate: 'Job Seeker',
     moderator: 'Content Moderator'
@@ -137,7 +160,7 @@ export const getRoleDisplayName = (role: UserRole): string => {
 
 // Check if user is super admin
 export const isSuperAdmin = (userEmailOrRole: string): boolean => {
-  return userEmailOrRole === 'super_admin' || userEmailOrRole === 'admin@zyncjobs.com';
+  return userEmailOrRole === 'super_admin' || userEmailOrRole === 'admin@zyncjobs.com' || userEmailOrRole === 'antony@trinitetech.com';
 };
 
 // Get account status display info
@@ -155,14 +178,19 @@ export const getAvailableActions = (userRole: UserRole) => {
   const permissions = ROLE_PERMISSIONS[userRole] || [];
   
   return {
+    canViewUsers: permissions.includes(PERMISSIONS.VIEW_USERS),
+    canViewJobs: permissions.includes(PERMISSIONS.VIEW_JOBS),
+    canViewAnalytics: permissions.includes(PERMISSIONS.VIEW_ANALYTICS),
+    canViewReports: permissions.includes(PERMISSIONS.VIEW_REPORTS),
     canManageAdmins: permissions.includes(PERMISSIONS.MANAGE_ADMINS),
     canManageUsers: permissions.includes(PERMISSIONS.MANAGE_USERS),
     canPostJobs: permissions.includes(PERMISSIONS.POST_JOBS),
     canViewApplicants: permissions.includes(PERMISSIONS.VIEW_APPLICANTS),
     canApplyJobs: permissions.includes(PERMISSIONS.APPLY_JOBS),
     canModerateContent: permissions.includes(PERMISSIONS.MODERATE_CONTENT),
-    canViewAnalytics: permissions.includes(PERMISSIONS.VIEW_ANALYTICS),
     canManageUserStatus: permissions.includes(PERMISSIONS.MANAGE_USER_STATUS),
+    canManageVerifications: permissions.includes(PERMISSIONS.MANAGE_VERIFICATIONS),
+    canSendCommunications: permissions.includes(PERMISSIONS.SEND_COMMUNICATIONS),
     canUseResumeBuilder: permissions.includes(PERMISSIONS.USE_RESUME_BUILDER),
     canTakeSkillAssessment: permissions.includes(PERMISSIONS.TAKE_SKILL_ASSESSMENT),
     canUseResumeParser: permissions.includes(PERMISSIONS.USE_RESUME_PARSER),

@@ -16,7 +16,7 @@ export const computeMatchBreakdown = (job: any) => {
   const matched: string[] = [];
   const missing: string[] = [];
   jobSkills.forEach(js => {
-    const found = userSkills.some(us => us.includes(js) || js.includes(us));
+    const found = userSkills.some(us => us.includes(js) || js.includes(us) || js.split(/\s+/).some((word: string) => word.length > 3 && us.includes(word)));
     if (found) matched.push(js);
     else missing.push(js);
   });

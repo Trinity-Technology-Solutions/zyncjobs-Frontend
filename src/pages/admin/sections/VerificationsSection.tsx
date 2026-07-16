@@ -61,7 +61,7 @@ export default function VerificationsSection({ onUnauthorized }: { onUnauthorize
               body: JSON.stringify({
                 name: verification.companyName || verification.company,
                 domain: verification.email.split('@')[1],
-                logo: `https://img.logo.dev/${verification.email.split('@')[1]}?size=80`,
+                logo: '',
                 website: `https://${verification.email.split('@')[1]}`,
                 industry: verification.industry || 'Technology',
                 verified: true,

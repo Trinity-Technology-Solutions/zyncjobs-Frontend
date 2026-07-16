@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle, Info } from 'lucide-react';
 import Header from '../components/Header';
 import { apiFetch } from '../api/apiFetch';
+import { updateUserInStorage } from '../utils/userStorage';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -154,7 +155,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         console.log('Found COMPLETE company profile in localStorage, pre-filling entire form');
         setFormData({
           companyName: currentUser.companyName || '',
-          companyEmail: currentUser.companyEmail || currentUser.email || '',
+          companyEmail: currentUser.email || '',
           companyWebsite: currentUser.companyWebsite || '',
           industry: currentUser.industry || '',
           companySize: currentUser.companySize || '',
@@ -190,7 +191,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         setFormData(prev => ({
           ...prev,
           companyName: currentUser.companyName || currentUser.company || '',
-          companyEmail: currentUser.companyEmail || currentUser.email || '',
+          companyEmail: currentUser.email || '',
           companyWebsite: currentUser.companyWebsite || '',
           // Keep other fields empty for first-time completion
         }));
@@ -315,7 +316,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
             setFormData(prev => ({
               ...prev,
               companyName: companyData.name || companyData.companyName || prev.companyName,
-              companyEmail: companyData.companyEmail || companyData.email || prev.companyEmail,
+              companyEmail: currentUser.email || prev.companyEmail,
               companyWebsite: companyData.website || companyData.companyWebsite || prev.companyWebsite,
               industry: companyData.industry || prev.industry,
               companySize: companyData.size || companyData.companySize || prev.companySize,
@@ -400,19 +401,22 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     finally { setVerifying(false); }
   };
 
-  // Fetch company logo from domain
+  // Fetch company logo from domain via backend proxy
   const fetchCompanyLogo = async (website: string) => {
     if (!website) return;
     setFetchingLogo(true);
     try {
-      const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-      const logoUrl = `https://logo.clearbit.com/${domain}`;
-      
-      // Test if logo exists
-      const img = new Image();
-      img.onload = () => setCompanyLogo(logoUrl);
-      img.onerror = () => setCompanyLogo('');
-      img.src = logoUrl;
+      const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+      if (!domain) return;
+      const API = import.meta.env.VITE_API_URL || '/api';
+      const res = await fetch(`${API}/logo-proxy?domain=${encodeURIComponent(domain)}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        setCompanyLogo(url);
+      } else {
+        setCompanyLogo('');
+      }
     } catch {
       setCompanyLogo('');
     } finally {
@@ -538,6 +542,21 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         
         console.log('Company save response:', companyResponse);
         companySaveSuccess = true;
+
+        // Auto-fetch logo from email domain if no logo yet
+        if (!companyLogo && domain) {
+          try {
+            const logoRes = await fetch(`${API}/companies/auto-fetch-logo`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ companyName: formData.companyName, domain })
+            });
+            if (logoRes.ok) {
+              const logoData = await logoRes.json();
+              if (logoData.logoUrl) setCompanyLogo(logoData.logoUrl);
+            }
+          } catch {}
+        }
       } catch (companyError) {
         console.error('Company save failed (continuing anyway):', companyError instanceof Error ? companyError.message : 'Unknown error');
         // Continue with user update even if company save fails
@@ -606,7 +625,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
       };
       
       console.log('Updating localStorage with:', updatedUser);
-      localStorage.setItem('user', JSON.stringify(updatedUser));
+      updateUserInStorage(updatedUser);
       
       // Mark profile as completed to prevent popup from showing again
       localStorage.setItem('hasSeenProfilePopup', 'true');
@@ -944,7 +963,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                   {/* Headquarters */}
                   <div>
                     <label className={labelCls}>Headquarters *</label>
-                    <input type="text" value={formData.headquarters} onChange={e => setFormData(p => ({ ...p, headquarters: e.target.value }))} placeholder="Chennai, Tamil Nadu, India" className={inputCls} required />
+                    <input type="text" value={formData.headquarters} onChange={e => setFormData(p => ({ ...p, headquarters: e.target.value }))} placeholder="City, State, Country (e.g. Muscat, Oman)" className={inputCls} required />
                   </div>
 
                   {/* Website */}
@@ -1001,11 +1020,11 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                       <input
                         type="email"
                         value={formData.companyEmail}
-                        onChange={e => setFormData(p => ({ ...p, companyEmail: e.target.value }))}
-                        placeholder="contact@yourcompany.com"
-                        className={inputCls}
-                        required
+                        readOnly
+                        className={`${inputCls} bg-gray-100 cursor-not-allowed text-gray-500`}
+                        title="Company email is your registered account email and cannot be changed here"
                       />
+                      <p className="text-xs text-gray-400 mt-1">This is your registered account email and cannot be changed here.</p>
                     </div>
                     <div>
                       <label className={labelCls}>Phone Number *</label>

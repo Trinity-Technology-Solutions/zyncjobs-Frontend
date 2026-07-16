@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, Zap, Target, Lock } from 'lucide-react';
+import { Eye, EyeOff, Briefcase, Users, TrendingUp, CheckCircle, Zap, Target, Lock, AlertCircle } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import Header from '../components/Header';
 import analytics from '../services/analytics';
+import { updateUserInStorage } from '../utils/userStorage';
 
 interface LoginPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -20,16 +21,28 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
   const [passwordReadOnly, setPasswordReadOnly] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
                                 // Clear any stale error on mount
     setError('');
   }, []);
 
+  const validateForm = () => {
+    const errs: Record<string, string> = {};
+    if (!email.trim()) errs.email = 'Email is required';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) errs.email = 'Invalid email format';
+    if (!password) errs.password = 'Password is required';
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    setFieldErrors({});
+    if (!validateForm()) return;
+    setLoading(true);
     try {
       const response = await authAPI.login({ email, password });
       if ((response.user.userType as string) === 'employer') {
@@ -54,8 +67,11 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         }
       } catch { /* silent — use auth response as fallback */ }
 
-      localStorage.setItem('user', JSON.stringify(fullUser));
-      const displayName = response.user.name || response.user.fullName || response.user.email.split('@')[0];
+      const displayName = fullUser.fullName || fullUser.name || response.user.fullName || response.user.name || response.user.email.split('@')[0];
+      
+      // Immediately update localStorage with the correct name BEFORE calling onLogin
+      updateUserInStorage({ ...fullUser, name: displayName });
+      
       const userType = response.user.userType === 'employer' ? 'employer' : 'candidate';
       onLogin({ name: displayName, type: userType, email: response.user.email, id: response.user.id } as any);
       // Navigate after onLogin updates App state
@@ -68,8 +84,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
       } else {
         navigate('/dashboard', { replace: true });
       }
-    } catch (err) {
+    } catch (err: any) {
       let errorMessage = 'Login failed';
+      
+      // Handle account lockout (HTTP 423)
+      if (err.response?.status === 423 || err.message?.includes('locked')) {
+        errorMessage = '🔒 Account temporarily locked due to multiple failed login attempts. Please try again in 15 minutes or reset your password.';
+        setError(errorMessage);
+        setFieldErrors({});
+        setLoading(false);
+        return;
+      }
+      
       if (err instanceof Error) {
         if (err.message.includes('Account not found')) {
           errorMessage = 'Account not found. Please register first.';
@@ -86,6 +112,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
         }
       }
       setError(errorMessage);
+      setFieldErrors({});
     } finally {
       setLoading(false);
     }
@@ -186,16 +213,20 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
               <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5" autoComplete="off">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-3 sm:px-4 py-3 sm:py-4 border border-gray-200 rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white touch-manipulation"
-                    placeholder="Enter your email"
-                    autoComplete="email"
-                    inputMode="email"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: '' })); }}
+                      className={`w-full px-3 sm:px-4 py-3 sm:py-4 pr-10 border rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white touch-manipulation ${fieldErrors.email ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
+                      placeholder="Enter your email"
+                      autoComplete="email"
+                      inputMode="email"
+                      required
+                    />
+                    {fieldErrors.email && <AlertCircle className="absolute right-3 top-1/2 transform -translate-y-1/2 text-red-500 w-5 h-5" />}
+                  </div>
+                  {fieldErrors.email && <p className="mt-1 text-xs text-red-500">{fieldErrors.email}</p>}
                 </div>
 
                 <div>
@@ -209,8 +240,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                     <input
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full h-12 sm:h-14 px-3 sm:px-4 pr-12 sm:pr-14 border border-gray-200 rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white touch-manipulation"
+                      onChange={(e) => { setPassword(e.target.value); if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: '' })); }}
+                      className={`w-full h-12 sm:h-14 px-3 sm:px-4 pr-12 sm:pr-14 border rounded-lg sm:rounded-xl text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white touch-manipulation ${fieldErrors.password ? 'border-red-500 bg-red-50' : 'border-gray-200'}`}
                       placeholder="Enter your password"
                       autoComplete="current-password"
                       required
@@ -223,6 +254,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onNavigate, onLogin }) => {
                       {showPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                     </button>
                   </div>
+                  {fieldErrors.password && <p className="mt-1 text-xs text-red-500">{fieldErrors.password}</p>}
                 </div>
 
                 <button

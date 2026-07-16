@@ -39,7 +39,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       
       setNotification({
         type: 'success',
-        message: 'Job description parsed successfully! ðŸŽ‰',
+        message: 'Job description parsed successfully!',
         isVisible: true
       });
 
@@ -89,7 +89,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
           jobType:          d.jobType         || '',
           experienceRange:  d.experienceRange || '',
           skills:           d.skills          || [],
-          benefits:         [],
+          goodToHaveSkills: d.goodToHaveSkills || [],
+          benefits:         d.benefits || [],
           minSalary:        d.salaryMin > 0 ? String(d.salaryMin) : '',
           maxSalary:        d.salaryMax > 0 ? String(d.salaryMax) : '',
           currency:         d.currency        || '',
@@ -138,7 +139,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       jobLocation,
       country,
       jobType:          ai.jobType          ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description),
-      experienceRange:  normalizeExperienceRange(ai.experienceRange)  || regex.experienceRange || extractExperience(description),
+      experienceRange:  regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description),
       skills:           (Array.isArray(ai.skills) && ai.skills.length)   ? ai.skills   : (regex.skills?.length ? regex.skills : extractSkills(description)),
       minSalary:        ai.minSalary        || regex.minSalary        || salary.min,
       maxSalary:        ai.maxSalary        || regex.maxSalary        || salary.max,
@@ -150,7 +151,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       jobDescription:   description,
       responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
       requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),
-      goodToHaveSkills: regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description),
+      goodToHaveSkills: (Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description)),
       jobCategory:      ai.jobCategory      || extractJobCategory(description),
       nationality:      ai.nationality      || '',
       priority:         extractPriority(description),
@@ -165,6 +166,19 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
   const inferCountryFromCity = async (apiBase: string, city: string): Promise<string> => {
     if (!city || city === 'Remote' || city === 'Hybrid' || city === 'On-site') return '';
+    // If the location itself is already a country name, return it directly
+    const knownCountries: Record<string, string> = {
+      'india': 'India', 'united states': 'United States', 'usa': 'United States',
+      'us': 'United States', 'uk': 'United Kingdom', 'united kingdom': 'United Kingdom',
+      'canada': 'Canada', 'australia': 'Australia', 'germany': 'Germany',
+      'france': 'France', 'singapore': 'Singapore', 'uae': 'United Arab Emirates',
+      'united arab emirates': 'United Arab Emirates', 'oman': 'Oman',
+      'saudi arabia': 'Saudi Arabia', 'qatar': 'Qatar', 'kuwait': 'Kuwait',
+      'bahrain': 'Bahrain', 'malaysia': 'Malaysia', 'indonesia': 'Indonesia',
+      'japan': 'Japan', 'china': 'China', 'south korea': 'South Korea',
+    };
+    const countryMatch = knownCountries[city.trim().toLowerCase()];
+    if (countryMatch) return countryMatch;
     // Client-side cityâ†’country map (no API needed)
     const cityCountryMap: Record<string, string> = {
       // India
@@ -312,7 +326,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     };
 
     // Match "11-15 years" or "11 - 15 years" or "11 to 15 years" or "11 â€“ 15 years"
-    const rangeMatch = text.match(/(\d+)\s*[-â€“â€”to]+\s*(\d+)/);
+    const rangeMatch = text.match(/(\d+)\s*(?:[\-\u2013\u2014]|\bto\b)\s*(\d+)/);
     if (rangeMatch) {
       return `${snapMin(parseInt(rangeMatch[1]))} - ${snapMax(parseInt(rangeMatch[2]))}`;
     }
@@ -334,67 +348,26 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
   // Helper functions to extract information
   const extractJobTitle = (text: string): string => {
-    // Enhanced patterns for better job title extraction
-    const titlePatterns = [
-      // Explicit job title labels
-      /(?:job\s+title|position|role|vacancy|opening)\s*[:\-]\s*([^\n\r]+)/i,
-      // Hiring patterns with better context
-      /(?:we\s+are\s+(?:hiring|looking\s+for|seeking)|hiring|seeking|recruiting)\s+(?:a|an|for)?\s*([^\n\r,]+?)\s*(?:to|for|at|in|with|who|that|\.|,|$)/i,
-      // Join us patterns
-      /join\s+(?:us|our\s+team)\s+as\s+(?:a|an)?\s*([^\n\r,]+?)\s*(?:to|for|at|in|with|\.|,|$)/i,
-      // First line before separators or urgency text
-      /^([^\n\r]+?)\s*(?:-{2,}|â€“|â€”|\||at\s+[A-Z]|@|\(|urgent|asap|immediate|apply|hiring|wanted|needed|location|salary|experience)/i,
-      // Job title with level prefixes
-      /(?:^|\n)\s*(?:senior|sr\.?|junior|jr\.?|lead|principal|staff|chief|head\s+of|director\s+of)?\s*([^\n\r]+?)\s*(?:engineer|developer|analyst|scientist|manager|director|architect|consultant|specialist|coordinator|administrator|designer|writer|marketer|representative|associate|assistant|intern|trainee)\b/i,
-      // Common job patterns
-      /(?:^|\n)\s*([^\n\r]*(?:software|web|mobile|frontend|backend|full.?stack|data|machine\s+learning|ai|devops|cloud|security|qa|test|product|project|program|technical|engineering)[^\n\r]*(?:engineer|developer|analyst|scientist|manager|director|architect))/i
-    ];
-
-    for (const pattern of titlePatterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        let title = match[1].trim();
-        
-        // Enhanced cleaning
-        title = title.replace(/[\-\|\â€“\â€”].*$/g, '').trim();
-        title = title.replace(/\s*\([^)]*\)\s*/g, ' ').trim();
-        title = title.replace(/\s*\[[^\]]*\]\s*/g, ' ').trim();
-        title = title.replace(/\s+/g, ' ');
-        title = title.replace(/^[\-\*â€¢\d+\.\)\s]+/, '').trim();
-        
-        // Enhanced validation
-        const invalidKeywords = ['immediate', 'asap', 'apply', 'urgent', 'preferred', 'http', 'www', 'email', 'phone', 'contact', 'location', 'salary', 'benefits', 'company', 'about', 'description', 'requirements', 'qualifications', 'responsibilities', 'duties', 'skills', 'experience', 'education', 'degree'];
-        const hasInvalidKeyword = invalidKeywords.some(keyword => title.toLowerCase().includes(keyword));
-        
-        if (title.length > 3 && title.length < 100 && !hasInvalidKeyword && !title.includes('@') && !/^\d+$/.test(title)) {
-          // Additional validation for job-related terms
-          const jobTerms = /(?:engineer|developer|analyst|scientist|manager|director|architect|consultant|specialist|coordinator|administrator|designer|writer|marketer|representative|associate|assistant|intern|trainee|software|web|mobile|frontend|backend|full.?stack|data|machine\s+learning|ai|devops|cloud|security|qa|test|product|project|program|technical|sales|marketing|hr|finance|accounting|legal|operations|support|customer\s+service)/i;
-          if (jobTerms.test(title)) {
-            return title;
-          }
-        }
+    const invalidKw = ['immediate','asap','apply','urgent','http','www','email','phone','contact','location','salary','benefits','description','requirements','qualifications','responsibilities','duties','experience','education'];
+    const labelMatch = text.match(/(?:job\s+title|position|role|vacancy|opening)\s*[:\-]\s*([^\n\r]+)/i);
+    if (labelMatch) {
+      const t = labelMatch[1].split(/[\n\r|]/)[0].trim();
+      if (t.length > 2 && t.length < 80) return t;
+    }
+    const hiringMatch = text.match(/(?:we\s+are\s+(?:hiring|looking\s+for|seeking)|join\s+(?:us|our\s+team)\s+as\s+(?:a|an)?)\s*([^\n\r,]{3,60}?)(?:\s*(?:to|for|at|in|\.|,|$))/i);
+    if (hiringMatch) {
+      const t = hiringMatch[1].trim();
+      if (t.length > 2 && !invalidKw.some(k => t.toLowerCase().includes(k))) return t;
+    }
+    const metaWords = /^(experience|location|salary|employment|nationality|skills|requirements|responsibilities|about|dear|hi |hello|zyncjobs|connecting)/i;
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    for (let i = 0; i < Math.min(10, lines.length); i++) {
+      const line = lines[i].replace(/^[-*\d+.)\s]+/, '').replace(/[-|].+$/, '').trim();
+      if (line.length > 3 && line.length < 80 && !metaWords.test(line) && !line.includes('@') && !/^\d+$/.test(line) && !invalidKw.some(k => line.toLowerCase().includes(k))) {
+        return line;
       }
     }
-
-    // Enhanced fallback with better line analysis
-    const lines = text.split('\n').filter(line => line.trim().length > 0);
-    for (let i = 0; i < Math.min(5, lines.length); i++) {
-      const cleanLine = lines[i].trim().replace(/^[\-\*â€¢\d+\.\)\s]+/, '').trim();
-      
-      if (cleanLine.length > 5 && cleanLine.length < 100) {
-        const invalidKeywords = ['immediate', 'asap', 'apply', 'urgent', 'preferred', 'http', 'www', 'email', 'phone', 'contact', 'we are', 'company', 'about', 'description', 'location', 'salary', 'benefits'];
-        const hasInvalidKeyword = invalidKeywords.some(keyword => cleanLine.toLowerCase().includes(keyword));
-        
-        if (!hasInvalidKeyword && !cleanLine.includes('@') && !/^\d+$/.test(cleanLine)) {
-          const jobTerms = /(?:engineer|developer|analyst|scientist|manager|director|architect|consultant|specialist|coordinator|administrator|designer|writer|marketer|representative|associate|assistant|intern|trainee|software|web|mobile|frontend|backend|full.?stack|data|machine\s+learning|ai|devops|cloud|security|qa|test|product|project|program|technical|sales|marketing|hr|finance|accounting|legal|operations|support|customer\s+service)/i;
-          if (jobTerms.test(cleanLine)) {
-            return cleanLine.replace(/\s*[-â€“â€”].*$/g, '').trim();
-          }
-        }
-      }
-    }
-
-    return 'Software Developer';
+    return '';
   };
 
 
@@ -447,7 +420,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     for (const city of knownCities) {
       // Only match if city appears with a location-related label, or alone on its own line
       const withLabel = new RegExp(
-        `(?:location|city|based\s+in|located\s+in|work\s+location|job\s+location)\s*[:\-,]?\s*${city}\b`,
+        `(?:location|city|based\\s+in|located\\s+in|work\\s+location|job\\s+location)\\s*[:\\-,]?\\s*${city}\\b`,
         'i'
       ).test(text);
       const aloneLine = new RegExp(`^\\s*${city}\\s*$`, 'im').test(text);
@@ -499,10 +472,10 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
   const extractExperience = (text: string): string => {
     // Priority 1: explicit "Experience Required" label followed by range on same or next line
-    const labelMatch = text.match(/experience\s+required\s*[:\-]?\s*([\d\s\-â€“â€”to]+(?:years?|yrs?))/i);
+    const labelMatch = text.match(/experience\s*(?:required)?\s*[:\-]?\s*([\d\s\-\u2013\u2014to]+(?:years?|yrs?))/i);
     if (labelMatch) {
       const raw = labelMatch[1].trim();
-      const m = raw.match(/(\d+)\s*[-â€“â€”to]+\s*(\d+)/);
+      const m = raw.match(/(\d+)\s*[\-\u2013\u2014to]+\s*(\d+)/);
       if (m) return `${parseInt(m[1])}-${parseInt(m[2])} years`;
       const s = raw.match(/(\d+)/);
       if (s) return `${parseInt(s[1])}+ years`;
@@ -510,10 +483,10 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
     // Priority 2: range patterns directly tied to experience keyword
     const rangePatterns = [
-      /(\d+)\s*[-â€“â€”]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
+      /(\d+)\s*[\-\u2013\u2014]\s*(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
       /(\d+)\s+to\s+(\d+)\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
-      /(?:experience|exp)\s*[:\-]?\s*(\d+)\s*[-â€“â€”to]+\s*(\d+)\s*(?:years?|yrs?)/i,
-      /(?:minimum|at\s+least)\s*(\d+)\s*[-â€“â€”to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /(?:experience|exp)\s*[:\-]?\s*(\d+)\s*[\-\u2013\u2014to]+\s*(\d+)\s*(?:years?|yrs?)/i,
+      /(?:minimum|at\s+least)\s*(\d+)\s*[\-\u2013\u2014to]+\s*(\d+)\s*(?:years?|yrs?)/i,
       /(\d+)\+\s*(?:years?|yrs?)\s*(?:of\s+)?(?:experience|exp)/i,
     ];
     for (const p of rangePatterns) {
@@ -532,7 +505,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   const extractSkills = (text: string): string[] => {
     const commonSkills = [
       // Programming Languages
-      'JavaScript', 'TypeScript', 'Python', 'Java', 'C#', 'C++', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Scala', 'R', 'MATLAB', 'Perl', 'Objective-C', 'Dart', 'Elixir', 'Haskell', 'Clojure', 'F#', 'VB.NET', 'COBOL', 'Fortran', 'Assembly', 'Shell', 'Bash', 'PowerShell',
+      'JavaScript', 'TypeScript', 'Python', 'Java', 'C#', 'C++', 'PHP', 'Ruby', 'Go', 'Rust', 'Swift', 'Kotlin', 'Scala', 'MATLAB', 'Perl', 'Objective-C', 'Dart', 'Elixir', 'Haskell', 'Clojure', 'F#', 'VB.NET', 'COBOL', 'Fortran', 'Assembly', 'Shell', 'Bash', 'PowerShell',
       // Frontend Technologies
       'React', 'Angular', 'Vue.js', 'Svelte', 'Next.js', 'Nuxt.js', 'HTML', 'HTML5', 'CSS', 'CSS3', 'SCSS', 'SASS', 'Less', 'Bootstrap', 'Tailwind CSS', 'Material-UI', 'Ant Design', 'Chakra UI', 'jQuery', 'Webpack', 'Vite', 'Parcel', 'Rollup', 'Gulp', 'Grunt',
       // Backend Technologies
@@ -574,21 +547,28 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     // Enhanced skill detection with context awareness
     for (const skill of commonSkills) {
       const skillLower = skill.toLowerCase();
+      const escaped = skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       
-      // Create regex patterns for better matching
-      const patterns = [
-        // Exact word boundary match
-        new RegExp(`\\b${skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i'),
-        // Handle special cases with dots, slashes, etc.
-        new RegExp(skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\./g, '\\.?').replace(/\\\//g, '\\/?'), 'i'),
-        // Handle variations with spaces and hyphens
-        new RegExp(skillLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[\\s\\-]?'), 'i')
-      ];
+      // Always use exact word boundary match to prevent substring false positives
+      if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) {
+        foundSkills.add(skill);
+        continue;
+      }
       
-      for (const pattern of patterns) {
-        if (pattern.test(text)) {
+      // For special-char skills (dots, slashes), try flexible dot/slash matching
+      if (skillLower.includes('.') || skillLower.includes('/')) {
+        const flexible = escaped.replace(/\\\./g, '\\.?').replace(/\\\//g, '\\/?');
+        if (new RegExp(`\\b${flexible}\\b`, 'i').test(text)) {
           foundSkills.add(skill);
-          break;
+          continue;
+        }
+      }
+      
+      // For multi-word skills, allow hyphen in place of space
+      if (skillLower.includes(' ')) {
+        const flexible = escaped.replace(/\s+/g, '[\\s\\-]');
+        if (new RegExp(`\\b${flexible}\\b`, 'i').test(text)) {
+          foundSkills.add(skill);
         }
       }
     }
@@ -684,34 +664,42 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       }
     });
 
-    // Return top 12 skills or default skills if none found
-    return sortedSkills.length > 0 ? sortedSkills.slice(0, 12) : ['JavaScript', 'React', 'Node.js', 'Python', 'SQL'];
+    // Return top 12 skills — no tech defaults for non-tech JDs
+    if (sortedSkills.length > 0) return sortedSkills.slice(0, 12);
+
+    // Domain-specific fallback: extract bullet items from skills/requirements section
+    const domainSkills: string[] = [];
+    const skillSectionMatch = text.match(
+      /(?:skills?|competencies|qualifications?|requirements?)[:\s]*([\s\S]{50,600}?)(?=\n{2,}|responsibilities|about\s+us|$)/i
+    );
+    if (skillSectionMatch) {
+      for (const line of skillSectionMatch[1].split('\n')) {
+        const clean = line.replace(/^[\s•\-*\d.)+]+/, '').trim();
+        const phrase = clean.split(/[,(/]/)[0].trim();
+        if (phrase.length > 3 && phrase.length < 50 && /[a-zA-Z]/.test(phrase)) domainSkills.push(phrase);
+      }
+    }
+    return domainSkills.slice(0, 10);
   };
 
 
   const extractBenefits = (text: string): string[] => {
-    const benefits = [];
-    const benefitPatterns = [
-      { pattern: /health\s*insurance|medical\s*insurance|healthcare/i, benefit: 'Health insurance' },
+    const benefits: string[] = [];
+    const benefitSection = text.match(/(?:benefits?|perks?|what we offer|why join us)[:\n]+([\s\S]*?)(?:\n\s*\n|\n(?:requirements?|qualifications?|about|job description|apply|how to apply))/i);
+    const searchText = benefitSection ? benefitSection[1] : text;
+
+    const benefitPatterns: { pattern: RegExp; benefit: string }[] = [
+      { pattern: /health\s*insurance|medical\s*insurance/i, benefit: 'Health insurance' },
       { pattern: /dental\s*insurance|dental\s*care/i, benefit: 'Dental insurance' },
       { pattern: /vision\s*insurance|eye\s*care/i, benefit: 'Vision insurance' },
-      { pattern: /401k|retirement\s*plan|pension/i, benefit: '401(k)' },
-      { pattern: /paid\s*time\s*off|pto|vacation\s*days?|annual\s*leave/i, benefit: 'Paid time off' },
-      { pattern: /flexible\s*hours|flexible\s*schedule|flex\s*time/i, benefit: 'Flexible hours' },
-      { pattern: /remote\s*work|work\s*from\s*home|wfh/i, benefit: 'Remote work' },
-      { pattern: /stock\s*options|equity|shares/i, benefit: 'Stock options' },
-      { pattern: /bonus|performance\s*bonus|annual\s*bonus/i, benefit: 'Performance bonus' },
-      { pattern: /training|learning|education|courses/i, benefit: 'Professional development' },
-      { pattern: /gym|fitness|wellness/i, benefit: 'Wellness programs' },
-      { pattern: /maternity|paternity|parental\s*leave/i, benefit: 'Parental leave' },
       { pattern: /life\s*insurance/i, benefit: 'Life insurance' },
-      { pattern: /disability\s*insurance/i, benefit: 'Disability insurance' },
-      { pattern: /commuter|transport|travel\s*allowance/i, benefit: 'Commuter benefits' },
-      { pattern: /lunch|meal|food\s*allowance/i, benefit: 'Meal benefits' }
+      { pattern: /visa\s*sponsor(?:ship)?/i, benefit: 'Visa sponsorship' },
+      { pattern: /green\s*card\s*sponsor(?:ship)?/i, benefit: 'Green card sponsorship' },
+      { pattern: /ad&d|accidental\s*death/i, benefit: 'AD&D insurance' },
     ];
 
     for (const { pattern, benefit } of benefitPatterns) {
-      if (pattern.test(text)) {
+      if (pattern.test(searchText)) {
         benefits.push(benefit);
       }
     }
@@ -819,18 +807,17 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   };
 
   const extractWorkAuth = (text: string): string[] => {
-    const workAuth = [];
-    
+    const workAuth: string[] = [];
+
     if (/us\s*citizen|citizenship\s*required/i.test(text)) workAuth.push('US Citizen');
     if (/green\s*card|permanent\s*resident/i.test(text)) workAuth.push('Green Card Holder');
     if (/h1b|h-1b/i.test(text)) workAuth.push('H1B Visa');
-    if (/l1|l-1/i.test(text)) workAuth.push('L1 Visa');
-    if (/opt|cpt|f1/i.test(text)) workAuth.push('OPT/CPT');
+    if (/\bl1\b|l-1\s*visa/i.test(text)) workAuth.push('L1 Visa');
+    if (/\bopt\b|\bcpt\b|\bf1\s*visa/i.test(text)) workAuth.push('OPT/CPT');
     if (/tn\s*visa/i.test(text)) workAuth.push('TN Visa');
     if (/no\s*sponsorship|sponsorship\s*not\s*available/i.test(text)) workAuth.push('No Sponsorship Required');
     if (/will\s*sponsor|sponsorship\s*available|visa\s*sponsorship/i.test(text)) workAuth.push('Will Sponsor');
-    
-    // Return empty array for Indian JDs (no US work auth keywords found)
+
     return workAuth;
   };
 
@@ -889,27 +876,30 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     const cleanText = text.replace(
       /(?:interview\s+process|recruitment\s+drive|interview\s+mode|drive\s+type|locations?\s+open)[\s\S]*/gi, ''
     );
+    // Match section heading then capture only content AFTER the heading line
     const sectionMatch = cleanText.match(
-      /(?:good\s+to\s+have|nice\s+to\s+have|preferred\s+skills?|bonus\s+skills?|optional\s+skills?)[:\s]*([\s\S]*?)(?=(?:preferred\s+candidate|interview|recruitment|$))/i
+      /(?:good\s+to\s+have|nice\s+to\s+have|preferred\s+skills?|bonus\s+skills?|optional\s+skills?)[^\n]*\n([\s\S]*?)(?=(?:preferred\s+candidate|interview|recruitment|mandatory|must\s+have|$))/i
     );
     if (!sectionMatch) return [];
 
     const isValidSkill = (s: string) =>
-      s.length > 2 && s.length < 100 &&
-      !/^[-#*=_|.\s]+$/.test(s) &&       // reject lines of only symbols
-      !/^#{1,6}\s/.test(s) &&             // reject markdown headers
-      !/^-{2,}$/.test(s.trim()) &&        // reject horizontal rules
-      /[a-zA-Z]/.test(s);                 // must contain at least one letter
+      s.length > 2 && s.length < 80 &&
+      !/^[\(\[]/.test(s) &&
+      !/^[-#*=_|.\s]+$/.test(s) &&
+      !/^#{1,6}\s/.test(s) &&
+      !/^-{2,}$/.test(s.trim()) &&
+      /[a-zA-Z]/.test(s) &&
+      !/^(but|and|or|the|not|mandatory|optional|required|preferred|bonus)\b/i.test(s);
 
     const bullets = sectionMatch[1].match(/(?:^|\n)\s*[•\-\*\d+\.\)\s]+(.+)/gm);
     if (bullets) {
       return bullets
-        .map(b => b.replace(/^\s*[•\-\*\d+\.\)\s]+/, '').trim())
+        .map(b => b.replace(/^\s*[•\-\*\d+\.\)\s]+/, '').replace(/\(.*?\)/g, '').trim())
         .filter(isValidSkill)
         .slice(0, 10);
     }
     return sectionMatch[1].split('\n')
-      .map(l => l.trim())
+      .map(l => l.replace(/\(.*?\)/g, '').trim())
       .filter(isValidSkill)
       .slice(0, 10);
   };
@@ -1082,7 +1072,15 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
             <div className="px-4 sm:px-6 pt-4 pb-6 sm:pb-8">
               <textarea
                 value={jobDescription}
-                onChange={(e) => setJobDescription(e.target.value)}
+                onChange={(e) => {
+                  // Strip markdown so user sees clean text in the box
+                  const raw = e.target.value;
+                  const clean = raw
+                    .replace(/\*\*([^*]+)\*\*/g, '$1')
+                    .replace(/^#{1,3}\s*/gm, '')
+                    .replace(/^---+$/gm, '');
+                  setJobDescription(clean);
+                }}
                 placeholder={`Paste your job description here...`}
                 className="w-full p-3 sm:p-4 min-h-[280px] sm:min-h-[360px] border border-gray-200 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-800 text-sm leading-relaxed placeholder-gray-300 transition-colors"
               />

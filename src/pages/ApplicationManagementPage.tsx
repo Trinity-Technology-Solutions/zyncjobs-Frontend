@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import { DndContext, DragEndEvent, DragStartEvent, PointerSensor, useSensor, useSensors, DragOverlay, useDroppable, useDraggable } from '@dnd-kit/core';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import ScheduleInterviewModal from '../components/ScheduleInterviewModal';
 import ResumeModal from '../components/ResumeModal';
 import { API_ENDPOINTS } from '../config/env';
-import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, Download } from 'lucide-react';
+import { Zap, X, CheckCircle, XCircle, MinusCircle, Search, FileDown } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
+import BackButton from '../components/BackButton';
+import { executeAI } from '../services/aiChatService';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -24,7 +26,7 @@ const COLUMNS = [
   { id: 'rejected',   label: 'Rejected',    color: '#ef4444', light: '#fef2f2', border: '#fecaca' },
 ];
 
-function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProfile, onDelete }: any) {
+function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProfile, onDelete, isViewer }: any) {
   const appId = application.id || application._id;
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: appId });
   const style = transform ? { transform: `translate(${transform.x}px,${transform.y}px)`, zIndex: 999, opacity: 0.95 } : undefined;
@@ -70,6 +72,7 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         <button onClick={() => onViewResume(application)} className="text-xs text-blue-600 hover:text-blue-800 font-medium px-1.5 py-0.5 rounded hover:bg-blue-50">
           Resume
         </button>
+        {!isViewer && (<>
         <span className="text-gray-300 text-xs">·</span>
         <button onClick={() => onScheduleInterview(application)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium px-1.5 py-0.5 rounded hover:bg-emerald-50">
           Interview
@@ -78,12 +81,13 @@ function KanbanCard({ application, onViewResume, onScheduleInterview, onViewProf
         <button onClick={() => onDelete(appId)} className="text-xs text-red-500 hover:text-red-700 font-medium px-1.5 py-0.5 rounded hover:bg-red-50">
           Delete
         </button>
+        </>)}
       </div>
     </div>
   );
 }
 
-function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewProfile, onDelete }: any) {
+function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewProfile, onDelete, isViewer }: any) {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
     <div className="flex flex-col flex-shrink-0" style={{ width: 230 }}>
@@ -118,6 +122,7 @@ function KanbanColumn({ col, cards, onViewResume, onScheduleInterview, onViewPro
               onScheduleInterview={onScheduleInterview}
               onViewProfile={onViewProfile}
               onDelete={onDelete}
+              isViewer={isViewer}
             />
           ))
         )}
@@ -144,15 +149,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
   const [searchQuery, setSearchQuery] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [csvDownloading, setCsvDownloading] = useState(false);
   const [interviewRounds, setInterviewRounds] = useState<Record<string, any[]>>({});
-  const [confirm, setConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null }); 
+  const isViewer = (user?.teamRole === 'Viewer') || false; 
+
+  const [confirm, setConfirm] = useState<{ isOpen: boolean; id: string | null }>({ isOpen: false, id: null });
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-
-  useEffect(() => {
-    const storedJobId = sessionStorage.getItem('selectedJobId');
-    setJobId(storedJobId);
-  }, []);
 
   useEffect(() => {
     if (jobId) {
@@ -298,29 +301,23 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       let aiSummary: string | undefined;
       let breakdown: any;
 
-      try {
-        const response = await fetch(`${API_ENDPOINTS.AI_FLOW_SCORE_CANDIDATE}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jobDescription: jobDesc,
-            candidateResume: buildCandidateResumeText(app),
-            jobId,
-            candidateId: app.candidateId || app.id || app._id,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (typeof data.overallScore === 'number') {
-            score = data.overallScore;
-            recommendation = data.recommendation;
-            aiSummary = data.aiSummary;
-            breakdown = data.breakdown;
-          }
+            try {
+        const aiResult = await executeAI(
+          `Score this candidate for the job. Job: ${jobDesc}. Candidate: ${buildCandidateResumeText(app)}`,
+          { jobDescription: jobDesc, candidateResume: buildCandidateResumeText(app) },
+          'employer'
+        ) as any;
+        const result = aiResult?.result || aiResult;
+        if (typeof result?.overallScore === 'number') {
+          score = result.overallScore;
+          recommendation = result.recommendation;
+          aiSummary = result.aiSummary || result.summary;
+          breakdown = result.breakdown;
+        } else if (typeof result?.score === 'number') {
+          score = result.score;
         }
       } catch (error) {
-        console.error('AI Auto-Shortlist preview failed', error);
+        console.error('AI Auto-Shortlist failed, using rule score', error);
       }
 
       const newStatus = score >= 50 ? 'shortlisted' : score < 30 ? 'rejected' : 'reviewed';
@@ -366,6 +363,33 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
     }
   };
 
+  const downloadAllApplicationsCSV = () => {
+    if (!filtered.length) { alert('No applications available.'); return; }
+    setCsvDownloading(true);
+    try {
+      const jobTitle = sessionStorage.getItem('selectedJobTitle') || 'job';
+      const headers = ['Candidate Name', 'Email', 'Phone', 'Job Title', 'Applied Date'];
+      const rows = filtered.map(a => [
+        a.candidateName || '', a.candidateEmail || '', a.candidatePhone || '',
+        a.jobTitle || '',
+        a.appliedDate ? new Date(a.appliedDate).toISOString().split('T')[0] : ''
+      ]);
+      const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${jobTitle.replace(/\s+/g, '_')}_applications.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (e) {
+      alert('Failed to export applications. Please try again.');
+    } finally {
+      setCsvDownloading(false);
+    }
+  };
+
   const filtered = useMemo(() =>
     applications.filter(app =>
       !searchQuery ||
@@ -381,9 +405,15 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
   const activeApp = activeId ? applications.find(a => (a.id || a._id) === activeId) : null;
 
+  useEffect(() => {
+    const storedJobId = sessionStorage.getItem('selectedJobId');
+    setJobId(storedJobId);
+  }, []);
+
   const handleDragStart = (e: DragStartEvent) => setActiveId(String(e.active.id));
   const handleDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
+    if (isViewer) return;
     const { active, over } = e;
     if (!over) return;
     const newStatus = String(over.id);
@@ -437,11 +467,14 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
       <div style={{marginLeft: '0px', marginRight: '40px', marginTop: '16px', marginBottom: '24px', padding: '24px'}}>
         {/* Top bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
-            </h1>
-            <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+          <div className="flex items-center gap-3">
+            <BackButton onClick={() => onNavigate('job-management')} />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {sessionStorage.getItem('selectedJobTitle') || 'Applications'} — Pipeline
+              </h1>
+              <p className="text-sm text-gray-400 mt-0.5">{filtered.length} of {applications.length} candidates</p>
+            </div>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             {/* Search */}
@@ -460,10 +493,18 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                 <button
                   onClick={downloadAllResumes}
                   disabled={bulkDownloading}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60"
+                >
+                  <FileDown className="w-4 h-4" />
+                  {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
+                </button>
+                <button
+                  onClick={downloadAllApplicationsCSV}
+                  disabled={csvDownloading}
                   className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-60"
                 >
-                  <Download className="w-4 h-4" />
-                  {bulkDownloading ? 'Preparing ZIP...' : 'Download Resumes'}
+                  <FileDown className="w-4 h-4" />
+                  {csvDownloading ? 'Exporting...' : 'Export CSV'}
                 </button>
                 <button
                   onClick={runAIShortlist}
@@ -503,6 +544,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
                   onScheduleInterview={onScheduleInterview}
                   onViewProfile={onViewProfile}
                   onDelete={deleteApplication}
+                  isViewer={isViewer}
                 />
               ))}
             </div>

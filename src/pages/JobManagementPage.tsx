@@ -443,7 +443,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                       refreshCount: job.refreshCount || 0,
                       lastRefreshedAt: job.lastRefreshedAt
                     }))}
-                    userPlan="free" // TODO: Get from user data
+                    userPlan={(user as any)?.plan || 'free'} // TODO: Get from user data
                     onRefreshComplete={() => {
                       // Refresh the jobs list and clear selection
                       const userData = localStorage.getItem('user');
@@ -533,9 +533,9 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                         </div>
                         <div className="text-xs text-gray-500">
                           {job.status === 'active' ? 'Active' : job.status || 'Active'} • Posted {new Date(job.createdAt || job.created_at || Date.now()).toLocaleDateString('en-GB')}
-                          {job.postedByName && job.postedByEmail !== job.employerEmail && (
+                          {job.postedByName && job.postedByEmail && job.postedByEmail !== job.employerEmail && (
                             <span className="ml-2 bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full text-[10px] font-medium">
-                              Posted by: {job.postedByName}
+                              Posted by: {job.postedByName} ({job.postedByEmail})
                             </span>
                           )}
                         </div>
@@ -594,7 +594,7 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                           jobTitle={job.jobTitle || job.title || 'Job Position'}
                           refreshCount={job.refreshCount || 0}
                           lastRefreshedAt={job.lastRefreshedAt}
-                          userPlan="free" // TODO: Get from user data
+                          userPlan={(user as any)?.plan || 'free'} // TODO: Get from user data
                           onRefreshSuccess={() => {
                             // Refresh the jobs list
                             const userData = localStorage.getItem('user');

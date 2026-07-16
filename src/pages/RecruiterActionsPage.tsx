@@ -3,7 +3,7 @@ import { Users, RefreshCw, Eye, TrendingUp, MapPin, Building2, Sparkles } from '
 import BackButton from '../components/BackButton';
 import { io, Socket } from 'socket.io-client';
 import Header from '../components/Header';
-import { API_ENDPOINTS } from '../config/env';
+import { API_ENDPOINTS, config } from '../config/env';
 
 interface Props { onNavigate: (page: string) => void; user?: any; onLogout?: () => void; }
 type FilterKey = 'all' | 'profile_viewed' | 'job_invite';
@@ -49,7 +49,10 @@ function Avatar({ name, picture }: { name: string; picture?: string | null }) {
     'from-rose-500 to-pink-600',     'from-indigo-500 to-blue-600',
   ];
   const fallbackGradient = palettes[initial.charCodeAt(0) % palettes.length];
-  const fallbackAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(name || '?')}&size=56&background=6366f1&color=ffffff&bold=true`;
+  const initials = (name || '?').split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  const fallbackAvatar = `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><rect width="56" height="56" fill="#6366F1" rx="28"/><text x="28" y="36" text-anchor="middle" fill="white" font-family="Arial" font-size="22" font-weight="bold">${initials}</text></svg>`
+  )}`;
 
   if (picture && picture.trim()) {
     const src = picture.startsWith('http') ? picture : `${(import.meta.env.VITE_API_URL || '/api').replace('/api', '')}${picture}`;
@@ -109,8 +112,7 @@ const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =
 
   useEffect(() => {
     if (!userEmail) return;
-    const socketUrl = import.meta.env.VITE_PROXY_TARGET || 'http://localhost:5000';
-    const socket: Socket = io(socketUrl, { transports: ['websocket', 'polling'] });
+    const socket: Socket = io(config.SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on(`analytics_update:${userEmail}`, ({ eventType }: { eventType: string }) => {
       if (eventType === 'recruiter_action') {
         setLiveIndicator(true);

@@ -8,9 +8,6 @@ import {
   Search,
   X,
   Lightbulb,
-  BarChart3,
-  Flame,
-  CheckCircle,
   Sparkles,
 } from "lucide-react";
 import { API_ENDPOINTS } from "../config/constants";
@@ -29,14 +26,18 @@ import LinkedInConnect, {
 import ProfileVisibilityToggle from "../components/ProfileVisibilityToggle";
 import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
+import ConfirmDialog from "../components/ConfirmDialog";
+import { readPdf } from "../lib/parse-resume-from-pdf/read-pdf";
 
 interface CandidateDashboardPageProps {
+  user?: any;
   onNavigate: (page: string, data?: any) => void;
   readOnly?: boolean;
   viewEmail?: string;
 }
 
 const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
+  user: userProp,
   onNavigate,
   readOnly = false,
   viewEmail,
@@ -62,6 +63,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     src: string;
     file: File;
   } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean; title: string; message: string; onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const showConfirm = (title: string, message: string, onConfirm: () => void) =>
+    setConfirmDialog({ isOpen: true, title, message, onConfirm });
   const [showResumePopup, setShowResumePopup] = useState(false);
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
@@ -123,15 +129,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     }
   };
 
-  const candidateEmail =
-    user?.email ||
-    (() => {
-      try {
-        return JSON.parse(localStorage.getItem("user") || "{}").email;
-      } catch {
-        return undefined;
-      }
-    })();
+  const candidateEmail = user?.email || (() => {
+    try { return JSON.parse(localStorage.getItem("user") || "{}").email; } catch { return undefined; }
+  })();
   const {
     notifications: appNotifications,
     unreadCount,
@@ -366,11 +366,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
         return;
       }
 
-      const userData =
-        localStorage.getItem("user") || sessionStorage.getItem("user");
+      // Prefer user prop (React state from App.tsx) over localStorage
+      const userData = userProp || localStorage.getItem("user") || sessionStorage.getItem("user");
       if (userData) {
         try {
-          const parsedUser = JSON.parse(userData);
+          const parsedUser = typeof userData === 'object' ? userData : JSON.parse(userData);
           let finalUser = parsedUser;
           // Fetch fresh data from database
           try {
@@ -911,6 +911,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   ...prev,
                   openToWork: parsed.openToWork,
                   profileFrame: parsed.profileFrame,
+                  visibilityStatus: parsed.visibilityStatus ?? prev.visibilityStatus,
+                  profileVisibility: parsed.profileVisibility ?? prev.profileVisibility,
                 }
               : prev,
           );
@@ -920,7 +922,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       }
     };
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
+    window.addEventListener("zync:user-updated", handleStorage as EventListener);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("zync:user-updated", handleStorage as EventListener);
+    };
   }, []);
 
   return (
@@ -1582,7 +1588,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-semibold text-gray-900">
-                        AI Job Suggestions
+                        {user?.skills?.length > 0 ? 'AI Job Suggestions' : 'Latest Jobs'}
                       </h3>
                       {recommendedJobs.length > 3 && (
                         <button
@@ -1632,7 +1638,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     </span>
                                   )}
                                   <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       const userEmail =
                                         user?.email || user?.name || "user";
                                       const idsKey = `savedJobs_${userEmail}`;
@@ -1660,6 +1666,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                       const isAlreadySaved =
                                         savedIds.includes(jobId);
                                       if (isAlreadySaved) {
+                                        const confirmed = await (window as any).confirmAsync(
+                                          'Remove this job from your saved list?'
+                                        );
+                                        if (!confirmed) return;
                                         const updatedIds = savedIds.filter(
                                           (id) => id !== jobId,
                                         );
@@ -1986,7 +1996,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     ) : null}
                     {/* Cover upload + remove buttons */}
                     {!readOnly && (
-                      <div className="absolute top-3 right-3 flex gap-2">
+                      <React.Fragment><div className="absolute top-3 right-3 flex gap-2">
                         <label
                           className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full cursor-pointer shadow transition-all"
                           title="Change cover photo"
@@ -2012,11 +2022,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           </svg>
                           <input
                             type="file"
-                            accept="image/*"
+                            accept=".jpg,.jpeg,.png,.webp"
                             className="hidden"
                             onChange={(e) => {
                               const file = e.target.files?.[0];
                               if (!file) return;
+                              const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+                              if (!allowedTypes.includes(file.type)) {
+                                window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Only JPG, JPEG, PNG, and WEBP files are allowed." } }));
+                                e.target.value = "";
+                                return;
+                              }
+                              if (file.size > 5 * 1024 * 1024) {
+                                window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "File size exceeds the maximum limit of 5 MB." } }));
+                                e.target.value = "";
+                                return;
+                              }
                               const src = URL.createObjectURL(file);
                               setCoverCropModal({ src, file });
                               e.target.value = "";
@@ -2027,37 +2048,28 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           <button
                             title="Remove cover photo"
                             className="bg-white bg-opacity-90 hover:bg-opacity-100 p-2 rounded-full shadow transition-all"
-                            onClick={async () => {
-                              const updatedUser = { ...user, coverPhoto: "" };
-                              setUser(updatedUser);
-                              localStorage.setItem(
-                                "user",
-                                JSON.stringify(updatedUser),
-                              );
-                              await apiFetch(
-                                `${API_ENDPOINTS.BASE_URL}/profile/save`,
-                                {
+                            onClick={() => showConfirm(
+                              'Remove Cover Photo',
+                              'Are you sure you want to remove your cover photo?',
+                              async () => {
+                                const updatedUser = { ...user, coverPhoto: "" };
+                                setUser(updatedUser);
+                                localStorage.setItem("user", JSON.stringify(updatedUser));
+                                await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                   method: "POST",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    email: user?.email,
-                                    coverPhoto: "",
-                                  }),
-                                },
-                              );
-                              setNotification({
-                                type: "success",
-                                message: "Cover photo removed!",
-                                isVisible: true,
-                              });
-                            }}
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ email: user?.email, coverPhoto: "" }),
+                                });
+                                setNotification({ type: "success", message: "Cover photo removed!", isVisible: true });
+                              }
+                            )}
                           >
                             <X className="w-4 h-4 text-gray-600" />
                           </button>
                         )}
                       </div>
+                      <p className="text-xs text-gray-400 mt-1 text-right">Supported formats: JPG, JPEG, PNG, WEBP &mdash; Max 5 MB</p>
+                      </React.Fragment>
                     )}
                   </div>
 
@@ -3351,7 +3363,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <input
                           type="file"
                           id="resume-update"
-                          accept=".doc,.docx,.rtf,.pdf"
+                          accept=".doc,.docx,.rtf,.pdf,.jpg,.jpeg,.png,.webp"
                           className="hidden"
                           onChange={async (e) => {
                             const file = e.target.files?.[0];
@@ -3408,6 +3420,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 "user",
                                 JSON.stringify(updatedUser),
                               );
+                              window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: updatedUser }));
                               calculateProfileCompletion(updatedUser);
                               await apiFetch(
                                 `${API_ENDPOINTS.BASE_URL}/profile/save`,
@@ -3449,66 +3462,32 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             Update
                           </button>
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              if (
-                                !confirm(
-                                  "Are you sure you want to remove your resume? This action cannot be undone.",
-                                )
-                              )
-                                return;
-
-                              try {
-                                const updatedUser = {
-                                  ...user,
-                                  resume: null,
-                                  resumeUrl: "",
-                                };
-                                setUser(updatedUser);
-                                localStorage.setItem(
-                                  "user",
-                                  JSON.stringify(updatedUser),
-                                );
-                                calculateProfileCompletion(updatedUser);
-
-                                const res = await apiFetch(
-                                  `${API_ENDPOINTS.BASE_URL}/profile/save`,
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      email: user?.email,
-                                      resume: null,
-                                      resumeUrl: "",
-                                      removeResume: true,
-                                    }),
-                                  },
-                                );
-
-                                if (!res.ok) throw new Error("Save failed");
-                                setNotification({
-                                  type: "success",
-                                  message: "Resume removed successfully!",
-                                  isVisible: true,
-                                });
-                              } catch (error) {
-                                console.error("Error removing resume:", error);
-                                // Revert on failure
-                                setUser(user);
-                                localStorage.setItem(
-                                  "user",
-                                  JSON.stringify(user),
-                                );
-                                setNotification({
-                                  type: "error",
-                                  message:
-                                    "Failed to remove resume. Please try again.",
-                                  isVisible: true,
-                                });
-                              }
+                              showConfirm(
+                                'Remove Resume',
+                                'Are you sure you want to remove your resume? This action cannot be undone.',
+                                async () => {
+                                  try {
+                                    const updatedUser = { ...user, resume: null, resumeUrl: "" };
+                                    setUser(updatedUser);
+                                    localStorage.setItem("user", JSON.stringify(updatedUser));
+                                    calculateProfileCompletion(updatedUser);
+                                    const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({ email: user?.email, resume: null, resumeUrl: "", removeResume: true }),
+                                    });
+                                    if (!res.ok) throw new Error("Save failed");
+                                    setNotification({ type: "success", message: "Resume removed successfully!", isVisible: true });
+                                  } catch (error) {
+                                    setUser(user);
+                                    localStorage.setItem("user", JSON.stringify(user));
+                                    setNotification({ type: "error", message: "Failed to remove resume. Please try again.", isVisible: true });
+                                  }
+                                }
+                              );
                             }}
                             className="text-red-500 hover:text-red-700 text-sm font-medium"
                           >
@@ -3523,7 +3502,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       <input
                         type="file"
                         id="resume-upload"
-                        accept=".doc,.docx,.rtf,.pdf"
+                        accept=".doc,.docx,.rtf,.pdf,.jpg,.jpeg,.png,.webp"
                         className="hidden"
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
@@ -3580,6 +3559,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               "user",
                               JSON.stringify(updatedUser),
                             );
+                            window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: updatedUser }));
                             calculateProfileCompletion(updatedUser);
                             await apiFetch(
                               `${API_ENDPOINTS.BASE_URL}/profile/save`,
@@ -4041,11 +4021,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     Click to upload resume
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    PDF, DOC, DOCX up to 5MB
+                    PDF, DOC, DOCX, JPG, JPEG, PNG, WEBP up to 5MB
                   </p>
                   <input
                     type="file"
-                    accept=".pdf,.doc,.docx"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];
@@ -4083,9 +4063,52 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   setResumePopupParsing(true);
                   setResumePopupError("");
                   try {
-                    // 1. Parse resume — use plain fetch with explicit token + 60s timeout
-                    const formData = new FormData();
-                    formData.append("resume", resumePopupFile);
+                    // 1. Parse resume using hybrid architecture:
+                    //    read PDF client-side → hybrid-parse API → transform
+                    const isPdf =
+                      resumePopupFile.type === "application/pdf" ||
+                      resumePopupFile.name.endsWith(".pdf");
+                    let resumeText = "";
+                    let layoutBlocks: any[] = [];
+
+                    if (isPdf) {
+                      // Read PDF client-side for text + layout blocks
+                      const url = URL.createObjectURL(resumePopupFile);
+                      const textItems = await readPdf(url);
+                      URL.revokeObjectURL(url);
+                      if (textItems.length > 0) {
+                        resumeText = textItems.map((t) => t.text).join("\n");
+                        layoutBlocks = textItems.map((t) => ({
+                          text: t.text,
+                          x: t.x,
+                          y: t.y,
+                          width: t.width,
+                          height: t.height,
+                          page: t.page,
+                          bold: t.bold,
+                        }));
+                      }
+                    }
+
+                    // If no text from client-side read (non-PDF or failed), fall back to backend extraction
+                    if (!resumeText.trim()) {
+                      const formData = new FormData();
+                      formData.append("resume", resumePopupFile);
+                      const extractRes = await fetch(
+                        `${API_ENDPOINTS.BASE_URL}/resume/extract-text`,
+                        { method: "POST", body: formData },
+                      );
+                      if (!extractRes.ok)
+                        throw new Error("Could not extract text from file");
+                      const extractData = await extractRes.json();
+                      resumeText = extractData.text || "";
+                      if (!resumeText.trim())
+                        throw new Error(
+                          "Could not extract text from file. Ensure the file is not empty or corrupted.",
+                        );
+                    }
+
+                    // Call hybrid-parse API
                     const accessToken = tokenStorage.getAccess();
                     const controller = new AbortController();
                     const timeoutId = setTimeout(
@@ -4095,13 +4118,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     let parseRes: Response;
                     try {
                       parseRes = await fetch(
-                        `${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`,
+                        `${API_ENDPOINTS.BASE_URL}/resume/hybrid-parse`,
                         {
                           method: "POST",
-                          headers: accessToken
-                            ? { Authorization: `Bearer ${accessToken}` }
-                            : {},
-                          body: formData,
+                          headers: {
+                            "Content-Type": "application/json",
+                            ...(accessToken
+                              ? { Authorization: `Bearer ${accessToken}` }
+                              : {}),
+                          },
+                          body: JSON.stringify({
+                            resume_text: resumeText,
+                            layout_blocks: layoutBlocks,
+                          }),
                           signal: controller.signal,
                         },
                       );
@@ -4115,29 +4144,42 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       clearTimeout(timeoutId);
                     }
 
-                    // Handle non-JSON or empty responses
-                    const rawText = await parseRes.text();
-                    if (!rawText || !rawText.trim()) {
+                    if (!parseRes.ok) {
+                      const errText = await parseRes.text().catch(() => "");
                       throw new Error(
-                        "Server returned empty response. Please try again.",
+                        errText
+                          ? `Parse failed: ${errText.slice(0, 200)}`
+                          : "Parse failed",
                       );
                     }
-                    let parseData: any;
-                    try {
-                      parseData = JSON.parse(rawText);
-                    } catch {
-                      throw new Error("Server error. Please try again.");
-                    }
-                    if (!parseRes.ok || !parseData.success) {
-                      throw new Error(parseData.error || "Parse failed");
-                    }
-                    const p = parseData.profileData;
+
+                    const hybridData = await parseRes.json();
                     console.log(
-                      "[ResumePopup] AI parsed profileData:",
-                      JSON.stringify(p, null, 2),
+                      "[ResumePopup] Hybrid-parse raw response:",
+                      JSON.stringify(hybridData, null, 2),
                     );
 
-                    // Sanitize AI name — reject section headings
+                    // Transform to frontend format using shared transform
+                    // NOTE: hybrid-parse returns parsed resume directly, NOT rankings.
+                    // The transformHybridToFrontendFormat is for RANKING results only.
+                    // Use hybridData directly as it should match ParsedResume format.
+                    const transformed = hybridData.hybridData || hybridData;
+                    console.log(
+                      "[ResumePopup] Parsed resume data:",
+                      JSON.stringify(transformed, null, 2),
+                    );
+
+                    const tf = transformed || {
+                      profile: {} as any,
+                      skills: { featuredSkills: [] },
+                      workExperiences: [],
+                      educations: [],
+                      projects: [],
+                      certifications: [],
+                      summary: "",
+                    };
+
+                    // Sanitize name — reject section headings
                     const SECTION_HEADINGS = new Set([
                       "about me",
                       "about",
@@ -4164,7 +4206,31 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         return false;
                       return /[a-zA-Z]/.test(n);
                     };
-                    const cleanName = isValidName(p.name) ? p.name : "";
+                    const cleanName = isValidName(tf.profile.name)
+                      ? tf.profile.name
+                      : "";
+
+                    // Build profileData from transformed result
+                    const expArr = Array.isArray(tf.workExperiences)
+                      ? tf.workExperiences
+                      : [];
+                    const p = {
+                      name: cleanName,
+                      email: tf.profile.email,
+                      phone: tf.profile.phone,
+                      location: tf.profile.location,
+                      address: tf.profile.address,
+                      summary: tf.summary,
+                      skills: tf.skills.featuredSkills.map((s: any) => s.skill),
+                      workExperiences: expArr,
+                      educations: tf.educations,
+                      projects: tf.projects,
+                      certifications: tf.certifications,
+                      jobTitle:
+                        expArr[0]?.jobTitle ||
+                        expArr[0]?.title ||
+                        "",
+                    };
                     // 2. Upload resume file to S3
                     const s3Result =
                       await S3Service.uploadResumeToS3(resumePopupFile);
@@ -4180,28 +4246,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
 
                     // 3. Resume is source of truth — replace each field with parsed value;
                     //    if resume has no value for a field, that field becomes empty.
-                    const workExps =
-                      p.workExperiences ||
-                      p.experience ||
-                      p.workExperience ||
-                      [];
-                    const educations = p.educations || p.education || [];
+                    const educations = p.educations || [];
                     const eduArr = Array.isArray(educations)
                       ? educations
                       : educations && typeof educations === "object"
                         ? [educations]
                         : [];
-                    const expArr = Array.isArray(workExps) ? workExps : [];
                     const extractYear = (dateStr: string) =>
                       String(dateStr || "").match(/\d{4}/)?.[0] || "";
-                    const rawSkillsArr: any[] = Array.isArray(p.skills)
-                      ? p.skills
+                    const normalizedSkills: string[] = Array.isArray(p.skills)
+                      ? p.skills.map((s: any) =>
+                          typeof s === "string" ? s : s?.skill || s?.name || "",
+                        ).filter(Boolean)
                       : [];
-                    const normalizedSkills: string[] = rawSkillsArr
-                      .map((s: any) =>
-                        typeof s === "string" ? s : s?.skill || s?.name || "",
-                      )
-                      .filter(Boolean);
 
                     const merged = {
                       ...user,
@@ -4211,19 +4268,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       name: cleanName || user?.name || "",
                       phone: p.phone || "",
                       location: p.location || "",
-                      country: p.country || user?.country || "",
-                      profileSummary: p.summary || p.profileSummary || "",
-                      skills:
-                        normalizedSkills.length > 0 ? normalizedSkills : [],
-                      jobTitle:
-                        p.title ||
-                        p.jobTitle ||
-                        expArr[0]?.jobTitle ||
-                        expArr[0]?.title ||
-                        "",
+                      address: p.address || {
+                        city: "",
+                        state: "",
+                        country: "",
+                        postal_code: "",
+                        full_address: "",
+                      },
+                      country: p.address?.country || user?.country || "",
+                      profileSummary: p.summary || "",
+                      skills: normalizedSkills,
+                      jobTitle: p.jobTitle || "",
                       employment:
-                        expArr.length > 0
-                          ? expArr.map((w: any) => {
+                        p.workExperiences.length > 0
+                          ? p.workExperiences.map((w: any) => {
                               const dateParts = String(w.date || "").split(
                                 /\s*[-–]\s*/,
                               );
@@ -4273,6 +4331,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     };
                     setUser(merged);
                     localStorage.setItem("user", JSON.stringify(merged));
+                    window.dispatchEvent(new CustomEvent('zync:user-updated', { detail: merged }));
                     calculateProfileCompletion(merged);
 
                     // 4. Save to backend
@@ -4347,6 +4406,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       )}
 
       {/* Cover Photo Crop Modal */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        variant="danger"
+        onConfirm={() => { confirmDialog.onConfirm(); setConfirmDialog(prev => ({ ...prev, isOpen: false })); }}
+        onCancel={() => setConfirmDialog(prev => ({ ...prev, isOpen: false }))}
+      />
       {coverCropModal && (
         <CoverPhotoCropModal
           src={coverCropModal.src}

@@ -2,19 +2,56 @@
  * HTML utilities for decoding and safely rendering job descriptions
  */
 
-// Decode HTML entities
+// Decode HTML entities - handles both single and double encoded entities
 export const decodeHtmlEntities = (text: string): string => {
-  const textarea = document.createElement('textarea');
-  textarea.innerHTML = text;
-  return textarea.value;
+  if (!text) return '';
+  
+  let decoded = text;
+  let lastDecoded = '';
+  let iterations = 0;
+  const maxIterations = 5; // Prevent infinite loops
+  
+  // Decode multiple times to handle double/triple-encoded entities
+  while (decoded !== lastDecoded && iterations < maxIterations) {
+    lastDecoded = decoded;
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = decoded;
+    decoded = textarea.value;
+    
+    // Also handle common HTML entities explicitly
+    decoded = decoded
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&apos;/g, "'")
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&copy;/g, '©')
+      .replace(/&reg;/g, '®');
+    
+    iterations++;
+  }
+  
+  return decoded;
 };
 
 // Strip HTML tags and return plain text
 export const stripHtmlTags = (html: string): string => {
-  const decoded = decodeHtmlEntities(html);
-  const div = document.createElement('div');
-  div.innerHTML = decoded;
-  return div.textContent || div.innerText || '';
+  if (!html) return '';
+  
+  let decoded = decodeHtmlEntities(html);
+  
+  // Remove HTML tags using regex
+  decoded = decoded.replace(/<[^>]*>/g, ' ');
+  
+  // Clean up multiple spaces and newlines
+  decoded = decoded
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+  
+  return decoded;
 };
 
 // Convert HTML to formatted plain text with basic formatting
@@ -23,13 +60,14 @@ export const htmlToFormattedText = (html: string): string => {
   
   let decoded = decodeHtmlEntities(html);
   
-  // Replace common HTML tags with formatted text
+  // Replace common HTML tags with formatted text (before removing tags)
   decoded = decoded
     .replace(/<h[1-6][^>]*>/gi, '\n\n**')
     .replace(/<\/h[1-6]>/gi, '**\n')
     .replace(/<p[^>]*>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<br[^>]*>/gi, '\n')
+    .replace(/<\/br>/gi, '')
     .replace(/<ul[^>]*>/gi, '\n')
     .replace(/<\/ul>/gi, '\n')
     .replace(/<ol[^>]*>/gi, '\n')
@@ -62,31 +100,23 @@ export const createSafeHtmlRenderer = (html: string, maxLength?: number): string
   return plainText;
 };
 
-// Format job description for display
+// Format job description for display - now with better encoding handling
 export const formatJobDescription = (description: string, maxLength: number = 150): string => {
   if (!description) return '';
   
-  let processed = description;
+  // Decode all encoded entities
+  let processed = decodeHtmlEntities(description);
   
-  // Handle double-encoded HTML entities first
-  processed = processed
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
-  
-  // Now decode any remaining HTML entities and strip tags
-  const plainText = stripHtmlTags(processed);
+  // Strip all HTML tags
+  processed = stripHtmlTags(processed);
   
   // Remove "Job Summary" heading and clean up formatting
-  const cleaned = plainText
+  const cleaned = processed
     .replace(/^\s*Job Summary\s*/i, '') // Remove "Job Summary" at the beginning
     .replace(/\s+Job Summary\s+/gi, ' ') // Remove "Job Summary" in the middle
-    .replace(/\s+/g, ' ')
-    .replace(/\n\s*\n/g, ' ')
-    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s+/g, ' ') // Normalize spaces
+    .replace(/\n\s*\n/g, ' ') // Replace multiple newlines with space
+    .replace(/[\r\n]+/g, ' ') // Replace remaining newlines with space
     .trim();
   
   if (cleaned.length > maxLength) {
@@ -95,6 +125,7 @@ export const formatJobDescription = (description: string, maxLength: number = 15
   
   return cleaned;
 };
+
 
 export default {
   decodeHtmlEntities,

@@ -45,7 +45,7 @@ interface Admin {
   isActive: boolean;
   createdAt: string;
   lastLoginAt?: string;
-}
+
 
 interface AddAdminForm {
   name: string;
@@ -70,6 +70,9 @@ export default function AdminManagementSection({
     name: '', email: '', role: 'admin'
   });
   const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
+  const [resetPasswordData, setResetPasswordData] = useState<{ adminId: string; adminName: string } | null>(null);
+  const [newPasswordInput, setNewPasswordInput] = useState('');
 
   const isCurrentUserSuperAdmin = isSuperAdmin(currentUser.email) || 
                                    isSuperAdmin((currentUser as any).role || '') ||
@@ -235,7 +238,8 @@ export default function AdminManagementSection({
   };
 
   const deleteAdmin = async (adminId: string, adminName: string) => {
-    const confirmed = await (window as any).confirmAsync(
+    // Use standard confirm instead of non-existent confirmAsync
+    const confirmed = confirm(
       `Are you sure you want to delete admin "${adminName}"? This action cannot be undone.`
     );
     if (!confirmed) return;
@@ -245,37 +249,55 @@ export default function AdminManagementSection({
     setSuccess('');
 
     try {
-      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${adminId}`, {
-        method: 'DELETE'
-      }, onUnauthorized);
+      const response = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${adminId}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed (${response.status})`);
+      }
 
+      // Remove from UI immediately
       setAdmins(prev => prev.filter(admin => (admin._id || admin.id) !== adminId));
       setSuccess(`Admin ${adminName} deleted successfully!`);
-    } catch (error) {
-      setError('Failed to delete admin.');
+    } catch (error: any) {
+      console.error('Delete admin error:', error);
+      setError(error.message || 'Failed to delete admin.');
     } finally {
       setActionLoading(null);
     }
   };
 
   const resetPassword = async (adminId: string, adminName: string) => {
-    const newPassword = prompt(`Enter new password for ${adminName}:`);
-    if (!newPassword || newPassword.length < 6) {
+    setResetPasswordData({ adminId, adminName });
+    setNewPasswordInput('');
+    setShowResetPasswordModal(true);
+  };
+
+  const handleResetPasswordSubmit = async () => {
+    if (!resetPasswordData) return;
+    
+    if (!newPasswordInput || newPasswordInput.length < 6) {
       setError('Password must be at least 6 characters long.');
       return;
     }
 
-    setActionLoading(adminId + 'password');
+    setActionLoading(resetPasswordData.adminId + 'password');
     setError('');
     setSuccess('');
+    setShowResetPasswordModal(false);
 
     try {
-      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${adminId}/reset-password`, {
+      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${resetPasswordData.adminId}/reset-password`, {
         method: 'PUT',
-        body: JSON.stringify({ newPassword })
+        body: JSON.stringify({ newPassword: newPasswordInput })
       }, onUnauthorized);
 
-      setSuccess(`Password reset successfully for ${adminName}!`);
+      setSuccess(`Password reset successfully for ${resetPasswordData.adminName}!`);
+      setResetPasswordData(null);
+      setNewPasswordInput('');
     } catch (error) {
       setError('Failed to reset password.');
     } finally {
@@ -295,6 +317,43 @@ export default function AdminManagementSection({
 
   return (
     <div className="space-y-6">
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && resetPasswordData && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-semibold text-white mb-4">Reset Password</h3>
+            <p className="text-sm text-gray-400 mb-4">Enter new password for {resetPasswordData.adminName}</p>
+            <div onSubmit={(e) => { e.preventDefault(); handleResetPasswordSubmit(); }}>
+              <input
+                type="text"
+                value={newPasswordInput}
+                onChange={(e) => setNewPasswordInput(e.target.value)}
+                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                placeholder="Enter new password (min 6 chars)"
+                style={{ WebkitTextSecurity: 'disc' } as React.CSSProperties}
+                autoComplete="off"
+              />
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowResetPasswordModal(false); setResetPasswordData(null); setNewPasswordInput(''); }}
+                  className="flex-1 px-4 py-2.5 bg-gray-800 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetPasswordSubmit}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                >
+                  Reset Password
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="flex items-center justify-between">

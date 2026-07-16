@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, Loader, Eye, EyeOff } from 'lucide-react';
 import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
 import { debugAdminFlow } from '../../utils/adminDebug';
+import { updateUserInStorage } from '../../utils/userStorage';
 
 type Step = 'loading' | 'set-password' | 'success' | 'error';
 
@@ -132,7 +133,7 @@ const AdminAcceptInvitePage: React.FC<Props> = ({ onNavigate, onLogin }) => {
         console.log('🔑 Final admin user object:', adminUser);
         
         // Store user data
-        localStorage.setItem('user', JSON.stringify(adminUser));
+        updateUserInStorage(adminUser);
         localStorage.setItem('lastUserType', adminUser.type);
         
         // Verify storage immediately

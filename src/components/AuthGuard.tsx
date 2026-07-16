@@ -3,8 +3,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 
 interface AuthGuardProps {
   children: React.ReactNode;
-  user: { type: 'candidate' | 'employer' | 'admin' | 'super_admin' } | null;
-  allowedRoles?: Array<'candidate' | 'employer' | 'admin' | 'super_admin'>;
+  user: { type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager' } | null;
+  allowedRoles?: Array<'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager'>;
   redirectTo?: string;
   userLoading?: boolean;
 }
@@ -29,11 +29,13 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children, user, allowedRoles, red
     );
   }
 
-  if (!user) return <Navigate to={redirectTo} state={{ from: location }} replace />;
+  // Fallback to localStorage demo user if no backend user
+  const demoUser = user || JSON.parse(localStorage.getItem('user') || '{}');
+  if (!demoUser?.type) return <Navigate to={redirectTo} state={{ from: location }} replace />;
 
-  const effectiveRole = user.type === 'super_admin' ? 'admin' : user.type;
-  if (allowedRoles && !allowedRoles.includes(user.type) && !allowedRoles.includes(effectiveRole as any)) {
-    if (user.type === 'employer' && allowedRoles.includes('candidate')) {
+  const effectiveRole = demoUser.type === 'super_admin' ? 'admin' : demoUser.type;
+  if (allowedRoles && !allowedRoles.includes(demoUser.type) && !allowedRoles.includes(effectiveRole as any)) {
+    if (demoUser.type === 'employer' && allowedRoles.includes('candidate')) {
       return <RedirectWithAlert message="This feature is only accessible to candidates. Please login with a candidate account." to="/dashboard" />;
     }
     return <Navigate to="/dashboard" replace />;

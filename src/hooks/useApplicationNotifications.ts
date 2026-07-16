@@ -15,7 +15,13 @@ export interface AppNotification {
 
 const STATUS_KEY = 'candidate_app_statuses';
 const NOTIF_KEY = 'candidate_notifications';
+const CLEARED_AT_KEY = 'candidate_notifications_cleared_at';
 const POLL_INTERVAL = 30000; // 30 seconds
+
+/** Returns the epoch ms when the user last pressed "Clear All", or 0 if never. */
+function getClearedAt(): number {
+  return parseInt(localStorage.getItem(CLEARED_AT_KEY) || '0', 10);
+}
 
 function getStatusMessage(status: string): string {
   switch (status) {
@@ -29,8 +35,12 @@ function getStatusMessage(status: string): string {
 }
 
 function loadStored(): AppNotification[] {
-  try { return JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]'); }
-  catch { return []; }
+  try {
+    const clearedAt = getClearedAt();
+    const all: AppNotification[] = JSON.parse(localStorage.getItem(NOTIF_KEY) || '[]');
+    // Drop any notification that existed before the last "Clear All"
+    return all.filter(n => n.timestamp > clearedAt);
+  } catch { return []; }
 }
 
 function persist(notifs: AppNotification[]): AppNotification[] {
@@ -113,7 +123,9 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       if (!res.ok) return;
       const dbNotifs: any[] = await res.json();
 
-      // Convert ALL application_status DB notifications (read + unread)
+      // Only keep application_status notifications created AFTER the last "Clear All"
+      const clearedAt = getClearedAt();
+
       const converted: AppNotification[] = dbNotifs
         .filter(n => n.type === 'application_status')
         .map(n => ({
@@ -126,7 +138,9 @@ export function useApplicationNotifications(userEmail: string | undefined) {
           message: n.message,
           timestamp: new Date(n.createdAt).getTime(),
           read: n.read ?? false,
-        }));
+        }))
+        // 🔑 Skip any notification that was already visible before the user cleared all
+        .filter(n => n.timestamp > clearedAt);
 
       if (converted.length === 0) return;
 
@@ -170,6 +184,9 @@ export function useApplicationNotifications(userEmail: string | undefined) {
   const clearAll = useCallback(() => {
     setNotifications([]);
     localStorage.removeItem(NOTIF_KEY);
+    // Persist a timestamp so that historical DB notifications are never re-fetched
+    // by the 30-second polling loop after the user pressed "Clear All".
+    localStorage.setItem(CLEARED_AT_KEY, Date.now().toString());
   }, []);
 
   return { notifications, unreadCount, toast, clearToast, markRead, markAllRead, clearAll };

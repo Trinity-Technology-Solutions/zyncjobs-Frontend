@@ -1,3 +1,5 @@
+const API_BASE = typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL || '/api' : '/api';
+
 export const getCompanyLogo = (companyName: string): string => {
   if (!companyName) {
     return '';
@@ -9,14 +11,17 @@ export const getCompanyLogo = (companyName: string): string => {
     return localLogo;
   }
 
-  // Known domain map — use logo.dev (Clearbit blocked on many networks)
+  // Known domain map — use backend proxy (bypasses client-side DNS blocks)
   const domain = getCompanyDomain(companyName);
   if (domain) {
-    return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`;
+    return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`;
   }
 
-  // If no domain mapping, return UI avatars directly
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
+  // Inline SVG initials as final fallback
+  const initials = companyName.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  return `data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#3B82F6" rx="12"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+  )}`;
 };
 
 export const getLocalCompanyLogo = (companyName: string): string => {
@@ -45,9 +50,14 @@ export const getLocalCompanyLogo = (companyName: string): string => {
     return localLogos[name];
   }
   
-  // Check for partial matches
+  // Check for partial matches — also strip common legal suffixes before matching
+  const stripped = name.replace(/\s*(private|pvt|ltd|llc|inc|corp|solutions|technologies|technology|group|india|jobs)[\.\s]*/gi, '').trim();
+  if (localLogos[stripped]) {
+    return localLogos[stripped];
+  }
+
   for (const [key, logo] of Object.entries(localLogos)) {
-    if (name.includes(key) || key.includes(name)) {
+    if (name.includes(key) || key.includes(name) || stripped.includes(key) || key.includes(stripped)) {
       return logo;
     }
   }
@@ -55,7 +65,7 @@ export const getLocalCompanyLogo = (companyName: string): string => {
   return '';
 };
 
-const getCompanyDomain = (companyName: string): string => {
+export const getCompanyDomain = (companyName: string): string => {
   const name = companyName.toLowerCase();
   
   // Common company domain mappings
@@ -203,6 +213,7 @@ const getCompanyDomain = (companyName: string): string => {
     'persistent': 'persistent.com',
     'persistent systems': 'persistent.com',
     'coforge': 'coforge.com',
+    'birlasoft': 'birlasoft.com',
     'niit technologies': 'niit.com',
     'kpit': 'kpit.com',
     'cyient': 'cyient.com',
@@ -449,6 +460,20 @@ const getCompanyDomain = (companyName: string): string => {
     'infra': 'larsentoubro.com',
     'trinity international': 'trinityoman.com',
     'trinity international llc': 'trinityoman.com',
+    // New companies
+    'transunion': 'transunion.com',
+    'haverim consulting': 'haverimconsulting.com',
+    'vtx core': 'vtxcore.com',
+    'vtxcore': 'vtxcore.com',
+    'vertex core': 'vtxcore.com',
+    'michcons': 'michcons.com',
+    'yaat group': 'yaatgroup.com',
+    'yaatgroup': 'yaatgroup.com',
+    'grace institutions': 'graceinstitutions.com',
+    'trinity consulting asia': 'trinityconsulting.asia',
+    'subros': 'subros.com',
+    'lone star alpha': 'lonestaralpha.com',
+    'lonestaralpha': 'lonestaralpha.com',
     // Local Companies - Updated with correct domains
     // Note: Growthpulse Solutions may not have a public website
     // Removed growthpulse mappings to avoid DNS errors
@@ -494,17 +519,20 @@ export const getLogoWithFallbacks = (companyName: string, website?: string): str
   let domain = getCompanyDomain(companyName);
   if (!domain && website) {
     try {
-      domain = new URL(website).hostname;
+      domain = new URL(website.startsWith('http') ? website : `https://${website}`).hostname.replace('www.', '');
     } catch {}
   }
   
   if (domain) {
-    logos.push(`https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=64`);
-    logos.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=64`);
+    logos.push(`${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`);
   }
-  
-  // UI avatars as final fallback
-  logos.push(`https://ui-avatars.com/api/?name=${encodeURIComponent(companyName)}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`);
+
+  // Inline SVG initials as final fallback
+  const initials = (companyName || 'C')
+    .split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  logos.push(`data:image/svg+xml,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#3B82F6" rx="12"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+  )}`);
   
   return logos;
 };

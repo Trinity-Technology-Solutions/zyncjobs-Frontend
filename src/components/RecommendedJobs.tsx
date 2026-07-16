@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame } from 'lucide-react';
 import localStorageMigration from '../services/localStorageMigration';
 import { formatSalary } from '../utils/textUtils';
-import { getSafeCompanyLogo, getCompanyLogo } from '../utils/logoUtils';
+import CompanyLogo from './CompanyLogo';
 import { formatJobDescription } from '../utils/htmlUtils';
 
 interface Job {
@@ -26,11 +26,40 @@ interface RecommendedJobsProps {
 }
 
 const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, location, user, onNavigate }) => {
+  // Guest users should not see personalized recommendations
+  if (!user?.email) {
+    return (
+      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border border-blue-200 p-10 text-center">
+        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Lightbulb className="w-8 h-8 text-blue-500" />
+        </div>
+        <h3 className="text-xl font-bold text-gray-900 mb-2">Personalized Job Recommendations</h3>
+        <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+          Log in to get job recommendations tailored to your skills, experience, and preferences.
+        </p>
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={() => onNavigate?.('login')}
+            className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm"
+          >
+            Log In
+          </button>
+          <button
+            onClick={() => onNavigate?.('job-listings')}
+            className="border border-gray-300 text-gray-700 px-6 py-2.5 rounded-lg font-semibold hover:bg-gray-50 transition-colors text-sm"
+          >
+            Browse All Jobs
+          </button>
+        </div>
+      </div>
+    );
+  }
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState({
     salaryRange: '',
     jobType: ''
@@ -257,6 +286,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
         }
         fetchAllRecentJobs();
       } else {
+        // Logged-in user with no skills yet — show latest jobs as fallback
         fetchAllRecentJobs();
       }
     } catch (error) {
@@ -293,18 +323,22 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
       if (!res.ok) return;
       const data = await res.json();
       const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
-      const map: Record<string, string> = {};
+      const logoMap: Record<string, string> = {};
+      const websiteMap: Record<string, string> = {};
       companies.forEach((c: any) => {
         const name = (c.name || c.companyName || '').toLowerCase();
         const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-        if (name && logo) map[name] = logo;
+        if (name && logo) logoMap[name] = logo;
+        const site = c.website || c.companyWebsite || '';
+        if (name && site) websiteMap[name] = site;
       });
       jobList.forEach((j: any) => {
         const name = (j.company || '').toLowerCase();
         const logo = j.companyLogo || j.logoUrl || '';
-        if (name && logo && !map[name]) map[name] = logo;
+        if (name && logo && !logoMap[name]) logoMap[name] = logo;
       });
-      setCompanyLogos(map);
+      setCompanyLogos(logoMap);
+      setCompanyWebsites(websiteMap);
     } catch {}
   };
   if (loading) {
@@ -358,8 +392,14 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
       <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-4 mb-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 mb-1">Recommended Jobs for You</h2>
-            <p className="text-sm text-gray-600">Based on your skills and preferences • Updated daily</p>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">
+              {resumeSkills && resumeSkills.length > 0 ? 'Recommended Jobs for You' : 'Latest Jobs'}
+            </h2>
+            <p className="text-sm text-gray-600">
+              {resumeSkills && resumeSkills.length > 0
+                ? 'Based on your skills and preferences • Updated daily'
+                : 'Most recently posted jobs • Update your profile for personalized recommendations'}
+            </p>
           </div>
           <div className="text-right">
             <div className="text-2xl font-bold text-blue-600">{jobs.length}</div>
@@ -455,7 +495,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
             const title = job.title || job.jobTitle || 'Position';
             const company = job.company || job.companyName || 'Company';
             const loc = job.location || 'Location';
-            const salary = formatSalary(job.salary);
+            const salary = formatSalary(job.salary, job.currency || job.salary?.currency);
             const skills: string[] = job.skills || [];
             const jobType = Array.isArray(job.jobType) ? job.jobType[0] : job.type || job.jobType || '';
             const desc = (() => {
@@ -506,42 +546,13 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                     <div className="flex-1 min-w-0 pr-2">
                       {/* Company logo + name */}
                       <div className="flex items-center gap-3 mb-1.5">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center bg-white">
-                          <img
-                            src={(() => {
-                              const companyName = company.toLowerCase();
-                              // Priority 1: Local logos from logoUtils
-                              const localLogo = (() => {
-                                if (companyName.includes('inypeople') || companyName.includes('iny people')) return '/images/company-logos/inypeople-logo.png';
-                                if (companyName.includes('nambikkai')) return '/images/company-logos/nambikkai-logo.png';
-                                if (companyName.includes('trinity')) return '/images/company-logos/trinity-logo.png';
-                                if (companyName.includes('growthpulse') || companyName.includes('growthpulss')) return '/images/company-logos/growthpulss.png';
-                                return '';
-                              })();
-                              if (localLogo) return localLogo;
-                              
-                              // Priority 2: API fetched logos
-                              const apiLogo = companyLogos[companyName];
-                              if (apiLogo) return apiLogo;
-                              
-                              // Priority 3: getSafeCompanyLogo (uses logo.dev)
-                              const safeLogo = getSafeCompanyLogo(job);
-                              if (safeLogo) return safeLogo;
-                              
-                              // Priority 4: use central logo utils fallback
-                              return getCompanyLogo(company);
-                            })()
-                            }
-                            alt={`${company} logo`}
-                            className="w-8 h-8 object-contain"
-                            onError={(e) => {
-                              const img = e.target as HTMLImageElement;
-                              img.onerror = null;
-                              // Final fallback to UI Avatars
-                              img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(company || 'C')}&size=40&background=3b82f6&color=ffffff&bold=true&format=png`;
-                            }}
-                          />
-                        </div>
+                        <CompanyLogo
+                          companyName={company}
+                          storedLogo={companyLogos[company.toLowerCase()]}
+                          website={companyWebsites[company.toLowerCase()]}
+                          size={40}
+                          className="rounded-lg border border-gray-200"
+                        />
                         <span className="text-sm font-semibold text-blue-600 truncate">{company}</span>
                       </div>
 

@@ -4,28 +4,43 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:3002'
+  const proxyTarget = env.VITE_PROXY_TARGET || 'http://localhost:5000'
+
+  const aiProxyTarget = env.VITE_AI_PROXY_TARGET || 'http://localhost:8001'
+
+  console.log('🔧 Vite proxy target:', proxyTarget)
+  console.log('🔧 AI proxy target:', aiProxyTarget)
 
   return {
     plugins: [react(), tailwindcss()],
     build: {
-      // Split large chunks so browser can cache them separately
+      outDir: mode === 'qa' ? 'zync-site' : 'dist',
       rollupOptions: {
         output: {
           manualChunks: {
             'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-            'vendor-redux': ['@reduxjs/toolkit'],
-            'vendor-sentry': ['@sentry/react'],
+            'vendor-socket': ['socket.io-client'],
             'vendor-lucide': ['lucide-react'],
+            'vendor-charts': ['recharts'],
+            'vendor-pdf': ['jspdf', 'pdfjs-dist'],
+            'vendor-office': ['docx', 'mammoth', 'jszip'],
           },
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
         },
       },
-      // Warn when any chunk exceeds 500KB
-      chunkSizeWarningLimit: 500,
-      // Minify with esbuild (default, fast)
+      chunkSizeWarningLimit: 600,
       minify: 'esbuild',
-      // Enable source maps only in non-prod
-      sourcemap: mode !== 'production',
+      esbuildOptions: {
+        drop: mode === 'production' ? ['console', 'debugger'] : ['debugger'], // qa keeps console logs
+      },
+      cssCodeSplit: true,
+      sourcemap: false,
+      assetsInlineLimit: 4096,
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'react-router-dom'],
     },
     server: {
       port: 5173,
@@ -41,11 +56,21 @@ export default defineConfig(({ mode }) => {
           target: proxyTarget,
           changeOrigin: true,
           secure: false,
+          configure: (proxy, options) => {
+            console.log('🔧 API proxy configured for:', options.target)
+          }
         },
         '/uploads': {
           target: proxyTarget,
           changeOrigin: true,
           secure: false,
+        },
+        '/recruitment-ai': {
+          target: aiProxyTarget,
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path.replace(/^\/recruitment-ai/, ''),
+          configure: () => console.log(`🔧 Recruitment AI proxy configured for ${aiProxyTarget}`),
         },
       },
     },

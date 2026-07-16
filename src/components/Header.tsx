@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
-import { useNavigation } from '../store/useNavigation';
+import { useNavigation, CAREER_RESOURCE_URLS } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
@@ -11,7 +12,7 @@ import MobileHamburgerMenu from './MobileHamburgerMenu';
 
 interface HeaderProps {
   onNavigate?: (page: string, data?: any) => void;
-  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin'} | null;
+  user?: {name: string, type: 'candidate' | 'employer' | 'admin' | 'super_admin', email?: string} | null;
   onLogout?: () => void;
 }
 
@@ -22,8 +23,20 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
   const [, setNotifications] = useState<any[]>([]);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
+  const [displayName, setDisplayName] = useState(user?.fullName || user?.name || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  const isJobSeekerAuthPage = currentPath === '/login' || currentPath === '/role-selection' || currentPath === '/candidate-register';
+  const isEmployerAuthPage = currentPath === '/employer-login' || currentPath === '/employer-register';
+
+  // Show Job Seeker links everywhere EXCEPT on Job Seeker Auth pages
+  const showJobSeekerLinks = !isJobSeekerAuthPage;
+  
+  // Show Employer links everywhere EXCEPT on Employer Auth pages
+  const showEmployerLinks = !isEmployerAuthPage;
 
   // Secret typed sequence to reveal admin login
   useEffect(() => {
@@ -50,6 +63,30 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     fetchNavigation();
     fetchSiteSettings();
   }, []);
+
+  // Sync display name from user prop and localStorage
+  useEffect(() => {
+    const updateName = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem('user') || '{}');
+        const name = stored.fullName || stored.name || user?.fullName || user?.name || stored.email?.split('@')[0] || 'User';
+        setDisplayName(name);
+      } catch {
+        setDisplayName(user?.fullName || user?.name || 'User');
+      }
+    };
+    
+    updateName();
+    
+    const handleUserUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail?.name) setDisplayName(detail.fullName || detail.name);
+      else updateName();
+    };
+    
+    window.addEventListener('zync:user-updated', handleUserUpdate);
+    return () => window.removeEventListener('zync:user-updated', handleUserUpdate);
+  }, [user]);
 
   const handleLoginClick = () => {
     setIsDropdownOpen(false);
@@ -109,14 +146,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const fetchProfileMetrics = async () => {
       if (!user) return;
       try {
-        // Use user prop directly — don't rely on localStorage which may be stale
-        const userEmail = (user as any).email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+        const userEmail = user.email || (user as any).email;
         if (!userEmail) return;
 
         if (user.type === 'employer') {
           // For team members, use owner's email to show company-wide stats
-          const storedUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
-          const ownerEmail = storedUser.employerOwnerId || userEmail;
+          const ownerEmail = (user as any).employerOwnerId || userEmail;
           const [jobsRes, appsRes] = await Promise.all([
             apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`),
             apiFetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(ownerEmail)}`),
@@ -152,7 +187,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const fetchNotifications = async () => {
       if (!user) return;
       try {
-        const userEmail = (user as any).email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+        const userEmail = user.email || (user as any).email;
         if (!userEmail) return;
 
         if (user.type === 'employer') {
@@ -287,7 +322,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
             {navItems.length > 0 ? (
-              navItems.map((item) => (
+              navItems
+                .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
+                .map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate && onNavigate(item.url)}
@@ -405,7 +442,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 >
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
-                      {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
                     </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -438,11 +475,11 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         <div className="flex items-center space-x-4 mb-8">
                           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold text-lg">
-                              {user.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <p className="font-semibold text-gray-900 text-lg">{user.name}</p>
+                            <p className="font-semibold text-gray-900 text-lg">{displayName}</p>
                             <p className="text-sm text-gray-600 capitalize">{user.type}</p>
                           </div>
                         </div>
@@ -671,19 +708,31 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 </button>
                 {isDropdownOpen && (
                   <div className="absolute right-0 mt-2 w-52 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50" role="menu">
-                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
-                    <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                      Login
-                    </button>
-                    <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                      Register
-                    </button>
-                    <hr className="my-1" />
-                    <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
-                    <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
-                      For Employers / Post Jobs
-                    </button>
-                    <hr className="my-1" />
+                    {showJobSeekerLinks && (
+                      <>
+                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Job Seeker</p>
+                        <button onClick={handleLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
+                          Login
+                        </button>
+                        <button onClick={handleRegisterClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
+                          Register
+                        </button>
+                      </>
+                    )}
+                    
+                    {showJobSeekerLinks && showEmployerLinks && <hr className="my-1" />}
+                    
+                    {showEmployerLinks && (
+                      <>
+                        <p className="px-4 py-1 text-xs text-gray-400 uppercase tracking-wide">Employer</p>
+                        <button onClick={handleEmployerLoginClick} className="block w-full text-left px-4 py-2 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors focus:outline-none focus:bg-blue-50" role="menuitem">
+                          For Employers / Post Jobs
+                        </button>
+                      </>
+                    )}
+                    
+                    {(showJobSeekerLinks || showEmployerLinks) && adminUnlocked && <hr className="my-1" />}
+                    
                     {adminUnlocked && (
                       <button
                         onClick={() => { setIsDropdownOpen(false); setAdminUnlocked(false); onNavigate && onNavigate('admin/login'); }}

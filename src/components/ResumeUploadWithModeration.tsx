@@ -162,13 +162,13 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.doc,.docx"
+          accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
           onChange={handleFileUpload}
           disabled={uploading}
           className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"
         />
         <p className="text-sm text-gray-500 mt-1">
-          Accepted formats: PDF, DOC, DOCX (Max 5MB)
+          Accepted formats: PDF, DOC, DOCX, JPG, JPEG, PNG, WEBP (Max 5MB)
         </p>
       </div>
 

@@ -26,15 +26,18 @@ interface Job {
 }
 
 interface JobRefreshManagementPageProps {
-  onNavigate: (page: string) => void;
-  user: { name: string; type: 'candidate' | 'employer'; email?: string } | null;
+  onNavigate: (page: string, params?: any) => void;
+  user: { name: string; type: 'candidate' | 'employer'; email?: string; plan?: string } | null;
   onLogout: () => void;
+  userLoading?: boolean;
+  onUserUpdate?: React.Dispatch<React.SetStateAction<any>>;
 }
 
 const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({ 
   onNavigate, 
   user, 
-  onLogout 
+  onLogout,
+  onUserUpdate 
 }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [selectedJobs, setSelectedJobs] = useState<string[]>([]);
@@ -125,9 +128,14 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
   const formatSalary = (salary: any) => {
     if (!salary) return null;
     if (typeof salary === 'string') return salary;
+    const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ', SAR: 'ر.س', SGD: 'S$', MYR: 'RM', THB: '฿', PHP: '₱', IDR: 'Rp', VND: '₫', KRW: '₩', JPY: '¥', CNY: '¥', TWD: 'NT$', HKD: 'HK$', CAD: 'C$', AUD: 'A$', NZD: 'NZ$', CHF: 'Fr', SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', TRY: '₺', ZAR: 'R', BRL: 'R$', MXN: '$', NGN: '₦', KES: 'KSh', EGP: 'E£' };
+    const sym = CURRENCY_SYMBOLS[salary.currency] || (salary.currency || '₹');
     if (salary.min && salary.max) {
-      return `₹${salary.min}L - ₹${salary.max}L`;
+      if (salary.min === salary.max) return `${sym}${salary.min}L`;
+      return `${sym}${salary.min}L - ${sym}${salary.max}L`;
     }
+    if (salary.min) return `${sym}${salary.min}L+`;
+    if (salary.max) return `Up to ${sym}${salary.max}L`;
     return null;
   };
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Enhanced Company Verification Service
  * Uses multiple data sources for comprehensive company verification
  */
@@ -73,7 +73,7 @@ export class EnhancedCompanyVerificationService {
             id: `pending_${domain}`,
             name: companyName,
             domain,
-            logo: `https://img.logo.dev/${domain}?size=80`,
+            logo: '',
             website: `https://${domain}`,
             verified: false,
             dataSource: 'domain_check'
@@ -233,7 +233,7 @@ export class EnhancedCompanyVerificationService {
           id: `api_${domain}`,
           name: companyName,
           domain,
-          logo: `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`,
+          logo: '',
           website: `https://${domain}`,
           verified: true,
           dataSource: 'api'
@@ -263,7 +263,7 @@ export class EnhancedCompanyVerificationService {
             id: `oc_${company.company_number}`,
             name: company.name,
             domain,
-            logo: `https://img.logo.dev/${domain}?size=80`,
+            logo: '',
             website: `https://${domain}`,
             industry: company.company_type,
             verified: true,
@@ -295,7 +295,7 @@ export class EnhancedCompanyVerificationService {
           id: `web_${domain}`,
           name: companyName,
           domain,
-          logo: `https://img.logo.dev/${domain}?size=80`,
+          logo: '',
           website: `https://${domain}`,
           verified: true,
           dataSource: 'domain_check'
@@ -326,7 +326,7 @@ export class EnhancedCompanyVerificationService {
           id: `domain_${domain}`,
           name: companyName,
           domain,
-          logo: `https://img.logo.dev/${domain}?size=80`,
+          logo: '',
           website: `https://${domain}`,
           verified: true,
           dataSource: 'domain_check'
@@ -408,10 +408,10 @@ export class EnhancedCompanyVerificationService {
    */
   private static getFallbackSuggestions(partialName: string): CompanyProfile[] {
     const fallbackCompanies = [
-      { id: '1', name: 'Zoho Corporation', domain: 'zoho.com', logo: 'https://img.logo.dev/zoho.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
-      { id: '2', name: 'Tata Consultancy Services', domain: 'tcs.com', logo: 'https://img.logo.dev/tcs.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
-      { id: '3', name: 'Infosys Limited', domain: 'infosys.com', logo: 'https://img.logo.dev/infosys.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
-      { id: '4', name: 'Wipro Limited', domain: 'wipro.com', logo: 'https://img.logo.dev/wipro.com?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80', verified: true, dataSource: 'fallback' as const },
+      { id: '1', name: 'Zoho Corporation', domain: 'zoho.com', logo: '', verified: true, dataSource: 'fallback' as const },
+      { id: '2', name: 'Tata Consultancy Services', domain: 'tcs.com', logo: '', verified: true, dataSource: 'fallback' as const },
+      { id: '3', name: 'Infosys Limited', domain: 'infosys.com', logo: '', verified: true, dataSource: 'fallback' as const },
+      { id: '4', name: 'Wipro Limited', domain: 'wipro.com', logo: '', verified: true, dataSource: 'fallback' as const },
     ];
 
     return fallbackCompanies.filter(company => 

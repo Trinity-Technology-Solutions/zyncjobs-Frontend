@@ -31,13 +31,16 @@ class BackendMonitor implements ServiceMonitor {
     const startTime = Date.now();
     
     try {
-      // Check main API health
-      const healthResponse = await Promise.race([
-        apiRequest('/api/health', { method: 'GET' }, { maxRetries: 1, retryOn5xx: false }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Health check timeout')), 10000)
-        )
-      ]) as any;
+      // Check main API health with abort controller
+      const healthController = new AbortController();
+      const healthTimer = setTimeout(() => {
+        healthController.abort();
+      }, 10000);
+
+      const healthResponse = await apiRequest('/api/health', 
+        { method: 'GET', signal: healthController.signal },
+        { maxRetries: 1, retryOn5xx: false }
+      ).finally(() => clearTimeout(healthTimer)) as any;
 
       const responseTime = Date.now() - startTime;
       
@@ -72,12 +75,15 @@ class BackendMonitor implements ServiceMonitor {
 
     // Fallback: try basic API call
     try {
-      const basicResponse = await Promise.race([
-        fetch('/api/ping', { method: 'GET' }),
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Ping timeout')), 5000)
-        )
-      ]) as Response;
+      const pingController = new AbortController();
+      const pingTimer = setTimeout(() => {
+        pingController.abort();
+      }, 5000);
+
+      const basicResponse = await fetch('/api/ping', { 
+        method: 'GET',
+        signal: pingController.signal
+      }).finally(() => clearTimeout(pingTimer)) as Response;
 
       const responseTime = Date.now() - startTime;
 

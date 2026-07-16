@@ -23,12 +23,15 @@ import localStorageMigration from './services/localStorageMigration';
 import { initializeEmployerIdCounter } from './utils/employerIdUtils';
 import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
+import { mergeUserToStorage, updateUserInStorage } from './utils/userStorage';
 import { useAnalytics } from './hooks/useAnalytics';
 import './utils/extensionErrorHandler'; // Initialize extension error handling
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const LoginModal = lazy(() => import('./components/LoginModal'));
 const RegisterModal = lazy(() => import('./components/RegisterModal'));
+const PasswordExpiredModal = lazy(() => import('./components/PasswordExpiredModal'));
+const AccountLockedModal = lazy(() => import('./components/AccountLockedModal'));
 const EmployerLoginPage = lazy(() => import('./pages/EmployerLoginPage'));
 
 const RoleSelectionModal = lazy(() => import('./components/RoleSelectionModal'));
@@ -84,6 +87,7 @@ const ResumeHelpPage = lazy(() => import('./pages/ResumeHelpPage'));
 const ResumeBuilderPage = lazy(() => import('./pages/ResumeBuilderPage'));
 const ResumeStudioPage = lazy(() => import('./pages/ResumeStudioPage'));
 const ResumeScorePage = lazy(() => import('./pages/ResumeScorePage'));
+
 const SkillGapAnalysisPage = lazy(() => import('./pages/SkillGapAnalysisPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
@@ -98,6 +102,7 @@ const TeamAcceptPage = lazy(() => import('./pages/TeamAcceptPage'));
 const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
+const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -127,7 +132,7 @@ const CandidateProfileViewWrapper: React.FC<{
   );
 };
 
-type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin'; email?: string };
+type UserType = { name: string; type: 'candidate' | 'employer' | 'admin' | 'super_admin' | 'manager'; email?: string };
 
 // Shared layout wrapper for pages that need Header + Footer
 const WithLayout: React.FC<{
@@ -186,8 +191,9 @@ function getInitialUser(): UserType | null {
     if (rawType === 'employer') type = 'employer';
     else if (rawType === 'admin') type = 'admin';
     else if (rawType === 'super_admin') type = 'super_admin';
+    else if (rawType === 'manager') type = 'manager';
     return {
-      name: stored.name || stored.email.split('@')[0] || 'User',
+      name: stored.fullName || stored.name || stored.email.split('@')[0] || 'User',
       type,
       email: stored.email,
       ...(stored.teamRole && { teamRole: stored.teamRole }),
@@ -204,6 +210,7 @@ function App() {
   const [maintenance, setMaintenance] = useState(false);
 
   const [user, setUser] = useState<UserType | null>(getInitialUser);
+  const loginTimestamp = React.useRef<number>(0);
   // If we already have user from localStorage and no refresh token, skip loading state
   const [userLoading, setUserLoading] = useState(() => {
     const hasRefreshToken = !!tokenStorage.getRefresh();
@@ -215,6 +222,10 @@ function App() {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const [showRoleSelectionModal, setShowRoleSelectionModal] = useState(false);
+  const [passwordExpired, setPasswordExpired] = useState(false);
+  const [expiredUserData, setExpiredUserData] = useState<any>(null);
+  const [accountLocked, setAccountLocked] = useState(false);
+  const [lockoutData, setLockoutData] = useState<{ lockoutMinutes: number; email: string }>({ lockoutMinutes: 15, email: '' });
   const [notification, setNotification] = useState<{
     type: 'success' | 'error' | 'info';
     message: string;
@@ -270,20 +281,15 @@ function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    // Get user type from multiple sources to ensure we have it
-    let userType = localStorage.getItem('lastUserType') || user?.type;
+    let userType = user?.type || localStorage.getItem('lastUserType');
 
-    // Fallback: try to get from localStorage user object if lastUserType is not available
     if (!userType) {
       try {
         const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
         userType = storedUser.userType || storedUser.role || storedUser.type;
-      } catch {
-        // ignore parsing errors
-      }
+      } catch { }
     }
 
-    // Fallback: try to get from token payload
     if (!userType) {
       try {
         const token = tokenStorage.getAccess();
@@ -291,17 +297,13 @@ function App() {
           const payload = JSON.parse(atob(token.split('.')[1]));
           userType = payload.userType || payload.role;
         }
-      } catch {
-        // ignore token parsing errors
-      }
+      } catch { }
     }
 
     console.log('🚪 Logout - User type detected:', userType);
 
-    // Clear user state immediately
+    // Clear storage AFTER reading userType
     setUser(null);
-
-    // Clear all storage
     tokenStorage.clear();
     sessionStorage.clear();
     localStorage.removeItem('user');
@@ -309,10 +311,22 @@ function App() {
 
     if (userType === 'employer') navigate('/employer-login');
     else if (userType === 'admin' || userType === 'super_admin') navigate('/admin/login');
-    else navigate('/login');
+    else navigate('/');
   }, [navigate, user?.type]);
 
-  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string }) => {
+  const handleLogin = useCallback((userData: UserType & { id?: string; _id?: string; role?: string; userType?: string; passwordExpired?: boolean; daysSinceChange?: number; tempToken?: string }) => {
+    // Check if password is expired
+    if (userData.passwordExpired) {
+      // Store temp token for password change
+      if (userData.tempToken) {
+        tokenStorage.setAccess(userData.tempToken);
+      }
+      setPasswordExpired(true);
+      setExpiredUserData(userData);
+      return;
+    }
+    
+    loginTimestamp.current = Date.now();
     setUser(userData);
     closeModals();
 
@@ -320,13 +334,24 @@ function App() {
     const userType = userData.type || userData.userType || userData.role || 'candidate';
     localStorage.setItem('lastUserType', userType);
 
-    // Persist user to localStorage for fast restore on refresh
-    // IMPORTANT: preserve teamRole, employerOwnerId, employerId from team invite flow
-    localStorage.setItem('user', JSON.stringify({
+    // If NOT a team member, clear employerOwnerId to prevent stale cross-account data
+    const isTeamMember = !!(userData as any).teamRole;
+    if (!isTeamMember) {
+      try {
+        const existing = JSON.parse(localStorage.getItem('user') || '{}');
+        delete existing.employerOwnerId;
+        delete existing.ownerEmail;
+        localStorage.setItem('user', JSON.stringify(existing));
+      } catch { /* ignore */ }
+    }
+
+    // Persist user to localStorage — MERGE with existing data so fields like
+    // companyName, companyLogo, employerId set by login pages are not lost
+    mergeUserToStorage({
       ...userData,
       userType: userData.type,
       role: userData.role || userData.type,
-    }));
+    });
     const token = tokenStorage.getAccess();
     if (token && (userData.type === 'candidate' || userData.type === 'employer')) {
       localStorageMigration.setToken(token);
@@ -338,6 +363,66 @@ function App() {
     closeModals();
     navigate(role === 'candidate' ? '/candidate-register' : '/employer-register');
   }, [closeModals, navigate]);
+
+  const handlePasswordChange = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      const API_BASE = import.meta.env.VITE_API_URL || '/api';
+      const userId = expiredUserData?.user?.id || expiredUserData?.user?._id;
+      
+      if (!userId) {
+        throw new Error('User ID not found');
+      }
+
+      const res = await fetch(`${API_BASE}/users/${userId}/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokenStorage.getAccess()}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to change password');
+      }
+      
+      // Password changed successfully - now do normal login
+      setPasswordExpired(false);
+      const userData = expiredUserData.user;
+      const userType = userData.userType || userData.role || 'candidate';
+      let type: UserType['type'] = 'candidate';
+      if (userType === 'employer') type = 'employer';
+      else if (userType === 'admin') type = 'admin';
+      else if (userType === 'super_admin') type = 'super_admin';
+      else if (userType === 'manager') type = 'manager';
+      
+      // Generate new tokens after password change
+      const loginRes = await fetch(`${API_BASE}/users/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: userData.email, 
+          password: newPassword,
+          portal: type === 'employer' ? 'employer' : type === 'admin' || type === 'super_admin' ? 'admin' : 'candidate'
+        })
+      });
+      
+      if (loginRes.ok) {
+        const loginData = await loginRes.json();
+        if (loginData.accessToken) tokenStorage.setAccess(loginData.accessToken);
+        if (loginData.refreshToken) tokenStorage.setRefresh(loginData.refreshToken);
+        
+        setUser({ name: userData.name || userData.email.split('@')[0], type, email: userData.email });
+        showNotification('Password updated successfully!', 'success');
+        navigate('/dashboard');
+      } else {
+        throw new Error('Failed to login after password change');
+      }
+    } catch (error: any) {
+      throw error;
+    }
+  }, [expiredUserData, navigate, showNotification]);
 
   useEffect(() => {
     initializeEmployerIdCounter();
@@ -376,6 +461,7 @@ function App() {
       // Clear all storage
       tokenStorage.clear();
       sessionStorage.clear();
+      localStorage.removeItem('user');
       localStorage.removeItem('lastUserType');
 
       if (userType === 'employer') navigate('/employer-login');
@@ -383,6 +469,12 @@ function App() {
       else navigate('/login');
     };
     window.addEventListener('zync:logout', handleForceLogout);
+    const handleAccountLocked = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setLockoutData({ lockoutMinutes: detail.lockoutMinutes || 15, email: detail.email || '' });
+      setAccountLocked(true);
+    };
+    window.addEventListener('zync:account-locked', handleAccountLocked);
 
     const restoreSession = async () => {
       // Clean up any base64 images stored in localStorage
@@ -393,7 +485,7 @@ function App() {
           let cleaned = false;
           if (parsed.profilePhoto?.startsWith('data:')) { parsed.profilePhoto = ''; cleaned = true; }
           if (parsed.coverPhoto?.startsWith('data:')) { parsed.coverPhoto = ''; cleaned = true; }
-          if (cleaned) localStorage.setItem('user', JSON.stringify(parsed));
+          if (cleaned) updateUserInStorage(parsed);
         }
       } catch { /* silent */ }
 
@@ -436,12 +528,23 @@ function App() {
         } else {
           let userType: UserType['type'] = 'candidate';
           const rawType = userData.userType || userData.role || '';
-          if (rawType === 'employer') userType = 'employer';
-          else if (rawType === 'admin') userType = 'admin';
-          else if (rawType === 'super_admin') userType = 'super_admin';
+          // If user logged in as employer (stored in lastUserType), preserve that
+          // even if DB role is super_admin/admin (dual-role account)
+          const lastUserType = localStorage.getItem('lastUserType');
+          const resolvedRawType = (lastUserType === 'employer' && (rawType === 'super_admin' || rawType === 'admin') && (userData.companyName || userData.company || userData.employerId))
+            ? 'employer'
+            : rawType;
+          if (resolvedRawType === 'employer') userType = 'employer';
+          else if (resolvedRawType === 'admin') userType = 'admin';
+          else if (resolvedRawType === 'super_admin') userType = 'super_admin';
           const stored = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
           // Only update if type or email changed to avoid unnecessary re-render
           const freshName = userData.name || userData.fullName || userData.email?.split('@')[0] || 'User';
+          // Skip overwriting user if a login just happened in the last 5 seconds
+          if (Date.now() - loginTimestamp.current < 5000) {
+            setUserLoading(false);
+            return;
+          }
           setUser(prev => {
             if (prev?.type === userType && prev?.email === userData.email && prev?.name === freshName) return prev;
             return {
@@ -450,14 +553,16 @@ function App() {
               email: userData.email,
               ...(stored.teamRole && { teamRole: stored.teamRole }),
               ...(stored.employerOwnerId && { employerOwnerId: stored.employerOwnerId }),
+              ...((stored.ownerEmail || stored.employerOwnerId) && { ownerEmail: stored.ownerEmail || stored.employerOwnerId }),
               ...(stored.employerId && { employerId: stored.employerId }),
             } as any;
           });
           // Keep localStorage in sync with the verified DB name
           try {
             const ls = JSON.parse(localStorage.getItem('user') || '{}');
-            if (ls.name !== freshName) {
-              localStorage.setItem('user', JSON.stringify({ ...ls, name: freshName }));
+            // Only update name if it's explicitly different AND we didn't just login
+            if (ls.name !== freshName && Date.now() - loginTimestamp.current >= 5000) {
+              updateUserInStorage({ ...ls, name: freshName });
             }
           } catch { /* ignore */ }
         }
@@ -470,19 +575,26 @@ function App() {
     };
 
     restoreSession();
-    return () => window.removeEventListener('zync:logout', handleForceLogout);
+    return () => {
+      window.removeEventListener('zync:logout', handleForceLogout);
+      window.removeEventListener('zync:account-locked', handleAccountLocked);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount only
 
   useEffect(() => {
     const orig = window.fetch;
     window.fetch = async (...args) => {
-      const res = await orig(...args);
-      if (res.status === 503) {
-        const clone = res.clone();
-        try { const data = await clone.json(); if (data.maintenance) setMaintenance(true); } catch { }
+      try {
+        const res = await orig(...args);
+        if (res.status === 503) {
+          const clone = res.clone();
+          try { const data = await clone.json(); if (data.maintenance) setMaintenance(true); } catch { }
+        }
+        return res;
+      } catch (err) {
+        throw err;
       }
-      return res;
     };
     // Do not restore on unmount — App lives for the entire session
   }, []);
@@ -620,6 +732,11 @@ function App() {
                 <PrivacySettingsPage {...nav} />
               </AuthGuard>
             } />
+            <Route path="/verify-email" element={
+              <AuthGuard user={user}>
+                <EmailVerificationPage onNavigate={handleNavigation} user={user as any} />
+              </AuthGuard>
+            } />
             <Route path="/accessibility" element={<AccessibilityPage {...nav} />} />
             <Route path="/resume-help" element={<ResumeHelpPage {...nav} />} />
 
@@ -633,10 +750,10 @@ function App() {
                   ) : user?.type === 'employer' ? (
                     <>
                       <Header onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
-                      <EmployerDashboardPage onNavigate={handleNavigation} onLogout={handleLogout} />
+                      <EmployerDashboardPage user={user as any} onNavigate={handleNavigation} onLogout={handleLogout} />
                     </>
                   ) : (
-                    <WithLayout {...nav}><CandidateDashboardPage onNavigate={handleNavigation} /></WithLayout>
+                    <WithLayout {...nav}><CandidateDashboardPage user={user as any} onNavigate={handleNavigation} /></WithLayout>
                   )}
                 </AuthGuard>
             } />
@@ -671,7 +788,7 @@ function App() {
 
             <Route path="/job-refresh-management" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer']}>
-                <JobRefreshManagementPage {...nav} />
+                <JobRefreshManagementPage {...nav} onUserUpdate={setUser} />
               </AuthGuard>
             } />
 
@@ -740,7 +857,7 @@ function App() {
             } />
 
             <Route path="/candidate-ranking" element={
-              <CandidateRankingPage onNavigate={nav.onNavigate} user={user} />
+              <CandidateRankingPage onNavigate={nav.onNavigate} user={user} onLogout={handleLogout} />
             } />
 
             <Route path="/ai-recruiter" element={
@@ -767,7 +884,9 @@ function App() {
 
             <Route path="/resume-builder" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <ResumeBuilderPage {...nav} />
+                <WithLayout {...nav}>
+                  <ResumeBuilderPage {...nav} />
+                </WithLayout>
               </AuthGuard>
             } />
 
@@ -803,6 +922,7 @@ function App() {
                 <CandidateProfileViewWrapper onNavigate={handleNavigation} navigate={navigate} />
               </AuthGuard>
             } />
+
 
             <Route path="/bulk-job-import" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
@@ -894,9 +1014,9 @@ function App() {
             } />
 
             <Route path="/admin/dashboard" element={
-              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin']}>
+              <AuthGuard user={user} userLoading={userLoading} allowedRoles={['admin', 'super_admin', 'manager']}>
                 <AdminDashboardPage
-                  user={{ name: user?.name || 'Admin', email: user?.email }}
+                  user={{ name: user?.name || 'Admin', email: user?.email, role: user?.type }}
                   onNavigate={handleNavigation}
                   onLogout={handleLogout}
                 />
@@ -993,8 +1113,25 @@ function App() {
       <Suspense fallback={null}>
         <LoginModal isOpen={showLoginModal} onClose={closeModals} onNavigate={handleNavigation} onLogin={handleLogin} />
         <RegisterModal isOpen={showRegisterModal} onClose={closeModals} onNavigate={handleNavigation} />
-
         <RoleSelectionModal isOpen={showRoleSelectionModal} onClose={closeModals} onSelectRole={handleRoleSelection} />
+        
+        {passwordExpired && expiredUserData && (
+          <PasswordExpiredModal
+            isOpen={passwordExpired}
+            daysSinceChange={expiredUserData.daysSinceChange || 0}
+            onPasswordChange={handlePasswordChange}
+            onLogout={handleLogout}
+          />
+        )}
+        <AccountLockedModal
+          isOpen={accountLocked}
+          lockoutMinutes={lockoutData.lockoutMinutes}
+          onClose={() => setAccountLocked(false)}
+          onContactSupport={() => {
+            setAccountLocked(false);
+            handleNavigation('contact');
+          }}
+        />
       </Suspense>
     </>
   );

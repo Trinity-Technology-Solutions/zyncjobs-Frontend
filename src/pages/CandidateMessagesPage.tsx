@@ -162,8 +162,12 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   const deleteMessage = async (msgId: string) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.MESSAGES}/delete/${msgId}?userId=${encodeURIComponent(candidateId)}`, { method: 'DELETE' });
-      if (res.ok) setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
-      else setError('Failed to delete message');
+      if (res.ok || res.status === 204) {
+        setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to delete message');
+      }
     } catch { setError('Error deleting message'); }
   };
 
@@ -267,12 +271,14 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {conv.companyLogo ? (
-                    <img src={conv.companyLogo} alt={conv.employerName} className="w-11 h-11 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm">
-                      {getInitials(conv.employerName || '?')}
-                    </div>
-                  )}
+                    <img src={conv.companyLogo} alt={conv.employerName}
+                      className="w-11 h-11 rounded-full object-cover"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                    />
+                  ) : null}
+                  <div className={`w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm ${conv.companyLogo ? 'hidden' : ''}`}>
+                    {getInitials(conv.employerName || '?')}
+                  </div>
                 </div>
                 {/* Info */}
                 <div className="flex-1 min-w-0">
@@ -313,7 +319,15 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
               </button>
               {/* Avatar */}
               {selectedConversation.companyLogo ? (
-                <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                <>
+                  <img src={selectedConversation.companyLogo} alt={selectedConversation.employerName}
+                    className="w-9 h-9 rounded-full object-cover flex-shrink-0"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
+                  />
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 hidden">
+                    {getInitials(selectedConversation.employerName || '?')}
+                  </div>
+                </>
               ) : (
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
                   {getInitials(selectedConversation.employerName || '?')}

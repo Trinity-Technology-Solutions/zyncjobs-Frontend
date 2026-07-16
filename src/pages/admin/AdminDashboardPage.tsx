@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Users, Briefcase, Building2, BarChart2,
   Settings, LogOut, Menu, X, TrendingUp, UserCheck, FileText,
   Bell, RefreshCw, AlertCircle, CheckCircle, XCircle, Shield, ShieldOff,
-  Mail, Activity, ChevronDown, User, Crown, Trash2
+  Mail, Activity, ChevronDown, User, Crown, Trash2, Send, Cpu
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar,
@@ -13,15 +13,19 @@ import { API_ENDPOINTS } from '../../config/env';
 import { tokenStorage } from '../../utils/tokenStorage';
 import { apiFetch } from '../../api/apiFetch';
 import { BackendStatusIndicator } from '../../utils/backendMonitor';
-import { isSuperAdmin, hasPermission, PERMISSIONS } from '../../utils/rolePermissions';
+import { isSuperAdmin, hasPermission, getAvailableActions, PERMISSIONS } from '../../utils/rolePermissions';
 import UserDetailsModal from './sections/UserDetailsModal';
 import VerificationsSection from './sections/VerificationsSection';
 import NotificationsSection from './sections/NotificationsSection';
 import EmailControlSection from './sections/EmailControlSection';
 import ActivityLogsSection from './sections/ActivityLogsSection';
+import AllApplicationsSection from './sections/AllApplicationsSection';
 import AdminSettingsSection from './sections/AdminSettingsSection';
 import TalentPoolSection from './sections/TalentPoolSection';
 import AdminManagementSection from './sections/AdminManagementSection';
+import AllUsersSection from './sections/AllUsersSection';
+import ReminderEmailSection from './sections/ReminderEmailSection';
+// import AIMonitoringSection from './sections/AIMonitoringSection';
 
 interface Props {
   user: { name: string; email?: string; role?: string };
@@ -53,7 +57,7 @@ interface NavItem {
   id: string;
   label: string;
   icon: React.ElementType;
-  section: 'main' | 'users' | 'content' | 'communication' | 'system';
+  section: 'main' | 'users' | 'content' | 'communication' | 'system' | 'talent';
 }
 
 const navItems: NavItem[] = [
@@ -61,13 +65,17 @@ const navItems: NavItem[] = [
   { id: 'admins',        label: 'Admin Management', icon: Crown,         section: 'users' },
   { id: 'candidates',    label: 'Candidates',      icon: Users,           section: 'users' },
   { id: 'employers',     label: 'Employers',       icon: Building2,       section: 'users' },
+  { id: 'all-users',     label: 'All Users',       icon: Users,           section: 'users' },
   { id: 'verifications', label: 'Verifications',   icon: UserCheck,       section: 'users' },
   { id: 'jobs',          label: 'Jobs',            icon: Briefcase,       section: 'content' },
   { id: 'reports',       label: 'Reports',         icon: TrendingUp,      section: 'content' },
+  { id: 'all-applications', label: 'All Applications', icon: Briefcase,   section: 'content' },
   { id: 'notifications', label: 'Notifications',   icon: Bell,            section: 'communication' },
   { id: 'email',         label: 'Email Control',   icon: Mail,            section: 'communication' },
+  { id: 'reminder-email', label: 'Reminder Email', icon: Send,            section: 'communication' },
   { id: 'talent',        label: 'Talent Pool',     icon: Users,           section: 'talent' },
   { id: 'logs',          label: 'Activity Logs',   icon: Activity,        section: 'system' },
+  { id: 'ai-monitor',    label: 'AI Monitoring',   icon: Cpu,             section: 'system' },
   { id: 'gdpr',          label: 'GDPR Dashboard',  icon: Shield,          section: 'system' },
   { id: 'settings',      label: 'Settings',        icon: Settings,        section: 'system' },
 ];
@@ -80,14 +88,32 @@ const sectionLabels: Record<string, string> = {
   system: 'System',
 };
 
+// API Error handler
+function handleApiError(error: any, context: string) {
+  console.error(`API Error [${context}]:`, error);
+  
+  const isServerError = error?.status >= 500 || error?.code === 'ECONNREFUSED';
+  const shouldRetry = isServerError;
+  const retryAfter = shouldRetry ? 5000 : null; // Retry after 5 seconds
+  
+  return { isServerError, shouldRetry, retryAfter };
+}
+
 function authHeaders() {
   // Try admin token first, then access token
   const adminToken = tokenStorage.getAdmin();
   const accessToken = tokenStorage.getAccess();
+  const refreshToken = tokenStorage.getRefresh();
   const token = adminToken || accessToken;
   
   console.log('🔑 Dashboard auth - Admin token exists:', !!adminToken);
   console.log('🔑 Dashboard auth - Access token exists:', !!accessToken);
+  console.log('🔑 Dashboard auth - Refresh token exists:', !!refreshToken);
+  if (token) {
+    console.log('🔑 Dashboard auth - Using token type:', adminToken ? 'admin' : 'access');
+    // Log first few chars to verify token format
+    console.log('🔑 Dashboard auth - Token preview:', token.substring(0, 20) + '...');
+  }
   
   return {
     'Content-Type': 'application/json',
@@ -134,11 +160,14 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
   const bellRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [ticker, setTicker] = useState(0);
+  const [reminderNav, setReminderNav] = useState<{ selectedIds: string[]; userType: 'candidates' | 'employers' | 'both' } | null>(null);
 
   // Check user permissions
-  const userRole = user.role || (isSuperAdmin(user.email || '') ? 'super_admin' : 'admin');
+  const userRole: string = user.role || (isSuperAdmin(user.email || '') ? 'super_admin' : 'admin');
+  const actions = getAvailableActions(userRole as any);
   const canManageAdmins = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.MANAGE_ADMINS);
   const canAccessSystemSettings = userRole === 'super_admin' || hasPermission(userRole as any, PERMISSIONS.SYSTEM_SETTINGS);
+  const isManager = userRole === 'manager';
 
   const handleUnauthorized = useCallback(() => {
     setError('Session expired. Logging out...');
@@ -300,17 +329,21 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
 
   const renderSection = () => {
     switch (activeNav) {
-      case 'admins':        return canManageAdmins ? <AdminManagementSection onUnauthorized={handleUnauthorized} currentUser={user} /> : <AccessDeniedSection />;
+      case 'admins':        return canManageAdmins ? <AdminManagementSection onUnauthorized={handleUnauthorized} currentUser={{ ...user, email: user.email ?? '' }} /> : <AccessDeniedSection />;
       case 'candidates':    return <UsersSection role="candidate" onUnauthorized={handleUnauthorized} />;
       case 'employers':     return <UsersSection role="employer" onUnauthorized={handleUnauthorized} />;
       case 'jobs':          return <JobsSection onUnauthorized={handleUnauthorized} />;
       case 'analytics':     return <AnalyticsSection growth={growth} stats={stats} />;
       case 'reports':       return <ReportsSection stats={stats} />;
+      case 'all-applications': return <AllApplicationsSection onUnauthorized={handleUnauthorized} />;
       case 'verifications': return <VerificationsSection onUnauthorized={handleUnauthorized} />;
       case 'notifications': return <NotificationsSection onUnauthorized={handleUnauthorized} />;
       case 'email':         return <EmailControlSection onUnauthorized={handleUnauthorized} />;
+      case 'all-users':     return <AllUsersSection onUnauthorized={handleUnauthorized} onNavigateToReminder={(ids, type) => { setReminderNav({ selectedIds: ids, userType: type }); setActiveNav('reminder-email'); localStorage.setItem('adminActiveNav', 'reminder-email'); }} />;
+      case 'reminder-email': return <ReminderEmailSection onUnauthorized={handleUnauthorized} initialUserType={reminderNav?.userType} initialSelectedIds={reminderNav?.selectedIds} />;
       case 'talent':        return <TalentPoolSection onUnauthorized={handleUnauthorized} />;
       case 'logs':          return <ActivityLogsSection onUnauthorized={handleUnauthorized} />;
+      case 'ai-monitor':    return <div className="p-6 text-center text-gray-500">AI Monitoring — component removed</div>;
       case 'gdpr':          return <GdprDashboardSection onUnauthorized={handleUnauthorized} />;
       case 'settings':      return canAccessSystemSettings ? <AdminSettingsSection onUnauthorized={handleUnauthorized} /> : <AccessDeniedSection />;
       default:              return <OverviewSection loading={loading} stats={stats} growth={growth} quickStats={quickStats} />;
@@ -353,7 +386,16 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
             <LayoutDashboard className="w-4 h-4" />
           </div>
           {sidebarOpen && (
-            <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 object-contain" />
+            <>
+              <img src="/images/zyncjobs-logo.png" alt="ZyncJobs" className="h-10 object-contain" />
+              <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                userRole === 'super_admin' ? 'bg-purple-600 text-white' :
+                userRole === 'admin' ? 'bg-blue-600 text-white' :
+                'bg-emerald-600 text-white'
+              }`}>
+                {userRole === 'super_admin' ? 'Super Admin' : userRole === 'admin' ? 'Admin' : 'Manager'}
+              </span>
+            </>
           )}
         </div>
 
@@ -362,11 +404,13 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
             let lastSection = '';
             return navItems
               .filter(({ id }) => {
-                // Filter navigation items based on permissions
+                if (isManager) {
+                  return id === 'overview' || id === 'reports';
+                }
                 if (id === 'admins') return canManageAdmins;
                 if (id === 'settings') return canAccessSystemSettings;
-                // if (id === 'verifications') return false; // Hide verifications section
-                return true; // Show all other items
+                if (id === 'all-applications') return userRole === 'super_admin';
+                return true;
               })
               .map(({ id, label, icon: Icon, section }) => {
                 const showDivider = sidebarOpen && section !== 'main' && section !== lastSection;
@@ -433,7 +477,7 @@ export default function AdminDashboardPage({ user, onNavigate, onLogout }: Props
               {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
             <h1 className="text-base lg:text-lg font-semibold capitalize truncate">
-              {activeNav === 'talent' ? 'Talent Pool' : activeNav}
+              {activeNav === 'talent' ? 'Talent Pool' : activeNav === 'all-users' ? 'All Users' : activeNav === 'reminder-email' ? 'Reminder Email' : activeNav}
             </h1>
             <BackendStatusIndicator className="hidden sm:flex" showDetails={false} />
             {lastUpdated && <span className="text-xs text-gray-500 ml-2 lg:ml-4 hidden sm:block">Updated {formatLastUpdated()}</span>}
@@ -672,7 +716,7 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     setLoading(true);
     setError('');
     try {
-      const res = await authFetch(`${API_ENDPOINTS.ADMIN_USERS}?role=${role}`, {}, onUnauthorized);
+      const res = await authFetch(`${API_ENDPOINTS.ADMIN_USERS}?role=${role}&limit=5000`, {}, onUnauthorized);
       const list: any[] = res.users ?? res.data ?? res ?? [];
       setUsers(list);
       // Use jobCount already included in user object for employers
@@ -730,9 +774,20 @@ function UsersSection({ role, onUnauthorized }: { role: 'admin' | 'candidate' | 
     
     setActionLoading(userId + 'delete');
     try {
-      await authFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { method: 'DELETE' }, onUnauthorized);
+      const response = await apiFetch(`${API_ENDPOINTS.ADMIN_USERS}/${userId}`, { 
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed (${response.status})`);
+      }
+      
       setUsers(prev => prev.filter(u => (u.id || u._id) !== userId));
+      console.log('✅ User deleted successfully from UI');
     } catch (e: any) {
+      console.error('❌ Delete user error:', e);
       if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to delete user.');
     } finally {
       setActionLoading(null);
@@ -927,9 +982,20 @@ function JobsSection({ onUnauthorized }: { onUnauthorized: () => void }) {
     if (!ok) return;
     setActionLoading(jobId + 'delete');
     try {
-      await authFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { method: 'DELETE' }, onUnauthorized);
+      const response = await apiFetch(`${API_ENDPOINTS.JOBS}/${jobId}`, { 
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || errorData.message || `Delete failed (${response.status})`);
+      }
+      
       setJobs(prev => prev.filter(j => (j.id || j._id) !== jobId));
+      console.log('✅ Job deleted successfully from UI');
     } catch (e: any) {
+      console.error('❌ Delete job error:', e);
       if (e.message !== 'UNAUTHORIZED') setError(e.message || 'Failed to delete job.');
     } finally {
       setActionLoading(null);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Users, Briefcase, CheckCircle } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { apiFetch } from '../api/apiFetch';
+import { mergeUserToStorage } from '../utils/userStorage';
 
 interface ProfileVisibilityToggleProps {
   userEmail: string;
@@ -79,7 +80,7 @@ const ProfileVisibilityToggle: React.FC<ProfileVisibilityToggleProps> = ({ userE
           const stored = localStorage.getItem('user');
           if (stored) {
             const parsed = JSON.parse(stored);
-            localStorage.setItem('user', JSON.stringify({ ...parsed, ...payload }));
+            mergeUserToStorage(payload);
             // Dispatch event so dashboard re-reads user from localStorage
             window.dispatchEvent(new Event('storage'));
           }

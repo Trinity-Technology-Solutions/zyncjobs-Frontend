@@ -7,7 +7,6 @@ interface DirectMessageProps {
   candidateName: string;
   candidateEmail: string;
   employerId: string;        // UUID
-  employerName: string;
   onClose: () => void;
 }
 
@@ -16,9 +15,10 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
   candidateName,
   candidateEmail,
   employerId,
-  employerName,
   onClose
 }) => {
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const senderName = currentUser.name || 'Employer';
   const [messages, setMessages] = useState<any[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,7 +112,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
         body: JSON.stringify({
           senderId: employerId,
           receiverId: resolvedCandidateId,
-          senderName: employerName,
+          senderName,
           receiverName: candidateName,
           receiverEmail: candidateEmail,
           message: messageBody,
@@ -169,7 +169,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
                 }
               }
 
-              await fetch(`${(import.meta.env.VITE_API_URL || '/api')}/analytics/track/recruiter-action`, {
+              await fetch(`${(import.meta.env.VITE_API_URL || '/api')}/analytics-tracking/track/recruiter-action`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -177,7 +177,7 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
                   action: 'nvite_sent',  // kept as nvite_sent in DB, displayed as Job Invite
                   recruiterId: currentUser.id || currentUser._id,
                   recruiterEmail: currentUser.email,
-                  recruiterName: currentUser.name,
+                  recruiterName: senderName,
                   recruiterTitle,
                   company,
                   location,
@@ -202,8 +202,12 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
   const deleteMessage = async (msgId: string) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.MESSAGES}/delete/${msgId}?userId=${encodeURIComponent(employerId)}`, { method: 'DELETE' });
-      if (res.ok) setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
-      else setError('Failed to delete message');
+      if (res.ok || res.status === 204) {
+        setMessages(prev => prev.filter(m => (m.id || m._id) !== msgId));
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to delete message');
+      }
     } catch { setError('Error deleting message'); }
   };
 

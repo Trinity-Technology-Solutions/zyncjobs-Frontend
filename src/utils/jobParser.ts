@@ -176,7 +176,8 @@ export class JobParser {
       .map(heading => heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
       .join('|');
     
-    const sectionRegex = new RegExp(`(${allHeadingsEscaped})\\s*:?\\s*`, 'gi');
+    // Consume rest of heading line (e.g. "Good to Have (but Not Mandatory)")
+    const sectionRegex = new RegExp(`(${allHeadingsEscaped})[^\\n]*\\n`, 'gi');
     const parts = text.split(sectionRegex);
     
     for (let i = 1; i < parts.length; i += 2) {
@@ -310,7 +311,7 @@ export class JobParser {
     // Check sections first — take only first line (the actual value)
     const rawSection = (sections['experience required'] || sections['experience'] || '').split('\n')[0].trim();
     if (rawSection) {
-      const m = rawSection.match(/(\d+)\s*[-\u2013\u2014to]+\s*(\d+)/);
+      const m = rawSection.match(/(\d+)\s*(?:[-\u2013\u2014]|\bto\b)\s*(\d+)/);
       if (m) return `${m[1]}-${m[2]} years`;
       const s = rawSection.match(/(\d+)/);
       if (s && parseInt(s[1]) <= 40) return `${s[1]}+ years`;
@@ -503,7 +504,7 @@ export class JobParser {
     if (bullets.length === 0) {
       const lines = text.split('\n')
         .map(line => line.trim())
-        .filter(line => line.length > 5);
+        .filter(line => line.length > 5 && !/^[\(\[]/.test(line));
       bullets.push(...lines.slice(0, 10));
     }
 

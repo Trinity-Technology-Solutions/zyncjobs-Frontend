@@ -25,6 +25,7 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 const _missingJobIds = new Set<string>();
 
 interface EmployerDashboardPageProps {
+  user?: any;
   onNavigate: (page: string, params?: any) => void;
   onLogout?: () => void;
 }
@@ -86,6 +87,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [recentMessages, setRecentMessages] = useState<any[]>([]);
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
+  const [closingJobId, setClosingJobId] = useState<string | null>(null);
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -195,20 +197,53 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     };
   }, []); // Run once on mount only
 
+  const closeJob = async (jobId: string) => {
+    if (!jobId) return;
+    openConfirm(
+      'Close Job',
+      'Are you sure you want to close this job posting? This will stop new applications from being accepted.',
+      async () => {
+        closeConfirm();
+        setClosingJobId(jobId);
+        try {
+          const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/close`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'closed' })
+          });
+
+          if (response.ok) {
+            setJobs(prev => prev.map(job => (job._id || job.id) === jobId ? { ...job, status: 'closed' } : job));
+            showToast('Job closed successfully.', 'success');
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || errorData.error || 'Failed to close job');
+          }
+        } catch (error) {
+          console.error('Error closing job:', error);
+          showToast(error instanceof Error ? error.message : 'Failed to close job. Please try again.', 'error');
+        } finally {
+          setClosingJobId(null);
+        }
+      }
+    );
+  };
+
   useEffect(() => {
-    const userData = localStorage.getItem('user');
-    if (userData) {
-      const parsedUser = JSON.parse(userData);
+    // Prefer the user prop from App.tsx (React state) as primary source of truth.
+    // Fall back to localStorage only when prop is not available.
+    const sourceData = user || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+    if (sourceData && Object.keys(sourceData).length > 0) {
       setJobs([]);
       setApplications([]);
       setInterviews([]);
       setDashboardStats(null);
       setRecentActivity([]);
       
-      setUser(parsedUser);
-      setEmployerName(parsedUser.name || 'Employer');
+      setUser(sourceData);
+      setEmployerName(sourceData.name || 'Employer');
       // Live fetch team role from backend on every load
-      const _ue = parsedUser.email;
+      const _ue = sourceData.email;
       if (_ue) {
         fetch(`${import.meta.env.VITE_API_URL || '/api'}/team/check?memberEmail=${encodeURIComponent(_ue)}`)
           .then(r => r.ok ? r.json() : null)
@@ -216,41 +251,44 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             if (data?.hasInvite && data.role) {
               const liveRole = data.role as 'Owner' | 'Recruiter' | 'Viewer';
               setTeamRole(liveRole);
+              // data.employerId = owner's email/id used to identify the team
               const resolvedOwner = data.employerId || _ue;
               setOwnerEmailState(resolvedOwner);
               const _s = JSON.parse(localStorage.getItem('user') || '{}');
               _s.teamRole = liveRole;
               _s.employerOwnerId = resolvedOwner;
+              _s.ownerEmail = resolvedOwner;
               localStorage.setItem('user', JSON.stringify(_s));
-              fetchDashboardData({ ...parsedUser, employerOwnerId: resolvedOwner, teamRole: liveRole });
+              // Pass ownerEmail so fetchDashboardData uses owner's data
+              fetchDashboardData({ ...sourceData, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
             } else {
               setTeamRole('Owner');
               setOwnerEmailState(_ue);
               // Owner — fetch with own email
-              fetchDashboardData({ ...parsedUser, employerOwnerId: null });
+              fetchDashboardData({ ...sourceData, employerOwnerId: null, ownerEmail: _ue });
             }
           })
           .catch(() => {
-            if (parsedUser.teamRole) setTeamRole(parsedUser.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
-            const fallbackOwner = parsedUser.employerOwnerId || _ue;
+            if (sourceData.teamRole) setTeamRole(sourceData.teamRole as 'Owner' | 'Recruiter' | 'Viewer');
+            const fallbackOwner = sourceData.employerOwnerId || _ue;
             setOwnerEmailState(fallbackOwner);
-            fetchDashboardData({ ...parsedUser, employerOwnerId: parsedUser.employerOwnerId || null });
+            fetchDashboardData({ ...sourceData, employerOwnerId: sourceData.employerOwnerId || null });
           });
       }
       // Fix: Use actual company name from registration, not generic 'Company'
       // For team members, prefer the owner's companyName stored in their profile
-      const actualCompanyName = parsedUser.companyName || parsedUser.ownerCompanyName || parsedUser.company || parsedUser.organizationName || 'Company';
+      const actualCompanyName = sourceData.companyName || sourceData.ownerCompanyName || sourceData.company || sourceData.organizationName || 'Company';
       setCompanyName(actualCompanyName);
-      setCompanyLogo(parsedUser.companyLogo || '');
+      setCompanyLogo(sourceData.companyLogo || '');
       
       // Check if profile completion popup should be shown
       // Only show for FIRST TIME after registration (not on subsequent visits)
-      const hasCompletedProfile = parsedUser.industry && 
-                                 parsedUser.companySize && 
-                                 parsedUser.headquarters && 
-                                 parsedUser.companyDescription &&
-                                 parsedUser.companyWebsite &&
-                                 parsedUser.tagline;
+      const hasCompletedProfile = sourceData.industry && 
+                                 sourceData.companySize && 
+                                 sourceData.headquarters && 
+                                 sourceData.companyDescription &&
+                                 sourceData.companyWebsite &&
+                                 sourceData.tagline;
       
       const hasSeenPopup = localStorage.getItem('hasSeenProfilePopup');
       const isFirstVisit = sessionStorage.getItem('isFirstVisitAfterRegistration'); // Only for current session
@@ -269,8 +307,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         sessionStorage.removeItem('isFirstVisitAfterRegistration');
       }
       
-      // For team members: fetch data using the owner's employerId so they see the owner's jobs/apps
-      fetchDashboardData(parsedUser);
+      // NOTE: fetchDashboardData is already called inside the /team/check .then() block above
+      // Do NOT call it again here — that causes team members to see 0 data
     }
     
     // Listen for alerts navigation event from header
@@ -283,6 +321,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     return () => {
       window.removeEventListener('showAlerts', handleShowAlerts);
       window.removeEventListener('showApplications', handleShowApplications);
+    };
+  }, []);
+
+  // Sync user state when App.tsx updates the user (session restore, etc.)
+  useEffect(() => {
+    const syncUser = () => {
+      const raw = localStorage.getItem('user');
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        setUser(parsed);
+        setEmployerName(parsed.name || 'Employer');
+        const actualCompanyName = parsed.companyName || parsed.ownerCompanyName || parsed.company || parsed.organizationName || 'Company';
+        setCompanyName(actualCompanyName);
+        setCompanyLogo(parsed.companyLogo || '');
+      } catch { /* ignore */ }
+    };
+
+    window.addEventListener('zync:user-updated', syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener('zync:user-updated', syncUser);
+      window.removeEventListener('storage', syncUser);
     };
   }, []);
 
@@ -305,14 +366,26 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   useEffect(() => {
     const handleFocus = () => {}; // removed aggressive refetch
     
-    const handleJobDeleted = () => { if (user) fetchDashboardData(user); };
+    const handleJobDeleted = (e: Event) => { 
+      console.log('🗑️ Dashboard: Job deleted event received', (e as CustomEvent).detail);
+      if (user) {
+        // Immediately update local state to remove the deleted job
+        const deletedJobId = (e as CustomEvent).detail?.jobId;
+        if (deletedJobId) {
+          setJobs(prev => prev.filter(job => (job.id || job._id) !== deletedJobId));
+          console.log('📊 Dashboard: Removed job from local state:', deletedJobId);
+        }
+        // Then fetch fresh data from server
+        fetchDashboardData(user);
+      }
+    };
     
     window.addEventListener('focus', handleFocus);
-    window.addEventListener('jobDeleted', handleJobDeleted);
+    window.addEventListener('jobDeleted', handleJobDeleted as EventListener);
     
     return () => {
       window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('jobDeleted', handleJobDeleted);
+      window.removeEventListener('jobDeleted', handleJobDeleted as EventListener);
     };
   }, [user]);
 
@@ -338,8 +411,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const jobsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/employer/email/${encodeURIComponent(ownerEmail)}`);
         if (jobsRes.ok) {
           const allJobs = await jobsRes.json();
-          const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
-          const myEmployerId = storedUser.employerId;
+          const myEmployerId = userData.employerId;
           employerJobs = Array.isArray(allJobs) ? allJobs.filter((job: any) => {
             const email = ownerEmail?.toLowerCase().trim();
             const selfEmail = userEmail?.toLowerCase().trim();
@@ -410,9 +482,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
 
       // Fetch Interviews (non-critical, fail silently)
       try {
-        // Only send employerId if it's a valid non-numeric ID (UUID/ObjectId)
-        const isValidId = (id: any) => id && typeof id === 'string' && !/^\d+$/.test(id);
-        const interviewEmployerId = isValidId(ownerEmployerId) ? ownerEmployerId : isValidId(userId) ? userId : '';
+        // Use the available employer ID — prefer ownerEmployerId, fallback to userId
+        const interviewEmployerId = ownerEmployerId || userId || '';
         const interviewsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(interviewEmployerId)}&employerEmail=${encodeURIComponent(ownerEmail || '')}`);
         if (interviewsRes.ok) {
           const interviewsData = await interviewsRes.json();
@@ -442,14 +513,14 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         } else {
           setInterviews([]);
         }
-      } catch {
+      } catch (err) {
+        console.error('Error fetching interviews:', err);
         setInterviews([]);
       }
 
       // Fetch Dashboard Stats (non-critical, fail silently)
       try {
-        const storedUserForStats = JSON.parse(localStorage.getItem('user') || '{}');
-        const myCompanyForStats = storedUserForStats.companyName || storedUserForStats.company || '';
+        const myCompanyForStats = userData.companyName || userData.company || '';
         const statsRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/dashboard/stats?employerId=${encodeURIComponent(userId || '')}&employerEmail=${encodeURIComponent(ownerEmail || '')}&userName=${encodeURIComponent(userName || '')}&companyName=${encodeURIComponent(myCompanyForStats)}`);
         if (statsRes.ok) {
           const stats = await statsRes.json();
@@ -511,6 +582,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     const isNambikkai = companyName?.toLowerCase().includes('nambikkai') || employerName?.toLowerCase().includes('nambikkai');
     if (isNambikkai) return '/images/company-logos/nambikkai-logo.png';
 
+    const API_BASE = (typeof import.meta !== 'undefined' ? import.meta.env.VITE_API_URL || '/api' : '/api');
     const domainMap: Record<string, string> = {
       zoho: 'zoho.com', tcs: 'tcs.com', infosys: 'infosys.com', wipro: 'wipro.com',
       google: 'google.com', microsoft: 'microsoft.com', amazon: 'amazon.com',
@@ -519,13 +591,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     };
     const n = (companyName || '').toLowerCase();
     for (const [key, domain] of Object.entries(domainMap)) {
-      if (n.includes(key)) return `https://img.logo.dev/${domain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+      if (n.includes(key)) return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(domain)}`;
     }
 
     if (user?.email?.includes('@')) {
       const emailDomain = user.email.split('@')[1];
       if (emailDomain && !['gmail.com','yahoo.com','outlook.com','hotmail.com'].includes(emailDomain)) {
-        return `https://img.logo.dev/${emailDomain}?token=pk_cY8JBeWnQR6g5m_ymQhBoQ&size=80`;
+        return `${API_BASE}/logo-proxy?domain=${encodeURIComponent(emailDomain)}`;
       }
     }
 
@@ -855,6 +927,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 { key: 'applications',     label: 'Applications',      icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Applications', 'Recruiter', () => setActiveMenu('applications')), badge: applications.length || null, show: true },
                 { key: 'interviews',       label: 'Interviews',        icon: <MessageSquare className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Interviews', 'Recruiter', () => setActiveMenu('interviews')), badge: interviews.length || null, show: true },
                 { key: 'posted-jobs',      label: 'Posted Jobs',       icon: <Briefcase className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Posted Jobs', 'Recruiter', () => onNavigate('my-jobs')), external: true, badge: jobs.length || null, show: true },
+                { key: 'analytics',        label: 'Analytics',         icon: <TrendingUp className="w-[18px] h-[18px] flex-shrink-0" />, action: () => onNavigate('analytics'), external: true, show: true },
                 { key: 'team',             label: 'Team',              icon: <Users className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Team Management', 'Owner', () => setActiveMenu('team')), show: true },
                 { key: 'auto-rejection',   label: 'AI Rejection',      icon: <Settings className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('AI Auto-Rejection', 'Owner', () => setActiveMenu('auto-rejection')), show: true },
                 { key: 'candidate-search', label: 'Search Candidates', icon: <Search className="w-[18px] h-[18px] flex-shrink-0" />, action: () => withRoleCheck('Search Candidates', 'Recruiter', () => onNavigate('candidate-search')), external: true, show: true },
@@ -884,15 +957,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               })}
 
               {/* Delete Account */}
-              <button onClick={() => openConfirm(
+              <button onClick={() => {
+                if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Delete Account', requiredRole: 'Owner' }); return; }
+                openConfirm(
                 'Delete Account',
                 'This will permanently delete your account, all posted jobs, applications, and data. This cannot be undone. Are you sure?',
-                async () => {
-                  closeConfirm();
-                  try {
-                    const stored = localStorage.getItem('user');
-                    const userData = stored ? JSON.parse(stored) : {};
-                    const userId = userData.id || userData._id;
+                  async () => {
+                    closeConfirm();
+                    try {
+                      const userId = user.id || user._id;
                                         if (!userId) { showToast('Could not identify user. Please log in again.', 'error'); return; }
                     const token = getToken();
                     const res = await apiFetch(`${import.meta.env.VITE_API_URL || '/api'}/users/${encodeURIComponent(userId)}`, {
@@ -911,7 +984,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     showToast('Network error. Please try again.', 'error');
                   }
                 }
-              )}
+              )}}
                 style={{ fontSize: '15px' }}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-all duration-200 text-left mt-2">
                 <Trash2 className="w-[18px] h-[18px] flex-shrink-0" />
@@ -958,7 +1031,10 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           <div className="flex items-center gap-1 sm:gap-2">
             {/* Complete Profile Button */}
             <button
-              onClick={() => onNavigate('employer-complete-profile')}
+              onClick={() => {
+              if (!isOwner) { setAccessDeniedModal({ show: true, feature: 'Edit Profile', requiredRole: 'Owner' }); return; }
+              onNavigate('employer-complete-profile');
+            }}
               className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-colors text-xs shadow-lg flex items-center gap-1"
               title="Complete your company profile"
             >
@@ -993,10 +1069,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   setShowNotifications(!showNotifications);
                   if (!showNotifications) {
                     try {
-                      const userData = localStorage.getItem('user');
-                      if (userData) {
-                        const { email } = JSON.parse(userData);
-                        const fresh = await NotificationService.fetchNotifications(email);
+                      if (user?.email) {
+                        const fresh = await NotificationService.fetchNotifications(user.email);
                         setNotifications(fresh);
                       }
                     } catch (e) { console.error('Bell fetch error:', e); }
@@ -1096,11 +1170,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 const visibleJobs = tabData[activeTab] || topPerforming;
 
                 const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
-                  if (pct >= 80) return { bar: '#10b981', label: '🔥 Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200' };
-                  if (pct >= 40) return { bar: '#f59e0b', label: '📈 Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200' };
-                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '' };
-                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
-                  return { bar: '#ef4444', label: '⚠️ Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200' };
+                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', iconPath: '/images/fire-svgrepo-com.svg' };
+                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', iconPath: null };
+                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', iconPath: null };
+                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
+                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
                 };
 
                 const tabs = [
@@ -1123,7 +1197,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           <BulkJobRefresh
                             selectedJobIds={jobs.map(j => j.id || j._id).filter(Boolean)}
                             selectedJobs={jobs.map(j => ({ id: j.id || j._id, title: j.jobTitle || j.title, refreshCount: j.refreshCount || 0, lastRefreshedAt: j.lastRefreshedAt }))}
-                            userPlan="free"
+                            userPlan={user?.plan || 'free'}
                             onRefreshComplete={() => { if (user) fetchDashboardData(user); }}
                             className="text-xs px-3 py-2"
                           />
@@ -1173,7 +1247,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     jobTitle={job.jobData.jobTitle || job.jobData.title}
                                     refreshCount={job.jobData.refreshCount || 0}
                                     lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                    userPlan="free"
+                                    userPlan={user?.plan || 'free'}
                                     onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
                                     className="text-[10px] px-2 py-1"
                                   />
@@ -1186,7 +1260,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         /* Top/Applied/Recent: performance card layout */
                         <div className="space-y-4">
                           {visibleJobs.map((job, idx) => {
-                            const { bar, label, labelCls } = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
+                            const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
+                            const { bar, label, labelCls } = status;
                             return (
                               <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
                                 <div className="flex items-start justify-between gap-3 mb-2">
@@ -1202,7 +1277,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                     </div>
                                   </div>
                                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                                    {label && <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>{label}</span>}
+                                    {label && (
+                                      <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>
+                                        {status.iconPath && (
+                                          <img
+                                            src={status.iconPath}
+                                            alt=""
+                                            className="w-3 h-3 mr-1 inline-block object-contain"
+                                          />
+                                        )}
+                                        {label}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 {/* Progress bar */}
@@ -1218,7 +1304,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                       jobTitle={job.jobData.jobTitle || job.jobData.title}
                                       refreshCount={job.jobData.refreshCount || 0}
                                       lastRefreshedAt={job.jobData.lastRefreshedAt}
-                                      userPlan="free"
+                                      userPlan={user?.plan || 'free'}
                                       onRefreshSuccess={() => { if (user) fetchDashboardData(user); }}
                                       className="text-[10px] px-1.5 py-0.5"
                                     />
@@ -1567,7 +1653,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           ) : (
                             <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
                           )}
-                          {/* 3 action buttons in a row on mobile, stacked on desktop */}
+                          {/* Action buttons */}
                           <div className="flex flex-row sm:flex-col gap-2">
                             <button
                               onClick={() => {
@@ -1589,24 +1675,48 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 Schedule
                               </button>
                             )}
-                            {canDeleteRecords && (
+                            {application.status !== 'rejected' && canManageApplications && (
                               <button
-                                onClick={(e) => {
-                                  e.preventDefault(); e.stopPropagation();
+                                onClick={async () => {
                                   const appId = application._id || application.id;
-                                  openConfirm('Delete Application', 'Are you sure you want to delete this application? This action cannot be undone.', async () => {
-                                    try {
-                                      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
-                                      if (response.ok) { setApplications(prev => prev.filter(app => (app._id || app.id) !== appId)); showToast('Application deleted successfully!', 'success'); }
-                                      else { showToast('Failed to delete application', 'error'); }
-                                    } catch { showToast('Failed to delete application', 'error'); }
-                                    closeConfirm();
-                                  });
+                                  try {
+                                    const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ status: 'rejected' }),
+                                    });
+                                    if (response.ok) {
+                                      setApplications(prev => prev.map(app => (app._id || app.id) === appId ? { ...app, status: 'rejected' } : app));
+                                      // Send rejection email to candidate
+                                      try {
+                                        await apiFetch(`${API_ENDPOINTS.BASE_URL}/email/send`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({
+                                            to: application.candidateEmail,
+                                            subject: `Application Update - ${application.jobTitle || 'Job Position'} at ${companyName}`,
+                                            type: 'application_rejected',
+                                            data: {
+                                              candidateName: application.candidateName || 'Applicant',
+                                              jobTitle: application.jobTitle || 'Job Position',
+                                              companyName,
+                                            },
+                                          }),
+                                        });
+                                      } catch { /* email failure is non-critical */ }
+                                      showToast('Application rejected & email sent to candidate', 'success');
+                                    } else { throw new Error(); }
+                                  } catch { showToast('Failed to reject application.', 'error'); }
                                 }}
-                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm inline-flex items-center justify-center gap-1 whitespace-nowrap"
+                                className="flex-1 sm:flex-none sm:w-full bg-red-600 text-white px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg font-semibold hover:bg-red-700 transition-colors text-xs sm:text-sm whitespace-nowrap"
                               >
-                                <Trash2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> Delete
+                                Reject
                               </button>
+                            )}
+                            {application.status === 'rejected' && (
+                              <span className="flex-1 sm:flex-none sm:w-full text-center px-2 py-1.5 sm:px-3 sm:py-2.5 rounded-lg text-xs sm:text-sm font-semibold bg-red-50 text-red-600 border border-red-200">
+                                Rejected
+                              </span>
                             )}
                           </div>
                         </div>
@@ -1862,7 +1972,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div className="flex-shrink-0">
                           {photo ? (
                             <img src={photo} alt={name} className="w-16 h-16 rounded-full object-cover border-2 border-green-300 shadow"
-                              onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=64&background=10b981&color=ffffff&bold=true`; }} />
+                              onError={(e) => {
+                                const initials = (name || '?').split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2);
+                                (e.target as HTMLImageElement).src = `data:image/svg+xml,${encodeURIComponent(
+                                  `<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" fill="#10B981" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-family="Arial" font-size="24" font-weight="bold">${initials}</text></svg>`
+                                )}`;
+                              }} />
                           ) : (
                             <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center shadow-md text-white font-bold text-2xl">
                               {name.charAt(0).toUpperCase()}
@@ -1975,10 +2090,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <button
                     onClick={async () => {
                       try {
-                        const userData = localStorage.getItem('user');
-                        if (userData) {
-                          const parsedUser = JSON.parse(userData);
-                          const dynamicNotifications = await NotificationService.fetchNotifications(parsedUser.email);
+                        if (user?.email) {
+                          const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
                           setNotifications(dynamicNotifications);
                         }
                       } catch (error) {
@@ -2073,7 +2186,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             </>
           ) : activeMenu === 'team' ? (
             <TeamSection
-              employerEmail={user?.employerId || user?.ownerEmail || user?.email}
+              employerEmail={user?.employerOwnerId || user?.ownerEmail || user?.email}
               currentUserEmail={user?.email}
               companyName={companyName}
               showToast={showToast}
@@ -2243,10 +2356,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
             const userData = localStorage.getItem('user');
             if (userData) {
               const u = JSON.parse(userData);
-              const userId = u.id || u._id;
-              const userEmail = u.email;
-              const safeId = userId && typeof userId === 'string' && !/^\d+$/.test(userId) ? userId : '';
-              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(safeId)}&employerEmail=${encodeURIComponent(userEmail || '')}`)
+              const ownerId = u.employerOwnerId || u.ownerEmail || u.id || u._id || '';
+              const ownerEmail = u.ownerEmail || u.employerOwnerId || u.email || '';
+              fetch(`${API_ENDPOINTS.BASE_URL}/interviews?employerId=${encodeURIComponent(ownerId)}&employerEmail=${encodeURIComponent(ownerEmail)}`)
                 .then(r => r.ok ? r.json() : [])
                 .then((data: any[]) => {
                   setInterviews(Array.isArray(data) ? data : []);
@@ -2563,9 +2675,14 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
               </div>
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${
-                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : roleColors[member.role]
+                  member.status === 'pending' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 
+                  member.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' :
+                  roleColors[member.role]
                 }`}>
-                  {member.status === 'pending' ? '⏳ Pending' : member.role}
+                  {member.status === 'pending' ? '⏳ Pending' : member.status === 'active' ? '✅ Active' : member.status || 'Active'}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded-full border font-medium text-center ${roleColors[member.role]}`}>
+                  {member.role}
                 </span>
                 {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">

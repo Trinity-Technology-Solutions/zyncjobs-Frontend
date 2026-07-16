@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Star, MapPin, IndianRupee, X } from 'lucide-react';
+import { Star, MapPin, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -11,7 +11,7 @@ interface Company {
   _id: string;
   name: string;
   industry: string;
-  rating: number;
+  rating: number | null;
   description: string;
   location: string;
   employees: string;
@@ -51,10 +51,22 @@ const formatSalary = (salary: any): string => {
   if (!salary) return '';
   if (typeof salary === 'string') return salary;
   if (typeof salary === 'object') {
-    const { min, max } = salary;
-    if (min && max) return `₹${Number(min).toLocaleString('en-IN')} - ₹${Number(max).toLocaleString('en-IN')}`;
-    if (min) return `₹${Number(min).toLocaleString('en-IN')}+`;
-    if (max) return `Up to ₹${Number(max).toLocaleString('en-IN')}`;
+    const { min, max, currency } = salary;
+    const CURRENCY_SYMBOLS: Record<string, string> = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ', SAR: 'ر.س', SGD: 'S$', MYR: 'RM', THB: '฿', PHP: '₱', IDR: 'Rp', VND: '₫', KRW: '₩', JPY: '¥', CNY: '¥', TWD: 'NT$', HKD: 'HK$', CAD: 'C$', AUD: 'A$', NZD: 'NZ$', CHF: 'Fr', SEK: 'kr', NOK: 'kr', DKK: 'kr', PLN: 'zł', TRY: '₺', ZAR: 'R', BRL: 'R$', MXN: '$', NGN: '₦', KES: 'KSh', EGP: 'E£' };
+    const sym = CURRENCY_SYMBOLS[currency] || (currency || '₹');
+    const fmtNum = (n: number): string => {
+      if (n >= 10000000) return `${(n / 10000000).toFixed(n % 10000000 === 0 ? 0 : 1)}Cr`;
+      if (n >= 100000) return `${(n / 100000).toFixed(n % 100000 === 0 ? 0 : 1)}L`;
+      if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+      if (n >= 1000) return `${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}K`;
+      return n.toString();
+    };
+    if (min && max) {
+      if (min === max) return `${sym}${fmtNum(min)}`;
+      return `${sym}${fmtNum(min)} - ${sym}${fmtNum(max)}`;
+    }
+    if (min) return `${sym}${fmtNum(min)}+`;
+    if (max) return `Up to ${sym}${fmtNum(max)}`;
   }
   return '';
 };
@@ -216,17 +228,16 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           _id: realCompanyData._id || realCompanyData.id,
           name: realCompanyData.name || realCompanyData.companyName,
           industry: realCompanyData.industry,
-          rating: realCompanyData.rating || 0,
+          rating: realCompanyData.rating || null,
           description: realCompanyData.description || realCompanyData.about,
           location: realCompanyData.location || realCompanyData.headquarters,
-          employees: realCompanyData.size || realCompanyData.companySize,
+          employees: realCompanyData.size || realCompanyData.companySize || realCompanyData.employees,
           website: realCompanyData.website || realCompanyData.companyWebsite,
-          openJobs: realCompanyData.openJobs || 0,
+          openJobs: realCompanyData.openPositions ?? realCompanyData.openJobs ?? 0,
           logo: realCompanyData.logo,
-          // Additional fields from enhanced profile
           tagline: realCompanyData.tagline,
           foundedYear: realCompanyData.foundedYear,
-          companyType: realCompanyData.companyType || 'Private',
+          companyType: realCompanyData.companyType || '—',
           benefits: realCompanyData.benefits || [],
           socialLinks: realCompanyData.socialLinks || {},
           locations: realCompanyData.locations || [],
@@ -234,7 +245,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           cinNumber: realCompanyData.cinNumber
         };
         
-        setCompany(mappedCompany);
+        setCompany(mappedCompany as Company);
         
         // Set enhanced data for display
         const enhancedCompanyData: EnhancedCompanyData = {
@@ -242,8 +253,8 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           name: realCompanyData.name || realCompanyData.companyName,
           industry: realCompanyData.industry,
           description: realCompanyData.description || realCompanyData.about,
-          company_type: realCompanyData.companyType || 'Private',
-          founded_year: realCompanyData.foundedYear ? parseInt(realCompanyData.foundedYear) : new Date().getFullYear(),
+          company_type: realCompanyData.companyType || '—',
+          founded_year: realCompanyData.foundedYear ? parseInt(realCompanyData.foundedYear) : null,
           tagline: realCompanyData.tagline,
           logo_url: realCompanyData.logo,
           website: realCompanyData.website || realCompanyData.companyWebsite,
@@ -566,7 +577,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 mb-4 sm:mb-6">
                     <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-bold text-gray-900">{avgRating ?? '4.2'}</span>
+                      <span className="text-lg font-bold text-gray-900">{avgRating ?? '—'}</span>
                       <span className="text-gray-600 text-sm">({reviews.length} reviews)</span>
                     </div>
                     {followersCount > 0 && (
@@ -593,10 +604,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                       {company.industry}
                     </span>
                     <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                      {company.companyType || 'Private'}
+                      {company.companyType || '—'}
                     </span>
                     <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                      {company.employees} Employees
+                      {company.employees || '—'} Employees
                     </span>
                     {company.foundedYear && (
                       <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
@@ -631,13 +642,13 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {company?.foundedYear || '2019'}
+              {company?.foundedYear || '—'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Founded</div>
           </div>
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {company?.employees || '11-50'}
+              {company?.employees || '—'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Employees</div>
           </div>
@@ -649,7 +660,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           </div>
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 truncate">
-              {company?.location?.split(',')[0] || company?.headquarters?.split(',')[0] || 'Chennai'}
+              {company?.location?.split(',')[0] || company?.headquarters?.split(',')[0] || '—'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Headquarters</div>
           </div>
@@ -714,7 +725,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </button>
                 )}
               </div>
-            
+              
             {/* Departments Hiring Section - Only show if real data exists */}
             {departments.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
@@ -940,6 +951,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </div>
                 )}
               </div>
+            </div>
               
               {/* Social Links */}
               {company?.socialLinks && Object.keys(company.socialLinks).length > 0 && (
@@ -953,25 +965,10 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         </svg>
                       </a>
                     )}
-                    {company.socialLinks.twitter && (
-                      <a href={company.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-500">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M6.29 18.251c7.547 0 11.675-6.253 11.675-11.675 0-.178 0-.355-.012-.53A8.348 8.348 0 0020 3.92a8.19 8.19 0 01-2.357.646 4.118 4.118 0 001.804-2.27 8.224 8.224 0 01-2.605.996 4.107 4.107 0 00-6.993 3.743 11.65 11.65 0 01-8.457-4.287 4.106 4.106 0 001.27 5.477A4.073 4.073 0 01.8 7.713v.052a4.105 4.105 0 003.292 4.022 4.095 4.095 0 01-1.853.07 4.108 4.108 0 003.834 2.85A8.233 8.233 0 010 16.407a11.616 11.616 0 006.29 1.84" />
-                        </svg>
-                      </a>
-                    )}
-                    {company.socialLinks.facebook && (
-                      <a href={company.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-700">
-                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M20 10C20 4.477 15.523 0 10 0S0 4.477 0 10c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V10h2.54V7.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V10h2.773l-.443 2.89h-2.33v6.988C16.343 19.128 20 14.991 20 10z" clipRule="evenodd" />
-                        </svg>
-                      </a>
-                    )}
                   </div>
                 </div>
               )}
-            </div>
-            
+
             {/* Current Job Openings */}
             {jobs.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -987,7 +984,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         </span>
                         {job.salary && (
                           <span className="flex items-center gap-1">
-                            <IndianRupee className="w-4 h-4" />
                             {formatSalary(job.salary)}
                           </span>
                         )}
@@ -1072,7 +1068,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           {job.salary && (
                             <>
                               <span>•</span>
-                              <IndianRupee className="w-3 h-3" />
                               <span>{formatSalary(job.salary)}</span>
                             </>
                           )}
@@ -1156,7 +1151,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           </span>
                           {job.salary && (
                             <span className="flex items-center gap-1">
-                              <IndianRupee className="w-3 h-3" />
                               {formatSalary(job.salary)}
                             </span>
                           )}
@@ -1235,7 +1229,6 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                           </span>
                           {job.salary && (
                             <span className="flex items-center gap-1">
-                              <IndianRupee className="w-4 h-4 flex-shrink-0" />
                               <span className="truncate">{formatSalary(job.salary)}</span>
                             </span>
                           )}

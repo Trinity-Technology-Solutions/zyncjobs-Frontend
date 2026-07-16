@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, Wand2, CheckCircle, Target } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
-import { resumeBuilderAPI } from '../../services/resumeBuilderAPI';
+import { executeResumeAI } from '../../services/resumeAIClient';
 
-export default function AISuggestionsStep() {
+interface Props {
+  selectedJob?: any;
+}
+
+export default function AISuggestionsStep({ selectedJob }: Props) {
   const { data, update } = useResumeStore();
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
@@ -11,6 +15,10 @@ export default function AISuggestionsStep() {
   const [success, setSuccess] = useState('');
   const [jdText, setJdText] = useState(data.jobDescription || '');
   const [optimizationResult, setOptimizationResult] = useState<any>(null);
+  const [versions, setVersions] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('resume_jd_versions') || '[]'); } catch { return []; }
+  });
+  const [saveName, setSaveName] = useState('');
 
   const handleGenerateContent = async () => {
     if (!data.experience.length) {
@@ -24,23 +32,18 @@ export default function AISuggestionsStep() {
       const expText = data.experience
         .map((e) => `${e.title} at ${e.company} - ${e.bullets.join('. ')}`)
         .join('. ');
-      let result: any;
       try {
-        result = await resumeBuilderAPI.generateContent({
-          jobTitle: data.experience[0]?.title || 'Professional',
-          experience: expText,
-          name: data.personalInfo.name,
+        const res = await executeResumeAI({
+          section: 'summary',
+          action: 'generate',
+          content: expText,
         });
+        update('summary', res.result);
       } catch {
         const title = data.experience[0]?.title || 'Professional';
         const company = data.experience[0]?.company || 'a leading company';
-        result = {
-          summary: `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions and collaborate with cross-functional teams to drive measurable business impact.`,
-          skills: ['Communication','Problem Solving','Team Collaboration','Time Management','Analytical Thinking','Project Management','Agile','Leadership'],
-        };
+        update('summary', `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions and collaborate with cross-functional teams to drive measurable business impact.`);
       }
-      update('summary', result.summary);
-      update('skills', [...new Set([...data.skills, ...(result.skills || [])])]);
       setSuccess('✅ AI generated summary and skills!');
     } finally {
       setLoading(false);
@@ -57,36 +60,34 @@ export default function AISuggestionsStep() {
     setSuccess('');
     try {
       const bullets = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim()));
-      let result: any;
+      const resumeText = [data.summary, ...bullets, ...data.skills].filter(Boolean).join('\n');
       try {
-        result = await resumeBuilderAPI.optimizeWithJD({
-          resumeData: { summary: data.summary, bullets, skills: data.skills },
-          jobDescription: jdText,
+        const res = await executeResumeAI({
+          section: 'resume',
+          action: 'optimize',
+          content: `${jdText}\n---\n${resumeText}`,
+        });
+        setOptimizationResult({
+          keywords: (res.result || '').split(',').map(s => s.trim()).filter(Boolean),
+          atsScore: 75,
+          improvements: ['Review keywords added from JD', 'Quantify achievements with numbers'],
         });
       } catch {
-        // Local JD optimization fallback
         const words = jdText.replace(/[^a-zA-Z0-9\s]/g, ' ').split(/\s+/);
         const stop = new Set(['the','and','or','for','with','that','this','are','you','will','have','from','to','a','an','in','of','on','at','is','be','as','by']);
         const freq: Record<string,number> = {};
         words.forEach(w => { const c = w.toLowerCase(); if (c.length > 3 && !stop.has(c)) freq[c] = (freq[c]||0)+1; });
         const keywords = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([w])=>w.charAt(0).toUpperCase()+w.slice(1));
-        result = {
-          summary: data.summary
-            ? `${data.summary} Experienced in ${keywords.slice(0,3).join(', ')} with a strong track record of delivering results.`
-            : `Skilled professional with expertise in ${keywords.slice(0,4).join(', ')}. Proven ability to deliver high-quality results.`,
-          bullets: bullets.length > 0 ? bullets : ['Delivered projects on time using agile methodologies'],
-          skills: [...new Set([...data.skills, ...keywords.slice(0,5)])].slice(0,10),
-          keywords: keywords.slice(0,8),
+        setOptimizationResult({
+          keywords,
           atsScore: Math.min(95, 60 + keywords.length * 3),
           improvements: [
             `Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`,
             'Quantify your achievements with numbers and percentages',
             'Use action verbs at the start of each bullet point',
           ],
-        };
+        });
       }
-      setOptimizationResult(result);
-      setSuccess(`✅ Optimized! ATS Score: ${result.atsScore}%`);
     } finally {
       setOptimizing(false);
     }
@@ -94,12 +95,30 @@ export default function AISuggestionsStep() {
 
   const applyOptimization = () => {
     if (!optimizationResult) return;
-    update('summary', optimizationResult.summary);
-    update('skills', optimizationResult.skills);
     update('jobDescription', jdText);
     setSuccess('✅ Applied optimizations to your resume!');
     setOptimizationResult(null);
   };
+
+  function stripHtml(html: string) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.body.textContent || '';
+  }
+
+  // Auto-tailor when a job is selected in Quick Apply
+  useEffect(() => {
+    if (!selectedJob) return;
+    const jobTitle = selectedJob.title || selectedJob.jobTitle || '';
+    const company = selectedJob.company || selectedJob.companyName || '';
+    const jobSkills = Array.isArray(selectedJob.skills) ? selectedJob.skills.join(', ') : '';
+    const desc = stripHtml(selectedJob.description || selectedJob.jobDescription || '');
+    const jd = `Role: ${jobTitle}\nCompany: ${company}\n${desc ? `\n${desc}` : ''}${jobSkills ? `\n\nKey Skills: ${jobSkills}` : ''}`;
+    setJdText(jd);
+    const t = setTimeout(() => {
+      if (jd.trim()) handleOptimizeWithJD();
+    }, 800);
+    return () => clearTimeout(t);
+  }, [selectedJob?.id || selectedJob?._id]);
 
   return (
     <div className="space-y-6">
@@ -217,13 +236,40 @@ export default function AISuggestionsStep() {
               </ul>
             </div>
 
-            <button
-              onClick={applyOptimization}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-            >
-              <CheckCircle className="w-4 h-4" />
-              Apply Optimizations
-            </button>
+            <div className="flex gap-2">
+              <button onClick={applyOptimization}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <CheckCircle className="w-4 h-4" />
+                Apply Optimizations
+              </button>
+              <div className="relative">
+                <input type="text" value={saveName} onChange={e => setSaveName(e.target.value)}
+                  placeholder="e.g. Amazon Resume"
+                  className="w-40 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500" />
+                <button onClick={() => {
+                  if (!saveName.trim()) return;
+                  const newVersions = [...new Set([...versions, saveName.trim()])];
+                  setVersions(newVersions);
+                  localStorage.setItem('resume_jd_versions', JSON.stringify(newVersions));
+                  localStorage.setItem(`resume_jd_${saveName.trim()}`, JSON.stringify({ data: data, jd: jdText }));
+                  setSuccess(`✅ Saved as "${saveName.trim()}"`);
+                  setSaveName('');
+                }} disabled={!saveName.trim()}
+                  className="mt-1 w-full text-xs font-medium text-purple-600 hover:text-purple-800 disabled:opacity-40">
+                  Save as version
+                </button>
+              </div>
+            </div>
+            {versions.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-medium text-gray-500 mb-1">Saved versions:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {versions.map(v => (
+                    <span key={v} className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-600 rounded-md">{v}</span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

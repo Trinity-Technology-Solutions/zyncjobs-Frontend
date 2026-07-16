@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { getSafeCompanyLogo, getCompanyLogo, getLocalCompanyLogo } from '../utils/logoUtils';
+import CompanyLogo from './CompanyLogo';
 import { formatSalary } from '../utils/textUtils';
 import { formatJobDescription } from '../utils/htmlUtils';
 import { getId } from '../utils/getId';
@@ -37,17 +38,19 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
 
   const fetchCompanyLogos = async (jobList: Job[]) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/companies`);
-      const map: Record<string, string> = {};
+      const logoMap: Record<string, string> = {};
+      const websiteMap: Record<string, string> = {};
 
       // First, pull logos directly from job data
       jobList.forEach((j: any) => {
         const name = (j.company || '').toLowerCase();
         const logo = j.companyLogo || j.logoUrl || '';
-        if (name && logo) map[name] = logo;
+        if (name && logo) logoMap[name] = logo;
       });
 
       // Then overlay with company API logos (only non-empty, don't overwrite job-level logos)
@@ -57,11 +60,14 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
         companies.forEach((c: any) => {
           const name = (c.name || c.companyName || '').toLowerCase();
           const logo = c.logo || c.logoUrl || c.imageUrl || c.image || '';
-          if (name && logo && !map[name]) map[name] = logo;
+          if (name && logo && !logoMap[name]) logoMap[name] = logo;
+          const site = c.website || c.companyWebsite || '';
+          if (name && site && !websiteMap[name]) websiteMap[name] = site;
         });
       }
 
-      setCompanyLogos(map);
+      setCompanyLogos(logoMap);
+      setCompanyWebsites(websiteMap);
     } catch {}
   };
 
@@ -210,20 +216,12 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                 <div key={getId(job)} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-lg transition-shadow">
                     <div className="flex items-center mb-4">
                       <div className="flex-shrink-0 w-12 h-12 rounded-lg border border-gray-200 flex items-center justify-center bg-white overflow-hidden mr-4">
-                        <img 
-                          src={
-                            getLocalCompanyLogo(job.company || '') ||
-                            companyLogos[(job.company || '').toLowerCase()] ||
-                            getSafeCompanyLogo(job) ||
-                            getCompanyLogo(job.company || '')
-                          } 
-                          alt={`${job.company} logo`}
-                          className="w-10 h-10 object-contain"
-                          onError={(e) => {
-                            const img = e.target as HTMLImageElement;
-                            img.onerror = null;
-                            img.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(job.company || '')}&size=64&background=3b82f6&color=ffffff&bold=true&format=svg`;
-                          }}
+                        <CompanyLogo
+                          companyName={job.company || ''}
+                          storedLogo={job.companyLogo || companyLogos[(job.company || '').toLowerCase()] || ''}
+                          website={companyWebsites[(job.company || '').toLowerCase()]}
+                          size={40}
+                          className="rounded"
                         />
                       </div>
                       <div>
@@ -264,9 +262,9 @@ const LatestJobs: React.FC<LatestJobsProps> = ({ onNavigate, user }) => {
                       </div>
                       <div className="text-right">
                         <span className="font-semibold text-gray-900 text-sm">
-                          {job.salary ? formatSalary(job.salary) : 
-                           job.salaryMin && job.salaryMax ? 
-                           `${job.currency || 'INR'} ${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}` : 
+                          {job.salary ? formatSalary(job.salary, job.currency || job.salary?.currency) :
+                           job.salaryMin && job.salaryMax ?
+                           formatSalary({ min: job.salaryMin, max: job.salaryMax, currency: job.currency }) :
                            'Salary not specified'}
                         </span>
                       </div>
