@@ -11,7 +11,7 @@ interface Company {
   _id: string;
   name: string;
   industry: string;
-  rating: number;
+  rating: number | null;
   description: string;
   location: string;
   employees: string;
@@ -245,7 +245,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           cinNumber: realCompanyData.cinNumber
         };
         
-        setCompany(mappedCompany);
+        setCompany(mappedCompany as Company);
         
         // Set enhanced data for display
         const enhancedCompanyData: EnhancedCompanyData = {
@@ -725,7 +725,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </button>
                 )}
               </div>
-            
+              
             {/* Departments Hiring Section - Only show if real data exists */}
             {departments.length > 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 sm:p-8 mb-6 shadow-sm hover:shadow-lg transition-all duration-300">
@@ -951,6 +951,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </div>
                 )}
               </div>
+            </div>
               
               {/* Social Links */}
               {company?.socialLinks && Object.keys(company.socialLinks).length > 0 && (
@@ -967,8 +968,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </div>
                 </div>
               )}
-            </div>
-            
+
             {/* Current Job Openings */}
             {jobs.length > 0 && (
               <div className="bg-white rounded-lg border border-gray-200 p-6">

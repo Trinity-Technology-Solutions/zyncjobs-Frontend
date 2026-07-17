@@ -1,245 +1,229 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, Lightbulb, Plus, Trash2 } from 'lucide-react';
+import { Sparkles, Loader2, Check, Pencil } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
-import { resumeBuilderAPI } from '../../services/resumeBuilderAPI';
+import { executeResumeAI } from '../../services/resumeAIClient';
+
+const ROLE_SUGGESTIONS = [
+  'Software Engineer', 'Frontend Developer', 'Backend Developer',
+  'Full Stack Developer', 'DevOps Engineer', 'Data Engineer',
+  'Data Scientist', 'Product Manager', 'UI/UX Designer',
+  'Project Manager', 'Business Analyst', 'QA Engineer',
+];
+
+const STYLE_TOGGLES = [
+  { id: 'improve',      label: 'Rewrite' },
+  { id: 'professional', label: 'Professional' },
+  { id: 'shorten',      label: 'Shorten' },
+  { id: 'friendly',     label: 'Friendly' },
+];
+
+function cleanSummary(raw: string): string {
+  const advicePatterns = /^(here are some suggestions|highlight|tailor|use active|keep it concise|consider adding|you may|try to|to make it|focus on|be sure|remember to)/i;
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const cleaned: string[] = [];
+  for (const line of lines) {
+    const s = line.replace(/^[-•*#]+\s*/, '').replace(/\*\*/g, '').trim();
+    if (!s || s.length > 200) continue;
+    if (/^\[(X|\d+)\]/.test(s) || /^(certainly|sure|here|feel free|note:|###|---)/i.test(s)) continue;
+    if (/^(key skills|highlights|summary|---)/i.test(s) || advicePatterns.test(s)) continue;
+    cleaned.push(s);
+  }
+  if (cleaned.length === 0) {
+    const sentences = raw.split(/(?<=[.!?])\s+/).map(s => s.replace(/\*\*/g, '').trim()).filter(Boolean);
+    return sentences.filter(s => s.length > 10 && s.length < 200 && !advicePatterns.test(s)).slice(0, 3).join(' ');
+  }
+  return cleaned.join(' ');
+}
 
 export default function SummaryStep() {
   const { data, update } = useResumeStore();
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [newPoint, setNewPoint] = useState('');
+  const [styleLoading, setStyleLoading] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [options, setOptions] = useState<string[]>([]);
+  const [selectedRole, setSelectedRole] = useState('');
 
-  // summary stored as array of bullet points; fall back if legacy string
-  const points: string[] = Array.isArray(data.summary)
-    ? data.summary
-    : data.summary
-    ? [data.summary]
-    : [];
+  const summaryText = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary || '';
 
-  const setPoints = (pts: string[]) => update('summary', pts as any);
-
-  const addPoint = () => {
-    const trimmed = newPoint.trim();
-    if (!trimmed) return;
-    setPoints([...points, trimmed]);
-    setNewPoint('');
+  // ── Build context string from experience + skills ─────────────────────
+  const buildContext = (role: string) => {
+    const expText = data.experience.map(e =>
+      `${e.title} at ${e.company}${e.bullets.filter(Boolean).length ? ` - ${e.bullets.filter(Boolean).join('. ')}` : ''}`
+    ).join('. ');
+    const skillsText = data.skills.join(', ');
+    return `Role: ${role || data.experience[0]?.title || 'Professional'}\nExperience: ${expText}\nSkills: ${skillsText}`;
   };
 
-  const removePoint = (idx: number) => setPoints(points.filter((_, i) => i !== idx));
-
-  const updatePoint = (idx: number, val: string) =>
-    setPoints(points.map((p, i) => (i === idx ? val : p)));
-
-  // Build plain text from points for AI context
-  const summaryText = points.join(' ');
-
-  const generateSummary = async () => {
+  // ── Generate 3 summary options ────────────────────────────────────────
+  const generateOptions = async (role: string) => {
     setLoading(true);
+    setSelectedRole(role);
+    setOptions([]);
+    const context = buildContext(role);
     try {
-      const expText = data.experience.length
-        ? data.experience.map((e) => `${e.title} at ${e.company} - ${e.bullets.join('. ')}`).join('. ')
-        : `${data.personalInfo.name || 'Professional'} seeking new opportunities`;
-
-      let summary = '';
-      try {
-        const result = await resumeBuilderAPI.generateContent({
-          jobTitle: data.experience[0]?.title || data.personalInfo.name || 'Professional',
-          experience: expText,
-          name: data.personalInfo.name,
-        });
-        summary = result.summary;
-      } catch {
-        const title = data.experience[0]?.title || 'Professional';
-        const company = data.experience[0]?.company || 'a leading company';
-        summary = `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions, collaborate with cross-functional teams, and drive measurable business impact. Passionate about continuous learning and leveraging expertise to exceed organizational goals.`;
+      const res = await executeResumeAI({
+        section: 'summary',
+        action: 'generate',
+        content: `${context}\n\nWrite 3 different professional summary options for this candidate. Each must be 2-3 sentences, start with a strong opening, highlight experience and skills. Separate each option with "---" on its own line. No labels, no placeholders.`,
+      });
+      if (res.result) {
+        const opts = res.result.split('---').map(s => s.replace(/^Option\s*\d*[:.]?\s*/i, '').trim()).filter(Boolean).slice(0, 3);
+        setOptions(opts.length >= 2 ? opts : [res.result]);
       }
-
-      // Split generated summary into bullet points by sentence
-      const sentences = summary
-        .split(/(?<=[.!?])\s+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-      setPoints(sentences.length > 1 ? sentences : [summary]);
-    } finally {
-      setLoading(false);
-    }
+    } catch { /* silent */ } finally { setLoading(false); }
   };
 
-  const getSuggestions = async () => {
-    if (!summaryText.trim() || summaryText.length < 20) {
-      alert('Please add at least one summary point first');
-      return;
-    }
-    setLoading(true);
-    try {
-      let improved: string[] = [];
-      try {
-        const result = await resumeBuilderAPI.suggestBullets({
-          text: summaryText,
-          jobTitle: data.experience[0]?.title,
-        });
-        improved = result.suggestions.map((s) => s.improved);
-      } catch {
-        const title = data.experience[0]?.title || 'Professional';
-        improved = [
-          `Accomplished ${title} with a strong track record of delivering results. Committed to excellence and continuous improvement in every project undertaken.`,
-          `Dynamic ${title} combining technical expertise with strong leadership skills. Adept at managing priorities and delivering solutions that align with business objectives.`,
-        ];
-      }
-      setSuggestions(improved);
-    } finally {
-      setLoading(false);
-    }
+  // ── Select an option ──────────────────────────────────────────────────
+  const selectOption = (text: string) => {
+    const cleaned = cleanSummary(text);
+    update('summary', cleaned || text);
+    setOptions([]);
   };
 
-  const exampleSummaries = [
-    'Results-driven professional with 5+ years of experience in software development, specializing in full-stack web applications and cloud technologies.',
-    'Experienced marketing specialist with proven track record of increasing brand awareness by 40% through data-driven campaigns and strategic partnerships.',
-    'Dedicated customer service professional with 3+ years of experience resolving complex issues and maintaining 95% customer satisfaction rating.',
+  // ── Style toggle ──────────────────────────────────────────────────────
+  const applyStyle = async (styleId: string) => {
+    if (!summaryText) return;
+    setStyleLoading(styleId);
+    const actions: Record<string, string> = { improve: 'rewrite', professional: 'professional', shorten: 'shorten', friendly: 'friendly' };
+    try {
+      const res = await executeResumeAI({ section: 'summary', action: actions[styleId] || 'improve', content: summaryText });
+      const cleaned = cleanSummary(res.result || '');
+      if (cleaned) update('summary', cleaned);
+    } catch { /* silent */ } finally { setStyleLoading(null); }
+  };
+
+  // ── Fallback summaries per role ───────────────────────────────────────
+  const fallbackForRole = (role: string): string[] => [
+    `Experienced ${role} with a proven track record of delivering high-quality software solutions. Skilled in full development lifecycle from requirements analysis to deployment, with strong collaboration across cross-functional teams.`,
+    `Results-driven ${role} with expertise in building scalable applications and optimizing system performance. Passionate about writing clean code and adopting modern development practices to drive business value.`,
+    `Dedicated ${role} with a focus on creating user-centric solutions and improving team productivity. Adept at translating complex requirements into efficient, maintainable code.`,
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Professional Summary</h2>
-        <p className="text-gray-600">Add multiple bullet points to build your professional summary</p>
+        <h2 className="text-xl font-bold text-gray-900">Professional Summary</h2>
+        <p className="text-sm text-gray-500 mt-0.5">Pick a role — AI generates 3 options to choose from</p>
+        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-blue-400">💡</span> Keep it 3-4 sentences — highlight your top <span className="text-blue-500 font-medium">achievements</span>, <span className="text-blue-500 font-medium">years of experience</span>, and <span className="text-blue-500 font-medium">key skills</span></p>
       </div>
 
-      {/* AI Buttons */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <button
-          onClick={generateSummary}
-          disabled={loading}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          {loading ? (
-            <><Loader2 className="w-4 h-4 animate-spin" />Generating...</>
-          ) : (
-            <><Sparkles className="w-4 h-4" />Write with AI</>
-          )}
-        </button>
-
-        {points.length > 0 && (
-          <button
-            onClick={getSuggestions}
-            disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <Lightbulb className="w-4 h-4" />
-            Improve
-          </button>
-        )}
-      </div>
-
-      {/* Bullet Points List */}
-      {points.length > 0 && (
-        <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-700">Summary Points</label>
-          {points.map((pt, idx) => (
-            <div key={idx} className="flex items-start gap-2">
-              <span className="mt-3 text-gray-400 text-sm font-bold">•</span>
-              <textarea
-                value={pt}
-                onChange={(e) => updatePoint(idx, e.target.value)}
-                rows={2}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-              />
-              <button
-                onClick={() => removePoint(idx)}
-                className="mt-2 p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                title="Remove point"
+      {!summaryText && options.length === 0 && !loading && (
+        /* ── Role picker (empty state) ─────────────────────────────────── */
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-3">What job are you applying for?</p>
+          <div className="flex flex-wrap gap-2">
+            {ROLE_SUGGESTIONS.map(role => (
+              <button key={role} onClick={() => generateOptions(role)} disabled={loading}
+                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-40 transition-all"
               >
-                <Trash2 className="w-4 h-4" />
+                {role}
               </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add New Point */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          {points.length === 0 ? 'Your Summary' : 'Add Another Point'}
-        </label>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <textarea
-            value={newPoint}
-            onChange={(e) => setNewPoint(e.target.value)}
-            rows={3}
-            placeholder="Write a summary point and click Add, or use Write with AI..."
-            className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addPoint(); }
-            }}
-          />
-          <button
-            onClick={addPoint}
-            disabled={!newPoint.trim()}
-            className="w-full sm:w-auto self-end flex items-center gap-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            <Plus className="w-4 h-4" />
-            Add
-          </button>
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          {points.length} point{points.length !== 1 ? 's' : ''} • Press Enter or click Add
-        </p>
-      </div>
-
-      {/* AI Suggestions */}
-      {suggestions.length > 0 && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-4 h-4 text-purple-600" />
-            <h3 className="font-semibold text-gray-900">AI Suggestions</h3>
-          </div>
-          <div className="space-y-2">
-            {suggestions.map((sug, i) => (
-              <div key={i} className="bg-white p-3 rounded-lg border border-purple-100">
-                <p className="text-sm text-gray-800 mb-2">{sug}</p>
-                <button
-                  onClick={() => {
-                    setPoints([...points, sug]);
-                    setSuggestions([]);
-                  }}
-                  className="text-xs text-purple-600 hover:text-purple-700 font-medium"
-                >
-                  + Add this point
-                </button>
-              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Example Summaries */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">💡 Example Points</h3>
-        <div className="space-y-2">
-          {exampleSummaries.map((example, i) => (
-            <div key={i} className="bg-white p-3 rounded border border-gray-200">
-              <p className="text-sm text-gray-700 mb-2">{example}</p>
-              <button
-                onClick={() => setPoints([...points, example])}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                + Add as point
-              </button>
+      {!summaryText && loading && (
+        <div className="flex items-center gap-3 py-8 justify-center text-sm text-gray-500">
+          <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+          Generating 3 options for <span className="font-semibold text-gray-700">{selectedRole}</span>...
+        </div>
+      )}
+
+      {!summaryText && options.length > 0 && (
+        /* ── Select from 3 AI options ────────────────────────────────── */
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">Choose a summary style:</p>
+          {options.map((opt, i) => (
+            <div key={i}
+              onClick={() => selectOption(opt)}
+              className="p-4 border border-gray-200 rounded-xl cursor-pointer hover:border-purple-300 hover:bg-purple-50/50 transition-all group"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 mt-0.5 shrink-0 rounded-full border-2 border-gray-300 group-hover:border-purple-500 flex items-center justify-center">
+                  <div className="w-2.5 h-2.5 rounded-full group-hover:bg-purple-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-gray-400 mb-1">Option {i + 1}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{opt}</p>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); selectOption(opt); }}
+                  className="px-3 py-1.5 text-xs font-semibold bg-purple-600 text-white rounded-md hover:bg-purple-700 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  Use this
+                </button>
+              </div>
             </div>
           ))}
+          <button onClick={() => { setOptions([]); setSelectedRole(''); }}
+            className="text-xs text-gray-500 hover:text-gray-700 underline">
+            Choose a different role
+          </button>
         </div>
-      </div>
+      )}
 
-      {/* Tips */}
-      <div className="bg-blue-50 rounded-lg p-4 text-sm text-gray-700">
-        <p className="font-medium mb-2">✍️ Writing Tips:</p>
-        <ul className="space-y-1 ml-4">
-          <li>• Start with your job title and years of experience</li>
-          <li>• Each point should highlight one key strength or achievement</li>
-          <li>• Use action verbs and quantify results when possible</li>
-          <li>• Aim for 2–4 concise bullet points</li>
-        </ul>
-      </div>
+      {summaryText && (
+        /* ── Has summary ──────────────────────────────────────────────── */
+        <div className="space-y-4">
+          {editing ? (
+            <div className="space-y-2">
+              <textarea value={editText} onChange={e => setEditText(e.target.value)}
+                rows={4} autoFocus
+                className="w-full px-4 py-3 border border-blue-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 resize-none"
+                onKeyDown={e => { if (e.key === 'Escape') { setEditing(false); } }}
+              />
+              <div className="flex gap-2">
+                <button onClick={() => { update('summary', editText); setEditing(false); }}
+                  className="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-md hover:bg-blue-700">
+                  Save
+                </button>
+                <button onClick={() => setEditing(false)}
+                  className="px-4 py-1.5 text-xs text-gray-600 border border-gray-200 rounded-md hover:bg-gray-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <p className="text-sm text-gray-800 leading-relaxed">{summaryText}</p>
+              <button onClick={() => { setEditText(summaryText); setEditing(true); }}
+                className="flex items-center gap-1 mt-3 text-xs text-gray-500 hover:text-blue-600">
+                <Pencil className="w-3 h-3" /> Edit
+              </button>
+            </div>
+          )}
+
+          {/* Regenerate with different role */}
+          <details className="text-sm">
+            <summary className="cursor-pointer text-purple-600 hover:text-purple-700 font-medium text-xs">
+              Try a different role
+            </summary>
+            <div className="flex flex-wrap gap-2 mt-3">
+              {ROLE_SUGGESTIONS.filter(r => r !== selectedRole).slice(0, 6).map(role => (
+                <button key={role} onClick={() => { update('summary', ''); generateOptions(role); }}
+                  disabled={loading}
+                  className="px-3 py-1.5 text-xs border border-gray-200 rounded-md hover:border-purple-300 hover:text-purple-700 disabled:opacity-40 transition-all"
+                >
+                  {role}
+                </button>
+              ))}
+            </div>
+          </details>
+
+          {/* Style toggles */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+            {STYLE_TOGGLES.map(s => (
+              <button key={s.id} onClick={() => applyStyle(s.id)} disabled={styleLoading === s.id}
+                className="flex items-center gap-1 px-3 py-1.5 text-xs bg-white border border-gray-200 rounded-md hover:border-purple-300 hover:text-purple-700 disabled:opacity-40 transition-all"
+              >
+                {styleLoading === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

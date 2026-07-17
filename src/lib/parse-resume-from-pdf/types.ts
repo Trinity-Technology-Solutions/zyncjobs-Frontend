@@ -4,6 +4,7 @@ export interface TextItem {
   y: number;
   width: number;
   height: number;
+  page: number;
   bold?: boolean;
 }
 

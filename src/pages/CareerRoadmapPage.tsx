@@ -7,8 +7,6 @@ import Footer from '../components/Footer';
 import { generateCareerRoadmap } from '../services/aiChatService';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
-
 interface Props {
   onNavigate: (page: string, data?: any) => void;
   user?: any;
@@ -87,24 +85,7 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
     if (cached) { setRoadmap(cached); setLoading(false); return; }
 
     try {
-      let parsed: Roadmap;
-      try {
-        parsed = await generateCareerRoadmap(resolvedCurrent, resolvedTarget, experience);
-      } catch {
-        // backend attempt
-        const res = await fetch(`${API_BASE}/ai-suggestions/career-coach`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemPrompt: 'You are a career coach. Return only valid JSON, no markdown.',
-            messages: [{ role: 'user', content: `Career roadmap from "${resolvedCurrent}" to "${resolvedTarget}", experience: ${experience}. Return JSON with currentRole,targetRole,totalTimeframe,summary,steps(4),finalTip.` }],
-          }),
-        });
-        const data = await res.json();
-        const match = (data.reply || '').match(/\{[\s\S]*\}/);
-        if (!match) throw new Error();
-        parsed = JSON.parse(match[0]);
-      }
+      const parsed = await generateCareerRoadmap(resolvedCurrent, resolvedTarget, experience);
       if (!parsed.steps || !Array.isArray(parsed.steps)) throw new Error();
       setCached(key, parsed, 30 * 60 * 1000);
       setRoadmap(parsed);

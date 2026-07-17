@@ -168,7 +168,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
   const addFiles = (incoming: FileList | null) => {
     if (!incoming) return;
     const allowed = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'];
-    const allowedExt = ['.pdf', '.doc', '.docx', '.txt'];
+    const allowedExt = ['.pdf', '.doc', '.docx', '.txt', '.jpg', '.jpeg', '.png', '.webp'];
     const filtered = Array.from(incoming).filter(f =>
       allowed.includes(f.type) || allowedExt.some(ext => f.name.toLowerCase().endsWith(ext))
     );
@@ -414,13 +414,13 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
       >
         <Upload className="w-12 h-12 text-gray-500 mx-auto mb-4" />
         <p className="text-white font-semibold text-lg">{dragging ? 'Drop files here!' : 'Drag & Drop Resumes Here'}</p>
-        <p className="text-gray-400 text-sm mt-2">or click to browse — PDF, DOC, DOCX, TXT supported</p>
+        <p className="text-gray-400 text-sm mt-2">or click to browse — PDF, DOC, DOCX, TXT, JPG, JPEG, PNG, WEBP supported</p>
         <p className="text-gray-600 text-xs mt-1">Supports bulk upload — select 1500+ files at once</p>
         <input
           ref={inputRef}
           type="file"
           multiple
-          accept=".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
           className="hidden"
           onChange={e => { addFiles(e.target.files); if (e.target) e.target.value = ''; }}
         />
@@ -430,7 +430,7 @@ function UploadPage({ onUploadDone }: { onUploadDone: () => void }) {
             onClick={e => { e.stopPropagation(); inputRef.current?.click(); }}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
           >
-            📄 Select Files (PDF/DOC/DOCX)
+            📄 Select Files (PDF/DOC/DOCX/TXT/JPG/PNG)
           </button>
           <button
             type="button"

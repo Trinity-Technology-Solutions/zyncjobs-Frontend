@@ -52,12 +52,18 @@ export const downloadResumeFromUrl = async (
 };
 
 function triggerDownload(blob: Blob, candidateName: string) {
-  // Always force PDF MIME type for consistent browser rendering
-  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-  const blobUrl = URL.createObjectURL(pdfBlob);
+  const text = blob.type.includes('text/plain') || blob.type.includes('json') || blob.type.includes('xml')
+    ? blob.text?.() ?? ''
+    : '';
+
+  const finalBlob = text
+    ? new Blob([text], { type: 'text/plain;charset=utf-8' })
+    : new Blob([blob], { type: blob.type || 'application/octet-stream' });
+
+  const blobUrl = URL.createObjectURL(finalBlob);
   const a = document.createElement('a');
   a.href = blobUrl;
-  a.download = `${candidateName.replace(/\s+/g, '_')}_resume.pdf`;
+  a.download = `${candidateName.replace(/\s+/g, '_')}_resume.${text ? 'txt' : 'pdf'}`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

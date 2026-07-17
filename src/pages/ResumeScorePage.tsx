@@ -4,6 +4,7 @@ import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { resumeIntelligenceEngine, ResumeAnalysis } from '../services/resumeIntelligenceEngine';
+import { resumeAIService } from '../services/resumeAIService';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
 import mammoth from 'mammoth';
@@ -76,16 +77,34 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
         resumeContent = resumeText;
       }
       
-      // Use local Resume Intelligence Engine
+      // Use hybrid backend ATS Score v2 (Rule 70% + AI 30%), fallback to local engine
       const parsedContent = resumeIntelligenceEngine.parseResumeContent(resumeContent);
-      const analysis = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
-      
-      setResult(analysis);
-      
+      let finalResult = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
+      try {
+        const hybrid = await resumeAIService.atsScoreV2(resumeContent, jobDescription);
+        finalResult = {
+          ...finalResult,
+          overallScore: hybrid.score,
+          atsScore: hybrid.score,
+          keywordMatch: hybrid.rule_score,
+          missingKeywords: hybrid.missing_keywords,
+          strengths: hybrid.suggestions.length > 0 ? hybrid.suggestions.slice(0, 3) : finalResult.strengths,
+          improvements: [
+            ...(hybrid.suggestions.slice(0, 3).map(s => ({ issue: s, fix: s, priority: 'medium' as const }))),
+            ...finalResult.improvements.slice(0, 3),
+          ].slice(0, 5),
+          recommendations: [...hybrid.keyword_optimization.slice(0, 3), ...finalResult.recommendations.slice(0, 3)],
+          verdict: hybrid.reason || finalResult.verdict,
+        };
+      } catch {
+        // AI service unavailable — use local engine result as-is
+      }
+      setResult(finalResult);
+
       // Track successful analysis
       comprehensiveAnalyticsSystem.trackEvent(userId, 'feature_usage', {
         feature: 'resume_analysis',
-        score: analysis.overallScore,
+        score: finalResult.overallScore,
         hasJobDescription: !!jobDescription
       });
       
@@ -159,7 +178,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                 onClick={() => fileRef.current?.click()}
                 className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${file ? 'border-green-400 bg-green-50' : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'}`}
               >
-                <input ref={fileRef} type="file" accept=".pdf,.doc,.docx" className="hidden"
+                <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp" className="hidden"
                   onChange={e => setFile(e.target.files?.[0] || null)} />
                 <Upload className={`w-8 h-8 mx-auto mb-2 ${file ? 'text-green-600' : 'text-gray-400'}`} />
                 {file ? (
@@ -167,7 +186,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                 ) : (
                   <>
                     <p className="text-gray-600 font-medium">Drop your resume here or click to browse</p>
-                    <p className="text-gray-400 text-sm mt-1">PDF, DOC, DOCX — max 5MB</p>
+                    <p className="text-gray-400 text-sm mt-1">PDF, DOC, DOCX, JPG, JPEG, PNG, WEBP — max 5MB</p>
                   </>
                 )}
               </div>

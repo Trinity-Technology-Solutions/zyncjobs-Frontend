@@ -98,7 +98,7 @@ export default function AdminManagementSection({
       const superAdmins: Admin[] = superRes.status === 'fulfilled' ? (superRes.value.users ?? superRes.value.data ?? superRes.value ?? []) : [];
       const seen = new Set<string>();
       const merged = [...admins, ...superAdmins].filter(u => {
-        const id = u._id || u.id;
+        const id = (u._id || u.id) ?? '';
         if (seen.has(id)) return false;
         seen.add(id);
         return true;
@@ -494,7 +494,7 @@ export default function AdminManagementSection({
                 </tr>
               ) : (
                 admins.map((admin) => {
-                  const adminId = admin._id || admin.id;
+                  const adminId = (admin._id || admin.id) ?? '';
                   const isCurrentUser = admin.email === currentUser.email;
                   const isSuperAdminUser = admin.role === 'super_admin';
                   
@@ -528,7 +528,7 @@ export default function AdminManagementSection({
                         ) : (
                           <select
                             value={admin.role}
-                            onChange={(e) => updateAdminRole(adminId, e.target.value as 'admin' | 'super_admin')}
+                            onChange={(e) => updateAdminRole(adminId!, e.target.value as 'admin' | 'super_admin')}
                             disabled={!!actionLoading}
                             className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                           >
@@ -557,7 +557,7 @@ export default function AdminManagementSection({
                           {!isCurrentUser && (
                             <>
                               <button
-                                onClick={() => toggleAdminStatus(adminId, admin.isActive)}
+                                onClick={() => toggleAdminStatus(adminId!, admin.isActive)}
                                 disabled={actionLoading === adminId + 'status'}
                                 className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 ${
                                   admin.isActive
@@ -569,7 +569,7 @@ export default function AdminManagementSection({
                               </button>
                               
                               <button
-                                onClick={() => resetPassword(adminId, admin.name)}
+                                onClick={() => resetPassword(adminId!, admin.name)}
                                 disabled={actionLoading === adminId + 'password'}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-900/30 text-blue-400 hover:bg-blue-900/60 transition-colors disabled:opacity-50"
                               >
@@ -578,7 +578,7 @@ export default function AdminManagementSection({
                               </button>
                               
                               <button
-                                onClick={() => deleteAdmin(adminId, admin.name)}
+                                onClick={() => deleteAdmin(adminId!, admin.name)}
                                 disabled={actionLoading === adminId + 'delete'}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/30 text-red-400 hover:bg-red-900/60 transition-colors disabled:opacity-50"
                               >

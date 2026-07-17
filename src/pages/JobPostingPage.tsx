@@ -12,7 +12,6 @@ import mistralAIService from '../services/mistralAIService';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
-import { CURRENCIES, getCurrencyByCountry, formatSalaryWithCurrency } from '../utils/currencyUtils';
 
 
 interface JobPostingPageProps {
@@ -74,6 +73,7 @@ interface JobData {
   companyName: string;
   companyLogo: string;
   companyId: string;
+  companyTagline: string;
 }
 
 const formatSalary = (value: string): string => {
@@ -320,10 +320,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
       const snapMin = (n: number) => { const opts = [0,1,2,3,4,5,6,7,8,9,10,12,15,20]; const c = opts.reduce((a,b) => Math.abs(b-n)<Math.abs(a-n)?b:a); return `${c} year${c!==1?'s':''}`; };
       const snapMax = (n: number) => { const opts = [1,2,3,4,5,6,7,8,9,10,12,15,20,25]; const c = opts.reduce((a,b) => Math.abs(b-n)<Math.abs(a-n)?b:a); return `${c} year${c!==1?'s':''}`; };
       const normalize = (val: string) => {
-        // Handle already-formatted "X years - Y years"
-        const formatted = val.match(/(\d+)\s*years?\s*-\s*(\d+)\s*years?/);
-        if (formatted) return `${snapMin(parseInt(formatted[1]))} - ${snapMax(parseInt(formatted[2]))}`;
-        const m = val.match(/(\d+)\s*(?:[-\u2013\u2014]|\bto\b)\s*(\d+)/);
+        const m = val.match(/(\d+)\s*[-\u2013\u2014to]+\s*(\d+)/);
         if (m) return `${snapMin(parseInt(m[1]))} - ${snapMax(parseInt(m[2]))}`;
         const s = val.match(/(\d+)/);
         if (s) { const n = parseInt(s[1]); return `${snapMin(n)} - ${snapMax(Math.min(n+2,25))}`; }
@@ -399,7 +396,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     minSalary: getSalaryMin(editJob) || (parsedData?.minSalary && parseInt(parsedData.minSalary) > 0 ? parsedData.minSalary : ''),
     maxSalary: getSalaryMax(editJob) || (parsedData?.maxSalary && parseInt(parsedData.maxSalary) > 0 ? parsedData.maxSalary : ''),
     payRate: editJob?.salary?.period === 'monthly' ? 'per month' : editJob?.salary?.period === 'hourly' ? 'per hour' : parsedData?.payRate || 'per year',
-    currency: editJob?.salary?.currency || parsedData?.currency || getCurrencyByCountry(parsedData?.country || '').code || 'USD',
+    currency: parsedData?.currency || 'INR',
     benefits: editJob?.benefits || parsedData?.benefits || [],
     jobDescription: (() => {
       const stripHtml = (html: string) =>
@@ -498,13 +495,14 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     requirements: editJob?.requirements
       ? (Array.isArray(editJob.requirements) ? editJob.requirements : editJob.requirements.split('\n').filter(Boolean))
       : parsedData?.requirements || [],
-    skills: editJob?.skills || parsedData?.skills || parsedData?.mandatorySkills || [],
-    goodToHaveSkills: editJob?.goodToHaveSkills || parsedData?.goodToHaveSkills || [],
+    skills: editJob?.skills || parsedData?.skills || [],
+    goodToHaveSkills: parsedData?.goodToHaveSkills || [],
     educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
     companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || '') || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.companyName || u.company || ''; } catch { return ''; } })() || (user?.companyName || user?.company || ''),
     companyLogo: editJob?.companyLogo || '',
     companyId: '',
+    companyTagline: editJob?.companyTagline || editJob?.tagline || parsedData?.tagline || parsedData?.companyTagline || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.tagline || ''; } catch { return ''; } })() || (user?.tagline || ''),
     jobHeaderImage: editJob?.jobHeaderImage || ''
   });
 
@@ -642,13 +640,19 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   // Auto-parse skills from job description when parsedData is available
   useEffect(() => {
     if (parsedData?.jobDescription && mode === 'parse') {
-      // Only run if no skills were provided by the parser at all
-      if (!parsedData.skills?.length && !parsedData.mandatorySkills?.length) {
-        const parsedSkills = parseSkillsFromJobDescription(
-          parsedData.jobDescription,
-          parsedData.jobTitle || ''
-        );
-        if (parsedSkills.length > 0) updateJobData('skills', parsedSkills);
+      const parsedSkills = parseSkillsFromJobDescription(
+        parsedData.jobDescription, 
+        parsedData.jobTitle || ''
+      );
+      
+      // If no skills were parsed initially or only basic skills, update with parsed skills
+      if (!parsedData.skills || parsedData.skills.length === 0 || 
+          parsedData.skills.every((skill: string) => ['AWS', 'Azure', 'GitHub', 'IT', 'Java', 'Linux', 'Python', 'SQL', 'Version control'].includes(skill))) {
+        updateJobData('skills', parsedSkills);
+      } else {
+        // Merge existing skills with parsed skills
+        const mergedSkills = [...new Set([...parsedData.skills, ...parsedSkills])].slice(0, 15);
+        updateJobData('skills', mergedSkills);
       }
     }
   }, [parsedData, mode]);
@@ -1664,9 +1668,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
   const selectCountry = (country: string) => {
     updateJobData('country', country);
     setShowCountrySuggestions(false);
-    // Auto-set currency based on country
-    const detectedCurrency = getCurrencyByCountry(country);
-    updateJobData('currency', detectedCurrency.code);
   };
 
   const selectLocation = async (location: string) => {
@@ -1860,7 +1861,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           return {
             id: company._id || company.id || name,
             name,
-            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || ''
+            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || '',
+            tagline: company.tagline || company.companyTagline || company.companySlogan || ''
           };
         });
 
@@ -1947,6 +1949,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     updateJobData('companyName', company.name);
     updateJobData('companyLogo', company.logo);
     updateJobData('companyId', company.id);
+    updateJobData('companyTagline', company.tagline || company.companyTagline || company.companySlogan || '');
     setShowCompanyDropdown(false);
   };
 
@@ -1961,7 +1964,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         if (!jobData.companyName.trim()) return { isValid: false, message: 'Company name is required' };
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
-
+        if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
         break;
       case 2:
         // Step 2 is removed - no validation needed
@@ -2336,7 +2339,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         </div>
         
         <div className="relative">
-          <label className="block text-gray-700 font-medium mb-3">Country</label>
+          <label className="block text-gray-700 font-medium mb-3">Country *</label>
           <input
             type="text"
             value={jobData.country}
@@ -2481,7 +2484,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             </div>
           </div>
         </div>
-        
 
       </div>
       
@@ -2696,17 +2698,11 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </select>
             </div>
             
-            <div className="w-36">
+            <div className="w-28">
               <label className="block text-gray-600 text-sm mb-2">Currency</label>
-              <select
-                value={jobData.currency}
-                onChange={(e) => updateJobData('currency', e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-sm"
-              >
-                {CURRENCIES.map(c => (
-                  <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.country}</option>
-                ))}
-              </select>
+              <div className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 text-gray-700 font-medium">
+                ₹ INR
+              </div>
             </div>
             
             {jobData.payType !== 'Maximum amount' && (
@@ -2755,12 +2751,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </div>
             )}
           </div>
+          {/* Salary preview hint */}
           {salaryModified && (jobData.minSalary || jobData.maxSalary) && (
             <p className="text-xs text-gray-500 mt-2">
-              Preview: {jobData.payType === 'Maximum amount' ? `Upto ${formatSalaryWithCurrency(parseInt(jobData.maxSalary)||0, jobData.currency)}` :
-                        jobData.payType === 'Starting amount' ? `From ${formatSalaryWithCurrency(parseInt(jobData.minSalary)||0, jobData.currency)}` :
-                        jobData.payType === 'Exact amount' ? formatSalaryWithCurrency(parseInt(jobData.minSalary)||0, jobData.currency) :
-                        `${formatSalaryWithCurrency(parseInt(jobData.minSalary)||0, jobData.currency)} - ${formatSalaryWithCurrency(parseInt(jobData.maxSalary)||0, jobData.currency)}`} {jobData.payRate}
+              Preview: {jobData.payType === 'Maximum amount' ? `Upto ₹${formatSalary(jobData.maxSalary)}` :
+                        jobData.payType === 'Starting amount' ? `From ₹${formatSalary(jobData.minSalary)}` :
+                        jobData.payType === 'Exact amount' ? `₹${formatSalary(jobData.minSalary)}` :
+                        `₹${formatSalary(jobData.minSalary)} - ₹${formatSalary(jobData.maxSalary)}`} {jobData.payRate}
             </p>
           )}
           
@@ -3410,12 +3407,13 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               </div>
             </div>
             
+            {/* Only show pay if user actually modified salary values */}
             {salaryModified && jobData.minSalary && jobData.maxSalary && (
               <div className="flex justify-between items-center py-3 border-b border-gray-200">
                 <span className="text-gray-600">Pay</span>
                 <div className="flex items-center space-x-2">
                   <span className="text-gray-800">
-                    {formatSalaryWithCurrency(parseInt(jobData.minSalary)||0, jobData.currency)} - {formatSalaryWithCurrency(parseInt(jobData.maxSalary)||0, jobData.currency)} {jobData.payRate}
+                    ₹{formatSalary(jobData.minSalary)} - ₹{formatSalary(jobData.maxSalary)} {jobData.payRate}
                   </span>
                   <button onClick={() => setCurrentStep(4)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
                 </div>
@@ -3501,6 +3499,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
     // Get proper company logo - use logoUtils for special cases (Nambikkai, Trinity, etc.)
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
+    const companyTagline = (jobData.companyTagline || user?.tagline || '').trim();
     
     // Ensure banner image is set — always derive from category if jobHeaderImage is missing/default
     const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
@@ -3555,6 +3554,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       company: jobData.companyName || user?.companyName || 'Your Company',
       companyName: jobData.companyName || user?.companyName || 'Your Company',
       companyLogo: logoUrl,
+      companyTagline,
+      companySlogan: companyTagline,
+      tagline: companyTagline,
       location: jobData.jobLocation,
       jobLocation: jobData.jobLocation,
       jobType: formatArrayField(jobData.jobType),
@@ -3596,7 +3598,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       benefits: formatArrayField(jobData.benefits),
       postedBy: user.email,
       postedByEmail: user.email,
-      postedByName: user.name || user.email,
       employerEmail: getEffectiveEmployerEmail(),
       employerName: user.name,
       employerCompany: user?.companyName || jobData.companyName || 'Your Company',
@@ -3637,7 +3638,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           message: isEditMode ? 'Job updated successfully!' : 'Job posted successfully!',
           isVisible: true
         });
-        console.log('Job Posted by:', user.email, result);
         
         // Trigger event to refresh latest jobs
         window.dispatchEvent(new CustomEvent('jobPosted', { detail: result }));
@@ -3674,7 +3674,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           minSalary: '',
           maxSalary: '',
           payRate: 'per year',
-          currency: jobData.currency || 'USD',
+          currency: 'INR',
           benefits: [],
           jobDescription: '',
           responsibilities: [],

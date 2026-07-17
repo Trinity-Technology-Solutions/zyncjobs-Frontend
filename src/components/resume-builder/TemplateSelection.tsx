@@ -55,12 +55,12 @@ const DUMMY: ResumeData = {
 };
 
 const TEMPLATES = [
-  { id: 'classic',      name: 'Classic',      desc: 'Centered header, bold section rules. Most ATS-safe.' },
-  { id: 'modern',       name: 'Modern',       desc: 'Left-aligned name, thin rule divider. Clean & contemporary.' },
-  { id: 'minimal',      name: 'Minimal',      desc: 'Two-column label sidebar. Ultra-clean whitespace.' },
-  { id: 'executive',    name: 'Executive',    desc: 'Double-rule header, formal serif. Ideal for senior roles.' },
-  { id: 'compact',      name: 'Compact',      desc: 'Dense layout, fits more content. Best for experienced candidates.' },
-  { id: 'professional', name: 'Professional', desc: 'Sidebar layout with contact & skills on left.' },
+  { id: 'classic',      name: 'Classic',      desc: 'Centered header, bold section rules.', badge: 'Best for ATS', badgeColor: 'bg-blue-500' },
+  { id: 'modern',       name: 'Modern',       desc: 'Left-aligned name, thin rule divider.', badge: 'Best for Startups', badgeColor: 'bg-purple-500' },
+  { id: 'minimal',      name: 'Minimal',      desc: 'Two-column label sidebar, clean serif.', badge: 'Best for Designers', badgeColor: 'bg-teal-500' },
+  { id: 'executive',    name: 'Executive',    desc: 'Double-rule header, formal serif.', badge: 'Best for Managers', badgeColor: 'bg-amber-600' },
+  { id: 'compact',      name: 'Compact',      desc: 'Dense layout, fits more content.', badge: 'Experienced Pros', badgeColor: 'bg-rose-500' },
+  { id: 'professional', name: 'Professional', desc: 'Dark sidebar with contact & skills.', badge: 'Best for Consulting', badgeColor: 'bg-indigo-500' },
 ] as const;
 
 type TemplateId = typeof TEMPLATES[number]['id'];
@@ -103,7 +103,11 @@ export default function TemplateSelection() {
                   </span>
                 </div>
 
-                {/* Selected badge */}
+                {/* Badge */}
+                <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[9px] font-bold text-white ${t.badgeColor}`}>
+                  {t.badge}
+                </div>
+                {/* Selected check */}
                 {isSelected && (
                   <div className="absolute top-2 right-2 w-6 h-6 bg-gray-900 rounded-full flex items-center justify-center shadow">
                     <Check className="w-3.5 h-3.5 text-white" />

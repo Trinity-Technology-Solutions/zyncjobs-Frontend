@@ -4,7 +4,7 @@ import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
-import { useNavigation } from '../store/useNavigation';
+import { useNavigation, CAREER_RESOURCE_URLS } from '../store/useNavigation';
 import { strapiAPI } from '../api/strapi';
 import { apiFetch } from '../api/apiFetch';
 import MobileHamburgerMenu from './MobileHamburgerMenu';
@@ -23,7 +23,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
   const [, setNotifications] = useState<any[]>([]);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [displayName, setDisplayName] = useState(user?.name || '');
+  const [displayName, setDisplayName] = useState(user?.fullName || user?.name || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -69,10 +69,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const updateName = () => {
       try {
         const stored = JSON.parse(localStorage.getItem('user') || '{}');
-        const name = stored.name || user?.name || stored.email?.split('@')[0] || 'User';
+        const name = stored.fullName || stored.name || user?.fullName || user?.name || stored.email?.split('@')[0] || 'User';
         setDisplayName(name);
       } catch {
-        setDisplayName(user?.name || 'User');
+        setDisplayName(user?.fullName || user?.name || 'User');
       }
     };
     
@@ -80,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     
     const handleUserUpdate = (e: Event) => {
       const detail = (e as CustomEvent).detail;
-      if (detail?.name) setDisplayName(detail.name);
+      if (detail?.name) setDisplayName(detail.fullName || detail.name);
       else updateName();
     };
     
@@ -322,7 +322,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-4 xl:space-x-8 flex-1 justify-start ml-4 xl:ml-8" aria-label="Main navigation">
             {navItems.length > 0 ? (
-              navItems.map((item) => (
+              navItems
+                .filter(item => !CAREER_RESOURCE_URLS.has(item.url))
+                .map((item) => (
                 <button
                   key={item.id}
                   onClick={() => onNavigate && onNavigate(item.url)}
