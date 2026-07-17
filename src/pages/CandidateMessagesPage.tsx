@@ -20,6 +20,8 @@ interface Message {
   _id?: string;
   senderId: string;
   senderName: string;
+  senderEmail?: string;
+  companyName?: string;
   message: string;
   createdAt: string;
   read: boolean;
@@ -111,6 +113,7 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
           receiverId: selectedConversation.employerId,
           senderName: currentUser.name || 'Candidate',
           senderEmail: currentUser.email,
+          companyName: currentUser.companyName || currentUser.company || '',
           receiverName: selectedConversation.employerName,
           receiverEmail: selectedConversation.employerEmail,
           message: newMessage.trim(),
@@ -283,7 +286,9 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                 {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-semibold text-sm text-gray-900 truncate">{conv.employerName}</span>
+                    <span className="font-semibold text-sm text-gray-900 truncate">
+                      {conv.employerName}{conv.companyName ? ` · ${conv.companyName}` : ''}
+                    </span>
                     <span className="text-xs text-gray-400 flex-shrink-0 ml-2">{formatTime(conv.lastMessageTime)}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -334,10 +339,9 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                 </div>
               )}
               <div className="min-w-0">
-                <h2 className="font-semibold text-gray-900 text-sm truncate">{selectedConversation.employerName}</h2>
-                {selectedConversation.companyName && (
-                  <p className="text-xs text-gray-400 truncate">{selectedConversation.companyName}</p>
-                )}
+                <h2 className="font-semibold text-gray-900 text-sm truncate">
+                  {selectedConversation.employerName}{selectedConversation.companyName ? ` · ${selectedConversation.companyName}` : ''}
+                </h2>
               </div>
             </div>
 
@@ -377,6 +381,13 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
                             ? 'bg-blue-600 text-white rounded-br-sm'
                             : 'bg-white text-gray-900 border border-gray-100 rounded-bl-sm'
                         }`}>
+                          {!isOwn && (
+                            <div className="text-xs font-semibold text-blue-600 mb-0.5">
+                              {msg.senderName || 'Unknown'}
+                              {msg.companyName ? ` · ${msg.companyName}` : ''}
+                              {msg.senderEmail ? ` · ${msg.senderEmail}` : ''}
+                            </div>
+                          )}
                           <div className="text-sm leading-relaxed">{renderContent(msg.message, isOwn)}</div>
                           <div className={`flex items-center justify-end gap-1 mt-1 text-[11px] ${isOwn ? 'text-blue-100' : 'text-gray-400'}`}>
                             <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
