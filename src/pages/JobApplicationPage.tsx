@@ -29,6 +29,9 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
     catch { return {}; }
   })();
 
+  const stripHtml = (html: string) =>
+    html ? html.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim() : '';
+
   const userData = (() => {
     try { return JSON.parse(localStorage.getItem('user') || '{}'); }
     catch { return {}; }

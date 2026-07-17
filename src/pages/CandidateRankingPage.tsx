@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { apiFetch } from '../api/apiFetch';
 
 
 
@@ -107,8 +108,12 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         throw new Error(`Failed to fetch applications: ${appsRes.status} ${appsRes.statusText}`);
       }
 
-      const allJobs: Job[] = await jobsRes.json();
-      const appsData = await appsRes.json();
+      const jobsText = await jobsRes.text();
+      const appsText = await appsRes.text();
+      let allJobs: Job[];
+      let appsData: any;
+      try { allJobs = JSON.parse(jobsText); } catch { throw new Error('Invalid response from jobs API'); }
+      try { appsData = JSON.parse(appsText); } catch { throw new Error('Invalid response from applications API'); }
       const allApps = appsData.applications || appsData || [];
       
       setJobs(allJobs);

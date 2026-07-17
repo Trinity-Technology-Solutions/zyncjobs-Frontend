@@ -861,7 +861,7 @@ function App() {
             } />
 
             <Route path="/ai-recruiter" element={
-              <AIRecruiterAssistant onNavigate={nav.onNavigate} user={user} />
+              <AIRecruiterAssistant onNavigate={nav.onNavigate} onLogout={handleLogout} user={user} />
             } />
 
             <Route path="/skill-gap-analysis" element={
@@ -989,7 +989,7 @@ function App() {
 
             <Route path="/application-management" element={
               <AuthGuard user={user} userLoading={userLoading} allowedRoles={['employer', 'admin']}>
-                <ApplicationManagementPage {...nav} />
+                <ApplicationManagementPage {...nav} onLogout={handleLogout} />
               </AuthGuard>
             } />
 

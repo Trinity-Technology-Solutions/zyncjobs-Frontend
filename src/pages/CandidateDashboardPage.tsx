@@ -19,6 +19,7 @@ import CandidateNotificationBell from "../components/CandidateNotificationBell";
 import { useApplicationNotifications } from "../hooks/useApplicationNotifications";
 import { tokenStorage } from "../utils/tokenStorage";
 import { S3Service } from "../services/s3Service";
+import { updateUserInStorage } from "../utils/userStorage";
 
 import LinkedInConnect, {
   type LinkedInProfile,
@@ -3472,7 +3473,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   try {
                                     const updatedUser = { ...user, resume: null, resumeUrl: "" };
                                     setUser(updatedUser);
-                                    localStorage.setItem("user", JSON.stringify(updatedUser));
+                                    updateUserInStorage(updatedUser);
                                     calculateProfileCompletion(updatedUser);
                                     const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/save`, {
                                       method: "POST",

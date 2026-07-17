@@ -3,6 +3,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { Search, MapPin, Users, Star, Building, Globe, Briefcase, Sparkles, Filter, TrendingUp, Clock } from 'lucide-react';
 import { searchAPI } from '../api/search';
 import { searchAccuracy } from '../utils/searchAccuracy';
+import { stripHtmlTags } from '../utils/htmlUtils';
 import EnhancedSearchInput from './EnhancedSearchInput';
 
 const SearchEngine: React.FC = () => {
@@ -104,7 +105,7 @@ const SearchEngine: React.FC = () => {
         </div>
       </div>
 
-      <p className="text-gray-600 text-sm mb-4">{company.description}</p>
+      <p className="text-gray-600 text-sm mb-4">{stripHtmlTags(company.description)}</p>
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -152,7 +153,7 @@ const SearchEngine: React.FC = () => {
         </div>
       </div>
 
-      <p className="text-gray-600 text-sm mb-4">{job.description}</p>
+      <p className="text-gray-600 text-sm mb-4">{stripHtmlTags(job.description)}</p>
 
       <div className="mb-4">
         <div className="flex flex-wrap gap-2">

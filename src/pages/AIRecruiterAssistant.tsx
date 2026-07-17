@@ -9,8 +9,10 @@ import { useTypewriter } from '../hooks/useTypewriter';
 
 interface AIRecruiterAssistantProps {
   onNavigate?: (page: string, data?: any) => void;
+  onLogout?: () => void;
   user?: any;
 }
+
 
 interface Message {
   role: 'user' | 'assistant';
@@ -57,7 +59,7 @@ const getFallback = (input: string): string => {
   return `I can help you with that! Here are some key recruitment best practices:\n\n• **Speed matters** — Top candidates are off the market in 10 days\n• **Clear communication** — Update candidates at every stage\n• **Structured interviews** — Use consistent questions for fair comparison\n• **Data-driven decisions** — Track time-to-hire, offer acceptance rate\n\nCould you share more details about your specific challenge?`;
 };
 
-const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate, user }) => {
+const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate, onLogout, user }) => {
   const [messages, setMessages] = useState<Message[]>([{
     role: 'assistant',
     content: `Hello${user?.name ? ` ${user.name.split(' ')[0]}` : ''}! 👋 I'm your **AI Recruiter Assistant**.\n\nI can help you streamline your hiring process — from writing job descriptions to evaluating candidates and automating communications.\n\nSelect a quick action below or type your question to get started.`,
@@ -149,9 +151,10 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
 
   const formatTime = (d: Date) => d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-  return (
+return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      <Header onNavigate={onNavigate} user={user} />
+      <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
+
 
       {/* Hero Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white">

@@ -642,10 +642,10 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
                   const rawDesc = job.jobDescription || job.description || '';
                   if (!rawDesc.trim()) return <p className="text-sm text-gray-500">No description available.</p>;
 
-                  // Normalise: strip HTML, decode entities, then split inline section headers into their own lines
+                  // Normalise: decode entities first, then strip HTML tags
                   const clean = rawDesc
+                    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
                     .replace(/<[^>]*>/g, ' ')
-                    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"')
                     .replace(/\s{2,}/g, ' ');
 
                   // Insert newline before known section headers so they land on their own line
