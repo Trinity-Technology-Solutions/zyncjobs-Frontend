@@ -51,7 +51,7 @@ export interface EnhancedCompanyData {
   industry: string;
   description: string;
   company_type: string;
-  founded_year: number;
+  founded_year: number | null;
   tagline?: string;
   logo_url?: string;
   cover_photo_url?: string;
@@ -93,7 +93,7 @@ class CompanyDataService {
   async getEnhancedCompanyProfile(companyId: string): Promise<EnhancedCompanyData> {
     try {
       const response = await apiFetch(`${this.baseUrl}/companies/${encodeURIComponent(companyId)}/enhanced`);
-      return response;
+      return response.json();
     } catch (error) {
       console.error('Error fetching enhanced company profile:', error);
       throw error;
@@ -104,7 +104,8 @@ class CompanyDataService {
   async getCompanyBenefits(companyId: string): Promise<CompanyBenefit[]> {
     try {
       const response = await apiFetch(`${this.baseUrl}/companies/${encodeURIComponent(companyId)}/benefits`);
-      return response.benefits || [];
+      const data = await response.json();
+      return data.benefits || [];
     } catch (error) {
       console.error('Error fetching company benefits:', error);
       return [];
@@ -115,7 +116,8 @@ class CompanyDataService {
   async getCompanyDepartments(companyId: string): Promise<CompanyDepartment[]> {
     try {
       const response = await apiFetch(`${this.baseUrl}/companies/${encodeURIComponent(companyId)}/departments`);
-      return response.departments || [];
+      const data = await response.json();
+      return data.departments || [];
     } catch (error) {
       console.error('Error fetching company departments:', error);
       return [];
@@ -126,7 +128,8 @@ class CompanyDataService {
   async getCompanySalaries(companyId: string): Promise<EmployeeSalary[]> {
     try {
       const response = await apiFetch(`${this.baseUrl}/companies/${encodeURIComponent(companyId)}/salaries`);
-      return response.salaries || [];
+      const data = await response.json();
+      return data.salaries || [];
     } catch (error) {
       console.error('Error fetching company salaries:', error);
       return [];
@@ -137,7 +140,8 @@ class CompanyDataService {
   async getReviewBreakdown(companyId: string): Promise<CompanyReviewBreakdown> {
     try {
       const response = await apiFetch(`${this.baseUrl}/companies/${encodeURIComponent(companyId)}/review-breakdown`);
-      return response.breakdown || {
+      const data = await response.json();
+      return data.breakdown || {
         work_life_rating: 0,
         salary_rating: 0,
         culture_rating: 0,
@@ -162,7 +166,8 @@ class CompanyDataService {
   async getSimilarCompanies(companyId: string): Promise<SimilarCompany[]> {
     try {
       const response = await apiFetch(`${this.baseUrl}/companies/${encodeURIComponent(companyId)}/similar`);
-      return response.similar_companies || [];
+      const data = await response.json();
+      return data.similar_companies || [];
     } catch (error) {
       console.error('Error fetching similar companies:', error);
       return [];
@@ -177,7 +182,7 @@ class CompanyDataService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userEmail })
       });
-      return response;
+      return response.json();
     } catch (error) {
       console.error(`Error ${action}ing company:`, error);
       throw error;
@@ -198,7 +203,7 @@ class CompanyDataService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(salaryData)
       });
-      return response;
+      return response.json();
     } catch (error) {
       console.error('Error submitting salary data:', error);
       throw error;
@@ -218,7 +223,7 @@ class CompanyDataService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(benefitData)
       });
-      return response;
+      return response.json();
     } catch (error) {
       console.error('Error submitting benefit feedback:', error);
       throw error;

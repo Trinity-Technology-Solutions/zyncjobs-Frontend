@@ -6,6 +6,7 @@ import BackButton from '../components/BackButton';
 import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import { EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
+import { useSavedJobsStore } from '../store/useSavedJobsStore';
 
 interface Company {
   _id: string;
@@ -100,6 +101,9 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
 
   const isCandidate = user?.role === 'candidate' || user?.userType === 'candidate' || user?.type === 'candidate';
   const isEmployer = user?.role === 'employer' || user?.userType === 'employer' || user?.type === 'employer';
+  const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
+  const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
+  const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
 
   useEffect(() => {
     const savedCompany = localStorage.getItem('selectedCompany');
@@ -1247,8 +1251,19 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         <button className="flex-1 lg:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base">
                           Apply Now
                         </button>
-                        <button className="flex-1 lg:flex-none px-4 sm:px-6 py-2 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 transition-colors text-sm sm:text-base">
-                          Save Job
+                        <button
+                          onClick={() => {
+                            const jid = job._id || job.id;
+                            if (!jid || !isCandidate) return;
+                            savedJobIds.has(jid) ? unsaveJobGlobal(jid) : saveJobGlobal(jid, job);
+                          }}
+                          className={`flex-1 lg:flex-none px-4 sm:px-6 py-2 border rounded-lg font-medium transition-colors text-sm sm:text-base ${
+                            savedJobIds.has(job._id || job.id || '')
+                              ? 'border-blue-300 bg-blue-50 text-blue-700'
+                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                        >
+                          {savedJobIds.has(job._id || job.id || '') ? '✓ Saved' : 'Save Job'}
                         </button>
                       </div>
                     </div>

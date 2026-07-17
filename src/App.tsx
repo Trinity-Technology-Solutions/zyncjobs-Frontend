@@ -25,6 +25,7 @@ import { accountAPI } from './api/account';
 import { tokenStorage } from './utils/tokenStorage';
 import { mergeUserToStorage, updateUserInStorage } from './utils/userStorage';
 import { useAnalytics } from './hooks/useAnalytics';
+import { useSavedJobsStore } from './store/useSavedJobsStore';
 import './utils/extensionErrorHandler'; // Initialize extension error handling
 // Lazy-loaded pages
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -208,6 +209,8 @@ function App() {
   const location = useLocation();
   const analytics = useAnalytics();
   const [maintenance, setMaintenance] = useState(false);
+  const fetchSavedJobs = useSavedJobsStore(s => s.fetchSavedJobs);
+  const resetSavedJobs = useSavedJobsStore(s => s.reset);
 
   const [user, setUser] = useState<UserType | null>(getInitialUser);
   const loginTimestamp = React.useRef<number>(0);
@@ -281,6 +284,7 @@ function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
+    resetSavedJobs();
     let userType = user?.type || localStorage.getItem('lastUserType');
 
     if (!userType) {
@@ -329,6 +333,8 @@ function App() {
     loginTimestamp.current = Date.now();
     setUser(userData);
     closeModals();
+    // Fetch saved jobs once after login
+    setTimeout(() => fetchSavedJobs(), 500);
 
     // Store user type separately for reliable logout redirection
     const userType = userData.type || userData.userType || userData.role || 'candidate';
@@ -457,6 +463,7 @@ function App() {
 
       // Clear user state immediately
       setUser(null);
+      useSavedJobsStore.getState().reset();
 
       // Clear all storage
       tokenStorage.clear();
@@ -518,6 +525,9 @@ function App() {
           return;
         }
       }
+
+      // Fetch saved jobs for already-logged-in session restore
+      fetchSavedJobs();
 
       // Verify token silently — only update state if data actually changed
       try {

@@ -11,7 +11,25 @@ import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
+import { useSavedJobsStore } from '../store/useSavedJobsStore';
 
+function useRefresh(fn: () => Promise<void>) {
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const trigger = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      await fn();
+    } catch {
+      setError('Refresh failed. Please try again.');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+  return { refreshing, error, trigger };
+}
 
 interface MyJobsPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -22,13 +40,16 @@ interface MyJobsPageProps {
 const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string; show: boolean }>({ type: 'success', message: '', show: false });
   const [activeTab, setActiveTab] = useState(user?.type === 'employer' ? 'Posted Jobs' : 'Saved');
-  const [refreshing, setRefreshing] = useState(false);
+
+  // Global saved jobs store
+  const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
+  const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
+  const fetchSavedJobsFromStore = useSavedJobsStore(s => s.fetchSavedJobs);
 
   const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
     setNotification({ type, message, show: true });
     setTimeout(() => setNotification(n => ({ ...n, show: false })), 3000);
   };
-  
 
   const [showExpiredJobs, setShowExpiredJobs] = useState(false);
   const [savedJobs, setSavedJobs] = useState<any[]>([]);
@@ -85,91 +106,49 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       fetchEmployerApplications();
     }
     setLoading(false);
-    
-    // Listen for saved jobs updates from other components
-    const handleSavedJobsUpdate = () => {
-      console.log('Received saved jobs update event');
-      if (user?.type === 'candidate') {
-        loadSavedJobs();
-      }
-    };
-    
-    window.addEventListener('zync:savedJobsUpdated', handleSavedJobsUpdate);
-    
-    return () => {
-      window.removeEventListener('zync:savedJobsUpdated', handleSavedJobsUpdate);
-    };
   }, [user]);
 
   const loadSavedJobs = () => {
-    // Get user email from localStorage user object for consistency
-    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-    const userKey = userData?.email || user?.name || 'user';
-    const detailsKey = `savedJobDetails_${userKey}`;
-    const idsKey = `savedJobs_${userKey}`;
-
-    try {
-      const savedDetails = localStorage.getItem(detailsKey);
-      if (savedDetails) {
-        const jobs = JSON.parse(savedDetails);
-        if (Array.isArray(jobs) && jobs.length > 0) {
-          const seen = new Set<string>();
-          const unique = jobs.filter((j: any) => {
-            const id = j._id || j.id;
-            if (!id || seen.has(id)) return false;
-            seen.add(id);
-            return true;
-          });
-          setSavedJobs(unique);
-          if (unique.length > 0) fetchCompanyLogos(unique);
-          return;
-        }
-      }
-      // Fallback: load from IDs and fetch full details
-      const savedIds = localStorage.getItem(idsKey);
-      if (savedIds) {
-        const ids = JSON.parse(savedIds);
-        if (Array.isArray(ids) && ids.length > 0) {
-          fetchJobDetailsByIds(ids);
-        }
-      }
-    } catch (error) {
-      console.error('Error loading saved jobs:', error);
+    const ids = Array.from(useSavedJobsStore.getState().savedJobIds);
+    if (ids.length === 0) {
+      setSavedJobs([]);
+      return;
     }
+    fetchJobDetailsByIds(ids);
   };
 
   const fetchJobDetailsByIds = async (jobIds: string[]) => {
-    console.log('Fetching job details for IDs:', jobIds);
     try {
       const jobPromises = jobIds.map(async (id) => {
         try {
           const response = await fetch(`${API_ENDPOINTS.JOBS}/${id}`);
-          if (response.ok) {
-            return await response.json();
-          }
-        } catch (error) {
-          console.error(`Error fetching job ${id}:`, error);
-        }
+          if (response.ok) return await response.json();
+        } catch { }
         return null;
       });
-      
       const jobs = (await Promise.all(jobPromises)).filter(Boolean);
-      console.log('Fetched job details:', jobs.length);
-      
       if (jobs.length > 0) {
         setSavedJobs(jobs);
         fetchCompanyLogos(jobs);
-        
-        // Update localStorage with full job details
-        const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-        const userKey = userData?.email || user?.name || 'user';
-        const detailsKey = `savedJobDetails_${userKey}`;
-        localStorage.setItem(detailsKey, JSON.stringify(jobs));
       }
     } catch (error) {
       console.error('Error fetching job details:', error);
     }
   };
+
+  // Re-sync saved job details when the set of saved IDs changes
+  const savedJobIdsSize = savedJobIds.size;
+  useEffect(() => {
+    if (user?.type === 'candidate') {
+      const ids = Array.from(savedJobIds);
+      if (ids.length === 0) {
+        setSavedJobs([]);
+      } else {
+        fetchJobDetailsByIds(ids);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedJobIdsSize]);
 
   useEffect(() => {
     if (activeTab === 'Applied' && user?.type === 'candidate') {
@@ -251,6 +230,15 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       console.error('Error fetching applied jobs:', error);
     }
   };
+
+  const refreshSaved = useRefresh(async () => {
+    await fetchSavedJobsFromStore();
+    const ids = Array.from(useSavedJobsStore.getState().savedJobIds);
+    if (ids.length === 0) { setSavedJobs([]); return; }
+    await fetchJobDetailsByIds(ids);
+  });
+
+  const refreshApplied = useRefresh(fetchAppliedJobs);
 
   const fetchEmployerApplications = async () => {
     try {
@@ -472,18 +460,9 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
       message: 'Are you sure you want to remove this job from your saved list?',
       onConfirm: () => {
         setConfirmDialog(prev => ({ ...prev, isOpen: false }));
-        const updatedJobs = savedJobs.filter((job: any) => getId(job) !== jobId);
-        setSavedJobs(updatedJobs);
-        const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-        const userKey = userData?.email || user?.name || 'user';
-        const detailsKey = `savedJobDetails_${userKey}`;
-        const idsKey = `savedJobs_${userKey}`;
-        localStorage.setItem(detailsKey, JSON.stringify(updatedJobs));
-        try {
-          const ids = JSON.parse(localStorage.getItem(idsKey) || '[]');
-          localStorage.setItem(idsKey, JSON.stringify(ids.filter((id: string) => id !== jobId)));
-        } catch { /* ignore */ }
-        window.dispatchEvent(new CustomEvent('zync:savedJobsUpdated', { detail: { removedId: jobId } }));
+        unsaveJobGlobal(jobId);
+        // Keep local savedJobs list in sync for the UI display
+        setSavedJobs(prev => prev.filter((job: any) => (job._id || job.id) !== jobId));
       }
     });
   };
@@ -873,33 +852,36 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
 
               
             {activeTab === 'Applied' && (
-              <button
-                onClick={async () => {
-                  setRefreshing(true);
-                  await fetchAppliedJobs();
-                  setRefreshing(false);
-                }}
-                className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Refresh applications"
-                aria-label="Refresh applications"
-                disabled={refreshing}
-              >
-                <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
+              <>
+                {refreshApplied.error && (
+                  <span className="text-xs text-red-500 mr-2">{refreshApplied.error}</span>
+                )}
+                <button
+                  onClick={refreshApplied.trigger}
+                  className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Refresh applications"
+                  aria-label="Refresh applications"
+                  disabled={refreshApplied.refreshing}
+                >
+                  <RefreshCw className={`w-5 h-5 ${refreshApplied.refreshing ? 'animate-spin' : ''}`} />
+                </button>
+              </>
             )}
             
               {user?.type === 'candidate' && activeTab === 'Saved' && (
                 <>
                   <div className="flex items-center space-x-3">
+                    {refreshSaved.error && (
+                      <span className="text-xs text-red-500">{refreshSaved.error}</span>
+                    )}
                     <button
-                      onClick={() => {
-                        console.log('Manual refresh of saved jobs');
-                        loadSavedJobs();
-                      }}
-                      className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors"
+                      onClick={refreshSaved.trigger}
+                      disabled={refreshSaved.refreshing}
+                      className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       title="Refresh saved jobs"
+                      aria-label="Refresh saved jobs"
                     >
-                      <RefreshCw className="w-5 h-5" />
+                      <RefreshCw className={`w-5 h-5 ${refreshSaved.refreshing ? 'animate-spin' : ''}`} />
                     </button>
                     <span className="text-sm text-gray-600">Show expired jobs</span>
                     <button
