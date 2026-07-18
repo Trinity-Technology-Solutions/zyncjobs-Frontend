@@ -65,6 +65,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
       const normalizedStart = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(formData.scheduledDate)
         ? new Date(formData.scheduledDate + ':00').toISOString()
         : new Date(formData.scheduledDate).toISOString();
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const employerId = user.id || user._id || user.employerOwnerId || user.ownerEmail || user.employerEmail;
+      const employerEmail = user.ownerEmail || user.employerOwnerId || user.employerEmail || user.email;
+
       const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/meetings/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -73,9 +77,19 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
           topic: `Interview - ${application.candidateName} (${formData.round} Round)`,
           start_time: normalizedStart,
           duration: formData.duration,
-          description: `${formData.round} round interview via ZyncJobs`
+          description: `${formData.round} round interview via ZyncJobs`,
+          // Ensure backend creates the Meet event using the employer's connected Google account.
+          employerId,
+          employerEmail,
+          // Helps backend set host/attendees correctly and avoid separate links.
+          candidateEmail: application.candidateEmail,
+          candidateName: application.candidateName,
+          // Ask backend to apply host-admit flow (if supported).
+          // Candidate should use the same join_url; no host-only separate link.
+          require_admission: true
         })
       });
+
       const result = await res.json();
       const joinUrl = result.meeting?.join_url || result.meeting?.joinUrl || result.meeting?.meetLink || result.meeting?.hangoutLink;
       if (result.success && joinUrl) {
