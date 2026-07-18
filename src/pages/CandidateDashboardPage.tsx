@@ -20,10 +20,32 @@ import { useApplicationNotifications } from "../hooks/useApplicationNotification
 import { tokenStorage } from "../utils/tokenStorage";
 import { S3Service } from "../services/s3Service";
 import { updateUserInStorage } from "../utils/userStorage";
+import { useSavedJobsStore } from "../store/useSavedJobsStore";
 
 import LinkedInConnect, {
   type LinkedInProfile,
 } from "../components/LinkedInConnect";
+import {
+  EducationCollegeDisplay,
+  SchoolEducationDisplay,
+  EmploymentDisplay,
+  ProjectDisplay,
+  InternshipDisplay,
+  CertificationDisplay,
+  SkillsDisplay,
+  LanguagesDisplay,
+  CareerPreferencesDisplay,
+  FormField,
+  MonthYearPicker,
+  YearSelect,
+  UrlInput,
+  isValidUrl,
+  validateUrlField,
+  isValidYear,
+  isValidPercentage,
+  isValidPhone,
+  validateDateRange,
+} from "../components/ProfileDisplayHelpers";
 import ProfileVisibilityToggle from "../components/ProfileVisibilityToggle";
 import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
@@ -77,17 +99,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
   const [recommendedJobs, setRecommendedJobs] = useState<any[]>([]);
-  const [savedJobIds, setSavedJobIds] = useState<string[]>(() => {
-    try {
-      const userData =
-        localStorage.getItem("user") || sessionStorage.getItem("user");
-      const parsed = userData ? JSON.parse(userData) : {};
-      const key = `savedJobs_${parsed?.email || parsed?.name || "user"}`;
-      return JSON.parse(localStorage.getItem(key) || "[]");
-    } catch {
-      return [];
-    }
-  });
+  const savedJobIdsSet = useSavedJobsStore(s => s.savedJobIds);
+  const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
+  const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
+  const fetchSavedJobs = useSavedJobsStore(s => s.fetchSavedJobs);
   const [myAssessments, setMyAssessments] = useState<any[]>([]);
   const [colleges, setColleges] = useState<any[]>([]);
   const [collegeSearch, setCollegeSearch] = useState("");
@@ -601,13 +616,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
           fetchApplications(parsedUser.email);
           fetchRecommendedJobs(parsedUser);
           fetchMyAssessments();
-          // Sync savedJobIds from localStorage after user loads
-          try {
-            const key = `savedJobs_${parsedUser.email || parsedUser.name || "user"}`;
-            setSavedJobIds(JSON.parse(localStorage.getItem(key) || "[]"));
-          } catch {
-            /* silent */
-          }
+          // Sync saved jobs from global store
+          fetchSavedJobs();
         } catch (error) {
           console.error("Error parsing user data:", error);
           // Still try to show popup even if JSON parse fails
@@ -622,15 +632,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     // Re-fetch assessments when a new local assessment is saved
     const onAssessmentDone = () => fetchMyAssessments();
     window.addEventListener("zync:assessmentSaved", onAssessmentDone);
-    // Sync bookmark state when MyJobs removes a saved job
-    const onSavedJobsUpdated = (e: Event) => {
-      const { removedId } = (e as CustomEvent).detail;
-      setSavedJobIds((prev) => prev.filter((id) => id !== removedId));
-    };
-    window.addEventListener("zync:savedJobsUpdated", onSavedJobsUpdated);
     return () => {
       window.removeEventListener("zync:assessmentSaved", onAssessmentDone);
-      window.removeEventListener("zync:savedJobsUpdated", onSavedJobsUpdated);
     };
   }, []);
 
@@ -843,7 +846,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       const userId = userData?.id;
       if (userId) {
         const res = await apiFetch(
-          `${API_ENDPOINTS.BASE_URL}/match/recommendations/${userId}?limit=5`,
+          `${API_ENDPOINTS.BASE_URL}/match/recommendations/${userId}?limit=3`,
         );
         if (res.ok) {
           const data = await res.json();
@@ -1585,22 +1588,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     </div>
                   </div>
 
-                  {/* AI Job Recommendations */}
+                  {/* Recommended Jobs */}
                   <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {user?.skills?.length > 0 ? 'AI Job Suggestions' : 'Latest Jobs'}
-                      </h3>
-                      {recommendedJobs.length > 3 && (
-                        <button
-                          onClick={() => onNavigate("job-listings")}
-                          className="text-xs text-blue-600 font-medium hover:underline"
-                        >
-                          View More ({recommendedJobs.length})
-                        </button>
-                      )}
-                    </div>
-                    <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-5">
+                      Recommended Jobs
+                    </h3>
+                    <div className="space-y-3">
                       {recommendedJobs.length > 0 ? (
                         recommendedJobs.slice(0, 3).map((job, index) => {
                           const jobId = job._id || job.id;
@@ -1622,7 +1615,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   (matchCount / jobSkills.length) * 100,
                                 )
                               : 0);
-                          const isSaved = savedJobIds.includes(jobId);
+                          const isSaved = savedJobIdsSet.has(jobId);
                           return (
                             <div
                               key={jobId || index}
@@ -1639,85 +1632,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                     </span>
                                   )}
                                   <button
-                                    onClick={async () => {
-                                      const userEmail =
-                                        user?.email || user?.name || "user";
-                                      const idsKey = `savedJobs_${userEmail}`;
-                                      const detailsKey = `savedJobDetails_${userEmail}`;
-                                      const savedIds: string[] = (() => {
-                                        try {
-                                          return JSON.parse(
-                                            localStorage.getItem(idsKey) ||
-                                              "[]",
-                                          );
-                                        } catch {
-                                          return [];
-                                        }
-                                      })();
-                                      const savedDetails: any[] = (() => {
-                                        try {
-                                          return JSON.parse(
-                                            localStorage.getItem(detailsKey) ||
-                                              "[]",
-                                          );
-                                        } catch {
-                                          return [];
-                                        }
-                                      })();
-                                      const isAlreadySaved =
-                                        savedIds.includes(jobId);
-                                      if (isAlreadySaved) {
-                                        const confirmed = await (window as any).confirmAsync(
-                                          'Remove this job from your saved list?'
-                                        );
-                                        if (!confirmed) return;
-                                        const updatedIds = savedIds.filter(
-                                          (id) => id !== jobId,
-                                        );
-                                        const updatedDetails =
-                                          savedDetails.filter(
-                                            (j: any) =>
-                                              (j._id || j.id) !== jobId,
-                                          );
-                                        localStorage.setItem(
-                                          idsKey,
-                                          JSON.stringify(updatedIds),
-                                        );
-                                        localStorage.setItem(
-                                          detailsKey,
-                                          JSON.stringify(updatedDetails),
-                                        );
-                                        setSavedJobIds(updatedIds);
-                                        setNotification({
-                                          type: "info",
-                                          message:
-                                            "Job removed from saved list",
-                                          isVisible: true,
-                                        });
+                                    onClick={() => {
+                                      if (savedJobIdsSet.has(jobId)) {
+                                        unsaveJobGlobal(jobId);
                                       } else {
-                                        const updatedIds = [...savedIds, jobId];
-                                        const updatedDetails = [
-                                          ...savedDetails.filter(
-                                            (j: any) =>
-                                              (j._id || j.id) !== jobId,
-                                          ),
-                                          job,
-                                        ];
-                                        localStorage.setItem(
-                                          idsKey,
-                                          JSON.stringify(updatedIds),
-                                        );
-                                        localStorage.setItem(
-                                          detailsKey,
-                                          JSON.stringify(updatedDetails),
-                                        );
-                                        setSavedJobIds(updatedIds);
-                                        setNotification({
-                                          type: "success",
-                                          message:
-                                            "Job saved! View in My Jobs → Saved",
-                                          isVisible: true,
-                                        });
+                                        saveJobGlobal(jobId, job);
                                       }
                                     }}
                                     className={`p-1 rounded transition-colors ${isSaved ? "text-blue-600" : "text-gray-400 hover:text-gray-600"}`}
@@ -1818,14 +1737,29 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           );
                         })
                       ) : (
-                        <div className="text-center py-4 text-gray-500 text-sm">
-                          <p>
-                            Complete your profile to get personalized job
-                            recommendations
+                        <div className="text-center py-8">
+                          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Search className="w-6 h-6 text-gray-400" />
+                          </div>
+                          <p className="text-sm font-medium text-gray-700 mb-1">
+                            No recommended jobs found yet.
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Complete your profile or add more skills to receive personalized recommendations.
                           </p>
                         </div>
                       )}
                     </div>
+                    {recommendedJobs.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end">
+                        <button
+                          onClick={() => onNavigate("job-listings")}
+                          className="text-sm text-blue-600 font-medium hover:text-blue-800 transition-colors"
+                        >
+                          View More →
+                        </button>
+                      </div>
+                    )}
 
                     <div className="mt-4 pt-4 border-t">
                       <div className="flex items-center justify-between mb-3">
@@ -2368,85 +2302,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       }}
                       className="text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
-                      Add
+                      {user?.careerPreferences ? "Edit" : "Add"}
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <p className="text-gray-600 text-sm mb-1">
-                        Preferred job type
-                      </p>
-                      {user?.careerPreferences?.lookingFor &&
-                      user.careerPreferences.lookingFor.length > 0 ? (
-                        <p className="text-gray-900">
-                          {user.careerPreferences.lookingFor.join(", ")}
-                        </p>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setActiveModal("careerPreferences");
-                            setModalData(user?.careerPreferences || {});
-                          }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Add desired job type
-                        </button>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-gray-600 text-sm mb-1">
-                        Availability to work
-                      </p>
-                      {user?.careerPreferences?.availability ? (
-                        <p className="text-gray-900">
-                          {user.careerPreferences.availability}
-                        </p>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setActiveModal("careerPreferences");
-                            setModalData(user?.careerPreferences || {});
-                          }}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                        >
-                          Add work availability
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 text-sm mb-1">
-                      Preferred location
-                    </p>
-                    {user?.careerPreferences?.locations?.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {user.careerPreferences.locations.map(
-                          (loc: string, i: number) => (
-                            <span
-                              key={i}
-                              className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full"
-                            >
-                              {loc}
-                            </span>
-                          ),
-                        )}
-                      </div>
-                    ) : user?.careerPreferences?.location ? (
-                      <p className="text-gray-900">
-                        {user.careerPreferences.location}
-                      </p>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setActiveModal("careerPreferences");
-                          setModalData(user?.careerPreferences || {});
-                        }}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Add preferred location
-                      </button>
-                    )}
-                  </div>
+                  {user?.careerPreferences ? (
+                    <CareerPreferencesDisplay prefs={user.careerPreferences} />
+                  ) : (
+                    <p className="text-gray-500 text-sm">Add your career preferences to get better job recommendations.</p>
+                  )}
                 </div>
 
                 {/* Education Section */}
@@ -2475,23 +2338,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     user.educationCollege.degree ? (
                       <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-gray-900">
-                              {user.educationCollege.degree} from{" "}
-                              {user.educationCollege.college}
-                            </h3>
-                            <p className="text-gray-500 text-sm">
-                              {user.educationCollege.courseType}{" "}
-                              {user.educationCollege.percentage} Graduated in{" "}
-                              {user.educationCollege.passingYear}
-                            </p>
-                          </div>
+                          <EducationCollegeDisplay data={user.educationCollege} />
                           <Edit
                             onClick={() => {
                               setActiveModal("educationCollege");
                               setModalData(user?.educationCollege || {});
                             }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600 flex-shrink-0 ml-2"
                           />
                         </div>
                       </div>
@@ -2505,22 +2358,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     user.educationClass12.board ? (
                       <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-gray-700 font-medium">
-                              Class XII - {user.educationClass12.board}
-                            </p>
-                            <p className="text-gray-500 text-sm">
-                              {user.educationClass12.percentage}%{" "}
-                              {user.educationClass12.medium} Medium Passed in{" "}
-                              {user.educationClass12.passingYear}
-                            </p>
-                          </div>
+                          <SchoolEducationDisplay data={user.educationClass12} label="Class XII" />
                           <Edit
                             onClick={() => {
                               setActiveModal("educationClass12");
                               setModalData(user?.educationClass12 || {});
                             }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600 flex-shrink-0 ml-2"
                           />
                         </div>
                       </div>
@@ -2542,22 +2386,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     user.educationClass10.board ? (
                       <div className="border-b border-gray-100 pb-4">
                         <div className="flex items-start justify-between">
-                          <div>
-                            <p className="text-gray-700 font-medium">
-                              Class X - {user.educationClass10.board}
-                            </p>
-                            <p className="text-gray-500 text-sm">
-                              {user.educationClass10.percentage}%{" "}
-                              {user.educationClass10.medium} Medium Passed in{" "}
-                              {user.educationClass10.passingYear}
-                            </p>
-                          </div>
+                          <SchoolEducationDisplay data={user.educationClass10} label="Class X" />
                           <Edit
                             onClick={() => {
                               setActiveModal("educationClass10");
                               setModalData(user?.educationClass10 || {});
                             }}
-                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600"
+                            className="w-4 h-4 text-gray-400 cursor-pointer hover:text-blue-600 flex-shrink-0 ml-2"
                           />
                         </div>
                       </div>
@@ -2592,16 +2427,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     </h2>
                   </div>
                   {user?.skills && user.skills.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
-                      {user.skills.map((skill: string, index: number) => (
-                        <span
-                          key={index}
-                          className="px-3 py-1 bg-gray-100 text-gray-800 text-sm rounded-full"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
+                    <SkillsDisplay skills={user.skills} />
                   ) : (
                     <p className="text-gray-500">
                       Add your key skills to help recruiters find you
@@ -2627,12 +2453,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         : "Add"}
                     </button>
                   </div>
-                  {user?.languages && user.languages.length > 0 ? (
-                    <p className="text-gray-700">
-                      {Array.isArray(user.languages)
-                        ? user.languages.join(", ")
-                        : user.languages}
-                    </p>
+                  {user?.languages && (Array.isArray(user.languages) ? user.languages.length > 0 : user.languages.trim()) ? (
+                    <LanguagesDisplay languages={user.languages} />
                   ) : (
                     <p className="text-gray-500">
                       Talk about the languages that you can speak, read or write
@@ -2707,27 +2529,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             className="border-b border-gray-100 pb-4 last:border-0"
                           >
                             <div className="flex justify-between items-start">
-                              <div>
-                                <h3 className="font-semibold text-gray-900">
-                                  {emp.designation} at {emp.companyName}
-                                </h3>
-                                <p className="text-gray-500 text-sm">
-                                  {emp.startMonth} {emp.startYear} -{" "}
-                                  {emp.currentlyWorking
-                                    ? "Present"
-                                    : `${emp.endMonth} ${emp.endYear}`}
-                                  {emp.experienceYears || emp.experienceMonths
-                                    ? `  ${emp.experienceYears || 0} years ${emp.experienceMonths || 0} months`
-                                    : ""}
-                                </p>
-                                <p
-                                  className="text-gray-700 text-sm mt-1 break-words"
-                                  style={{ overflowWrap: "anywhere" }}
-                                >
-                                  {emp.description}
-                                </p>
-                              </div>
-                              <div className="flex gap-2 ml-2">
+                              <EmploymentDisplay emp={emp} />
+                              <div className="flex gap-2 ml-2 flex-shrink-0">
                                 <Edit
                                   onClick={() => {
                                     setActiveModal("employment");
@@ -2813,37 +2616,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             className="border-b border-gray-100 pb-4 last:border-0"
                           >
                             <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900">
-                                  {proj.projectName}
-                                </h3>
-                                <p
-                                  className="text-gray-700 text-sm mb-1 break-words"
-                                  style={{ overflowWrap: "anywhere" }}
-                                >
-                                  {proj.description}
-                                </p>
-                                {proj.skills && (
-                                  <p
-                                    className="text-gray-600 text-sm break-words"
-                                    style={{ overflowWrap: "anywhere" }}
-                                  >
-                                    <span className="font-medium">Skills:</span>{" "}
-                                    {proj.skills}
-                                  </p>
-                                )}
-                                {proj.projectUrl && (
-                                  <a
-                                    href={proj.projectUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="text-blue-600 hover:text-blue-800 text-sm break-all"
-                                  >
-                                    {proj.projectUrl}
-                                  </a>
-                                )}
-                              </div>
-                              <div className="flex gap-2 ml-2">
+                              <ProjectDisplay proj={proj} />
+                              <div className="flex gap-2 ml-2 flex-shrink-0">
                                 <Edit
                                   onClick={() => {
                                     setActiveModal("projects");
@@ -2929,31 +2703,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                             className="border-b border-gray-100 pb-4 last:border-0"
                           >
                             <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h3 className="font-semibold text-gray-900">
-                                  {intern.companyName}
-                                </h3>
-                                <p className="text-gray-500 text-sm mb-1">
-                                  {intern.startMonth} {intern.startYear} -{" "}
-                                  {intern.endMonth} {intern.endYear}
-                                </p>
-                                <p
-                                  className="text-gray-700 text-sm mb-1 break-words"
-                                  style={{ overflowWrap: "anywhere" }}
-                                >
-                                  {intern.description}
-                                </p>
-                                {intern.skills && (
-                                  <p
-                                    className="text-gray-600 text-sm break-words"
-                                    style={{ overflowWrap: "anywhere" }}
-                                  >
-                                    <span className="font-medium">Skills:</span>{" "}
-                                    {intern.skills}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex gap-2 ml-2">
+                              <InternshipDisplay intern={intern} />
+                              <div className="flex gap-2 ml-2 flex-shrink-0">
                                 <Edit
                                   onClick={() => {
                                     setActiveModal("internships");
@@ -3041,46 +2792,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       {user?.certifications &&
                       typeof user.certifications === "object" &&
                       user.certifications.certificationName ? (
-                        <div>
-                          <p className="text-gray-900 font-medium">
-                            {user.certifications.certificationName}
-                          </p>
-                          {user.certifications.completionId && (
-                            <p className="text-gray-600 text-sm">
-                              ID: {user.certifications.completionId}
-                            </p>
-                          )}
-                          {(user.certifications.startMonth ||
-                            user.certifications.startYear) && (
-                            <p className="text-gray-500 text-sm">
-                              {[
-                                user.certifications.startMonth,
-                                user.certifications.startYear,
-                              ]
-                                .filter(Boolean)
-                                .join(" ")}
-                              {" - "}
-                              {user.certifications.noExpiry
-                                ? "No Expiry"
-                                : [
-                                    user.certifications.endMonth,
-                                    user.certifications.endYear,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(" ") || ""}
-                            </p>
-                          )}
-                          {user.certifications.certificationUrl && (
-                            <a
-                              href={user.certifications.certificationUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 text-sm break-all"
-                            >
-                              {user.certifications.certificationUrl}
-                            </a>
-                          )}
-                        </div>
+                        <CertificationDisplay cert={user.certifications} />
                       ) : (
                         <p className="text-gray-500 text-sm">
                           Talk about any certified courses that you completed
@@ -5544,7 +5256,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </label>
                   <div className="grid grid-cols-2 gap-3">
                     <input
-                      type="text"
+                      type="number"
+                      min="0"
+                      max="50"
                       value={modalData.experienceYears || ""}
                       onChange={(e) =>
                         setModalData({
@@ -5556,7 +5270,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       placeholder="Years"
                     />
                     <input
-                      type="text"
+                      type="number"
+                      min="0"
+                      max="11"
                       value={modalData.experienceMonths || ""}
                       onChange={(e) =>
                         setModalData({
@@ -5632,8 +5348,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <option key={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <select
                       value={modalData.startYear || ""}
                       onChange={(e) =>
                         setModalData({
@@ -5641,9 +5356,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           startYear: e.target.value,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                      placeholder="Year"
-                    />
+                      className="p-3 border rounded-lg w-full"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -5673,16 +5392,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <option key={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <select
                       value={modalData.endYear || ""}
                       onChange={(e) =>
                         setModalData({ ...modalData, endYear: e.target.value })
                       }
-                      className="p-3 border rounded-lg"
-                      placeholder="Year"
+                      className="p-3 border rounded-lg w-full"
                       disabled={modalData.currentlyWorking}
-                    />
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <label className="flex items-center mt-3">
                     <input
@@ -5863,14 +5585,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <label className="block font-medium mb-2">
                     Project URL (optional)
                   </label>
-                  <input
-                    type="text"
+                  <UrlInput
                     value={modalData.projectUrl || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, projectUrl: e.target.value })
+                    onChange={(v) =>
+                      setModalData({ ...modalData, projectUrl: v, _urlTouched: true })
                     }
-                    className="w-full p-3 border rounded-lg"
-                    placeholder="Enter the website link of the project"
+                    onBlur={() =>
+                      setModalData((prev: any) => ({ ...prev, _urlTouched: true }))
+                    }
+                    placeholder="https://..."
+                    error={
+                      modalData._urlTouched
+                        ? validateUrlField(modalData.projectUrl || "")
+                        : null
+                    }
                   />
                 </div>
               </div>
@@ -5930,7 +5658,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       });
                     }
                   }}
-                  className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
+                  disabled={!!validateUrlField(modalData.projectUrl || "")}
+                  className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Save
                 </button>
@@ -6008,8 +5737,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <option key={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <select
                       value={modalData.startYear || ""}
                       onChange={(e) =>
                         setModalData({
@@ -6017,9 +5745,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           startYear: e.target.value,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                      placeholder="Year"
-                    />
+                      className="p-3 border rounded-lg w-full"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -6048,15 +5780,18 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <option key={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <select
                       value={modalData.endYear || ""}
                       onChange={(e) =>
                         setModalData({ ...modalData, endYear: e.target.value })
                       }
-                      className="p-3 border rounded-lg"
-                      placeholder="Year"
-                    />
+                      className="p-3 border rounded-lg w-full"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div>
@@ -6220,17 +5955,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <label className="block font-medium mb-2">
                     Certification URL
                   </label>
-                  <input
-                    type="text"
+                  <UrlInput
                     value={modalData.certificationUrl || ""}
-                    onChange={(e) =>
-                      setModalData({
-                        ...modalData,
-                        certificationUrl: e.target.value,
-                      })
+                    onChange={(v) =>
+                      setModalData({ ...modalData, certificationUrl: v, _certUrlTouched: true })
                     }
-                    className="w-full p-3 border rounded-lg"
-                    placeholder="Please mention your completion URL"
+                    onBlur={() =>
+                      setModalData((prev: any) => ({ ...prev, _certUrlTouched: true }))
+                    }
+                    placeholder="https://..."
+                    error={
+                      modalData._certUrlTouched
+                        ? validateUrlField(modalData.certificationUrl || "")
+                        : null
+                    }
                   />
                 </div>
                 <div>
@@ -6266,8 +6004,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <option key={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <select
                       value={modalData.startYear || ""}
                       onChange={(e) =>
                         setModalData({
@@ -6275,9 +6012,13 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                           startYear: e.target.value,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                      placeholder="Year"
-                    />
+                      className="p-3 border rounded-lg w-full"
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
@@ -6307,16 +6048,19 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         <option key={m}>{m}</option>
                       ))}
                     </select>
-                    <input
-                      type="text"
+                    <select
                       value={modalData.endYear || ""}
                       onChange={(e) =>
                         setModalData({ ...modalData, endYear: e.target.value })
                       }
-                      className="p-3 border rounded-lg"
-                      placeholder="Year"
+                      className="p-3 border rounded-lg w-full"
                       disabled={modalData.noExpiry}
-                    />
+                    >
+                      <option value="">Year</option>
+                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
                   </div>
                   <label className="flex items-center mt-3">
                     <input
@@ -6386,7 +6130,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     }
                     setActiveModal(null);
                   }}
-                  className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700"
+                  disabled={!!validateUrlField(modalData.certificationUrl || "")}
+                  className="bg-blue-600 text-white px-8 py-2 rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Save
                 </button>
@@ -7169,12 +6914,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     }
                     className="w-full p-3 border rounded-lg"
                     placeholder="e.g., 85% or 8.5 CGPA"
+                    pattern="^(\d{1,3}(\.\d{1,2})?%?|\d(\.\d{1,2})?\s*CGPA)$"
                   />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Passing Year</label>
-                  <input
-                    type="text"
+                  <select
                     value={modalData.passingYear || ""}
                     onChange={(e) =>
                       setModalData({
@@ -7183,8 +6928,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       })
                     }
                     className="w-full p-3 border rounded-lg"
-                    placeholder="YYYY"
-                  />
+                  >
+                    <option value="">Select Year</option>
+                    {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
@@ -7287,7 +7036,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 <div>
                   <label className="block font-medium mb-2">Percentage</label>
                   <input
-                    type="text"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
                     value={modalData.percentage || ""}
                     onChange={(e) =>
                       setModalData({ ...modalData, percentage: e.target.value })
@@ -7298,8 +7050,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Passing year</label>
-                  <input
-                    type="text"
+                  <select
                     value={modalData.passingYear || ""}
                     onChange={(e) =>
                       setModalData({
@@ -7308,8 +7059,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       })
                     }
                     className="w-full p-3 border rounded-lg"
-                    placeholder="YYYY"
-                  />
+                  >
+                    <option value="">Select Year</option>
+                    {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
@@ -7412,7 +7167,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 <div>
                   <label className="block font-medium mb-2">Percentage</label>
                   <input
-                    type="text"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
                     value={modalData.percentage || ""}
                     onChange={(e) =>
                       setModalData({ ...modalData, percentage: e.target.value })
@@ -7423,8 +7181,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Passing year</label>
-                  <input
-                    type="text"
+                  <select
                     value={modalData.passingYear || ""}
                     onChange={(e) =>
                       setModalData({
@@ -7433,8 +7190,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       })
                     }
                     className="w-full p-3 border rounded-lg"
-                    placeholder="YYYY"
-                  />
+                  >
+                    <option value="">Select Year</option>
+                    {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">

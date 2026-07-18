@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame } from 'lucide-react';
-import localStorageMigration from '../services/localStorageMigration';
+import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame, CheckCircle } from 'lucide-react';
 import { formatSalary } from '../utils/textUtils';
 import CompanyLogo from './CompanyLogo';
 import { formatJobDescription } from '../utils/htmlUtils';
+import { useSavedJobsStore } from '../store/useSavedJobsStore';
 
 interface Job {
   _id: string;
@@ -12,10 +12,15 @@ interface Job {
   company: string;
   location: string;
   salary?: string | { min: number; max: number; currency: string; period?: string };
+  salaryMin?: number | string;
+  salaryMax?: number | string;
   skills: string[];
   description: string;
   requirements: string[];
   type?: string;
+  jobType?: string | string[];
+  matchPercentage?: number;
+  createdAt?: string;
 }
 
 interface RecommendedJobsProps {
@@ -57,7 +62,9 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
+  const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
+  const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
   const [filters, setFilters] = useState({
@@ -96,13 +103,6 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
 
   useEffect(() => {
     fetchMatchingJobs();
-    if (user?.email) {
-      loadSavedJobsFromBackend();
-    } else {
-      const userJobIdsKey = `savedJobs_${user?.name || 'user'}`;
-      const localIds: string[] = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
-      setSavedJobs(localIds);
-    }
   }, [resumeSkills, location, user]);
 
   // Apply filters whenever jobs or filters change
@@ -115,8 +115,8 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
         // Check multiple salary fields
         const salaryFields = [
           job.salary,
-          job.salaryMin,
-          job.salaryMax,
+          job.salaryMin != null ? String(job.salaryMin) : undefined,
+          job.salaryMax != null ? String(job.salaryMax) : undefined,
           formatSalary(job.salary)
         ];
         
@@ -183,50 +183,13 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     setFilteredJobs(filtered);
   }, [jobs, filters]);
 
-  const loadSavedJobsFromBackend = async () => {
-    const userName = user?.name || 'user';
-    const userJobIdsKey = `savedJobs_${userName}`;
-    const localIds: string[] = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
-    try {
-      const backendIds = await localStorageMigration.getSavedRecommendedJobs();
-      setSavedJobs(Array.from(new Set([...backendIds, ...localIds])));
-    } catch {
-      setSavedJobs(localIds);
-    }
-  };
-
-  const syncToMyJobs = (job: any, jobId: string, remove: boolean) => {
-    const userName = user?.name || 'user';
-    const userKey = `savedJobDetails_${userName}`;
-    const userJobIdsKey = `savedJobs_${userName}`;
-    const existing: any[] = JSON.parse(localStorage.getItem(userKey) || '[]');
-    const existingIds: string[] = JSON.parse(localStorage.getItem(userJobIdsKey) || '[]');
-
-    if (remove) {
-      localStorage.setItem(userKey, JSON.stringify(existing.filter((j: any) => (j._id || j.id) !== jobId)));
-      localStorage.setItem(userJobIdsKey, JSON.stringify(existingIds.filter(id => id !== jobId)));
-    } else {
-      if (!existingIds.includes(jobId)) {
-        localStorage.setItem(userKey, JSON.stringify([...existing, job]));
-        localStorage.setItem(userJobIdsKey, JSON.stringify([...existingIds, jobId]));
-      }
-    }
-  };
-
   const handleSaveJob = (jobId: string) => {
-    const isAlreadySaved = savedJobs.includes(jobId);
+    const isAlreadySaved = savedJobIds.has(jobId);
     const job = jobs.find((j: any) => (j._id || j.id) === jobId);
-
     if (isAlreadySaved) {
-      setSavedJobs(prev => prev.filter(id => id !== jobId));
-      if (job) syncToMyJobs(job, jobId, true);
-      if (user?.email) localStorageMigration.removeSavedRecommendedJob(jobId).catch(() => {});
-    } else {
-      if (job) {
-        setSavedJobs(prev => [...prev, jobId]);
-        syncToMyJobs(job, jobId, false);
-        if (user?.email) localStorageMigration.saveRecommendedJob(job).catch(() => {});
-      }
+      unsaveJobGlobal(jobId);
+    } else if (job) {
+      saveJobGlobal(jobId, job);
     }
   };
 
@@ -491,7 +454,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
         ) : (
           filteredJobs.map((job: any) => {
             const jobId = job._id || job.id;
-            const isSaved = savedJobs.includes(jobId);
+            const isSaved = savedJobIds.has(jobId);
             const title = job.title || job.jobTitle || 'Position';
             const company = job.company || job.companyName || 'Company';
             const loc = job.location || 'Location';
@@ -681,7 +644,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           </div>
           <div className="bg-green-50 rounded-lg p-3 text-center">
             <div className="text-2xl font-bold text-green-600">
-              {Math.round((filteredJobs.filter(j => j.matchPercentage > 70).length / Math.max(filteredJobs.length, 1)) * 100)}%
+              {Math.round((filteredJobs.filter(j => (j.matchPercentage ?? 0) > 70).length / Math.max(filteredJobs.length, 1)) * 100)}%
             </div>
             <div className="text-sm text-gray-600">High Match Rate</div>
           </div>

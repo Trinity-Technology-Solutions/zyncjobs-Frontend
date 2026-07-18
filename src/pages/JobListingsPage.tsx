@@ -20,6 +20,7 @@ import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
+import { useSavedJobsStore } from '../store/useSavedJobsStore';
 
 const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSearch }: { 
   onNavigate?: (page: string, data?: any) => void;
@@ -67,7 +68,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showJobSuggestions, setShowJobSuggestions] = useState(false);
   const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
-  const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [savedJobs, setSavedJobs] = useState<string[]>([]); // kept for legacy refs — actual state is in useSavedJobsStore
+  const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
+  const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
+  const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
   const [trending, setTrending] = useState<any[]>([]);
   const [filterOptions, setFilterOptions] = useState<any>({});
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,21 +110,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
   // Load saved jobs from backend if user is logged in
   useEffect(() => {
-    if (user?.name) {
-      loadSavedJobsFromBackend();
-      // Also load from localStorage for immediate display
-      const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-      const userKey = userData?.email || user.name || 'guest';
-      const localKey = `savedJobs_${userKey}`;
-      const saved = localStorage.getItem(localKey);
-      if (saved) setSavedJobs(JSON.parse(saved));
-    } else {
-      const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-      const userKey = userData?.email || 'guest';
-      const localKey = `savedJobs_${userKey}`;
-      const saved = localStorage.getItem(localKey);
-      if (saved) setSavedJobs(JSON.parse(saved));
-    }
+    // Saved jobs are now managed by useSavedJobsStore — no local fetch needed
   }, [user]);
 
   // Load resume skills from backend if user is logged in
@@ -144,31 +134,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   }, [user]);
 
   const loadSavedJobsFromBackend = async () => {
-    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-    const userKey = userData?.email || user?.name || 'user';
-    const localKey = `savedJobs_${userKey}`;
-
-    // Always load localStorage first so UI is instant
-    const localSaved = localStorage.getItem(localKey);
-    if (localSaved) {
-      try { setSavedJobs(JSON.parse(localSaved)); } catch {}
-    }
-
-    const token = tokenStorage.getAccess();
-    if (!token) return;
-
-    try {
-      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`);
-      if (!res.ok) return; // keep localStorage data on any backend failure
-      const data = await res.json();
-      // Support both { jobIds: [...] } and flat array responses
-      const jobIds: string[] = Array.isArray(data) ? data : (data.jobIds || data.ids || []);
-      if (jobIds.length === 0) return; // backend returned empty — trust localStorage
-      setSavedJobs(jobIds);
-      localStorage.setItem(localKey, JSON.stringify(jobIds));
-    } catch {
-      // network error — localStorage already applied above, do nothing
-    }
+    // No-op: saved jobs are managed globally by useSavedJobsStore
   };
 
   const loadResumeSkillsFromBackend = async () => {
@@ -881,62 +847,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     if (!user?.name) return;
     const jobId = getId(job);
     if (!jobId) return;
-    const isAlreadySaved = savedJobs.includes(jobId);
+    const isAlreadySaved = savedJobIds.has(jobId);
     if (isAlreadySaved) {
       const confirmed = await (window as any).confirmAsync(
         'Remove this job from your saved list?'
       );
       if (!confirmed) return;
-    }
-    // Optimistic UI update
-    setSavedJobs(prev => isAlreadySaved ? prev.filter(id => id !== jobId) : [...prev, jobId]);
-
-    // Get user email from localStorage user object
-    const userData = (() => { try { return JSON.parse(localStorage.getItem('user') || sessionStorage.getItem('user') || '{}'); } catch { return {}; } })();
-    const userKey = userData?.email || user.name || 'user';
-    
-    // Always sync localStorage so MyJobsPage can read saved job details
-    const idsKey = `savedJobs_${userKey}`;
-    const detailsKey = `savedJobDetails_${userKey}`;
-    const savedIds: string[] = (() => { try { return JSON.parse(localStorage.getItem(idsKey) || '[]'); } catch { return []; } })();
-    const savedDetails: any[] = (() => { try { return JSON.parse(localStorage.getItem(detailsKey) || '[]'); } catch { return []; } })();
-    if (isAlreadySaved) {
-      localStorage.setItem(idsKey, JSON.stringify(savedIds.filter(id => id !== jobId)));
-      localStorage.setItem(detailsKey, JSON.stringify(savedDetails.filter((j: any) => getId(j) !== jobId)));
+      unsaveJobGlobal(jobId);
     } else {
-      localStorage.setItem(idsKey, JSON.stringify([...savedIds, jobId]));
-      localStorage.setItem(detailsKey, JSON.stringify([...savedDetails, job]));
-    }
-    
-    // Dispatch event to notify MyJobsPage
-    window.dispatchEvent(new CustomEvent('zync:savedJobsUpdated', { detail: { jobId, action: isAlreadySaved ? 'removed' : 'added' } }));
-
-    try {
-      const token = tokenStorage.getAccess();
-      if (token) {
-        if (isAlreadySaved) {
-          await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs/${jobId}`, {
-            method: 'DELETE',
-          });
-        } else {
-          await apiFetch(`${API_ENDPOINTS.BASE_URL}/saved-jobs`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              jobId,
-              jobTitle: job.jobTitle || job.title,
-              company: job.company,
-              location: job.location,
-              salary: job.salary,
-              jobType: job.type || job.jobType
-            })
-          });
-        }
-      }
-    } catch (error) {
-      // Revert optimistic update on error
-      setSavedJobs(prev => isAlreadySaved ? [...prev, jobId] : prev.filter(id => id !== jobId));
-      console.error('Error saving job:', error);
+      saveJobGlobal(jobId, job);
     }
   };
 
@@ -1794,13 +1713,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     <button
                       onClick={() => handleSaveJob(job)}
                       className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg border transition-colors text-sm font-medium min-h-[40px] w-full ${
-                        savedJobs.includes(getId(job))
+                        savedJobIds.has(getId(job))
                           ? 'bg-blue-50 border-blue-300 text-blue-700'
                           : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
                       }`}
                     >
-                      {savedJobs.includes(getId(job)) ? <BookmarkCheck className="w-4 h-4 flex-shrink-0" /> : <Bookmark className="w-4 h-4 flex-shrink-0" />}
-                      {savedJobs.includes(getId(job)) ? 'Saved' : 'Save'}
+                      {savedJobIds.has(getId(job)) ? <BookmarkCheck className="w-4 h-4 flex-shrink-0" /> : <Bookmark className="w-4 h-4 flex-shrink-0" />}
+                      {savedJobIds.has(getId(job)) ? 'Saved' : 'Save'}
                     </button>
                   )}
                   <button
