@@ -52,6 +52,12 @@ export default defineConfig(({ mode }) => {
         overlay: false,
       },
       proxy: {
+        '/socket.io': {
+          target: proxyTarget,
+          ws: true,
+          changeOrigin: true,
+          secure: false,
+        },
         '/api': {
           target: proxyTarget,
           changeOrigin: true,

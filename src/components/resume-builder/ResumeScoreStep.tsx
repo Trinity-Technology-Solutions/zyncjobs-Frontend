@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, TrendingUp, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Sparkles, Loader2, AlertTriangle, Target, FileText, FolderOpen, Crown, Paintbrush, BookOpen, TrendingUp, Star } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
@@ -9,7 +9,7 @@ interface ScoreDimension {
   max: number;
   tip: string;
   color: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimension[] {
@@ -22,26 +22,52 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
     /^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered)/i.test(b.trim())
   );
   const avgBulletLen = bullets.length ? bullets.reduce((s, b) => s + b.length, 0) / bullets.length : 0;
+  const hasBasicInfo = !!(data.personalInfo.name && data.personalInfo.email);
+
+  const skillCategories: Record<string, string[]> = {
+    frontend: ['react', 'angular', 'vue', 'svelte', 'html', 'css', 'javascript', 'typescript', 'tailwind', 'bootstrap'],
+    backend: ['python', 'java', 'go', 'rust', 'c#', 'ruby', 'php', 'node', 'nodejs', 'spring', 'django', 'flask', 'fastapi', '.net'],
+    database: ['sql', 'postgresql', 'mongodb', 'redis', 'mysql', 'oracle', 'dynamodb', 'cassandra', 'elasticsearch'],
+    cloud: ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'ansible', 'jenkins'],
+    mobile: ['swift', 'kotlin', 'flutter', 'react native', 'dart', 'ionic'],
+    data: ['machine learning', 'deep learning', 'tensorflow', 'pytorch', 'pandas', 'numpy', 'spark', 'hadoop'],
+  };
+  const genericSkills = ['team player', 'hard working', 'communication', 'leadership', 'problem solving', 'fast learner', 'creative', 'organized', 'detail oriented', 'self motivated', 'reliable', 'dedicated', 'flexible', 'adaptable'];
+  const skillsLower = data.skills.map(s => s.toLowerCase());
+  const specificCount = skillsLower.filter(s => !genericSkills.includes(s)).length;
+  const categoriesCovered = new Set(Object.entries(skillCategories)
+    .filter(([, cats]) => skillsLower.some(s => cats.some(c => s.includes(c))))
+    .map(([cat]) => cat));
+  const skillDiversity = Math.min(10, categoriesCovered.size * 3);
+  const targetRole = (data.targetRole || '').toLowerCase();
+  const roleKeywords = targetRole ? targetRole.split(/\s+/).filter(w => w.length > 2) : [];
+  const roleSkillMatch = targetRole && roleKeywords.length > 0
+    ? skillsLower.filter(s => roleKeywords.some(k => s.includes(k))).length
+    : 0;
 
   return [
     {
       label: 'ATS', score: Math.min(100,
-        (data.personalInfo.name ? 10 : 0) + (data.personalInfo.email ? 10 : 0) +
-        (data.personalInfo.phone ? 5 : 0) + (summaryVal ? 20 : 0) +
-        Math.min(20, data.skills.length * 2) + (data.experience.length ? 20 : 0) +
-        Math.min(15, bullets.length * 3)
-      ), max: 100, tip: 'Add contact info, summary, skills, and experience.', color: 'bg-blue-500', icon: '🎯',
+        (data.personalInfo.name ? 8 : 0) + (data.personalInfo.email ? 8 : 0) +
+        (data.personalInfo.phone ? 4 : 0) + (summaryVal ? 15 : 0) +
+        Math.min(15, data.skills.length * 2) +
+        (specificCount >= 3 ? 10 : specificCount >= 1 ? 5 : 0) +
+        skillDiversity +
+        (roleSkillMatch > 0 ? 5 : 0) +
+        (data.experience.length ? 20 : 0) +
+        Math.min(10, bullets.length * 2)
+      ), max: 100, tip: 'Add 8-15 specific, diverse skills. Align skills with target role.', color: 'bg-blue-500', icon: <Target className="w-4 h-4 text-blue-500" />,
     },
     {
       label: 'Grammar', score: bullets.length === 0 ? 0 : Math.min(100,
-        60 + (hasActionVerbs ? 20 : 0) + (avgBulletLen > 30 && avgBulletLen < 150 ? 20 : 0)
-      ), max: 100, tip: 'Start bullets with action verbs. Keep 30–150 chars.', color: 'bg-purple-500', icon: '📝',
+        40 + (hasActionVerbs ? 30 : 0) + (avgBulletLen > 30 && avgBulletLen < 150 ? 30 : 0)
+      ), max: 100, tip: 'Start bullets with action verbs. Keep 30–150 chars.', color: 'bg-purple-500', icon: <FileText className="w-4 h-4 text-purple-500" />,
     },
     {
       label: 'Projects', score: Math.min(100,
         ((data.projects?.length || 0) >= 2 ? 60 : (data.projects?.length || 0) * 25) +
         Math.min(40, bullets.length * 5)
-      ), max: 100, tip: 'Add 2+ projects with detailed bullet points.', color: 'bg-green-500', icon: '📂',
+      ), max: 100, tip: 'Add 2+ projects with detailed bullet points.', color: 'bg-green-500', icon: <FolderOpen className="w-4 h-4 text-green-500" />,
     },
     {
       label: 'Leadership', score: Math.min(100,
@@ -49,36 +75,38 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
         ((data.awards?.length || 0) > 0 ? 25 : 0) +
         (data.experience.filter(e => e.title?.toLowerCase().includes('lead') || e.title?.toLowerCase().includes('manager')).length > 0 ? 25 : 0) +
         (bullets.some(b => /(led|managed|mentor|team|directed|supervised)/i.test(b)) ? 20 : 0)
-      ), max: 100, tip: 'Add leadership roles, awards, and mentoring experience.', color: 'bg-amber-500', icon: '👑',
+      ), max: 100, tip: 'Add leadership roles, awards, and mentoring experience.', color: 'bg-amber-500', icon: <Crown className="w-4 h-4 text-amber-500" />,
     },
     {
       label: 'Formatting', score: (() => {
-        let f = 50;
-        if (bullets.every(b => b.length < 200)) f += 20;
-        if (data.skills.length > 0) f += 15;
-        if (summaryVal.length > 0) f += 15;
+        if (!hasBasicInfo && data.experience.length === 0 && data.skills.length === 0) return 0;
+        let f = 0;
+        if (hasBasicInfo) f += 20;
+        if (bullets.length > 0 && bullets.every(b => b.length < 200)) f += 30;
+        if (data.skills.length > 0) f += 25;
+        if (summaryVal.length > 0) f += 25;
         return Math.min(100, f);
-      })(), max: 100, tip: 'Keep bullets under 200 chars, add skills + summary.', color: 'bg-teal-500', icon: '🎨',
+      })(), max: 100, tip: 'Keep bullets under 200 chars, add skills + summary.', color: 'bg-teal-500', icon: <Paintbrush className="w-4 h-4 text-teal-500" />,
     },
     {
       label: 'Readability', score: bullets.length === 0 ? 0 : Math.min(100,
         (avgBulletLen > 20 && avgBulletLen < 120 ? 50 : 20) +
         (bullets.length >= 3 ? 30 : bullets.length * 10) +
         (data.skills.length > 0 ? 20 : 0)
-      ), max: 100, tip: 'Keep bullets 20–120 chars. Use 3–5 per role.', color: 'bg-cyan-500', icon: '📖',
+      ), max: 100, tip: 'Keep bullets 20–120 chars. Use 3–5 per role.', color: 'bg-cyan-500', icon: <BookOpen className="w-4 h-4 text-cyan-500" />,
     },
     {
       label: 'Impact', score: bullets.length === 0 ? 0 : Math.min(100,
         (hasNumbers ? 50 : 0) + (hasActionVerbs ? 30 : 0) +
         ((data.achievements?.length || 0) > 0 ? 20 : 0)
-      ), max: 100, tip: 'Add numbers (%, $) and measurable achievements.', color: 'bg-orange-500', icon: '📈',
+      ), max: 100, tip: 'Add numbers (%, $) and measurable achievements.', color: 'bg-orange-500', icon: <TrendingUp className="w-4 h-4 text-orange-500" />,
     },
     {
       label: 'Confidence', score: Math.min(100,
         (data.personalInfo.linkedin ? 20 : 0) + (data.personalInfo.portfolio ? 20 : 0) +
         ((data.certifications?.length || 0) > 0 ? 20 : 0) + ((data.awards?.length || 0) > 0 ? 20 : 0) +
         (data.experience.length >= 2 ? 20 : data.experience.length * 10)
-      ), max: 100, tip: 'Add LinkedIn, portfolio, certs, and 2+ experiences.', color: 'bg-rose-500', icon: '⭐',
+      ), max: 100, tip: 'Add LinkedIn, portfolio, certs, and 2+ experiences.', color: 'bg-rose-500', icon: <Star className="w-4 h-4 text-rose-500" />,
     },
   ];
 }
@@ -137,9 +165,9 @@ export default function ResumeScoreStep() {
             Resume Health <span className={overallColor}>{overall}%</span>
           </p>
           <p className="text-sm text-gray-500 mt-1">
-            {overall >= 80 ? '🔋 Excellent — your resume is ready to go!' :
-             overall >= 60 ? '🔧 Good — a few tweaks will make it great.' :
-             '🪫 Needs significant improvement.'}
+            {overall >= 80 ? 'Excellent — your resume is ready to go!' :
+             overall >= 60 ? 'Good — a few tweaks will make it great.' :
+             'Needs significant improvement.'}
           </p>
           <button onClick={getAIExplanation} disabled={loading}
             className="mt-3 flex items-center gap-2 px-4 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
@@ -168,7 +196,7 @@ export default function ResumeScoreStep() {
           const dimBar = dim.score >= 80 ? 'bg-green-500' : dim.score >= 60 ? 'bg-yellow-400' : 'bg-red-400';
           return (
             <div key={dim.label} className="flex items-center gap-3 group">
-              <span className="text-base w-6 text-center shrink-0">{dim.icon}</span>
+              <span className="w-6 flex items-center justify-center shrink-0">{dim.icon}</span>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-sm font-medium text-gray-700">{dim.label}</span>
