@@ -3,7 +3,6 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import { API_ENDPOINTS } from '../config/env';
-import { API_ENDPOINTS as ENV_API } from '../config/env';
 
 interface CandidateResponseDetailPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -478,7 +477,7 @@ ${candidate.company}`;
                                     window.open(resumeUrl, '_blank');
                                   } else if (resumeData?.filename) {
                                     // Try to construct URL from filename
-                                    const fileUrl = `${ENV_API.BASE_URL}/uploads/${resumeData.filename}`;
+                                    const fileUrl = `${API_ENDPOINTS.BASE_URL}/uploads/${resumeData.filename}`;
                                     window.open(fileUrl, '_blank');
                                   } else {
                                     // Show resume information

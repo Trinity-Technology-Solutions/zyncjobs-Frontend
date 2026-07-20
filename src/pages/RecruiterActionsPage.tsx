@@ -78,6 +78,7 @@ function Avatar({ name, picture }: { name: string; picture?: string | null }) {
 
 const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [actions, setActions] = useState<any[]>([]);
   const [counts, setCounts] = useState<Record<string, number>>({ all: 0, profile_viewed: 0, job_invite: 0 });
   const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
@@ -144,8 +145,17 @@ const RecruiterActionsPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =
                 <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> Live
               </span>
             )}
-            <button onClick={() => fetchData(activeFilter)} className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-white transition-all">
-              <RefreshCw className="w-4 h-4" />
+            <button
+              onClick={async () => {
+                if (refreshing) return;
+                setRefreshing(true);
+                await fetchData(activeFilter);
+                setRefreshing(false);
+              }}
+              disabled={refreshing}
+              className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>

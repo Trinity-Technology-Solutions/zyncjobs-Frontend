@@ -15,8 +15,10 @@ import {
   Sparkles,
   User,
   LogOut,
-  Settings
+  Settings,
+  Bell
 } from 'lucide-react';
+import JobAlertBadge from './JobAlertBadge';
 
 interface MobileHamburgerMenuProps {
   isOpen: boolean;
@@ -28,6 +30,7 @@ interface MobileHamburgerMenuProps {
     siteLogo?: { url?: string };
     siteTitle?: string;
   };
+  alertUnreadCount?: number;
 }
 
 const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({ 
@@ -36,14 +39,14 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
   onNavigate, 
   onLogout,
   user,
-  siteSettings 
+  siteSettings,
+  alertUnreadCount = 0,
 }) => {
   const [animateItems, setAnimateItems] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
     if (isOpen) {
-      // Delay item animations for smooth entrance
       const timer = setTimeout(() => setAnimateItems(true), 150);
       return () => clearTimeout(timer);
     } else {
@@ -62,14 +65,16 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       label: 'Job Search',
       subtitle: 'Find your dream job',
       action: () => handleNavigation('job-listings'),
-      hasArrow: true
+      hasArrow: true,
+      badge: 0,
     },
     {
       icon: Building2,
       label: 'Companies',
       subtitle: 'Explore top employers',
       action: () => handleNavigation('companies'),
-      hasArrow: true
+      hasArrow: true,
+      badge: 0,
     }
   ];
 
@@ -105,35 +110,18 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
   ];
 
   const handleLogout = () => {
-    console.log('Mobile logout clicked');
-    
     try {
-      // Clear user data from localStorage
       localStorage.removeItem('user');
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       localStorage.removeItem('employerToken');
       localStorage.removeItem('candidateToken');
-      
-      // Dispatch logout event
       window.dispatchEvent(new CustomEvent('userLogout'));
-      
-      // Call parent logout handler if provided
-      if (onLogout) {
-        onLogout();
-      }
-      
-      // Close menu and navigate to home
+      if (onLogout) onLogout();
       onClose();
-      
-      // Force page reload to ensure clean state
-      setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
-      
+      setTimeout(() => { window.location.href = '/'; }, 100);
     } catch (error) {
       console.error('Logout error:', error);
-      // Force reload as fallback
       window.location.reload();
     }
   };
@@ -144,21 +132,36 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       label: 'Profile',
       subtitle: 'View and edit your profile',
       action: () => handleNavigation(user.type === 'employer' ? 'employer-profile' : 'dashboard'),
-      hasArrow: true
+      hasArrow: true,
+      badge: 0,
+      isLogout: false,
     },
     {
       icon: user.type === 'employer' ? Briefcase : Search,
       label: user.type === 'employer' ? 'My Jobs' : 'My Applications',
       subtitle: user.type === 'employer' ? 'Manage your job postings' : 'Track your applications',
       action: () => handleNavigation(user.type === 'employer' ? 'my-jobs' : 'my-applications'),
-      hasArrow: true
+      hasArrow: true,
+      badge: 0,
+      isLogout: false,
     },
+    ...(user.type === 'candidate' ? [{
+      icon: Bell,
+      label: 'Job Alerts',
+      subtitle: 'Manage your job alerts',
+      action: () => handleNavigation('alerts'),
+      hasArrow: true,
+      badge: alertUnreadCount,
+      isLogout: false,
+    }] : []),
     {
       icon: Settings,
       label: 'Settings',
       subtitle: 'Account preferences',
       action: () => handleNavigation('settings'),
-      hasArrow: true
+      hasArrow: true,
+      badge: 0,
+      isLogout: false,
     },
     {
       icon: LogOut,
@@ -166,12 +169,12 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       subtitle: 'Sign out of your account',
       action: handleLogout,
       hasArrow: false,
-      isLogout: true
+      badge: 0,
+      isLogout: true,
     }
   ] : (() => {
     const isJobSeekerAuthPage = location.pathname === '/login' || location.pathname === '/role-selection' || location.pathname === '/candidate-register';
     const isEmployerAuthPage = location.pathname === '/employer-login' || location.pathname === '/employer-register';
-
     const showJobSeekerLinks = !isJobSeekerAuthPage;
     const showEmployerLinks = !isEmployerAuthPage;
 
@@ -181,31 +184,17 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
       subtitle?: string;
       action: () => void;
       hasArrow: boolean;
+      badge: number;
       isLogout?: boolean;
     }> = [];
     if (showJobSeekerLinks) {
       links.push(
-        {
-          icon: LogIn,
-          label: 'Login',
-          action: () => handleNavigation('login'),
-          hasArrow: true
-        },
-        {
-          icon: UserPlus,
-          label: 'Register',
-          action: () => handleNavigation('role-selection'),
-          hasArrow: true
-        }
+        { icon: LogIn, label: 'Login', action: () => handleNavigation('login'), hasArrow: true, badge: 0 },
+        { icon: UserPlus, label: 'Register', action: () => handleNavigation('role-selection'), hasArrow: true, badge: 0 }
       );
     }
     if (showEmployerLinks) {
-      links.push({
-        icon: Briefcase,
-        label: 'For Employers',
-        action: () => handleNavigation('employer-login'),
-        hasArrow: true
-      });
+      links.push({ icon: Briefcase, label: 'For Employers', action: () => handleNavigation('employer-login'), hasArrow: true, badge: 0 });
     }
     return links;
   })();
@@ -268,6 +257,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
               </div>
             </div>
           )}
+
           {/* Main Navigation */}
           <div className="px-6 py-6">
             <div className="space-y-3">
@@ -276,9 +266,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                   key={item.label}
                   onClick={item.action}
                   className={`group flex items-center justify-between w-full p-4 rounded-2xl bg-white hover:bg-blue-50 transition-all duration-200 transform ${
-                    animateItems 
-                      ? 'translate-x-0 opacity-100' 
-                      : 'translate-x-8 opacity-0'
+                    animateItems ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
                   }`}
                   style={{ 
                     transitionDelay: animateItems ? `${index * 50}ms` : '0ms',
@@ -317,9 +305,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                     key={item.label}
                     onClick={item.action}
                     className={`group flex items-center justify-between w-full p-4 rounded-2xl bg-white hover:bg-blue-50 transition-all duration-200 transform ${
-                      animateItems 
-                        ? 'translate-x-0 opacity-100' 
-                        : 'translate-x-8 opacity-0'
+                      animateItems ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
                     }`}
                     style={{ 
                       transitionDelay: animateItems ? `${(menuItems.length + index) * 50}ms` : '0ms',
@@ -358,9 +344,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                   key={item.label}
                   onClick={item.action}
                   className={`group flex items-center justify-between w-full p-4 rounded-2xl transition-all duration-200 transform ${
-                    animateItems 
-                      ? 'translate-x-0 opacity-100' 
-                      : 'translate-x-8 opacity-0'
+                    animateItems ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
                   } ${
                     item.isLogout 
                       ? 'bg-white hover:bg-red-50 border-red-100' 
@@ -378,18 +362,17 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                         ? 'bg-red-50 group-hover:bg-red-100' 
                         : 'bg-blue-50 group-hover:bg-blue-100'
                     }`}>
-                      <item.icon className={`w-7 h-7 ${
-                        item.isLogout ? 'text-red-600' : 'text-blue-600'
-                      }`} />
+                      <item.icon className={`w-7 h-7 ${item.isLogout ? 'text-red-600' : 'text-blue-600'}`} />
                     </div>
                     <div className="text-left flex-1">
-                      <div className={`font-semibold text-base leading-tight ${
-                        item.isLogout ? 'text-red-900' : 'text-gray-900'
-                      }`}>{item.label}</div>
+                      <div className={`font-semibold text-base leading-tight ${item.isLogout ? 'text-red-900' : 'text-gray-900'}`}>
+                        {item.label}
+                      </div>
                       {item.subtitle && (
                         <div className="text-sm text-gray-500 leading-tight mt-0.5">{item.subtitle}</div>
                       )}
                     </div>
+                    {item.badge > 0 && <JobAlertBadge count={item.badge} className="ml-2" />}
                   </div>
                   {item.hasArrow && (
                     <ChevronRight className={`w-5 h-5 transition-colors duration-200 flex-shrink-0 ml-2 ${
@@ -407,9 +390,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
           <div className="px-6 py-4 pb-8">
             <div 
               className={`p-6 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 transform transition-all duration-300 ${
-                animateItems 
-                  ? 'translate-y-0 opacity-100' 
-                  : 'translate-y-4 opacity-0'
+                animateItems ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'
               }`}
               style={{ 
                 transitionDelay: animateItems ? '400ms' : '0ms',
@@ -421,9 +402,7 @@ const MobileHamburgerMenu: React.FC<MobileHamburgerMenuProps> = ({
                   <Briefcase className="w-7 h-7 text-blue-600" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-gray-900 text-lg mb-2">
-                    Find the right opportunity
-                  </h4>
+                  <h4 className="font-bold text-gray-900 text-lg mb-2">Find the right opportunity</h4>
                   <p className="text-gray-600 text-sm leading-relaxed mb-4">
                     Explore thousands of jobs and grow your career with us.
                   </p>

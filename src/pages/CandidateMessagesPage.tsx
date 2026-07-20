@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_ENDPOINTS } from '../config/env';
+import { io, Socket } from 'socket.io-client';
+import { config } from '../config/env';
 import { Send, Search, ArrowLeft, CheckCheck, Paperclip, Trash2, MessageSquare } from 'lucide-react';
 
 interface Conversation {
@@ -40,26 +42,14 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
   const [showChat, setShowChat] = useState(false); // mobile: show chat panel
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const socketRef = useRef<Socket | null>(null);
 
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const candidateId = currentUser.id || currentUser._id || currentUser.email;
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
-  useEffect(() => {
-    fetchConversations();
-    const interval = setInterval(fetchConversations, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!selectedConversation) return;
-    fetchMessages(selectedConversation.conversationId);
-    const interval = setInterval(() => fetchMessages(selectedConversation.conversationId), 3000);
-    return () => clearInterval(interval);
-  }, [selectedConversation]);
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async (overrides?: Record<string, number>) => {
     try {
       const res = await fetch(`${API_ENDPOINTS.MESSAGES}?candidateId=${encodeURIComponent(candidateId)}`);
       if (!res.ok) { setConversations([]); return; }
@@ -88,10 +78,79 @@ const CandidateMessagesPage: React.FC<{ onNavigate?: (page: string) => void }> =
           if (msg.read === false && msg.receiverId === candidateId) conv.unreadCount++;
         }
       });
-      setConversations(Array.from(map.values()));
+      const result = Array.from(map.values());
+      // Apply any runtime overrides (e.g. conversation just marked read)
+      if (overrides) {
+        for (const conv of result) {
+          if (overrides[conv.conversationId] !== undefined) {
+            conv.unreadCount = overrides[conv.conversationId];
+          }
+        }
+      }
+      setConversations(result);
     } catch { setConversations([]); }
     finally { setLoading(false); }
-  };
+  }, [candidateId]);
+
+  // Poll conversations every 5s
+  useEffect(() => {
+    fetchConversations();
+    const interval = setInterval(() => fetchConversations(), 5000);
+    return () => clearInterval(interval);
+  }, [fetchConversations]);
+
+  const markConversationAsRead = useCallback(async (conversationId: string) => {
+    // Optimistic local update
+    setConversations(prev => prev.map(c =>
+      c.conversationId === conversationId ? { ...c, unreadCount: 0 } : c
+    ));
+    setMessages(prev => prev.map(msg =>
+      msg.senderId !== candidateId ? { ...msg, read: true } : msg
+    ));
+    // Call backend to persist
+    try {
+      await fetch(`${API_ENDPOINTS.MESSAGES}/read`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, userId: candidateId }),
+      });
+    } catch { /* backend will be consistent on next poll */ }
+    // Refetch conversations so sidebar unreads are fully consistent
+    fetchConversations({ [conversationId]: 0 });
+  }, [candidateId, fetchConversations]);
+
+  // Mark selected conversation as read when opened
+  useEffect(() => {
+    if (!selectedConversation) return;
+    const convId = selectedConversation.conversationId;
+    markConversationAsRead(convId);
+    fetchMessages(convId);
+    const interval = setInterval(() => fetchMessages(convId), 3000);
+    return () => clearInterval(interval);
+  }, [selectedConversation, markConversationAsRead, candidateId]);
+
+  // Listen for real-time read receipts from other clients
+  useEffect(() => {
+    let socket: Socket | null = null;
+    try {
+      socket = io(config.SOCKET_URL, { transports: ['websocket', 'polling'] });
+      socketRef.current = socket;
+      socket.on('connect', () => {
+        socket?.emit('register', candidateId);
+      });
+      // When the other party marks any conversation as read, refresh sidebar
+      socket?.on('conversation_read', (payload: { conversationId: string }) => {
+        if (payload.conversationId) {
+          setConversations(prev => prev.map(c =>
+            c.conversationId === payload.conversationId ? { ...c, unreadCount: 0 } : c
+          ));
+        }
+      });
+      // Incoming new message — refresh sidebar
+      socket?.on('new_message', () => { fetchConversations(); });
+    } catch { /* socket optional */ }
+    return () => { socket?.disconnect(); };
+  }, [candidateId, fetchConversations]);
 
   const fetchMessages = async (conversationId: string) => {
     try {

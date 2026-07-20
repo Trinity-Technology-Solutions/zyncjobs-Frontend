@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell, RefreshCw } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { getId } from '../utils/getId';
 import Header from '../components/Header';
@@ -57,6 +57,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMoreApplications, setHasMoreApplications] = useState(true);
   const applicationsPerPage = 10;
+  const [refreshing, setRefreshing] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'info' | 'error'; message: string; isVisible: boolean }>({ type: 'info', message: '', isVisible: false });
   const prevStatusesRef = useRef<Record<string, string>>({});
   const isFirstLoadRef = useRef(true);
@@ -346,13 +347,18 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
             <h1 className="text-2xl font-bold text-gray-900">My Applications</h1>
           </div>
           <button
-            onClick={() => {
-              console.log('MyApplications: Manual refresh clicked');
-              fetchMyApplications();
+            onClick={async () => {
+              if (refreshing) return;
+              setRefreshing(true);
+              await fetchMyApplications();
+              setRefreshing(false);
             }}
-            className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 text-sm"
+            disabled={refreshing}
+            className="p-2 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Refresh applications"
+            aria-label="Refresh applications"
           >
-            Refresh
+            <RefreshCw className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-6">

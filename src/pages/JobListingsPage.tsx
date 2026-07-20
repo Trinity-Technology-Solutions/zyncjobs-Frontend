@@ -1,5 +1,5 @@
 // Quick filter buttons: Last 48h, This week, Remote Jobs (single-select only) - v2
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Briefcase, TrendingUp, X, Bookmark, BookmarkCheck, Clock, Rocket, Trophy, Flame, Sparkles } from 'lucide-react';
 import Header from '../components/Header';
@@ -87,6 +87,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
   const [companyWebsites, setCompanyWebsites] = useState<Record<string, string>>({});
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [searchTrigger, setSearchTrigger] = useState(0);
+  const fetchJobsRef = useRef<(...args: any[]) => void>();
   const jobsPerPage = 10;
 
   const isFiltered = filters.department.length > 0 || filters.workMode.length > 0 || filters.location.length > 0 ||
@@ -270,6 +272,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   }, [searchTerm, location, filters, categoryTerms, jobsPerPage]);
 
+  useEffect(() => { fetchJobsRef.current = fetchJobs; }, [fetchJobs]);
+
   // Fetch filter options and trending jobs
   const fetchFilterOptions = async () => {
     try {
@@ -295,7 +299,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  // Reactive filter: runs whenever filters, jobs, sliders, or search term changes
+  // Reactive filter: runs when jobs load or Search/Clear is triggered
   useEffect(() => {
     if (jobs.length === 0) return;
     let filtered = clientFilter(jobs, searchTerm, location);
@@ -390,7 +394,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     setFilteredJobs(filtered);
     setCurrentPage(1);
     setTotalPages(Math.ceil(filtered.length / jobsPerPage) || 1);
-  }, [filters, jobs, searchTerm, location, expMin, expMax, salaryMin, salaryMax]);
+  }, [jobs, searchTrigger]);
 
   // Keep applyFilters as a no-op shim so existing call sites don't break
   const applyFilters = useCallback((_f: any, _j: any, _eMin?: any, _eMax?: any, _sMin?: any, _sMax?: any) => {}, []);
@@ -450,9 +454,9 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     fetchStats();
     fetchCompanyLogos([]);
 
-    const handleJobPosted = () => fetchJobs();
+    const handleJobPosted = () => fetchJobsRef.current?.();
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'lastJobPosted') setTimeout(() => fetchJobs(), 500);
+      if (e.key === 'lastJobPosted') setTimeout(() => fetchJobsRef.current?.(), 500);
     };
 
     window.addEventListener('jobPosted', handleJobPosted);
@@ -461,7 +465,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
       window.removeEventListener('jobPosted', handleJobPosted);
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [fetchJobs]);
+  }, []);
   
   useEffect(() => {
     if (initialSearch?.searchTerm || initialSearch?.location || initialSearch?.category) {
@@ -481,6 +485,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     if (q || loc) {
       setSearchTerm(q);
       setLocation(loc);
+      setSearchTrigger(n => n + 1);
       fetchJobs(1, false, { term: q, loc, freshness: filters.freshness });
     }
   }, [searchParams.get('q'), searchParams.get('location')]);
@@ -795,17 +800,31 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   };
 
   const handleSearch = async () => {
-    // Use enhanced search for better accuracy
+    setSearchTrigger(n => n + 1);
     await performEnhancedSearch(searchTerm, location);
   };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setLocation('');
+    setRadius(25);
+    setActiveQuickFilter(null);
+    setFilters({ jobType: '', salaryRange: '', experience: '', department: [], location: [], workMode: [], industry: [], companySize: [], freshness: [] });
+    setSalaryMin(0); setSalaryMax(50); setExpMin(0); setExpMax(30);
+    setSelectedCategory('');
+    setCategoryTerms([]);
+    setSearchTrigger(n => n + 1);
+    fetchJobs(1, false, { term: '', loc: '', freshness: [] });
+  };
+
+  const hasActiveFilters = searchTerm || location || radius !== 25 || selectedCategory || categoryTerms.length > 0 ||
+    filters.department.length > 0 || filters.workMode.length > 0 || filters.location.length > 0 ||
+    filters.industry.length > 0 || filters.jobType || filters.freshness.length > 0 ||
+    filters.companySize.length > 0 || expMin > 0 || expMax < 30 || salaryMin > 0 || salaryMax < 50 || activeQuickFilter;
 
   const selectJobSuggestion = (suggestion: string, type: 'keyword' | 'jobTitle' | 'company') => {
     setSearchTerm(suggestion);
     setShowJobSuggestions(false);
-    // Trigger search immediately
-    setTimeout(() => {
-      handleSearch();
-    }, 100);
   };
 
   const selectLocationSuggestion = (suggestion: string) => {
@@ -1052,7 +1071,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                           onMouseDown={() => {
                             setSearchTerm(title);
                             setJobTitleDropdown([]);
-                            setTimeout(() => handleSearch(), 80);
                           }}
                           className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 border-b border-gray-100 last:border-b-0"
                         >
@@ -1084,15 +1102,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 id="radius-select"
                 value={radius}
                 onChange={(e) => {
-                  const newRadius = Number(e.target.value);
-                  setRadius(newRadius);
-                  if (location) {
-                    geocodeLocationText(location).then(coords => {
-                      if (coords) {
-                        handleLocationSearch({ latitude: coords.lat, longitude: coords.lng, radius: newRadius, query: searchTerm });
-                      }
-                    });
-                  }
+                  setRadius(Number(e.target.value));
                 }}
                 className="bg-white text-gray-700 px-3 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium"
               >
@@ -1110,6 +1120,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               >
                 <Search className="w-5 h-5" />
               </button>
+              {hasActiveFilters && (
+                <button
+                  onClick={clearAllFilters}
+                  className="flex items-center gap-1.5 text-sm text-gray-700 bg-white border border-gray-300 px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+                  title="Clear all filters"
+                >
+                  <X className="w-4 h-4" /> Clear
+                </button>
+              )}
             </div>
           </div>
           )}
@@ -1518,6 +1537,7 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                     setActiveQuickFilter(null);
                     setFilters({ jobType: '', salaryRange: '', experience: '', department: [], location: [], workMode: [], industry: [], companySize: [], freshness: [] });
                     setSalaryMin(0); setSalaryMax(50); setExpMin(0); setExpMax(30);
+                    setSearchTrigger(n => n + 1);
                   }}
                   className="text-sm text-indigo-600 border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors font-medium flex items-center gap-1"
                 >

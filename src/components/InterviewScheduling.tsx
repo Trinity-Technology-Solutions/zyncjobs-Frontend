@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, Clock, Video, Phone, MapPin, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
 import BackButton from './BackButton';
 import { API_ENDPOINTS } from '../config/env';
 import { getAuthHeaders, getApiHeaders } from '../utils/authUtils';
@@ -8,6 +8,7 @@ import { tokenStorage } from '../utils/tokenStorage';
 
 const InterviewScheduling = () => {
   const [interviews, setInterviews] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [availableSlots, setAvailableSlots] = useState<any[]>([]);
@@ -25,7 +26,8 @@ const InterviewScheduling = () => {
     fetchInterviews();
   }, []);
 
-  const fetchInterviews = async () => {
+  const fetchInterviews = async (refresh = false) => {
+    if (refresh) setRefreshing(true);
     try {
       const response = await apiFetch(`${API_ENDPOINTS.INTERVIEWS}/my-interviews`, {
         headers: getAuthHeaders()
@@ -37,10 +39,14 @@ const InterviewScheduling = () => {
       } else {
         console.error('Failed to fetch interviews:', response.status);
         setInterviews([]);
+        if (refresh) window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to refresh interviews. Please try again.' } }));
       }
     } catch (error) {
       console.error('Error fetching interviews:', error);
       setInterviews([]);
+      if (refresh) window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error while refreshing interviews.' } }));
+    } finally {
+      if (refresh) setRefreshing(false);
     }
   };
 
@@ -181,12 +187,21 @@ const InterviewScheduling = () => {
       </div>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Interview Scheduling</h1>
-        <button
-          onClick={() => setShowScheduleModal(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          Schedule Interview
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => fetchInterviews(true)}
+            disabled={refreshing}
+            className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
+          </button>
+          <button
+            onClick={() => setShowScheduleModal(true)}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Schedule Interview
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6">

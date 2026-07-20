@@ -54,6 +54,7 @@ const getCountdown = (dateStr: string, timeStr: string): string => {
 const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNavigate, user, onLogout }) => {
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
@@ -65,16 +66,24 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
     return () => clearInterval(t);
   }, []);
 
-  const fetchInterviews = useCallback(async () => {
+  const fetchInterviews = useCallback(async (refresh = false) => {
     if (!user?.email) { setLoading(false); return; }
+    if (refresh) setRefreshing(true);
     try {
       const res = await fetch(`${API_ENDPOINTS.BASE_URL}/interviews/candidate/${encodeURIComponent(user.email)}`);
       if (res.ok) {
         const data = await res.json();
         setInterviews(data);
         fetchCompanyLogos(data);
+      } else {
+        if (refresh) window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to refresh interviews. Please try again.' } }));
       }
-    } catch { /* silent */ } finally { setLoading(false); }
+    } catch {
+      if (refresh) window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Network error while refreshing interviews.' } }));
+    } finally {
+      setLoading(false);
+      if (refresh) setRefreshing(false);
+    }
   }, [user]);
 
   const fetchCompanyLogos = async (interviewList: Interview[]) => {
@@ -162,10 +171,11 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
               </div>
             </div>
             <button
-              onClick={fetchInterviews}
-              className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              onClick={() => fetchInterviews(true)}
+              disabled={refreshing}
+              className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <RefreshCw className="w-4 h-4" /> Refresh
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
         </div>

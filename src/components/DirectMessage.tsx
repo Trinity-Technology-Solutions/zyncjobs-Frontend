@@ -78,9 +78,22 @@ const DirectMessage: React.FC<DirectMessageProps> = ({
     ? [employerId, resolvedCandidateId].sort().join('_')
     : '';
 
+  const markAsRead = async () => {
+    if (!conversationId || !employerId) return;
+    try {
+      await fetch(`${API_ENDPOINTS.MESSAGES}/read`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, userId: employerId }),
+      });
+    } catch { /* silent */ }
+  };
+
   useEffect(() => {
-    if (conversationId) fetchMessages();
-    else setFetchLoading(false);
+    if (conversationId) {
+      fetchMessages();
+      markAsRead();
+    } else setFetchLoading(false);
   }, [conversationId]);
 
   useEffect(() => {
