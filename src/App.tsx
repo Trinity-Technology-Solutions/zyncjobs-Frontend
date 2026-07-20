@@ -104,6 +104,8 @@ const CandidateProfileView = lazy(() => import('./pages/CandidateProfileView'));
 const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
 const BulkJobImportPage = lazy(() => import('./pages/BulkJobImportPage'));
 const EmailVerificationPage = lazy(() => import('./pages/EmailVerificationPage'));
+const MyAlertsPage = lazy(() => import('./pages/MyAlertsPage'));
+const JobAlertNotificationsPage = lazy(() => import('./pages/JobAlertNotificationsPage'));
 
 const LoadingFallback = () => (
   <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#f9fafb' }}>
@@ -274,6 +276,7 @@ function App() {
     if (page === 'dashboard') { navigate('/dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
     if (page === 'my-applications') { navigate('/my-applications'); return; }
     if (page === 'bulk-job-import') { navigate('/bulk-job-import'); return; }
+    if (page === 'job-alert-notifications') { navigate('/job-alert-notifications'); return; }
     const target = `/${page}`;
     if (currentPath !== target) { navigate(target); window.scrollTo({ top: 0, behavior: 'smooth' }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -616,7 +619,7 @@ function App() {
       '/dashboard', '/settings', '/my-jobs', '/my-applications', '/employer-profile',
       '/job-posting', '/job-management', '/candidate-search', '/resume-builder', '/resume-studio',
       '/resume-score', '/resume-parser', '/skill-assessment', '/career-coach', '/career-roadmap',
-      '/job-application', '/candidate-messages', '/interviews', '/alerts', '/privacy-settings',
+      '/job-application', '/candidate-messages', '/interviews', '/alerts', '/job-alert-notifications', '/privacy-settings',
       '/application-management', '/candidate-profile-view', '/candidate-ranking', '/ai-recruiter', '/skill-gap-analysis',
       '/recruiter-actions', '/search-appearances',
       '/job-parsing', '/job-posting-selection', '/candidate-review', '/job-matches', '/recommended-jobs',
@@ -810,16 +813,13 @@ function App() {
 
             <Route path="/alerts" element={
               <AuthGuard user={user}>
-                <>
-                  <Header {...nav} />
-                  <div className="min-h-screen bg-gray-50 py-8">
-                    <div className="max-w-4xl mx-auto px-4">
-                      <h1 className="text-3xl font-bold text-gray-900 mb-8">Job Alerts</h1>
-                      <JobAlertsManager user={user as any} />
-                    </div>
-                  </div>
-                  <Footer onNavigate={handleNavigation} user={user as any} />
-                </>
+                <MyAlertsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
+              </AuthGuard>
+            } />
+
+            <Route path="/job-alert-notifications" element={
+              <AuthGuard user={user}>
+                <JobAlertNotificationsPage onNavigate={handleNavigation} user={user as any} onLogout={handleLogout} />
               </AuthGuard>
             } />
 

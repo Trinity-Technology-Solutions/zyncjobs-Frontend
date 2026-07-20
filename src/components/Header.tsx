@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { X, Search, User, Building, ChevronDown, Settings } from 'lucide-react';
+import JobAlertBadge from './JobAlertBadge';
+import { useJobAlertStore } from '../hooks/useJobAlertStore';
 import { io } from 'socket.io-client';
 import { API_ENDPOINTS, config } from '../config/env';
 import { useSiteSettings } from '../store/useSiteSettings';
@@ -17,13 +19,14 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
+  const { unreadCount: alertUnread } = useJobAlertStore(user?.type === 'candidate' ? user?.email : undefined);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isCareerDropdownOpen, setIsCareerDropdownOpen] = useState(false);
   const [profileMetrics, setProfileMetrics] = useState({ jobsPosted: 0, applicationsReceived: 0, searchAppearances: 0, recruiterActions: 0 });
   const [, setNotifications] = useState<any[]>([]);
   const [adminUnlocked, setAdminUnlocked] = useState(false);
-  const [displayName, setDisplayName] = useState(user?.fullName || user?.name || '');
+  const [displayName, setDisplayName] = useState((user as any)?.fullName || user?.name || '');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const careerDropdownRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -69,10 +72,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
     const updateName = () => {
       try {
         const stored = JSON.parse(localStorage.getItem('user') || '{}');
-        const name = stored.fullName || stored.name || user?.fullName || user?.name || stored.email?.split('@')[0] || 'User';
+        const name = stored.fullName || stored.name || (user as any)?.fullName || user?.name || stored.email?.split('@')[0] || 'User';
         setDisplayName(name);
       } catch {
-        setDisplayName(user?.fullName || user?.name || 'User');
+        setDisplayName((user as any)?.fullName || user?.name || 'User');
       }
     };
     
@@ -204,14 +207,14 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 const appsData = await appsRes.json();
                 const allApps = appsData.applications || appsData || [];
                 const employerApps = allApps.filter((app: any) => app.employerEmail === userEmail);
-                employerApps.slice(0, 3).forEach((app: any) => {
+                employerApps.slice(0, 3).forEach((app: any): void => {
                   realNotifications.push({ id: `app_${app._id || app.id}`, type: 'application', title: 'New application received', message: `${app.candidateName || app.candidateEmail} applied for a position`, time: new Date(app.createdAt).toLocaleDateString() || '1d ago' });
                 });
               }
               if (interviewsRes.ok) {
                 const interviewsData = await interviewsRes.json();
                 const interviews = Array.isArray(interviewsData) ? interviewsData : [];
-                interviews.slice(0, 2).forEach((interview: any) => {
+                interviews.slice(0, 2).forEach((interview: any): void => {
                   realNotifications.push({ id: `interview_${interview._id}`, type: 'interview', title: 'Interview scheduled', message: `Interview with ${interview.candidateName || 'candidate'} scheduled`, time: new Date(interview.date).toLocaleDateString() || '1d ago' });
                 });
               }
@@ -442,7 +445,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                 >
                   <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-semibold text-sm">
-                      {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                      {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                     </span>
                   </div>
                   <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isDropdownOpen ? 'rotate-180' : ''}`} />
@@ -475,7 +478,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                         <div className="flex items-center space-x-4 mb-8">
                           <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center">
                             <span className="text-white font-semibold text-lg">
-                              {displayName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                              {displayName.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                             </span>
                           </div>
                           <div>
@@ -641,15 +644,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             onClick={() => {
                               setIsDropdownOpen(false);
                               if (user.type === 'employer') {
-                                // For employers, go to dashboard and show alerts section
                                 onNavigate && onNavigate('dashboard');
-                                // Trigger alerts section after navigation
-                                setTimeout(() => {
-                                  const event = new CustomEvent('showAlerts');
-                                  window.dispatchEvent(event);
-                                }, 100);
+                                setTimeout(() => window.dispatchEvent(new CustomEvent('showAlerts')), 100);
                               } else {
-                                // For candidates, go to alerts page
                                 onNavigate && onNavigate('alerts');
                               }
                             }} 
@@ -658,7 +655,8 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             <svg className="w-5 h-5 mr-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM11 19H6a2 2 0 01-2-2V7a2 2 0 012-2h5m5 0v6" />
                             </svg>
-                            Alerts
+                            <span className="flex-1">Alerts</span>
+                            <JobAlertBadge count={alertUnread} />
                           </button>
                           
                           <hr className="my-3" />
@@ -782,6 +780,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
           onLogout={onLogout}
           user={user}
           siteSettings={siteSettings || undefined}
+          alertUnreadCount={alertUnread}
         />
       </div>
     </header>
