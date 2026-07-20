@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Upload, CheckCircle, XCircle, AlertCircle, Loader, BarChart3, Target, TrendingUp, Award } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -8,8 +8,6 @@ import { resumeAIService } from '../services/resumeAIService';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
 import mammoth from 'mammoth';
-
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 type ScoreResult = ResumeAnalysis;
 

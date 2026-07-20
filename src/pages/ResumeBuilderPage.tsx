@@ -4,10 +4,12 @@ import {
   User, Sparkles, Award, FolderOpen, Wrench, ChevronLeft, ChevronRight,
   FileDown, Send, PenLine, Languages, Trophy, LayoutList, Star, Mail,
   UserCircle, BookOpen, WrenchIcon, BarChart3, Palette, Copy, Plus,
-  Loader2, RefreshCw, WifiOff, Upload, CheckCircle2, Circle,
-  Search, Target, ArrowRight, CheckCheck, ExternalLink, TrendingUp, MessageSquare,
+  Loader2, RefreshCw, WifiOff, CheckCircle2, Circle, AlertTriangle,
+  Search, ArrowRight, CheckCheck, TrendingUp, MessageSquare,
   Eye, EyeOff,
 } from 'lucide-react';
+
+const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
 import TemplateSelection from '../components/resume-builder/TemplateSelection';
 import PersonalInfoStep from '../components/resume-builder/PersonalInfoStep';
 import SummaryStep from '../components/resume-builder/SummaryStep';
@@ -71,12 +73,33 @@ const QUICK_APPLY_STEPS = [
   { id: 'apply',        label: 'Apply',             icon: Send,        desc: 'Submit application' },
 ];
 
+const ROLE_PRESETS: Record<string, { summary: string; skills: string[] }> = {
+  'Software Engineer': { summary: 'Results-driven Software Engineer with expertise in designing, developing, and maintaining scalable applications. Proficient in modern programming languages and frameworks with a strong focus on clean code and best practices.', skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 'Git', 'SQL', 'REST APIs', 'Docker'] },
+  'Frontend Developer': { summary: 'Creative Frontend Developer skilled in building responsive, user-friendly web applications. Experienced with modern JavaScript frameworks and passionate about delivering exceptional user experiences.', skills: ['HTML', 'CSS', 'JavaScript', 'TypeScript', 'React', 'Vue.js', 'Tailwind CSS', 'Git', 'REST APIs'] },
+  'Backend Developer': { summary: 'Experienced Backend Developer specializing in building robust, scalable server-side applications and APIs. Strong foundation in database design, microservices architecture, and cloud services.', skills: ['Node.js', 'Python', 'PostgreSQL', 'MongoDB', 'REST APIs', 'Docker', 'AWS', 'Git', 'Redis'] },
+  'Full Stack Developer': { summary: 'Versatile Full Stack Developer with comprehensive experience across frontend and backend technologies. Adept at building complete web applications from concept to deployment.', skills: ['JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 'PostgreSQL', 'MongoDB', 'Docker', 'AWS', 'Git'] },
+  'DevOps Engineer': { summary: 'DevOps Engineer focused on automating infrastructure, streamlining CI/CD pipelines, and improving system reliability. Experienced with cloud platforms and containerization technologies.', skills: ['Docker', 'Kubernetes', 'AWS', 'Azure', 'CI/CD', 'Jenkins', 'Terraform', 'Linux', 'Git', 'Python'] },
+  'Data Engineer': { summary: 'Data Engineer experienced in building and maintaining data pipelines, ETL processes, and data warehouse solutions. Skilled in optimizing data flows for analytics and machine learning.', skills: ['Python', 'SQL', 'Apache Spark', 'Airflow', 'AWS', 'PostgreSQL', 'Kafka', 'Snowflake', 'Git'] },
+  'Data Scientist': { summary: 'Data Scientist with strong analytical skills and experience in machine learning, statistical modeling, and data visualization. Passionate about extracting actionable insights from complex datasets.', skills: ['Python', 'Machine Learning', 'SQL', 'TensorFlow', 'Pandas', 'NumPy', 'Statistics', 'Data Visualization', 'Git'] },
+  'AI Engineer': { summary: 'AI Engineer specializing in developing and deploying machine learning models and AI-powered solutions. Experienced with LLMs, NLP, computer vision, and MLOps practices.', skills: ['Python', 'Machine Learning', 'Deep Learning', 'NLP', 'TensorFlow', 'PyTorch', 'LLMs', 'Docker', 'Git'] },
+  'Product Manager': { summary: 'Strategic Product Manager with a track record of delivering user-centric products. Skilled in roadmap planning, stakeholder management, and cross-functional team leadership.', skills: ['Product Strategy', 'Roadmapping', 'User Research', 'Agile', 'Data Analysis', 'A/B Testing', 'Jira', 'Figma'] },
+  'UI/UX Designer': { summary: 'User-centered UI/UX Designer with expertise in creating intuitive digital experiences. Proficient in design thinking, wireframing, prototyping, and user research methodologies.', skills: ['Figma', 'Sketch', 'Adobe XD', 'User Research', 'Wireframing', 'Prototyping', 'Design Systems', 'HTML', 'CSS'] },
+  'Project Manager': { summary: 'Accomplished Project Manager with expertise in leading cross-functional teams, managing budgets, and delivering projects on time. Adept at Agile and Waterfall methodologies.', skills: ['Project Management', 'Agile', 'Scrum', 'Jira', 'Risk Management', 'Budgeting', 'Stakeholder Management', 'MS Project'] },
+  'Business Analyst': { summary: 'Detail-oriented Business Analyst skilled in requirements gathering, process improvement, and data-driven decision making. Bridging the gap between business needs and technical solutions.', skills: ['Requirements Analysis', 'SQL', 'Data Analysis', 'Process Mapping', 'Jira', 'Agile', 'Excel', 'Tableau'] },
+  'QA Engineer': { summary: 'Meticulous QA Engineer experienced in manual and automated testing. Skilled in test planning, bug tracking, and ensuring software quality across the development lifecycle.', skills: ['Selenium', 'Test Automation', 'Manual Testing', 'Jira', 'Postman', 'API Testing', 'Cypress', 'Git', 'Python'] },
+  'Mobile Developer': { summary: 'Mobile Developer experienced in building cross-platform and native mobile applications. Passionate about creating smooth, performant mobile experiences.', skills: ['React Native', 'Flutter', 'Swift', 'Kotlin', 'JavaScript', 'TypeScript', 'Firebase', 'Git', 'REST APIs'] },
+  'Cloud Architect': { summary: 'Cloud Architect specializing in designing scalable, secure, and cost-effective cloud solutions. Deep expertise in multi-cloud environments and infrastructure modernization.', skills: ['AWS', 'Azure', 'GCP', 'Terraform', 'Docker', 'Kubernetes', 'Microservices', 'Security', 'Python'] },
+  'Cybersecurity Analyst': { summary: 'Cybersecurity Analyst focused on protecting systems and data through threat detection, vulnerability assessment, and security best practices. Committed to maintaining robust security postures.', skills: ['Network Security', 'Ethical Hacking', 'SIEM', 'Risk Assessment', 'Python', 'Linux', 'Firewalls', 'Incident Response'] },
+  'Machine Learning Engineer': { summary: 'Machine Learning Engineer experienced in designing and deploying ML models at scale. Proficient in MLOps, model optimization, and productionizing AI solutions.', skills: ['Python', 'TensorFlow', 'PyTorch', 'Scikit-learn', 'MLOps', 'Docker', 'AWS', 'SQL', 'Git'] },
+  'Systems Analyst': { summary: 'Systems Analyst skilled in evaluating and improving IT systems to meet business objectives. Experienced in system design, integration, and optimization.', skills: ['System Analysis', 'SQL', 'UML', 'Process Modeling', 'Jira', 'Testing', 'Documentation', 'Python'] },
+};
+
 export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const [activeId, setActiveId] = useState('personal');
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [importLoading, setImportLoading] = useState(false);
+  const [, setImportLoading] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardStart, setWizardStart] = useState('');
   const [wizardGoal, setWizardGoal] = useState('');
@@ -90,11 +113,12 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     try { return JSON.parse(localStorage.getItem('applied_jobs') || '[]'); } catch { return []; }
   });
   const [applying, setApplying] = useState(false);
-  const [triggerLinkedin, setTriggerLinkedin] = useState(false);
+
   const [aiMode, setAiMode] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showAskAI, setShowAskAI] = useState(false);
   const [showCompletion, setShowCompletion] = useState(false);
+  const [, setTriggerLinkedin] = useState(false);
   const [applied, setApplied] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [jobSearch, setJobSearch] = useState('');
@@ -346,7 +370,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const candidateEmail = data.personalInfo.email || '';
       const jobTitle = selectedJob.title || selectedJob.jobTitle || '';
       const candidateSkills = data.skills;
-      const expText = data.experience.map(e => `${e.title} at ${e.company}${e.dates ? ` (${e.dates})` : ''}`).join('; ');
+      const expText = data.experience.map(e => `${e.title} at ${e.company}${e.duration ? ` (${e.duration})` : ''}`).join('; ');
       const eduText = data.education.map(e => `${e.degree} at ${e.institution}`).join('; ');
       if (candidateEmail) {
         try {
@@ -445,7 +469,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       URL.revokeObjectURL(url);
       const text = textItems.map(t => t.text).join('\n');
 
-      const tokenRes = await fetch('/recruitment-ai/auth/token', {
+      const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
@@ -455,7 +479,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` };
 
       // --- Call 1: RESUME_PARSER brain for basic info ---
-      const resumeRes = await fetch('/recruitment-ai/ai/execute', {
+      const resumeRes = await fetch(`${AI_BASE}/ai/execute`, {
         method: 'POST',
         headers,
         body: JSON.stringify({
@@ -511,7 +535,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       // Extract experience section from raw text
       const expSection = extractSection(text, ['experience', 'work experience', 'employment', 'work history']);
       if (expSection) {
-        const expRes = await fetch('/recruitment-ai/ai/execute', {
+        const expRes = await fetch(`${AI_BASE}/ai/execute`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
@@ -525,9 +549,12 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           const workExps = expData?.result?.workExperiences || (Array.isArray(expData?.result) ? expData.result : null);
           if (Array.isArray(workExps) && workExps.length > 0) {
             update('experience', workExps.map((w: any) => ({
+              id: crypto.randomUUID(),
               title: w.jobTitle || w.title || '',
               company: w.company || '',
+              location: w.location || '',
               duration: w.date || w.duration || '',
+              current: w.current || false,
               bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
             })));
           }
@@ -536,7 +563,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
       // --- Education: try AI first, fallback to regex ---
       const eduSection = extractSection(text, ['education', 'educational', 'academic']);
-      let eduParsed: Array<{ degree: string; institution: string; duration: string }> = [];
+      let eduParsed: Array<{ degree: string; institution: string; duration: string; location?: string; grade?: string }> = [];
 
       // Try RESUME_PARSER result first
       if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
@@ -552,7 +579,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         eduParsed = parseEducationRegex(eduSection);
       }
 
-      if (eduParsed.length > 0) update('education', eduParsed);
+      if (eduParsed.length > 0) update('education', eduParsed.map(e => ({ ...e, id: crypto.randomUUID(), location: e.location || '', grade: e.grade || '' })));
     } catch { /* silent */ } finally { setImportLoading(false); sessionStorage.setItem(onboardingKey, '1'); setShowOnboarding(false); }
   };
 
@@ -711,7 +738,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               const userSkills = data.skills.length > 0 ? data.skills : (
                 (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return Array.isArray(u.skills) ? u.skills : []; } catch { return []; } })()
               );
-              const matchCount = jobSkills.filter((s: string) => userSkills.some(us => {
+              const matchCount = jobSkills.filter((s: string) => userSkills.some((us: string) => {
                 const a = us.toLowerCase(), b = s.toLowerCase();
                 return a === b || a.includes(b) || b.includes(a);
               })).length;
@@ -723,7 +750,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-gray-900 truncate">{job.title || job.jobTitle || 'Untitled'}</p>
-                        {isApplied && <span className="text-[10px] text-green-600 font-medium shrink-0">Applied ✓</span>}
+                        {isApplied && <span className="text-[10px] text-green-600 font-medium shrink-0">Applied </span>}
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5 truncate">{job.company || job.companyName || ''} · {job.location || ''}</p>
                     </div>
@@ -931,7 +958,16 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           onComplete={() => {
             sessionStorage.setItem(onboardingKey, '1');
             if (wizardGoal) update('goal', wizardGoal);
-            if (wizardRole) update('targetRole', wizardRole);
+            if (wizardRole) {
+              update('targetRole', wizardRole);
+              const roleData = ROLE_PRESETS[wizardRole];
+              if (roleData && !data.summary) update('summary', roleData.summary);
+              if (roleData) {
+                const existing = new Set(data.skills.map(s => s.toLowerCase()));
+                const newSkills = roleData.skills.filter(s => !existing.has(s.toLowerCase()));
+                if (newSkills.length > 0) update('skills', [...data.skills, ...newSkills]);
+              }
+            }
             setShowOnboarding(false);
             if (wizardStart === 'import') fileInputRef.current?.click();
             else if (wizardStart === 'linkedin') setTriggerLinkedin(true);
@@ -1244,7 +1280,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900">Resume Completed! 🎉</h2>
+              <h2 className="text-xl font-bold text-gray-900">Resume Completed!</h2>
               <p className="text-sm text-gray-500 mt-1">Your resume is ready. Here's your summary:</p>
             </div>
 
@@ -1262,7 +1298,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                 <p className="text-xs text-gray-500">Skills Added</p>
               </div>
               <div className="p-4 bg-amber-50 rounded-xl text-center">
-                <p className="text-2xl font-bold text-amber-600">{data.experience.length >= 2 ? '✅' : '⚠️'}</p>
+                <p className="text-2xl font-bold text-amber-600">{data.experience.length >= 2 ? <CheckCircle2 className="w-6 h-6 text-amber-600" /> : <AlertTriangle className="w-6 h-6 text-amber-400" />}</p>
                 <p className="text-xs text-gray-500">Interview Ready</p>
               </div>
             </div>
@@ -1291,7 +1327,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
 function buildResumeHTML(data: ResumeData): string {
   const n = data.personalInfo;
-  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${e.title}</b> at <b>${e.company}</b>${e.dates ? ` — ${e.dates}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${b}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${e.title}</b> at <b>${e.company}</b>${e.duration ? ` — ${e.duration}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${b}</li>`).join('')}</ul>` : ''}</div>`).join('');
   const edu = data.education.map(e => `<div>${e.degree} at ${e.institution}${e.duration ? ` — ${e.duration}` : ''}</div>`).join('');
   const certs = data.certifications.map(c => `<div>${c.name} — ${c.issuer}${c.year ? ` (${c.year})` : ''}</div>`).join('');
   const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${p.name}</b>${p.role ? ` — ${p.role}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${b}</li>`).join('')}</ul>` : ''}</div>`).join('');

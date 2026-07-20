@@ -87,7 +87,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
           const bestSkill = myAssessments.reduce((b: any, a: any) => (!b || a.score > b.score) ? a : b, null);
           const weakestSkill = myAssessments.reduce((w: any, a: any) => (!w || a.score < w.score) ? a : w, null);
           const prompt = `User took ${myAssessments.length} skill assessments, passed ${passed}. Best: ${bestSkill?.skill} (${bestSkill?.score}%). Weakest: ${weakestSkill?.skill} (${weakestSkill?.score}%). Give one short, motivational coaching sentence (max 20 words).`;
-          const d = await executeAI(prompt, { systemPrompt: 'You are an encouraging AI career coach.' });
+          const d = await executeAI(`career advice: ${prompt}`, { systemPrompt: 'You are an encouraging AI career coach.' });
           const msg = (d as any)?.result?.reply || '';
           if (msg) { setAiCoachMessage(msg); return; }
         }
@@ -160,7 +160,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
     try {
       // AI generates complete skill data including Lucide icon names
       const data = await executeAI(
-        'Generate 8 in-demand tech skills for assessments. Return ONLY a JSON array: [{name, icon(lucide icon name: Terminal, Code, Cloud, Box, Braces, Database, FileCode, Server, Cpu, Bot, BarChart3, GitBranch, Layers, Cog, Coffee), color(tailwind gradient like "from-blue-400 to-purple-600"), difficulty:"Beginner|Intermediate|Advanced|Expert", duration(number in minutes), questions(number), rating(number 1-5), candidates(string like "120K"), category:"Programming|Cloud|AI|Database|DevOps|Frontend|Backend|Mobile"}]. No extra text.',
+        'skill assessment: Generate 8 in-demand tech skills for assessments. Return ONLY a JSON array: [{name, icon(lucide icon name: Terminal, Code, Cloud, Box, Braces, Database, FileCode, Server, Cpu, Bot, BarChart3, GitBranch, Layers, Cog, Coffee), color(tailwind gradient like "from-blue-400 to-purple-600"), difficulty:"Beginner|Intermediate|Advanced|Expert", duration(number in minutes), questions(number), rating(number 1-5), candidates(string like "120K"), category:"Programming|Cloud|AI|Database|DevOps|Frontend|Backend|Mobile"}]. No extra text.',
         { systemPrompt: 'You are a career industry analyst. Return ONLY valid JSON.' }
       );
       const reply = (data as any)?.result?.reply || '[]';
@@ -201,7 +201,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
   const fetchAssessmentTypes = async () => {
     try {
       const data = await executeAI(
-        'Generate 7 assessment types for a skill platform. Return ONLY a JSON array: [{id, label, icon(one of: CheckCircle, Code, AlertTriangle, PenTool, MessageSquare, FileText, Eye, Brain, Zap, Shield, Globe, Database), description}]. No extra text.',
+        'skill assessment: Generate 7 assessment types for a skill platform. Return ONLY a JSON array: [{id, label, icon(one of: CheckCircle, Code, AlertTriangle, PenTool, MessageSquare, FileText, Eye, Brain, Zap, Shield, Globe, Database), description}]. No extra text.',
         { systemPrompt: 'You are an assessment platform architect. Return ONLY valid JSON.' }
       );
       const reply = (data as any)?.result?.reply || '[]';
@@ -230,7 +230,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
   const aiGenerateSkillsCovered = async (skill: string) => {
     try {
       const data = await executeAI(
-        `List 6-8 key subtopics/skills assessed in a "${skill}" technical assessment. Return ONLY a comma-separated list.`,
+        `skill assessment: List 6-8 key subtopics/skills assessed in a "${skill}" technical assessment. Return ONLY a comma-separated list.`,
         { systemPrompt: 'You are a curriculum designer.' }
       );
       const reply = (data as any)?.result?.reply || '';
@@ -250,7 +250,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
       const prompt = `Evaluate this ${skill} assessment. Score each skill area (0-100%). Student answered ${evalData.filter((e: any) => e.isCorrect).length}/${evalData.length} correct.
 Return ONLY JSON: { "skillScores": {"SkillName": score}, "missingSkills": ["skill1","skill2"], "confidence": "high|medium|low", "feedback": "2-3 sentence summary" }
 Data: ${JSON.stringify(evalData)}`;
-      const data = await executeAI(prompt, { systemPrompt: 'You are an expert technical evaluator. Return ONLY valid JSON.' });
+      const data = await executeAI(`skill assessment: ${prompt}`, { systemPrompt: 'You are an expert technical evaluator. Return ONLY valid JSON.' });
       const reply = (data as any)?.result?.reply || '{}';
       const parsed = parseJSONObject(reply);
       if (parsed && parsed.skillScores) return parsed;
@@ -262,7 +262,7 @@ Data: ${JSON.stringify(evalData)}`;
   const aiGenerateSkillGap = async (skill: string, score: number) => {
     try {
       const data = await executeAI(
-        `For a ${skill} developer who scored ${score}% on assessment, list 4-6 missing skills they need for a senior role. Return ONLY a comma-separated list.`,
+        `skill gap: For a ${skill} developer who scored ${score}% on assessment, list 4-6 missing skills they need for a senior role. Return ONLY a comma-separated list.`,
         { systemPrompt: 'You are a career gap analyst.' }
       );
       const reply = (data as any)?.result?.reply || '';
@@ -277,7 +277,7 @@ Data: ${JSON.stringify(evalData)}`;
     try {
       const missing = missingSkills.join(', ');
       const data = await executeAI(
-        `Create a 4-week learning roadmap to master ${missing} for a ${skill} developer.
+        `career advice: Create a 4-week learning roadmap to master ${missing} for a ${skill} developer.
 Return ONLY JSON array: [{"week":"Week 1","title":"...","desc":"...","skills":["skill1","skill2"]}] with 4 entries.
 Keep descriptions under 15 words. 2-3 skills per week.`,
         { systemPrompt: 'You are a learning path designer. Return ONLY valid JSON.' }
@@ -306,7 +306,7 @@ Keep descriptions under 15 words. 2-3 skills per week.`,
   const generateCertificateNote = async (skill: string, score: number) => {
     try {
       const data = await executeAI(
-        `Write one short inspiring sentence (max 20 words) for a ${skill} certificate earned with ${score}% score.`,
+        `career advice: Write one short inspiring sentence (max 20 words) for a ${skill} certificate earned with ${score}% score.`,
         { systemPrompt: 'You are a certification authority.' }
       );
       const reply = (data as any)?.result?.reply || `Certified ${skill} Professional`;
@@ -326,7 +326,7 @@ try {
           type === 'coding' ? `Generate 2 coding challenges for ${skillToUse}. Return JSON array: [{title, description, starterCode, testCases}]` :
           type === 'debugging' ? `Generate 3 debugging questions for ${skillToUse}. Return JSON array: [{buggyCode, description, fixHint}]` :
           type === 'scenario' ? `Generate 3 scenario-based questions for ${skillToUse}. Return JSON array: [{scenario, question, expectedPoints:[]}]` : '[]';
-        const data = await executeAI(prompt, { systemPrompt: 'You are a technical assessment creator. Return ONLY valid JSON. No markdown.' });
+        const data = await executeAI(`skill assessment: ${prompt}`, { systemPrompt: 'You are a technical assessment creator. Return ONLY valid JSON. No markdown.' });
         const reply = (data as any)?.result?.reply || (data as any)?.result?.advice || '[]';
         const parsed = parseJSONArray(reply);
         if (parsed.length > 0) aiQuestions.push(...parsed.map((q: any) => ({ ...q, type })));
@@ -548,7 +548,7 @@ try {
     setVivaScore(0);
     setVivaQCount(0);
     // Generate first question
-    const data = await executeAI(`Ask an interview question about ${selectedSkill}. Just one question, no extra text.`, { systemPrompt: 'You are a technical interviewer.' });
+    const data = await executeAI(`skill assessment: Ask an interview question about ${selectedSkill}. Just one question, no extra text.`, { systemPrompt: 'You are a technical interviewer.' });
     const reply = (data as any)?.result?.reply || `Explain the core concepts of ${selectedSkill}.`;
     setAiVivaMessages(prev => [...prev, { role: 'ai', content: reply }]);
   };
@@ -559,7 +559,7 @@ try {
     const answer = vivaInput;
     setVivaInput('');
     const data = await executeAI(
-      `Candidate answered: "${answer}". Score out of 10 and feedback in short. Then ask next question.`,
+      `skill assessment: Candidate answered: "${answer}". Score out of 10 and feedback in short. Then ask next question.`,
       { systemPrompt: `You are interviewing for ${selectedSkill}. Be professional.` }
     );
     const reply = (data as any)?.result?.reply || 'Good answer. Next question...';
@@ -573,8 +573,15 @@ try {
     setMentorChat(prev => [...prev, { role: 'user', content: mentorInput }]);
     const q = mentorInput;
     setMentorInput('');
-    const data = await executeAI(q, { systemPrompt: `You are a career mentor explaining ${selectedSkill} assessment answers. Be helpful and educational.` });
-    const reply = (data as any)?.result?.reply || 'Great question! Let me explain...';
+    const data = await executeAI(
+      `career advice: ${q}`,
+      {
+        systemPrompt: `You are an AI mentor for ${selectedSkill} skill assessment. The user is asking about their assessment answers. Explain clearly and educationally. Focus only on ${selectedSkill} concepts.`,
+        skill: selectedSkill,
+        context_type: 'skill_assessment_mentor',
+      }
+    );
+    const reply = (data as any)?.result?.reply || (data as any)?.result?.advice || (data as any)?.result?.assessment || 'Great question! Let me explain...';
     setMentorChat(prev => [...prev, { role: 'ai', content: reply }]);
   };
 

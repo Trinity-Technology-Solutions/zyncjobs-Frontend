@@ -169,6 +169,25 @@ export async function generateCareerRoadmap(
     };
   }
 
+  // AI agent returns roadmap array (career_roadmap_brain shape)
+  if (result.roadmap && Array.isArray(result.roadmap)) {
+    return {
+      currentRole,
+      targetRole,
+      totalTimeframe: result.total_duration_months ? `${result.total_duration_months} months` : '12-18 months',
+      summary: result.advice || `Roadmap from ${currentRole} to ${targetRole}.`,
+      steps: result.roadmap.map((s: any, i: number) => ({
+        step: s.phase || i + 1,
+        title: s.title || `Phase ${i + 1}`,
+        timeframe: s.duration_months ? `${s.duration_months} months` : '',
+        skills: Array.isArray(s.skills_to_learn) ? s.skills_to_learn : [],
+        description: (s.goals || []).join('. ') || s.title || '',
+        milestone: (s.milestones || [])[0] || `Complete phase ${i + 1}`,
+      })),
+      finalTip: result.advice || 'Stay consistent and keep building.',
+    };
+  }
+
   // If reply is conversational text (CHAT fallback), throw so caller uses local fallback
   if (result.reply) throw new Error('AI returned chat reply instead of roadmap');
 

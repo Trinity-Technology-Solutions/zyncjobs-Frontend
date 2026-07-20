@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Minimize2, Search, FileText, Compass, Mic, Briefcase, Info } from 'lucide-react';
+import { X, Send, Minimize2, Plus, Search, FileText, Compass, Mic, Briefcase, Info } from 'lucide-react';
 
 interface Message {
   text: string;
@@ -7,6 +7,8 @@ interface Message {
 }
 
 const BOT_AVATAR = '/zync-favicon-logo.svg';
+
+const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
 
 const ChatWidget = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,8 +18,15 @@ const ChatWidget = () => {
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const sessionId = useRef(`chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const newChat = () => {
+    setMessages([{ text: "Hi there! I'm ZyncBot, your career assistant. Ask me anything about jobs, resumes, or interview tips!", sender: 'bot' }]);
+    sessionId.current = `chat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    setInputValue('');
+  };
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -30,7 +39,7 @@ const ChatWidget = () => {
   }, [isOpen, isMinimized]);
 
   const getToken = async (): Promise<string> => {
-    const res = await fetch('/recruitment-ai/auth/token', {
+    const res = await fetch(`${AI_BASE}/auth/token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ user_id: 'chat_user', role: 'candidate' }),
@@ -50,12 +59,14 @@ const ChatWidget = () => {
 
     try {
       const token = await getToken();
-      const res = await fetch('/recruitment-ai/ai/execute', {
+      const res = await fetch(`${AI_BASE}/ai/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           query: userMessage,
+          session_id: sessionId.current,
           context: {
+            systemPrompt: 'You are ZyncBot, a career assistant for ZyncJobs platform. Help users with job search, resume building, career advice, interview prep, and platform guidance. Answer naturally and conversationally.',
             history: messages.slice(-6).map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })),
           },
           user_role: 'candidate',
@@ -67,7 +78,9 @@ const ChatWidget = () => {
       const intent = data.intent || '';
       let rawReply: string;
       if (!r) {
-        rawReply = 'Got it!';
+        rawReply = "I can help you with job search, resume building, interview prep, and career advice! Could you try asking in a different way?";
+      } else if (r.error) {
+        rawReply = "I can help you with job search, resume building, career advice, interview prep, and using the ZyncJobs platform. Could you please rephrase your question?";
       } else if (r.reply) {
         rawReply = r.reply;
       } else if (r.advice) {
@@ -145,6 +158,14 @@ const ChatWidget = () => {
               <p className="text-white font-semibold text-sm leading-tight">ZyncBot</p>
               <p className="text-blue-200 text-xs">ZyncJobs Career Assistant · Online</p>
             </div>
+            <button
+              type="button"
+              onClick={newChat}
+              title="New Chat"
+              className="text-blue-200 hover:text-white transition-colors p-1"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
             <button
               type="button"
               onClick={() => setIsMinimized(m => !m)}

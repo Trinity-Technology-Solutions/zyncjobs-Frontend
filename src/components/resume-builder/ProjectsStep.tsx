@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Sparkles, Loader2, Check, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, Sparkles, Loader2, Check, X, Clock } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
@@ -8,29 +8,64 @@ export default function ProjectsStep() {
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiError, setAiError] = useState('');
   const [suggestion, setSuggestion] = useState<{ projId: string; bIdx: number; suggested: string } | null>(null);
+  const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const projects = data.projects || [];
 
+  const showError = (msg: string) => {
+    setAiError(msg);
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setAiError(''), 8000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, []);
+
   const generateBullets = async (id: string) => {
     const p = projects.find(x => x.id === id);
-    if (!p?.name) { setAiError('Enter a project name first'); return; }
+    if (!p?.name) { showError('Enter a project name first'); return; }
     setAiLoading(id);
+    const fallback = () => {
+      updateProject(id, 'bullets', [`Developed ${p.name} using modern technologies`, 'Collaborated with team to deliver on schedule']);
+      showError('AI took too long. Default bullets added — you can edit them.');
+    };
+    aiTimerRef.current = setTimeout(fallback, 15000);
     try {
       const res = await executeResumeAI({ section: 'projects', action: 'generate', content: `${p.name}${p.role ? ` as ${p.role}` : ''}` });
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
       const bullets = (res.result || '').split('\n').filter(Boolean);
       if (bullets.length > 0) { updateProject(id, 'bullets', bullets); return; }
-    } catch {}
-    updateProject(id, 'bullets', [`Developed ${p.name} using modern technologies`, 'Collaborated with team to deliver on schedule']);
-    setAiLoading(null);
+      fallback();
+    } catch {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+      fallback();
+    } finally {
+      aiTimerRef.current = null;
+      setAiLoading(null);
+    }
   };
 
   const improveBullet = async (projId: string, bIdx: number, text: string) => {
     if (!text.trim()) return;
     setAiLoading(`${projId}-${bIdx}`);
+    const fallback = () => showError('AI improvement timed out. Try again or edit manually.');
+    aiTimerRef.current = setTimeout(fallback, 15000);
     try {
       const res = await executeResumeAI({ section: 'projects', action: 'improve', content: text });
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
       setSuggestion({ projId, bIdx, suggested: res.result || '' });
-    } catch { setAiError('AI unavailable.'); } finally { setAiLoading(null); }
+    } catch {
+      showError('AI improvement unavailable. Edit manually.');
+    } finally {
+      if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
+      aiTimerRef.current = null;
+      setAiLoading(null);
+    }
   };
 
   return (
@@ -47,9 +82,9 @@ export default function ProjectsStep() {
       </div>
 
       {aiError && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700 flex items-center justify-between">
-          <span>{aiError}</span>
-          <button onClick={() => setAiError('')} className="text-red-400 hover:text-red-600"><X className="w-3 h-3" /></button>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex items-center justify-between">
+          <span className="flex items-center gap-1.5"><Clock className="w-3.5 h-3.5 shrink-0" />{aiError}</span>
+          <button onClick={() => setAiError('')} className="text-amber-400 hover:text-amber-600 shrink-0 ml-2"><X className="w-3 h-3" /></button>
         </div>
       )}
 
@@ -105,6 +140,9 @@ export default function ProjectsStep() {
                       className="flex items-center gap-1.5 px-3 py-1 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 disabled:opacity-50 transition-colors">
                       {aiLoading === p.id ? <><Loader2 className="w-3 h-3 animate-spin" />Generating...</> : <><Sparkles className="w-3 h-3" />Write with AI</>}
                     </button>
+                    {aiLoading === p.id && (
+                      <span className="text-[10px] text-gray-400 animate-pulse">This may take a moment</span>
+                    )}
                   </div>
                   <div className="space-y-2">
                     {p.bullets.map((b, bi) => (
