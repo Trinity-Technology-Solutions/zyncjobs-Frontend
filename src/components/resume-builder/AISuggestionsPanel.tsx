@@ -121,25 +121,25 @@ export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: (
 
       // Fix: no metrics in bullets
       if (s.id === 's5') {
-        data.experience.forEach(exp => {
-          exp.bullets.forEach((b, i) => {
-            if (b.trim() && !/\d/.test(b)) {
-              executeResumeAI({ section: 'experience', action: 'quantify', content: b, experienceId: exp.id })
-                .then(res => {
-                  if (res.result) {
-                    const bullets = [...exp.bullets];
-                    bullets[i] = res.result;
-                    updateExperience(exp.id, 'bullets', bullets);
-                  }
-                }).catch(() => {
-                  // Fallback: append a sample metric hint
+        const metricsCalls = data.experience.flatMap(exp =>
+          exp.bullets.map((b, i) => {
+            if (!b.trim() || /\d/.test(b)) return null;
+            return executeResumeAI({ section: 'experience', action: 'quantify', content: b, experienceId: exp.id })
+              .then(res => {
+                if (res.result) {
                   const bullets = [...exp.bullets];
-                  bullets[i] = b.replace(/\.$/, '') + ', improving efficiency by 20%.';
+                  bullets[i] = res.result;
                   updateExperience(exp.id, 'bullets', bullets);
-                });
-            }
-          });
-        });
+                }
+              })
+              .catch(() => {
+                const bullets = [...exp.bullets];
+                bullets[i] = b.replace(/\.$/, '') + ', improving efficiency by 20%.';
+                updateExperience(exp.id, 'bullets', bullets);
+              });
+          }).filter(Boolean)
+        );
+        await Promise.all(metricsCalls);
       }
 
       // Fix: LinkedIn not linked — navigate to personal section
@@ -159,9 +159,8 @@ export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: (
 
   const fixAll = async () => {
     const unfixed = suggestions.filter(s => !s.fixed);
-    for (const s of unfixed) {
-      await fixOne(s);
-    }
+    // Run all fixes in parallel for speed
+    await Promise.all(unfixed.map(s => fixOne(s)));
     // Re-analyze after fixes
     setTimeout(analyzeResume, 2000);
   };
