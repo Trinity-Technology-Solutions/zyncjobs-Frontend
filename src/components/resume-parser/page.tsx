@@ -354,11 +354,15 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
   const calculateMatchingScore = (resume: any, job: any) => {
     if (!job || !resume) return null;
 
-    // Skills matching
+    // Skills matching — exact word match to avoid false positives
     const resumeSkills = resume.skills.featuredSkills.map((s: any) => s.skill.toLowerCase());
     const jobSkills = (job.skills || []).map((s: string) => s.toLowerCase());
-    const skillMatches = jobSkills.filter((skill: string) => 
-      resumeSkills.some((rSkill: string) => rSkill.includes(skill) || skill.includes(rSkill))
+    const skillMatches = jobSkills.filter((skill: string) =>
+      resumeSkills.some((rSkill: string) => {
+        const rWords = rSkill.split(/[\s/,.+-]+/);
+        const jWords = skill.split(/[\s/,.+-]+/);
+        return rWords.some(rw => jWords.includes(rw)) || rSkill === skill;
+      })
     );
     const skillScore = jobSkills.length > 0 ? (skillMatches.length / jobSkills.length) * 100 : 0;
 
@@ -701,124 +705,24 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
         />
       )}
       
-      {/* Smart Matching & Recommendations */}
+      {/* AI Job Recommendations */}
       {isFileUploaded && (
         <div className="mt-8 bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
-            Smart Matching & Recommendations
+            <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+            AI Job Recommendations for {resume.profile.name}
           </h2>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Job Recommendations */}
-            <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                AI Job Recommendations for {resume.profile.name}
-              </h3>
-              <MistralJobRecommendations 
-                resumeSkills={resume.skills.featuredSkills.length > 0 ? resume.skills.featuredSkills : []} 
-                location={resume.profile.location || ''} 
-                experience={(resume.workExperiences[0] as any)?.jobTitle || resume.profile.name || ''}
-                onNavigate={(page, data) => {
-                  if (page === 'job-application' && onNavigate) {
-                    // Store job data for application page
-                    localStorage.setItem('selectedJob', JSON.stringify(data.job));
-                    // Navigate to job application page
-                    onNavigate('job-application', data);
-                  }
-                }}
-              />
-            </div>
-
-            {/* Matching Features */}
-            <div>
-              <h3 className="text-base font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-                Smart Matching Features
-              </h3>
-              
-              {/* Skills Match */}
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-800 mb-3">Skills-Based Matching</h4>
-                <div className="space-y-2">
-                  {resume.skills.featuredSkills.map((skill: any, index: number) => {
-                    // Count how many fetched jobs require this skill
-                    const skillLower = skill.skill.toLowerCase();
-                    const totalJobs = availableJobs.length || 1;
-                    const matchingJobs = availableJobs.filter((job: any) =>
-                      (job.skills || []).some((s: string) =>
-                        s.toLowerCase().includes(skillLower) || skillLower.includes(s.toLowerCase())
-                      ) ||
-                      (job.description || '').toLowerCase().includes(skillLower) ||
-                      (job.jobTitle || '').toLowerCase().includes(skillLower)
-                    ).length;
-                    // Score = % of jobs that need this skill, min 10% if skill exists
-                    const pct = availableJobs.length > 0
-                      ? Math.max(10, Math.round((matchingJobs / totalJobs) * 100))
-                      : Math.min(95, 40 + (index % 5) * 11); // varied fallback when no jobs loaded
-                    return (
-                      <div key={index} className="flex justify-between items-center">
-                        <span className="text-gray-700">{skill.skill}</span>
-                        <div className="flex items-center gap-2">
-                          <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div
-                              className={`h-2 rounded-full ${
-                                pct >= 70 ? 'bg-green-500' : pct >= 40 ? 'bg-blue-500' : 'bg-orange-400'
-                              }`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-sm text-gray-600 w-8 text-right">{pct}%</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Location Match */}
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-800 mb-3">Location Preferences</h4>
-                <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-2">
-                  <svg className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
-                  <p className="text-sm text-blue-800">
-                    Based on your location ({resume.profile.location}), we found {totalJobsCount > 0 ? `${totalJobsCount}+` : '25+'} jobs in your area
-                  </p>
-                </div>
-              </div>
-
-              {/* Experience Level */}
-              <div className="mb-6">
-                <h4 className="font-medium text-gray-800 mb-3">Experience Level Match</h4>
-                <div className="bg-green-50 border border-green-100 p-3 rounded-lg flex items-start gap-2">
-                  <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                  <p className="text-sm text-green-800">
-                    Your {(resume.workExperiences[0] as any)?.jobTitle || 'professional'} experience matches {totalJobsCount > 0 ? `${Math.floor(totalJobsCount * 0.6)}+` : 'several'} open positions
-                  </p>
-                </div>
-              </div>
-
-              {/* Search Filters */}
-              <div>
-                <h4 className="font-medium text-gray-800 mb-3">Enhanced Search Filters</h4>
-                <div className="space-y-2">
-                  <button className="w-full text-left p-2.5 bg-gray-50 border border-gray-100 rounded-lg hover:bg-gray-100 transition-colors text-sm text-gray-700 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-                    Jobs matching: {resume.skills.featuredSkills.map((s: any) => s.skill).join(", ")}
-                  </button>
-                  <button className="w-full text-left p-2.5 bg-gray-50 border border-gray-100 rounded-lg hover:bg-gray-100 transition-colors text-sm text-gray-700 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
-                    Jobs in: {resume.profile.location}
-                  </button>
-                  <button className="w-full text-left p-2.5 bg-gray-50 border border-gray-100 rounded-lg hover:bg-gray-100 transition-colors text-sm text-gray-700 flex items-center gap-2">
-                    <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                    {(resume.workExperiences[0] as any)?.jobTitle} level positions
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <MistralJobRecommendations 
+            resumeSkills={resume.skills.featuredSkills.length > 0 ? resume.skills.featuredSkills : []} 
+            location={resume.profile.location || ''} 
+            experience={(resume.workExperiences[0] as any)?.jobTitle || resume.profile.name || ''}
+            onNavigate={(page, data) => {
+              if (page === 'job-application' && onNavigate) {
+                localStorage.setItem('selectedJob', JSON.stringify(data.job));
+                onNavigate('job-application', data);
+              }
+            }}
+          />
 
           {/* Action Buttons */}
           <div className="mt-8 flex gap-4 justify-center">

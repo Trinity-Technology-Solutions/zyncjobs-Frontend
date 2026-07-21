@@ -138,7 +138,13 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
 
   const { skill, score, completedAt, review: reviewData, questions = [] } = review;
   const isPassed = score >= 70;
-  const correctCount = questions.filter((q: any) => Number(q.userAnswer) === Number(q.correctAnswer)).length;
+  const correctCount = questions.filter((q: any) => {
+    const userAns = q.userAnswer;
+    const correctVal = q.correctAnswer !== undefined ? q.correctAnswer : q.correct;
+    if (correctVal === undefined) return false;
+    if (typeof userAns === 'number' && typeof correctVal === 'number') return userAns === correctVal;
+    return String(userAns) === String(correctVal);
+  }).length;
   const wrongCount = questions.length - correctCount;
   const circumference = 2 * Math.PI * 34;
 
@@ -215,8 +221,9 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
               </h2>
               <div className="space-y-4 sm:space-y-5">
                 {questions.map((q: any, idx: number) => {
+                  const correctVal = q.correctAnswer !== undefined ? q.correctAnswer : q.correct;
                   const userAns = Number(q.userAnswer);
-                  const correctAns = Number(q.correctAnswer);
+                  const correctAns = Number(correctVal);
                   const isCorrect = userAns === correctAns;
                   return (
                     <div key={idx} style={{

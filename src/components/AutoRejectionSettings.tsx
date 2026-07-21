@@ -98,7 +98,9 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       const processedCandidates = appsWithData.map((app: any) => {
         const skillsMatch = calculateSkillsMatch(app);
         const experienceMatch = calculateExperienceMatch(app);
-        const overallScore = Math.round((skillsMatch + experienceMatch) / 2);
+        const overallScore = typeof app.aiAnalysis?.overallScore === 'number'
+          ? app.aiAnalysis.overallScore
+          : Math.round(skillsMatch * 0.6 + experienceMatch * 0.4);
 
         const shouldReject = settings.autoReject && (
           skillsMatch < settings.minSkillsMatch ||
@@ -148,89 +150,53 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
     }
   };
   
-  const calculateSkillsMatch = (application: any) => {
-    const jobData = application._jobData || {};
-
-    // Candidate skills — check all possible fields stored on the application
-    const rawCandSkills =
-      application.skills ||
-      application.candidateSkills ||
-      application.candidateProfile?.skills ||
-      [];
-    const candidateSkills = (Array.isArray(rawCandSkills)
-      ? rawCandSkills
-      : String(rawCandSkills).split(','))
-      .map((s: any) => String(s).toLowerCase().trim())
-      .filter(Boolean);
-
-    // Job required skills
-    const rawJobSkills = jobData.skills || jobData.requiredSkills || [];
-    const requiredSkills = (Array.isArray(rawJobSkills)
-      ? rawJobSkills
-      : String(rawJobSkills).split(','))
-      .map((s: any) => String(s).toLowerCase().trim())
-      .filter(Boolean);
-
-    if (requiredSkills.length === 0) {
-      // No JD skills — score by how many skills candidate listed
-      const count = candidateSkills.length;
-      if (count === 0) return 0;
-      if (count >= 10) return 90;
-      return Math.round((count / 10) * 90);
+  const calculateSkillsMatch = (application: any): number => {
+    // Use backend-computed aiAnalysis if available
+    if (typeof application.aiAnalysis?.skillsScore === 'number') {
+      return application.aiAnalysis.skillsScore;
     }
 
+    const jobData = application._jobData || {};
+    const candidateSkills = (Array.isArray(application.skills) ? application.skills :
+      Array.isArray(application.resumeSkills) ? application.resumeSkills : [])
+      .map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
+
+    const rawJobSkills = jobData.skills || jobData.requiredSkills || [];
+    const requiredSkills = (Array.isArray(rawJobSkills) ? rawJobSkills : String(rawJobSkills).split(','))
+      .map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
+
+    if (requiredSkills.length === 0) return candidateSkills.length >= 10 ? 90 : Math.round((candidateSkills.length / 10) * 90);
     if (candidateSkills.length === 0) return 0;
 
     const matched = requiredSkills.filter(req =>
       candidateSkills.some(cs => cs.includes(req) || req.includes(cs))
     ).length;
-
     return Math.round((matched / requiredSkills.length) * 100);
   };
 
-  const calculateExperienceMatch = (application: any) => {
-    const jobData = application._jobData || {};
-
-    // Candidate experience — check all possible fields
-    const rawExp =
-      application.experience ??
-      application.candidateExperience ??
-      application.yearsOfExperience ??
-      application.candidateProfile?.experience ??
-      '';
-
-    const parseYears = (val: any): number => {
-      if (typeof val === 'number') return val;
-      const str = String(val || '');
-      const match = str.match(/(\d+\.?\d*)/);
-      return match ? parseFloat(match[1]) : 0;
-    };
-
-    const candidateYears = parseYears(rawExp);
-
-    const expRange: string =
-      jobData.experienceRange || jobData.experience || jobData.minExperience || '';
-
-    if (!expRange) {
-      if (candidateYears === 0) return 20;
-      if (candidateYears >= 3) return 100;
-      return Math.round((candidateYears / 3) * 100);
+  const calculateExperienceMatch = (application: any): number => {
+    // Use backend-computed aiAnalysis if available
+    if (typeof application.aiAnalysis?.experienceScore === 'number') {
+      return application.aiAnalysis.experienceScore;
     }
+
+    const jobData = application._jobData || {};
+    const rawExp = application.yearsExperience ?? application.experience ?? application.candidateExperience ?? '';
+    const candidateYears = typeof rawExp === 'number' ? rawExp : parseFloat(String(rawExp).match(/(\d+\.?\d*)/)?.[1] || '0');
+
+    const expRange: string = jobData.experienceRange || jobData.experience || '';
+    if (!expRange) return candidateYears >= 3 ? 100 : candidateYears >= 1 ? 60 : 20;
 
     const rangeMatch = expRange.match(/(\d+)\s*[-–]\s*(\d+)/);
     const plusMatch = expRange.match(/(\d+)\+/);
     const singleMatch = expRange.match(/(\d+)/);
+    let minExp = 0;
+    if (rangeMatch) minExp = parseInt(rangeMatch[1]);
+    else if (plusMatch) minExp = parseInt(plusMatch[1]);
+    else if (singleMatch) minExp = parseInt(singleMatch[1]);
 
-    let minExp = 0, maxExp = 0;
-    if (rangeMatch) { minExp = parseInt(rangeMatch[1]); maxExp = parseInt(rangeMatch[2]); }
-    else if (plusMatch) { minExp = parseInt(plusMatch[1]); maxExp = minExp + 5; }
-    else if (singleMatch) { minExp = parseInt(singleMatch[1]); maxExp = minExp; }
-
-    if (minExp === 0 && maxExp === 0) return candidateYears >= 1 ? 80 : 40;
-
-    if (candidateYears >= minExp) {
-      return Math.min(100, 80 + Math.round(((candidateYears - minExp) / Math.max(maxExp - minExp + 1, 1)) * 20));
-    }
+    if (minExp === 0) return candidateYears >= 1 ? 80 : 40;
+    if (candidateYears >= minExp) return Math.min(100, 80 + Math.round(((candidateYears - minExp) / Math.max(minExp, 1)) * 20));
     return Math.max(0, Math.round((candidateYears / minExp) * 70));
   };
 

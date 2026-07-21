@@ -86,17 +86,28 @@ export default function SkillGapAnalysisPage({ onNavigate, user, onLogout }: Ski
     const currentRole = userSkills.length > 0 ? 'Professional' : 'Entry Level';
     generateCareerRoadmap(currentRole, jobTitle, '2-4 years')
       .then(roadmap => {
+        const allSkills = (roadmap.steps || []).flatMap((s: any) => s.skills || []).filter(Boolean);
         const path: CareerPath = {
-          currentLevel: roadmap.currentRole || jobTitle,
+          currentLevel: roadmap.currentRole || currentRole,
           nextRole: roadmap.targetRole || jobTitle,
           timeframe: roadmap.totalTimeframe || '12-18 months',
-          skillsToLearn: roadmap.steps?.[0]?.skills || [],
+          skillsToLearn: allSkills.length > 0 ? allSkills.slice(0, 8) : missing.slice(0, 5),
           tip: roadmap.finalTip || roadmap.summary || 'Focus on the missing skills to qualify for this role.',
         };
         setCached(key, path);
         setCareerPath(path);
       })
-      .catch(() => setCareerPath(null))
+      .catch(() => {
+        // AI unavailable — build local fallback from missing skills
+        const path: CareerPath = {
+          currentLevel: currentRole,
+          nextRole: jobTitle,
+          timeframe: '12-18 months',
+          skillsToLearn: missing.slice(0, 6),
+          tip: `Focus on learning ${missing.slice(0, 3).join(', ')} to qualify for this role.`,
+        };
+        setCareerPath(path);
+      })
       .finally(() => setLoadingCareerPath(false));
   }, [selectedJob]);
 

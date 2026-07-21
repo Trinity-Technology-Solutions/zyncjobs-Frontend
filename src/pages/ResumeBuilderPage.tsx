@@ -144,8 +144,9 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   // Resume versioning with per-version data persistence
   const VERSIONS_KEY = 'zyncjobs-resume-versions';
   const VERSION_DATA_PREFIX = 'zyncjobs-resume-v-';
+  
   const getSavedVersions = (): string[] => {
-    try { return JSON.parse(localStorage.getItem(VERSIONS_KEY) || '["Master Resume","Frontend Engineer","Backend Engineer","DevOps Engineer"]'); } catch { return ['Master Resume']; }
+    try { return JSON.parse(localStorage.getItem(VERSIONS_KEY) || '[]'); } catch { return []; }
   };
   const saveVersionList = (list: string[]) => { try { localStorage.setItem(VERSIONS_KEY, JSON.stringify(list)); } catch {} };
   const loadVersionData = (versionName: string) => {
@@ -159,9 +160,22 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     try { localStorage.setItem(VERSION_DATA_PREFIX + versionName, JSON.stringify(data)); } catch {}
   };
 
-  const [versions, setVersions] = useState<string[]>(() => getSavedVersions());
+  // Load profile courses as resume versions when profile is available
+    const [versions, setVersions] = useState<string[]>(() => {
+    const profile = JSON.parse(localStorage.getItem('user') || '{}');
+    const profileCourses = profile?.courses || [];
+    const courseVersions = profileCourses
+      .map((c: any) => (typeof c === 'string' ? c : c?.title))
+      .filter(Boolean);
+    const savedVersions = getSavedVersions();
+    const merged = [...new Set([...savedVersions, ...courseVersions])];
+    const initial = merged.length > 0 ? merged : ['Master Resume'];
+    return initial;
+  });
   const [activeVersion, setActiveVersion] = useState<string>('Master Resume');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'offline' | 'syncing'>('saved');
+  const [showNewVersionModal, setShowNewVersionModal] = useState(false);
+  const [newVersionName, setNewVersionName] = useState('');
 
   // On mount, load active version data
   useEffect(() => {
@@ -212,11 +226,27 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     if (!user?.email) return;
     let profile: any = user;
     try { const s = localStorage.getItem('user'); if (s) profile = { ...user, ...JSON.parse(s) }; } catch {}
+    
     if (!data.personalInfo.email) updatePersonalInfo('email', user.email);
     if (profile?.name && !data.personalInfo.name) updatePersonalInfo('name', profile.name);
     if (profile?.phone && !data.personalInfo.phone) updatePersonalInfo('phone', profile.phone);
     if (profile?.location && !data.personalInfo.location) updatePersonalInfo('location', profile.location);
-  }, [user?.email]);
+    
+    // Sync versions from profile courses after initial load
+    const profileCourses = profile?.courses || [];
+    const courseVersions = profileCourses
+      .map((c: any) => (typeof c === 'string' ? c : c?.title))
+      .filter(Boolean);
+    if (courseVersions.length > 0) {
+      const savedVersions = getSavedVersions();
+      const merged = [...new Set([...savedVersions, ...courseVersions])];
+      const needsUpdate = merged.some(v => !versions.includes(v));
+      if (needsUpdate) {
+        setVersions(merged);
+        saveVersionList(merged);
+      }
+    }
+  }, [user?.email, versions, getSavedVersions, saveVersionList]);
 
   // Prefill resume from profile API (only once, when resume is still default)
   React.useEffect(() => {
@@ -650,38 +680,50 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const downloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const { default: html2canvas } = await import('html2canvas');
       const { default: jsPDF } = await import('jspdf');
+      const name = (data.personalInfo?.name || '').trim() || 'Resume';
+      const html = buildResumeHTML(data);
 
-      // Render a clone offscreen to avoid CSS/visibility issues
-      const previewEl = document.getElementById('resume-preview-content');
-      if (!previewEl) { setPdfLoading(false); return; }
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
 
-      const clone = previewEl.cloneNode(true) as HTMLElement;
-      clone.style.transform = 'none';
-      clone.style.width = '794px';
-      clone.style.position = 'fixed';
-      clone.style.left = '-9999px';
-      clone.style.top = '0';
-      clone.style.zIndex = '-1';
-      clone.style.background = '#ffffff';
-      document.body.appendChild(clone);
+      // Render HTML to canvas via a temp element
+      const temp = document.createElement('div');
+      temp.innerHTML = html;
+      temp.style.position = 'fixed';
+      temp.style.left = '-9999px';
+      temp.style.top = '0';
+      temp.style.width = '794px';
+      temp.style.background = '#ffffff';
+      document.body.appendChild(temp);
 
       try {
-        await new Promise(r => setTimeout(r, 100));
-        const canvas = await html2canvas(clone, {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: '#ffffff',
-          width: 794,
-        });
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
-        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdf.internal.pageSize.getWidth(), pdf.internal.pageSize.getHeight());
-        pdf.save(`${data.personalInfo.name || 'Resume'}.pdf`);
+        const { default: html2canvas } = await import('html2canvas');
+        const totalHeight = temp.scrollHeight;
+        const viewportHeight = temp.clientHeight;
+        const pageCount = Math.max(1, Math.ceil(totalHeight / viewportHeight));
+
+        for (let i = 0; i < pageCount; i++) {
+          if (i > 0) pdf.addPage();
+          temp.style.transform = `translateY(-${i * viewportHeight}px)`;
+          await new Promise(r => setTimeout(r, 150));
+          const canvas = await html2canvas(temp, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: '#ffffff',
+            width: 794,
+            height: viewportHeight,
+            y: i * viewportHeight,
+          });
+          const imgData = canvas.toDataURL('image/jpeg', 1.0);
+          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        }
       } finally {
-        document.body.removeChild(clone);
+        document.body.removeChild(temp);
       }
+
+      pdf.save(`${name}.pdf`);
     } catch (e) {
       console.error('PDF generation failed:', e);
     } finally {
@@ -690,31 +732,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   };
 
   const downloadDOCX = () => {
-    const name = data.personalInfo.name || 'Resume';
-    const lines = [`${name}`];
-    if (data.personalInfo.email || data.personalInfo.phone) lines.push([data.personalInfo.email, data.personalInfo.phone].filter(Boolean).join(' | '));
-    lines.push('');
-    if (data.summary && (Array.isArray(data.summary) ? data.summary.length > 0 : true)) {
-      lines.push('PROFESSIONAL SUMMARY');
-      const pts = Array.isArray(data.summary) ? data.summary : [data.summary];
-      pts.filter(Boolean).forEach(p => lines.push(`• ${p}`));
-      lines.push('');
-    }
-    if (data.experience.length > 0) {
-      lines.push('EXPERIENCE');
-      data.experience.forEach(e => {
-        lines.push(`${e.title} at ${e.company} (${e.duration})`);
-        e.bullets.filter(Boolean).forEach(b => lines.push(`  • ${b}`));
-      });
-      lines.push('');
-    }
-    if (data.education.length > 0) {
-      lines.push('EDUCATION');
-      data.education.forEach(ed => lines.push(`${ed.degree} — ${ed.institution} (${ed.duration})`));
-      lines.push('');
-    }
-    if (data.skills.length > 0) lines.push(`SKILLS: ${data.skills.join(', ')}`);
-    const html = `<html><body style="font-family:Calibri,Arial,sans-serif;font-size:12pt;padding:40px"><pre style="font-family:Calibri,Arial,sans-serif;white-space:pre-wrap">${lines.join('\n')}</pre></body></html>`;
+    const name = (data.personalInfo?.name || '').trim() || 'Resume';
+    const html = buildResumeHTML(data);
     const blob = new Blob([html], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `${name}.doc`; a.click();
@@ -1214,25 +1233,57 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                 ))}
                 <button
                   onClick={() => {
-                    const name = prompt('Version name:');
-                    if (name) {
-                      persistCurrentVersion(activeVersion);
-                      const newList = [...versions, name];
-                      setVersions(newList);
-                      saveVersionList(newList);
-                      const preset = ROLE_PRESETS[name];
-                      if (preset) {
-                        update('summary', preset.summary);
-                        update('skills', preset.skills);
-                        update('targetRole', name);
-                      }
-                      setActiveVersion(name);
-                    }
+                    setShowNewVersionModal(true);
                   }}
                   className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> New Version
                 </button>
+                {showNewVersionModal && (
+                  <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+                    <div className="bg-white rounded-lg p-6 w-96 max-w-md">
+                      <h3 className="text-lg font-semibold mb-4">Create New Resume Version</h3>
+                      <input
+                        type="text"
+                        value={newVersionName}
+                        onChange={(e) => setNewVersionName(e.target.value)}
+                        placeholder="e.g. Frontend Developer"
+                        className="w-full border rounded p-2 mb-4"
+                        autoFocus
+                      />
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setShowNewVersionModal(false)}
+                          className="px-4 py-2 border rounded hover:bg-gray-100"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (newVersionName.trim()) {
+                              persistCurrentVersion(activeVersion);
+                              const newList = [...versions, newVersionName.trim()];
+                              setVersions(newList);
+                              saveVersionList(newList);
+                              const preset = ROLE_PRESETS[newVersionName.trim()];
+                              if (preset) {
+                                update('summary', preset.summary);
+                                update('skills', preset.skills);
+                                update('targetRole', newVersionName.trim());
+                              }
+                              setActiveVersion(newVersionName.trim());
+                              setShowNewVersionModal(false);
+                              setNewVersionName('');
+                            }
+                          }}
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Create
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </nav>
@@ -1331,13 +1382,14 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="p-4 bg-blue-50 rounded-xl text-center">
                 {(function computeScore() {
-                  const hasName = !!data.personalInfo?.name;
-                  const hasEmail = !!data.personalInfo?.email;
-                  const hasSummary = !!data.summary;
+                  const hasName = !!(data.personalInfo?.name?.trim());
+                  const hasEmail = !!(data.personalInfo?.email?.trim());
+                  const hasPhone = !!(data.personalInfo?.phone?.trim());
+                  const hasSummary = typeof data.summary === 'string' ? !!data.summary.trim() : Array.isArray(data.summary) && data.summary.some(s => s?.trim());
                   const hasExperience = data.experience.length > 0;
                   const hasEducation = data.education.length > 0;
                   const hasSkills = data.skills.length > 0;
-                  const items = [hasName, hasEmail, hasSummary, hasExperience, hasEducation, hasSkills];
+                  const items = [hasName, hasEmail, hasPhone, hasSummary, hasExperience, hasEducation, hasSkills];
                   const filled = items.filter(Boolean).length;
                   const completion = Math.round((filled / items.length) * 100);
                   return completion;
@@ -1380,13 +1432,23 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   );
 }
 
+function sanitizeText(s: any): string {
+  if (!s) return '';
+  return String(s)
+    .replace(/\*\*/g, '')
+    .replace(/`/g, '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
 function buildResumeHTML(data: ResumeData): string {
   const n = data.personalInfo;
-  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${e.title}</b> at <b>${e.company}</b>${e.duration ? ` — ${e.duration}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${b}</li>`).join('')}</ul>` : ''}</div>`).join('');
-  const edu = data.education.map(e => `<div>${e.degree} at ${e.institution}${e.duration ? ` — ${e.duration}` : ''}</div>`).join('');
-  const certs = data.certifications.map(c => `<div>${c.name} — ${c.issuer}${c.year ? ` (${c.year})` : ''}</div>`).join('');
-  const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${p.name}</b>${p.role ? ` — ${p.role}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${b}</li>`).join('')}</ul>` : ''}</div>`).join('');
-  const langs = data.languages.map(l => `<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px">${l.language} (${l.proficiency})</span>`).join('');
+  const exp = data.experience.map(e => `<div style="margin-bottom:8px"><b>${sanitizeText(e.title)}</b> at <b>${sanitizeText(e.company)}</b>${e.duration ? ` — ${sanitizeText(e.duration)}` : ''}${e.bullets?.length ? `<ul style="margin:4px 0 0 16px">${e.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const edu = data.education.map(e => `<div>${sanitizeText(e.degree)} at ${sanitizeText(e.institution)}${e.duration ? ` — ${sanitizeText(e.duration)}` : ''}</div>`).join('');
+  const certs = data.certifications.map(c => `<div>${sanitizeText(c.name)} — ${sanitizeText(c.issuer)}${c.year ? ` (${sanitizeText(c.year)})` : ''}</div>`).join('');
+  const projs = data.projects.map(p => `<div style="margin-bottom:6px"><b>${sanitizeText(p.name)}</b>${p.role ? ` — ${sanitizeText(p.role)}` : ''}${p.bullets?.length ? `<ul style="margin:2px 0 0 16px">${p.bullets.filter(Boolean).map(b => `<li>${sanitizeText(b)}</li>`).join('')}</ul>` : ''}</div>`).join('');
+  const langs = data.languages.map(l => `<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px">${sanitizeText(l.language)} (${sanitizeText(l.proficiency)})</span>`).join('');
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${n.name || 'Resume'}</title>
 <style>

@@ -1,14 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { 
   Code, 
-  Database, 
-  Smartphone, 
-  Shield, 
-  Cloud, 
-  Cpu, 
+  Megaphone, 
+  Users, 
+  DollarSign, 
+  HeadphonesIcon, 
+  ShoppingCart, 
   TrendingUp, 
   Palette,
-  ArrowRight
+  ArrowRight,
+  Briefcase,
+  Building2,
+  Stethoscope
 } from 'lucide-react';
 
 interface JobCategoriesProps {
@@ -24,46 +27,46 @@ const categories = [
     searchTerms: ['software developer', 'frontend developer', 'backend developer', 'full stack developer', 'web developer', 'software engineer']
   },
   { 
-    name: 'Data Science & AI', 
-    icon: Database, 
-    gradient: 'from-purple-500 to-pink-600',
-    glow: 'group-hover:shadow-purple-200',
-    searchTerms: ['data scientist', 'machine learning', 'ai engineer', 'data analyst', 'data engineer', 'artificial intelligence']
+    name: 'Digital Marketing', 
+    icon: Megaphone, 
+    gradient: 'from-orange-500 to-pink-600',
+    glow: 'group-hover:shadow-orange-200',
+    searchTerms: ['digital marketing', 'seo specialist', 'social media manager', 'content marketer', 'ppc specialist', 'growth hacker']
   },
   { 
-    name: 'Mobile Development', 
-    icon: Smartphone, 
+    name: 'Human Resources', 
+    icon: Users, 
+    gradient: 'from-violet-500 to-purple-600',
+    glow: 'group-hover:shadow-violet-200',
+    searchTerms: ['hr manager', 'recruiter', 'talent acquisition', 'hr executive', 'people operations', 'human resources']
+  },
+  { 
+    name: 'Finance & Accounting', 
+    icon: DollarSign, 
     gradient: 'from-green-500 to-emerald-600',
     glow: 'group-hover:shadow-green-200',
-    searchTerms: ['mobile developer', 'ios developer', 'android developer', 'react native', 'flutter developer', 'mobile app']
+    searchTerms: ['accountant', 'financial analyst', 'finance manager', 'chartered accountant', 'auditor', 'bookkeeper']
   },
   { 
-    name: 'Cybersecurity', 
-    icon: Shield, 
-    gradient: 'from-red-500 to-orange-600',
-    glow: 'group-hover:shadow-red-200',
-    searchTerms: ['cybersecurity', 'security analyst', 'security engineer', 'penetration tester', 'information security', 'cyber security']
-  },
-  { 
-    name: 'Cloud Engineering', 
-    icon: Cloud, 
+    name: 'Customer Support', 
+    icon: HeadphonesIcon, 
     gradient: 'from-cyan-500 to-blue-600',
     glow: 'group-hover:shadow-cyan-200',
-    searchTerms: ['cloud engineer', 'aws', 'azure', 'gcp', 'devops', 'cloud architect']
+    searchTerms: ['customer support', 'customer service', 'support executive', 'help desk', 'customer success', 'technical support']
   },
   { 
-    name: 'DevOps & Infrastructure', 
-    icon: Cpu, 
+    name: 'Sales & Business Dev', 
+    icon: ShoppingCart, 
     gradient: 'from-yellow-500 to-orange-600',
     glow: 'group-hover:shadow-yellow-200',
-    searchTerms: ['devops', 'infrastructure', 'kubernetes', 'docker', 'ci/cd', 'system administrator']
+    searchTerms: ['sales executive', 'business development', 'account manager', 'sales manager', 'inside sales', 'b2b sales']
   },
   { 
-    name: 'Product Management', 
-    icon: TrendingUp, 
+    name: 'Operations & Admin', 
+    icon: Building2, 
     gradient: 'from-teal-500 to-green-600',
     glow: 'group-hover:shadow-teal-200',
-    searchTerms: ['product manager', 'product owner', 'business analyst', 'project manager', 'scrum master']
+    searchTerms: ['operations manager', 'admin executive', 'office manager', 'operations analyst', 'back office', 'administrative assistant']
   },
   { 
     name: 'UI/UX Design', 
