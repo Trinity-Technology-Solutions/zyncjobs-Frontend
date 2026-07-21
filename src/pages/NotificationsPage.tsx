@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, Filter, Search, Calendar, Briefcase, Users, MessageSquare } from 'lucide-react';
+import { Bell, Check, Trash2, Filter, Search, Calendar, Briefcase, MessageSquare } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
@@ -38,72 +38,16 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
       if (!userEmail) return;
 
       // Fetch notifications from API
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/notifications?userEmail=${encodeURIComponent(userEmail)}`);
+      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/notifications?employerEmail=${encodeURIComponent(userEmail)}`);
       if (response.ok) {
         const data = await response.json();
         setNotifications(data);
-      } else {
-        // Fallback to mock notifications
-        setNotifications(generateMockNotifications());
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
-      setNotifications(generateMockNotifications());
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateMockNotifications = (): Notification[] => {
-    const mockNotifications: Notification[] = [
-      {
-        id: '1',
-        type: 'application',
-        title: 'Application Status Update',
-        message: 'Your application for Software Engineer at TechCorp has been reviewed',
-        read: false,
-        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        data: { jobTitle: 'Software Engineer', company: 'TechCorp' }
-      },
-      {
-        id: '2',
-        type: 'interview',
-        title: 'Interview Scheduled',
-        message: 'Interview scheduled for tomorrow at 2:00 PM for Frontend Developer position',
-        read: false,
-        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-        data: { jobTitle: 'Frontend Developer', time: '2:00 PM' }
-      },
-      {
-        id: '3',
-        type: 'job',
-        title: 'New Job Match',
-        message: 'We found 5 new jobs that match your profile',
-        read: true,
-        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-        data: { matchCount: 5 }
-      },
-      {
-        id: '4',
-        type: 'message',
-        title: 'New Message',
-        message: 'You have a new message from HR at InnovateTech',
-        read: false,
-        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
-        data: { sender: 'HR at InnovateTech' }
-      },
-      {
-        id: '5',
-        type: 'system',
-        title: 'Profile Completion',
-        message: 'Complete your profile to get better job recommendations',
-        read: true,
-        createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-        data: { completionPercentage: 75 }
-      }
-    ];
-
-    return mockNotifications;
   };
 
   const markAsRead = async (notificationId: string) => {
@@ -125,10 +69,8 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
 
   const markAllAsRead = async () => {
     try {
-      await fetch(`${API_ENDPOINTS.BASE_URL}/notifications/mark-all-read`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userEmail: user?.email })
+      await fetch(`${API_ENDPOINTS.BASE_URL}/notifications/user/${user?.email}/read-all`, {
+        method: 'PUT'
       });
       
       setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));

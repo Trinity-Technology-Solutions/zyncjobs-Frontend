@@ -183,29 +183,15 @@ export const alertNotifAPI = {
     return { count: raw.unreadCount ?? raw.count ?? 0 };
   },
 
-  markRead: (id: string, candidateId: string) =>
-    apiFetch(`${BASE}/job-alerts/notifications/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notificationIds: [id], status: 'read', candidateId }),
-    }),
+  markRead: (id: string) =>
+    req(`${BASE}/job-alerts/notifications/${id}/read`, { method: 'PUT' }),
 
-  markAllRead: async (userEmail: string) => {
-    const raw = await req<any>(`${BASE}/job-alerts/notifications/${encodeURIComponent(userEmail)}?status=unread&limit=200`);
-    const list: any[] = Array.isArray(raw) ? raw : raw?.notifications ?? [];
-    if (!list.length) return new Response(null, { status: 200 });
-    const ids = list.map((n: any) => n.id ?? n._id).filter(Boolean);
-    return apiFetch(`${BASE}/job-alerts/notifications/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notificationIds: ids, status: 'read', candidateId: userEmail }),
-    });
-  },
+  markAllRead: (userEmail: string) =>
+    req(
+      `${BASE}/job-alerts/notifications/${encodeURIComponent(userEmail)}/read-all`,
+      { method: 'PUT' }
+    ),
 
-  dismiss: (id: string, candidateId: string) =>
-    apiFetch(`${BASE}/job-alerts/notifications/status`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ notificationIds: [id], status: 'dismissed', candidateId }),
-    }),
+  dismiss: (id: string) =>
+    req(`${BASE}/job-alerts/notifications/${id}/dismiss`, { method: 'PUT' }),
 };
