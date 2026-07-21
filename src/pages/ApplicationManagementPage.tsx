@@ -272,10 +272,28 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
 
   const computeScore = (app: any, skills: string[]) => {
     const candidateSkills = normalizeSkillArray(app.skills || app.candidateSkills || []);
-    if (!skills.length) return profileCompletenessScore(app);
     const normalizedJobSkills = normalizeSkillArray(skills);
-    const matched = normalizedJobSkills.filter(js => candidateSkills.some(cs => cs.includes(js) || js.includes(cs))).length;
-    return Math.round((matched / Math.max(normalizedJobSkills.length, 1)) * 100);
+
+    // Skills score (50%) — matched / jobSkills (not candidateSkills)
+    let skillScore = 0;
+    if (normalizedJobSkills.length > 0 && candidateSkills.length > 0) {
+      const matched = normalizedJobSkills.filter(js =>
+        candidateSkills.some(cs => cs.includes(js) || js.includes(cs))
+      ).length;
+      skillScore = Math.round((matched / normalizedJobSkills.length) * 100);
+    } else if (candidateSkills.length > 0) {
+      skillScore = Math.min(90, candidateSkills.length * 9);
+    }
+
+    // Experience score (25%)
+    const rawExp = app.candidateExperience ?? app.experience ?? app.yearsOfExperience ?? '';
+    const expYears = typeof rawExp === 'number' ? rawExp : parseFloat(String(rawExp).match(/(\d+\.?\d*)/)?.[1] || '0');
+    const expScore = expYears >= 5 ? 100 : expYears >= 3 ? 80 : expYears >= 1 ? 60 : expYears > 0 ? 40 : 20;
+
+    // Completeness score (25%)
+    const completeness = profileCompletenessScore(app);
+
+    return Math.min(99, Math.max(1, Math.round(skillScore * 0.5 + expScore * 0.25 + completeness * 0.25)));
   };
 
   const runAIShortlist = async () => {
@@ -310,14 +328,19 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
           'employer'
         ) as any;
         const result = aiResult?.result || aiResult;
-        if (typeof result?.overallScore === 'number') {
-          score = result.overallScore;
+        const aiScore =
+          result?.match_percentage ??
+          result?.overallScore ??
+          result?.score ??
+          result?.hybrid_score ??
+          null;
+        if (typeof aiScore === 'number' && aiScore > 0) {
+          score = Math.min(99, Math.max(1, Math.round(aiScore)));
           recommendation = result.recommendation;
           aiSummary = result.aiSummary || result.summary;
           breakdown = result.breakdown;
-        } else if (typeof result?.score === 'number') {
-          score = result.score;
         }
+        // else: keep local computeScore result
       } catch (error) {
         console.error('AI Auto-Shortlist failed, using rule score', error);
       }

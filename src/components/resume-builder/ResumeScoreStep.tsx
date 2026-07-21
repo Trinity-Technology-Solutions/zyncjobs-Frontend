@@ -22,7 +22,10 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
     /^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered)/i.test(b.trim())
   );
   const avgBulletLen = bullets.length ? bullets.reduce((s, b) => s + b.length, 0) / bullets.length : 0;
-  const hasBasicInfo = !!(data.personalInfo.name && data.personalInfo.email);
+  const name = (data.personalInfo?.name || '').trim();
+  const email = (data.personalInfo?.email || '').trim();
+  const phone = (data.personalInfo?.phone || '').trim();
+  const hasBasicInfo = !!(name && email);
 
   const skillCategories: Record<string, string[]> = {
     frontend: ['react', 'angular', 'vue', 'svelte', 'html', 'css', 'javascript', 'typescript', 'tailwind', 'bootstrap'],
@@ -45,17 +48,21 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
     ? skillsLower.filter(s => roleKeywords.some(k => s.includes(k))).length
     : 0;
 
+  const atsMin = (!name && !email && data.experience.length === 0 && data.skills.length === 0) ? 0 : undefined;
+
   return [
     {
       label: 'ATS', score: Math.min(100,
-        (data.personalInfo.name ? 8 : 0) + (data.personalInfo.email ? 8 : 0) +
-        (data.personalInfo.phone ? 4 : 0) + (summaryVal ? 15 : 0) +
-        Math.min(15, data.skills.length * 2) +
-        (specificCount >= 3 ? 10 : specificCount >= 1 ? 5 : 0) +
-        skillDiversity +
-        (roleSkillMatch > 0 ? 5 : 0) +
-        (data.experience.length ? 20 : 0) +
-        Math.min(10, bullets.length * 2)
+        atsMin ?? (
+          (name ? 8 : 0) + (email ? 8 : 0) +
+          (phone ? 4 : 0) + (summaryVal ? 15 : 0) +
+          Math.min(15, data.skills.length * 2) +
+          (specificCount >= 3 ? 10 : specificCount >= 1 ? 5 : 0) +
+          skillDiversity +
+          (roleSkillMatch > 0 ? 5 : 0) +
+          (data.experience.length ? 20 : 0) +
+          Math.min(10, bullets.length * 2)
+        )
       ), max: 100, tip: 'Add 8-15 specific, diverse skills. Align skills with target role.', color: 'bg-blue-500', icon: <Target className="w-4 h-4 text-blue-500" />,
     },
     {
@@ -103,7 +110,7 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
     },
     {
       label: 'Confidence', score: Math.min(100,
-        (data.personalInfo.linkedin ? 20 : 0) + (data.personalInfo.portfolio ? 20 : 0) +
+        ((data.personalInfo?.linkedin || '').trim() ? 20 : 0) + ((data.personalInfo?.portfolio || '').trim() ? 20 : 0) +
         ((data.certifications?.length || 0) > 0 ? 20 : 0) + ((data.awards?.length || 0) > 0 ? 20 : 0) +
         (data.experience.length >= 2 ? 20 : data.experience.length * 10)
       ), max: 100, tip: 'Add LinkedIn, portfolio, certs, and 2+ experiences.', color: 'bg-rose-500', icon: <Star className="w-4 h-4 text-rose-500" />,

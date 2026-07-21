@@ -152,11 +152,11 @@ export const useResumeStore = create<ResumeStore>()(
       data: defaultData,
 
       update: (field, value) =>
-        set((s: ResumeStore) => ({ data: { ...s.data, [field]: value } })),
+        set((s: ResumeStore) => ({ data: { ...s.data, [field]: typeof value === 'string' ? value.trim() : value } })),
 
       updatePersonalInfo: (field, value) =>
         set((s: ResumeStore) => ({
-          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
+          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value.trim() } },
         })),
 
       addExperience: () =>

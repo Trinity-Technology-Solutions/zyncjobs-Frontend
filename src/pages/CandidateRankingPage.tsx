@@ -168,87 +168,143 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
         };
       });
 
-      const scored: RankedCandidate[] = enriched.map((app: any) => {
-        const aiScore = app.aiAnalysis?.overallScore || app.aiScore || 0;
-        const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
+      // ── Scoring helpers ────────────────────────────────────────────
+      const STOP = new Set(['strong','experience','in','with','of','and','or','for','the','a','an','knowledge','hands','on','good','understanding','excellent','ability','working','using','familiarity','proficiency','expertise']);
+      const tokenize = (str: string): string[] => {
+        const out: string[] = [];
+        str.toLowerCase().split(/[\s\/\(\),&\.\-\+]+/).forEach(w => { if (w.length > 2 && !STOP.has(w)) out.push(w); });
+        return out;
+      };
 
-        // Tokenizer — strips stop words, splits on punctuation
-        const STOP = new Set(['strong','experience','in','with','of','and','or','for','the','a','an','knowledge','hands','on','good','understanding','excellent','ability','working','using','familiarity','proficiency','expertise']);
-        const tokenize = (str: string): string[] => {
-          const out: string[] = [];
-          str.toLowerCase().split(/[\s\/\(\),&\.\-\+]+/).forEach(w => { if (w.length > 2 && !STOP.has(w)) out.push(w); });
-          return out;
-        };
-
-        // Resolve job data
-        const rawJobIdForScore = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
-        const jobDataForScore = typeof app.jobId === 'object' ? app.jobId : allJobs.find((j: Job) => String(j._id || j.id) === String(rawJobIdForScore));
+      const localScore = (app: any, skills: string[], jobDataForScore: any): number => {
         const jobSkillsForScore: string[] = Array.isArray(jobDataForScore?.skills) ? jobDataForScore.skills : [];
         const jobTitleForScore: string = jobDataForScore?.jobTitle || jobDataForScore?.title || '';
+        const jobDescForScore: string = jobDataForScore?.description || jobDataForScore?.jobDescription || '';
 
-        // 1. Skill Score (60%) — candidate skills vs job skill keywords
+        // 1. Skill match (50%) — against job skills + description keywords
         const jobKw: string[] = [];
         jobSkillsForScore.forEach(s => tokenize(s).forEach(k => { if (!jobKw.includes(k)) jobKw.push(k); }));
+        tokenize(jobDescForScore).forEach(k => { if (k.length > 3 && !jobKw.includes(k)) jobKw.push(k); });
         const matchedSkills = skills.filter(cs =>
           tokenize(cs).some(ct => jobKw.some(jk => ct === jk || ct.includes(jk) || jk.includes(ct)))
         );
-        const sScore = skills.length > 0 && jobKw.length > 0
-          ? Math.round((matchedSkills.length / skills.length) * 100) : 0;
+        // Score based on matched/job-skills ratio (not candidate skills ratio — avoids penalising broad profiles)
+        const sScore = jobSkillsForScore.length > 0
+          ? Math.min(100, Math.round((matchedSkills.length / jobSkillsForScore.length) * 100))
+          : skills.length > 0 ? 40 : 10; // baseline if no job skills defined
 
-        // 2. Title Score (25%) — candidate job title vs job title keyword overlap
-        const candTitleToks = tokenize(app.candidateJobTitle || '');
+        // 2. Title match (25%)
+        const candTitleToks = tokenize(app.candidateJobTitle || app.jobTitle || '');
         const jobTitleToks = tokenize(jobTitleForScore);
         const titleHits = candTitleToks.filter(w => jobTitleToks.some(jw => w === jw || w.includes(jw) || jw.includes(w))).length;
-        const tScore = candTitleToks.length > 0 ? Math.min(100, Math.round((titleHits / candTitleToks.length) * 100)) : 0;
+        const tScore = jobTitleToks.length > 0 && candTitleToks.length > 0
+          ? Math.min(100, Math.round((titleHits / jobTitleToks.length) * 100)) : 0;
 
-        // 3. Experience Score (15%) — experience text relevance to job title keywords
-        const expText = (app.candidateExperience || '').toLowerCase();
+        // 3. Experience score (15%) — years + keyword relevance
+        const expText = (app.candidateExperience || app.experience || '').toLowerCase();
         const expYears = parseInt(expText.match(/(\d+)/)?.[1] || '0');
         const expHits = jobTitleToks.filter(w => expText.includes(w)).length;
         const expRelevance = jobTitleToks.length > 0 ? Math.min(100, Math.round((expHits / jobTitleToks.length) * 100)) : 0;
-        const eScore = Math.round(expRelevance * 0.7 + Math.min(30, expYears * 6) * 0.3);
+        const eScore = Math.round(expRelevance * 0.6 + Math.min(40, expYears * 8) * 0.4);
 
-        // Weighted final score
-        const score = aiScore
-          ? Math.min(99, aiScore)
-          : Math.min(99, Math.max(0, Math.round(sScore * 0.60 + tScore * 0.25 + eScore * 0.15)));
+        // 4. Profile completeness bonus (10%)
+        let completeness = 0;
+        if (app.resumeUrl && !['resume_from_quick_apply','resume_from_profile','resume_uploaded'].includes(app.resumeUrl)) completeness += 40;
+        if (skills.length >= 3) completeness += 30;
+        if (app.candidateEducation && app.candidateEducation !== 'Not specified') completeness += 15;
+        if (app.candidateJobTitle) completeness += 15;
 
-        // Build match reasons
-        const reasons: string[] = [];
-        if (app.aiAnalysis) {
-          if (app.aiAnalysis.skillsScore >= 70) reasons.push('Strong skills match');
-          if (app.aiAnalysis.experienceScore >= 70) reasons.push('Relevant experience');
-          if (app.aiAnalysis.reasons?.length > 0) reasons.push(...app.aiAnalysis.reasons.slice(0, 2));
-        }
-        if (matchedSkills.length > 0) reasons.push(`${matchedSkills.length} of ${skills.length} skills matched`);
-        if (tScore > 60) reasons.push('Job title aligns');
-        if (eScore > 50) reasons.push('Relevant experience');
-        if (app.resumeUrl) reasons.push('Resume attached');
-        if (app.skillsSource?.includes('resume') && app.skillsSource?.includes('profile')) reasons.push('Profile + Resume skills combined');
-        else if (app.skillsSource === 'resume') reasons.push('Skills extracted from resume');
-        if (reasons.length === 0) reasons.push('Candidate profile available');
+        return Math.min(99, Math.max(1, Math.round(
+          sScore * 0.50 + tScore * 0.25 + eScore * 0.15 + completeness * 0.10
+        )));
+      };
 
-        // Extract job info for return object
+      // Score each candidate — try AI hybrid-score, fall back to local
+      const scorePromises = enriched.map(async (app: any) => {
+        const skills: string[] = Array.isArray(app.candidateSkills) ? app.candidateSkills : [];
         const rawJobId = typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId;
         const jobData = typeof app.jobId === 'object' ? app.jobId : allJobs.find((j: Job) => String(j._id || j.id) === String(rawJobId));
+
+        // Use stored aiScore if already computed and non-zero
+        let score = app.aiAnalysis?.overallScore || app.aiScore || 0;
+
+        if (!score) {
+          try {
+            // Call backend hybrid-score with real candidate + job data
+            const res = await apiFetch(`${ENV_ENDPOINTS.BASE_URL}/ranking/hybrid-score`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                candidate: {
+                  skills,
+                  experience: app.candidateExperience || app.experience || '',
+                  education: app.candidateEducation || '',
+                  jobTitle: app.candidateJobTitle || '',
+                  location: app.candidateLocation || '',
+                  name: app.candidateName || '',
+                  email: app.candidateEmail || '',
+                },
+                job: {
+                  title: jobData?.jobTitle || jobData?.title || '',
+                  skills: jobData?.skills || [],
+                  description: jobData?.description || jobData?.jobDescription || '',
+                  location: jobData?.location || '',
+                  experienceRange: jobData?.experienceRange || '',
+                }
+              })
+            });
+            if (res.ok) {
+              const data = await res.json();
+              // API returns {matched, missing, match_percentage} — extract correctly
+              score = data.hybrid_score || data.score || data.overall_score ||
+                      data.hybridScore || data.overallScore ||
+                      data.match_percentage || 0;
+            }
+          } catch { /* fall through to local */ }
+        }
+
+        // Local fallback if AI returned 0 or failed
+        if (!score) score = localScore(app, skills, jobData);
+        score = Math.min(99, Math.max(1, Math.round(score)));
+
+        // Build match reasons
+        const jobSkills: string[] = Array.isArray(jobData?.skills) ? jobData.skills : [];
+        const STOP2 = STOP;
+        const tok2 = tokenize;
+        const jobKw2: string[] = [];
+        jobSkills.forEach(s => tok2(s).forEach(k => { if (!jobKw2.includes(k)) jobKw2.push(k); }));
+        const matchedSkills = skills.filter(cs =>
+          tok2(cs).some(ct => jobKw2.some(jk => ct === jk || ct.includes(jk) || jk.includes(ct)))
+        );
+        const reasons: string[] = [];
+        if (app.aiAnalysis?.reasons?.length > 0) reasons.push(...app.aiAnalysis.reasons.slice(0, 2));
+        if (matchedSkills.length > 0) reasons.push(`${matchedSkills.length} of ${jobSkills.length || skills.length} skills matched`);
+        if (score >= 70) reasons.push('Strong overall match');
+        if (app.resumeUrl && !['resume_from_quick_apply','resume_from_profile','resume_uploaded'].includes(app.resumeUrl)) reasons.push('Resume attached');
+        if (app.skillsSource?.includes('resume')) reasons.push('Skills from resume');
+        if (app.candidateJobTitle) reasons.push(`Title: ${app.candidateJobTitle}`);
+        if (reasons.length === 0) reasons.push('Profile available');
 
         return {
           id: app._id || app.id,
           name: app.candidateName || app.candidateEmail || 'Candidate',
           email: app.candidateEmail || '',
           rank: 0,
-          score, 
-          jobTitle: app.jobTitle || jobData?.jobTitle || jobData?.title || 'Position', 
-          jobId: String(jobData?._id || jobData?.id || (typeof app.jobId === 'object' ? (app.jobId?._id || app.jobId?.id) : app.jobId) || ''), 
-          skills, 
-          experience: app.candidateExperience || 'Not specified', 
-          education: app.candidateEducation || 'Not specified', 
-          interviewStatus: (app.status === 'hired' ? 'hired' : app.status === 'rejected' ? 'rejected' : app.status === 'interviewed' ? 'completed' : app.status === 'shortlisted' ? 'scheduled' : 'not_scheduled') as RankedCandidate['interviewStatus'], 
-          appliedAt: app.createdAt || '', 
-          profilePicture: app.candidateProfilePicture || '', 
-          matchReasons: reasons 
+          score,
+          jobTitle: app.jobTitle || jobData?.jobTitle || jobData?.title || 'Position',
+          jobId: String(jobData?._id || jobData?.id || rawJobId || ''),
+          skills,
+          experience: app.candidateExperience || 'Not specified',
+          education: app.candidateEducation || 'Not specified',
+          interviewStatus: (app.status === 'hired' ? 'hired' : app.status === 'rejected' ? 'rejected' : app.status === 'interviewed' ? 'completed' : app.status === 'shortlisted' ? 'scheduled' : 'not_scheduled') as RankedCandidate['interviewStatus'],
+          appliedAt: app.createdAt || '',
+          profilePicture: app.candidateProfilePicture || '',
+          matchReasons: reasons
         };
       });
+
+      const scored: RankedCandidate[] = await Promise.all(scorePromises);
+
 
       const groups: Record<string, RankedCandidate[]> = {};
       scored.forEach(c => { 

@@ -53,7 +53,14 @@ function extractReply(data: any): string {
   if (r.job_description) return r.job_description;
   if (r.roadmap) return typeof r.roadmap === 'string' ? r.roadmap : `Roadmap generated! Visit the Career Roadmap page for full details.`;
   if (r.assessment) return r.assessment;
-  if (r.career_path && Array.isArray(r.career_path)) return `Career path ready with ${r.career_path.length} steps. ${r.advice || ''} Visit the Career Roadmap page for full details.`;
+  if (r.career_path && Array.isArray(r.career_path)) {
+    const steps = r.career_path.map((s: any, i: number) =>
+      `**Step ${i + 1}: ${s.title || s.role || ''}** (${s.estimated_months ? s.estimated_months + ' months' : ''})
+${s.description || ''}
+Skills: ${Array.isArray(s.skills_to_learn) ? s.skills_to_learn.join(', ') : ''}`
+    ).join('\n\n');
+    return `Here's your career path (${r.career_path.length} steps):\n\n${steps}\n\n${r.advice ? '💡 ' + r.advice : ''}`.trim();
+  }
   if (r.questions && Array.isArray(r.questions)) return `Generated ${r.questions.length} questions. Visit the Skill Assessment page to take the test.`;
   if (r.missing_skills) return `Skill gap: missing ${(r.missing_skills as string[]).slice(0, 4).join(', ')}. Visit Skill Gap Analysis for details.`;
   if (intent === 'RESUME_BUILDER' && r.summary) return `Resume outline:\n\nSummary: ${r.summary}\n\nKey Skills: ${[...(r.skills_formatted?.technical || []), ...(r.skills_formatted?.soft || [])].slice(0, 6).join(', ')}\n\nATS Keywords: ${(r.ats_keywords || []).slice(0, 5).join(', ')}\n\nVisit the Resume Builder page to build your full resume!`;
@@ -188,8 +195,22 @@ export async function generateCareerRoadmap(
     };
   }
 
-  // If reply is conversational text (CHAT fallback), throw so caller uses local fallback
-  if (result.reply) throw new Error('AI returned chat reply instead of roadmap');
+  // If reply is conversational text (CHAT fallback), build a minimal roadmap from it
+  if (result.reply || typeof result === 'string') {
+    const text = result.reply || result;
+    return {
+      currentRole,
+      targetRole,
+      totalTimeframe: '12-18 months',
+      summary: typeof text === 'string' ? text : `Roadmap from ${currentRole} to ${targetRole}.`,
+      steps: [
+        { step: 1, title: 'Build Core Skills', timeframe: '3-6 months', skills: [], description: `Focus on skills required for ${targetRole}.`, milestone: 'Complete foundational learning' },
+        { step: 2, title: 'Build Projects', timeframe: '3-6 months', skills: [], description: 'Apply skills in real projects.', milestone: 'Complete 2-3 portfolio projects' },
+        { step: 3, title: 'Apply & Interview', timeframe: '3-6 months', skills: [], description: `Apply for ${targetRole} roles on ZyncJobs.`, milestone: 'Land your target role' },
+      ],
+      finalTip: typeof text === 'string' ? text : 'Stay consistent and keep building.',
+    };
+  }
 
   throw new Error('Invalid roadmap response from AI agent');
 }

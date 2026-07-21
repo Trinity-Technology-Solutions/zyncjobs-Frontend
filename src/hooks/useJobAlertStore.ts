@@ -92,8 +92,8 @@ export function useJobAlertStore(userEmail: string | undefined) {
       }
       return next;
     });
-    await alertNotifAPI.markRead(id).catch(() => {});
-  }, []);
+    await alertNotifAPI.markRead(id, userEmail ?? '').catch(() => {});
+  }, [userEmail]);
 
   const markAllRead = useCallback(async (): Promise<void> => {
     if (!userEmail) return;
@@ -112,8 +112,8 @@ export function useJobAlertStore(userEmail: string | undefined) {
       }
       return next;
     });
-    await alertNotifAPI.dismiss(id).catch(() => {});
-  }, []);
+    await alertNotifAPI.dismiss(id, userEmail ?? '').catch(() => {});
+  }, [userEmail]);
 
   // ── Socket + polling ──────────────────────────────────────────────────────
 

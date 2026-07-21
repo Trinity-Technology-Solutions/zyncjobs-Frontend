@@ -10,6 +10,8 @@ import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { executeAI } from '../services/aiChatService';
+import { tokenStorage } from '../utils/tokenStorage';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 interface Props {
   onNavigate: (page: string, params?: any) => void;
@@ -111,12 +113,31 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
     generateCoach();
   }, [myAssessments]);
 
-  const fetchMyAssessments = () => {
+  const fetchMyAssessments = async () => {
     const local = Object.keys(localStorage)
       .filter(k => k.startsWith('assessment_local-'))
       .map(k => { try { return JSON.parse(localStorage.getItem(k) || ''); } catch { return null; } })
       .filter((a): a is any => Boolean(a) && typeof a.score === 'number')
       .sort((a: any, b: any) => new Date(b.completedAt || 0).getTime() - new Date(a.completedAt || 0).getTime());
+    // Also fetch from backend
+    try {
+      const token = tokenStorage.getAccess();
+      if (token) {
+        const response = await fetch(`${API_BASE_URL}/skill-assessments/my-assessments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const backendList = await response.json();
+          const merged = [...backendList, ...local.filter(
+            (la: any) => !backendList.some((ba: any) => ba.assessmentId === la.assessmentId || ba.id === la.assessmentId)
+          )];
+          setMyAssessments(merged);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch backend assessments:', e);
+    }
     setMyAssessments(local);
   };
 
@@ -539,6 +560,29 @@ try {
     };
     setResult(res);
     localStorage.setItem(`assessment_local-${assessment.id}`, JSON.stringify(res));
+    // Save to backend so AI Mentor can access results
+    try {
+      const token = tokenStorage.getAccess();
+      if (token) {
+        await fetch(`${API_BASE_URL}/skill-assessments/save-local`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            assessmentId: assessment.id,
+            skill: selectedSkill,
+            score: overallScore,
+            questions: questionResults,
+            answers,
+            timeSpent: (assessment.timeLimit * 60) - timeLeft,
+            skillBreakdown,
+            difficulty: assessment.difficulty,
+            passed: overallScore >= 70,
+          }),
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to save assessment to backend:', e);
+    }
     fetchMyAssessments();
     setLoading(false);
     setStep('result');

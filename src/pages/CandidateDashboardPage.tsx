@@ -3882,6 +3882,54 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       JSON.stringify(raw, null, 2),
                     );
 
+                    // ── Regex fallback helpers ──────────────────────────────
+                    const extractFromText = (text: string) => {
+                      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                      // Name: first non-email, non-phone line that looks like a name
+                      const nameRegex = /^[A-Za-z]+(\s[A-Za-z]+){1,3}$/;
+                      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
+                      const phoneRegex = /[\+]?[\d][\d\s\-().]{7,15}/;
+                      let name = '', email = '', phone = '', location = '';
+                      for (const line of lines.slice(0, 10)) {
+                        if (!name && nameRegex.test(line) && line.length < 50) name = line;
+                        if (!email) { const m = line.match(emailRegex); if (m) email = m[0]; }
+                        if (!phone) { const m = line.match(phoneRegex); if (m) phone = m[0].trim(); }
+                      }
+                      // Location: look for city/state pattern
+                      const locMatch = text.match(/([A-Za-z\s]+,\s*[A-Za-z\s]+(?:,\s*India)?)/m);
+                      if (locMatch) location = locMatch[1].trim();
+                      // Skills: look for skills section
+                      const skillsMatch = text.match(/(?:skills?|technologies|tech stack)[:\s]*([\s\S]{0,400}?)(?:\n[A-Z]|$)/i);
+                      const skills: string[] = [];
+                      if (skillsMatch) {
+                        skillsMatch[1].split(/[,|•\n]/).map(s => s.trim()).filter(s => s.length > 1 && s.length < 40).forEach(s => skills.push(s));
+                      }
+                      // Education
+                      const eduMatch = text.match(/(?:b\.?tech|b\.?e|m\.?tech|mca|bca|b\.?sc|m\.?sc|bachelor|master|degree)[^\n]{0,100}/i);
+                      const educations: any[] = [];
+                      if (eduMatch) {
+                        educations.push({ degree: eduMatch[0].trim(), school: '', date: '' });
+                      }
+                      return { name, email, phone, location, skills, educations };
+                    };
+
+                    // ── Detect flat single-job response from AI ─────────────
+                    // AI sometimes returns a single job entry instead of full resume
+                    const isSingleJobResponse = raw && raw.jobTitle && raw.company && !Array.isArray(raw.workExperiences);
+
+                    // Normalize to full resume shape
+                    let workExperiencesFromAI: any[] = [];
+                    if (isSingleJobResponse) {
+                      workExperiencesFromAI = [{
+                        jobTitle: raw.jobTitle || raw.title || '',
+                        company: raw.company || raw.companyName || '',
+                        date: raw.date || '',
+                        descriptions: Array.isArray(raw.descriptions) ? raw.descriptions : [],
+                      }];
+                    } else {
+                      workExperiencesFromAI = Array.isArray(raw.workExperiences) ? raw.workExperiences : [];
+                    }
+
                     // Support both flat (backend) and nested (ParsedResume) shapes
                     const isNested = raw && typeof raw.profile === "object" && raw.profile !== null;
                     const profileObj = isNested ? raw.profile : raw;
@@ -3901,22 +3949,30 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       if (/^[A-Z\s]+$/.test(n) && n.split(" ").length <= 2 && n.length < 20) return false;
                       return /[a-zA-Z]/.test(n);
                     };
-                    const cleanName = isValidName(profileObj?.name) ? profileObj.name : "";
 
-                    // Build profileData from normalized result
-                    const expArr = Array.isArray(raw.workExperiences) ? raw.workExperiences : [];
+                    // Regex fallback for fields missing from AI response
+                    const regexData = extractFromText(resumeText);
+
+                    const aiName = isValidName(profileObj?.name) ? profileObj.name : '';
+                    const cleanName = aiName || (isValidName(regexData.name) ? regexData.name : '');
+
+                    // Build profileData — AI result takes priority, regex fills gaps
+                    const expArr = workExperiencesFromAI;
+                    const aiSkills = rawSkillsArr.map((s: any) =>
+                      typeof s === "string" ? s : s?.skill || s?.name || ""
+                    ).filter(Boolean);
                     const p = {
                       name: cleanName,
-                      email: profileObj?.email || "",
-                      phone: profileObj?.phone || "",
-                      location: profileObj?.location || "",
+                      email: profileObj?.email || regexData.email || "",
+                      phone: profileObj?.phone || regexData.phone || "",
+                      location: profileObj?.location || regexData.location || "",
                       address: profileObj?.address || null,
                       summary: raw.summary || "",
-                      skills: rawSkillsArr.map((s: any) =>
-                        typeof s === "string" ? s : s?.skill || s?.name || ""
-                      ).filter(Boolean),
+                      skills: aiSkills.length > 0 ? aiSkills : regexData.skills,
                       workExperiences: expArr,
-                      educations: Array.isArray(raw.educations) ? raw.educations : [],
+                      educations: Array.isArray(raw.educations) && raw.educations.length > 0
+                        ? raw.educations
+                        : regexData.educations,
                       projects: Array.isArray(raw.projects) ? raw.projects : [],
                       certifications: raw.certifications || [],
                       jobTitle: profileObj?.title || expArr[0]?.jobTitle || expArr[0]?.title || "",
