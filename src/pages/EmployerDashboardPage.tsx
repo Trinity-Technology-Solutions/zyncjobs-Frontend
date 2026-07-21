@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -72,6 +72,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [error, setError] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
@@ -88,6 +89,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [viewingCandidateId, setViewingCandidateId] = useState<string | null>(null);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [closingJobId, setClosingJobId] = useState<string | null>(null);
+  const [prefs, setPrefs] = useState({
+    newApplications: true,
+    interviewConfirmations: true,
+    jobPostingUpdates: true,
+    weeklySummary: false
+  });
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   const getToken = () => tokenStorage.getAccess();
 
@@ -196,6 +204,96 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       clearInterval(notificationInterval);
     };
   }, []); // Run once on mount only
+
+  // Fetch saved alert preferences on mount
+  useEffect(() => {
+    const fetchPreferences = async () => {
+      try {
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/user-preferences`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const np = data.notificationPreferences;
+        if (np) {
+          setPrefs({
+            newApplications: np.newApplications ?? true,
+            interviewConfirmations: np.interviewConfirmations ?? true,
+            jobPostingUpdates: np.jobPostingUpdates ?? true,
+            weeklySummary: np.weeklySummary ?? false,
+          });
+        }
+      } catch { /* preferences are optional */ }
+    };
+    fetchPreferences();
+  }, []);
+
+  const handleSavePreferences = async () => {
+    setSavingPrefs(true);
+    try {
+      // Check if we have a valid (non-expired) access token and refresh if needed
+      let accessToken = tokenStorage.getAccess();
+      if (accessToken) {
+        try {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]));
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            accessToken = null;
+          }
+        } catch {
+          accessToken = null;
+        }
+      }
+      if (!accessToken) {
+        const refreshToken = tokenStorage.getRefresh();
+        if (refreshToken) {
+          try {
+            const refreshRes = await fetch(`${API_ENDPOINTS.BASE_URL}/users/refresh`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refreshToken }),
+            });
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json();
+              if (refreshData.accessToken) {
+                tokenStorage.setAccess(refreshData.accessToken);
+                accessToken = refreshData.accessToken;
+              }
+            }
+          } catch { /* refresh failed */ }
+        }
+      }
+      if (!accessToken) {
+        showToast('Session expired. Please refresh the page and log in again.', 'error');
+        return;
+      }
+
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/user-preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          notificationPreferences: {
+            newApplications: prefs.newApplications,
+            interviewConfirmations: prefs.interviewConfirmations,
+            jobPostingUpdates: prefs.jobPostingUpdates,
+            weeklySummary: prefs.weeklySummary,
+          }
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || err.message || 'Failed to save preferences');
+      }
+      showToast('Preferences saved successfully', 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : 'Failed to save preferences. Please try again.',
+        'error'
+      );
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
 
   const closeJob = async (jobId: string) => {
     if (!jobId) return;
@@ -2089,21 +2187,27 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Alerts & Notifications</h1>
                 <button
                     onClick={async () => {
+                      if (refreshing || !user?.email) return;
+                      setRefreshing(true);
                       try {
-                        if (user?.email) {
-                          const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
-                          setNotifications(dynamicNotifications);
-                        }
+                        const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
+                        setNotifications(dynamicNotifications);
+                        showToast('Notifications are up to date.', 'success');
                       } catch (error) {
-                        console.error('Error refreshing notifications:', error);
+                        showToast('Failed to refresh notifications. Please try again.', 'error');
+                      } finally {
+                        setRefreshing(false);
                       }
                     }}
-                    className="flex items-center gap-2 text-sm text-gray-600 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
+                    disabled={refreshing}
+                    className={`flex items-center gap-2 text-sm border px-3 py-1.5 rounded transition-colors ${
+                      refreshing
+                        ? 'text-gray-400 border-gray-200 cursor-not-allowed'
+                        : 'text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Refresh
+                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                    {refreshing ? 'Refreshing...' : 'Refresh'}
                   </button>
               </div>
               
@@ -2163,24 +2267,58 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Alert Preferences</h2>
                 <div className="space-y-3">
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.newApplications}
+                      onChange={e => setPrefs(p => ({ ...p, newApplications: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
                     <span className="text-gray-700">New job applications</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.interviewConfirmations}
+                      onChange={e => setPrefs(p => ({ ...p, interviewConfirmations: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
                     <span className="text-gray-700">Interview confirmations</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" defaultChecked className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.jobPostingUpdates}
+                      onChange={e => setPrefs(p => ({ ...p, jobPostingUpdates: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
                     <span className="text-gray-700">Job posting updates</span>
                   </label>
                   <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                    <input
+                      type="checkbox"
+                      checked={prefs.weeklySummary}
+                      onChange={e => setPrefs(p => ({ ...p, weeklySummary: e.target.checked }))}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
                     <span className="text-gray-700">Weekly summary reports</span>
                   </label>
                 </div>
-                <button className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                  Save Preferences
+                <button
+                  onClick={handleSavePreferences}
+                  disabled={savingPrefs}
+                  className={`mt-4 px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
+                    savingPrefs
+                      ? 'bg-blue-400 text-white cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {savingPrefs && (
+                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                  )}
+                  {savingPrefs ? 'Saving…' : 'Save Preferences'}
                 </button>
               </div>
             </>

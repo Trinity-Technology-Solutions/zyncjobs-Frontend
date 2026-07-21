@@ -181,13 +181,33 @@ export function useApplicationNotifications(userEmail: string | undefined) {
 
   const clearToast = useCallback(() => setToast(null), []);
 
-  const clearAll = useCallback(() => {
+  const clearAll = useCallback(async () => {
+    // Optimistic clear — remove all notifications from state immediately
     setNotifications([]);
     localStorage.removeItem(NOTIF_KEY);
+    localStorage.removeItem(STATUS_KEY);
     // Persist a timestamp so that historical DB notifications are never re-fetched
     // by the 30-second polling loop after the user pressed "Clear All".
     localStorage.setItem(CLEARED_AT_KEY, Date.now().toString());
-  }, []);
+    // Reset status tracking so the next poll doesn't recreate stale notifications
+    prevStatusesRef.current = {};
+
+    // Permanently delete notifications on the backend so they never reappear
+    // after page refresh, logout/login, or any other re-fetch.
+    if (userEmail) {
+      try {
+        const res = await fetch(
+          `${API_ENDPOINTS.BASE_URL}/notifications/user/email/${encodeURIComponent(userEmail)}/clear-all`,
+          { method: 'DELETE' }
+        );
+        if (!res.ok) {
+          console.error('Clear all API failed:', res.status, await res.text().catch(() => ''));
+        }
+      } catch (e) {
+        console.error('Clear all network error:', e);
+      }
+    }
+  }, [userEmail]);
 
   return { notifications, unreadCount, toast, clearToast, markRead, markAllRead, clearAll };
 }

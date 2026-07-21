@@ -66,6 +66,8 @@ export function useJobAlerts(userEmail: string | undefined) {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const previousNotificationsRef = useRef<AlertNotification[]>([]);
+  const previousUnreadCountRef = useRef<number>(0);
 
   // ── Fetch alerts ─────────────────────────────────────────────────────────────
   const fetchAlerts = useCallback(async () => {
@@ -104,8 +106,9 @@ export function useJobAlerts(userEmail: string | undefined) {
         return true;
       });
 
-      setNotifications(deduped);
-      const unread = deduped.filter(n => n.status === 'unread').length;
+      const active = deduped.filter(n => n.status !== 'dismissed');
+      setNotifications(active);
+      const unread = active.filter(n => n.status === 'unread').length;
       setUnreadCount(unread);
       persistUnread(unread);
     } catch { /* silent */ } finally {
@@ -190,8 +193,10 @@ export function useJobAlerts(userEmail: string | undefined) {
     [fetchAlerts]
   );
 
-  // ── Mark single notification read (optimistic) ────────────────────────────────
+  // ── Mark single notification read (optimistic + rollback) ────────────────────
   const markRead = useCallback(async (id: string): Promise<void> => {
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
     setNotifications(prev => {
       const wasUnread = prev.find(n => n._id === id)?.status === 'unread';
       const next = prev.map(n => (n._id === id ? { ...n, status: 'read' as const } : n));
@@ -202,27 +207,45 @@ export function useJobAlerts(userEmail: string | undefined) {
       }
       return next;
     });
-    await apiFetch(`${API_ENDPOINTS.BASE_URL}/job-alerts/notifications/${id}/read`, {
-      method: 'PUT',
-    }).catch(() => {});
-  }, []);
+    try {
+      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/job-alerts/notifications/${id}/read`, {
+        method: 'PUT',
+      });
+      if (!res.ok) throw new Error('Failed to mark as read');
+    } catch {
+      setNotifications(previousNotificationsRef.current);
+      setUnreadCount(previousUnreadCountRef.current);
+      persistUnread(previousUnreadCountRef.current);
+    }
+  }, [notifications, unreadCount]);
 
-  // ── Mark all read (optimistic) ────────────────────────────────────────────────
+  // ── Mark all read (optimistic + rollback) ────────────────────────────────────
   const markAllRead = useCallback(async (): Promise<void> => {
     if (!userEmail) return;
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
     setNotifications(prev =>
       prev.map(n => (n.status === 'unread' ? { ...n, status: 'read' as const } : n))
     );
     setUnreadCount(0);
     persistUnread(0);
-    await apiFetch(
-      `${API_ENDPOINTS.BASE_URL}/job-alerts/notifications/${encodeURIComponent(userEmail)}/read-all`,
-      { method: 'PUT' }
-    ).catch(() => {});
-  }, [userEmail]);
+    try {
+      const res = await apiFetch(
+        `${API_ENDPOINTS.BASE_URL}/job-alerts/notifications/${encodeURIComponent(userEmail)}/read-all`,
+        { method: 'PUT' }
+      );
+      if (!res.ok) throw new Error('Failed to mark all as read');
+    } catch {
+      setNotifications(previousNotificationsRef.current);
+      setUnreadCount(previousUnreadCountRef.current);
+      persistUnread(previousUnreadCountRef.current);
+    }
+  }, [userEmail, notifications, unreadCount]);
 
-  // ── Dismiss notification (optimistic) ────────────────────────────────────────
+  // ── Dismiss notification (optimistic + rollback) ──────────────────────────────
   const dismissNotification = useCallback(async (id: string): Promise<void> => {
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
     setNotifications(prev => {
       const wasUnread = prev.find(n => n._id === id)?.status === 'unread';
       const next = prev.map(n =>
@@ -235,11 +258,18 @@ export function useJobAlerts(userEmail: string | undefined) {
       }
       return next;
     });
-    await apiFetch(
-      `${API_ENDPOINTS.BASE_URL}/job-alerts/notifications/${id}/dismiss`,
-      { method: 'PUT' }
-    ).catch(() => {});
-  }, []);
+    try {
+      const res = await apiFetch(
+        `${API_ENDPOINTS.BASE_URL}/job-alerts/notifications/${id}/dismiss`,
+        { method: 'PUT' }
+      );
+      if (!res.ok) throw new Error('Failed to dismiss');
+    } catch {
+      setNotifications(previousNotificationsRef.current);
+      setUnreadCount(previousUnreadCountRef.current);
+      persistUnread(previousUnreadCountRef.current);
+    }
+  }, [notifications, unreadCount]);
 
   // ── Socket + polling ──────────────────────────────────────────────────────────
   useEffect(() => {
