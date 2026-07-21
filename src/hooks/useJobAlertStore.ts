@@ -19,6 +19,8 @@ export function useJobAlertStore(userEmail: string | undefined) {
   const [alertsLoading, setAlertsLoading] = useState(false);
   const [notifLoading, setNotifLoading] = useState(false);
   const socketRef = useRef<Socket | null>(null);
+  const previousNotificationsRef = useRef<AlertNotification[]>([]);
+  const previousUnreadCountRef = useRef<number>(0);
 
   const fetchAlerts = useCallback(async () => {
     if (!userEmail) return;
@@ -39,8 +41,12 @@ export function useJobAlertStore(userEmail: string | undefined) {
       const list: AlertNotification[] = Array.isArray(raw) ? raw : (raw as any).notifications ?? [];
       const seen = new Set<string>();
       const deduped = list.filter(n => { if (seen.has(n._id)) return false; seen.add(n._id); return true; });
-      setNotifications(deduped);
-      const unread = deduped.filter(n => n.status === 'unread').length;
+      // Permanently exclude dismissed notifications — they only stay in local
+      // state until the next fetch (the optimistic dismiss keeps them briefly
+      // for the "Dismissed" tab, then they're gone after refresh).
+      const active = deduped.filter(n => n.status !== 'dismissed');
+      setNotifications(active);
+      const unread = active.filter(n => n.status === 'unread').length;
       setUnreadCount(unread);
       persist(unread);
     } catch { /* silent */ } finally {
@@ -83,6 +89,8 @@ export function useJobAlertStore(userEmail: string | undefined) {
   }, [fetchAlerts]);
 
   const markRead = useCallback(async (id: string): Promise<void> => {
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
     setNotifications(prev => {
       const wasUnread = prev.find(n => n._id === id)?.status === 'unread';
       const next = prev.map(n => n._id === id ? { ...n, status: 'read' as const } : n);
@@ -92,17 +100,33 @@ export function useJobAlertStore(userEmail: string | undefined) {
       }
       return next;
     });
-    await alertNotifAPI.markRead(id).catch(() => {});
-  }, []);
+    try {
+      await alertNotifAPI.markRead(id);
+    } catch {
+      setNotifications(previousNotificationsRef.current);
+      setUnreadCount(previousUnreadCountRef.current);
+      persist(previousUnreadCountRef.current);
+    }
+  }, [notifications, unreadCount]);
 
   const markAllRead = useCallback(async (): Promise<void> => {
     if (!userEmail) return;
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
     setNotifications(prev => prev.map(n => n.status === 'unread' ? { ...n, status: 'read' as const } : n));
     setUnreadCount(0); persist(0);
-    await alertNotifAPI.markAllRead(userEmail).catch(() => {});
-  }, [userEmail]);
+    try {
+      await alertNotifAPI.markAllRead(userEmail);
+    } catch {
+      setNotifications(previousNotificationsRef.current);
+      setUnreadCount(previousUnreadCountRef.current);
+      persist(previousUnreadCountRef.current);
+    }
+  }, [userEmail, notifications, unreadCount]);
 
   const dismissNotification = useCallback(async (id: string): Promise<void> => {
+    previousNotificationsRef.current = notifications;
+    previousUnreadCountRef.current = unreadCount;
     setNotifications(prev => {
       const wasUnread = prev.find(n => n._id === id)?.status === 'unread';
       const next = prev.map(n => n._id === id ? { ...n, status: 'dismissed' as const } : n);
@@ -112,8 +136,14 @@ export function useJobAlertStore(userEmail: string | undefined) {
       }
       return next;
     });
-    await alertNotifAPI.dismiss(id).catch(() => {});
-  }, []);
+    try {
+      await alertNotifAPI.dismiss(id);
+    } catch {
+      setNotifications(previousNotificationsRef.current);
+      setUnreadCount(previousUnreadCountRef.current);
+      persist(previousUnreadCountRef.current);
+    }
+  }, [notifications, unreadCount]);
 
   // ── Socket + polling ──────────────────────────────────────────────────────
 

@@ -184,14 +184,14 @@ export const alertNotifAPI = {
   },
 
   markRead: (id: string) =>
-    apiFetch(`${BASE}/job-alerts/notifications/${id}/read`, { method: 'PUT' }),
+    req(`${BASE}/job-alerts/notifications/${id}/read`, { method: 'PUT' }),
 
   markAllRead: (userEmail: string) =>
-    apiFetch(
+    req(
       `${BASE}/job-alerts/notifications/${encodeURIComponent(userEmail)}/read-all`,
       { method: 'PUT' }
     ),
 
   dismiss: (id: string) =>
-    apiFetch(`${BASE}/job-alerts/notifications/${id}/dismiss`, { method: 'PUT' }),
+    req(`${BASE}/job-alerts/notifications/${id}/dismiss`, { method: 'PUT' }),
 };
