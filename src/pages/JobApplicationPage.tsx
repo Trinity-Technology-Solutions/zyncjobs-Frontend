@@ -6,7 +6,6 @@ import { apiFetch } from '../api/apiFetch';
 import { validateUserResume } from '../utils/resumeValidation';
 import { S3Service } from '../services/s3Service';
 import Header from '../components/Header';
-import { parseResumeFromText } from '../components/resume-parser/parseLogic';
 
 interface JobApplicationPageProps {
   onNavigate: (page: string) => void;
@@ -48,6 +47,11 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
         const profileData = profileRes.ok ? await profileRes.json() : {};
         const merged = { ...userData, ...profileData };
         setProfile(merged);
+
+        // Pre-load profile skills into resumeSkills so existing resume users get scored
+        if (Array.isArray(profileData.skills) && profileData.skills.length > 0) {
+          setResumeSkills(profileData.skills);
+        }
         
         // Validate resume using the utility
         const resumeValidation = await validateUserResume(userData.email);
@@ -74,12 +78,29 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
       setResumeFile(file);
       setResumeFileName(file.name);
 
-      // Parse resume and extract skills
+      // Parse resume via backend (handles PDF properly)
       try {
-        const text = await file.text();
-        const parsed = await parseResumeFromText(text);
-        const skills = parsed.skills?.featuredSkills?.map((s: any) => s.skill).filter(Boolean) || [];
-        setResumeSkills(skills);
+        const formData = new FormData();
+        formData.append('resume', file);
+        const parseRes = await apiFetch(`${API_ENDPOINTS.BASE_URL}/resume/parse-profile`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (parseRes.ok) {
+          const parsed = await parseRes.json();
+          const skills: string[] = [
+            ...(parsed.profileData?.skills || parsed.skills || []),
+          ].filter(Boolean);
+          if (skills.length > 0) {
+            setResumeSkills(skills);
+            // Save skills back to profile so future applications are scored correctly
+            await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(userData.email)}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ skills }),
+            });
+          }
+        }
       } catch { /* skills extraction failure is non-blocking */ }
       
       // Update localStorage with resume info so ResumeStatusIndicator picks it up

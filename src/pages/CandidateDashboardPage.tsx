@@ -3872,77 +3872,54 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       JSON.stringify(hybridData, null, 2),
                     );
 
-                    // Transform to frontend format using shared transform
-                    // NOTE: hybrid-parse returns parsed resume directly, NOT rankings.
-                    // The transformHybridToFrontendFormat is for RANKING results only.
-                    // Use hybridData directly as it should match ParsedResume format.
-                    const transformed = hybridData.hybridData || hybridData;
+                    // Normalize response — backend returns a flat object:
+                    // { name, email, phone, skills[], workExperiences[], educations[], ... }
+                    // The frontend previously expected a nested ParsedResume shape with
+                    // .profile.name / .skills.featuredSkills — that caused the crash.
+                    const raw = hybridData.hybridData || hybridData;
                     console.log(
                       "[ResumePopup] Parsed resume data:",
-                      JSON.stringify(transformed, null, 2),
+                      JSON.stringify(raw, null, 2),
                     );
 
-                    const tf = transformed || {
-                      profile: {} as any,
-                      skills: { featuredSkills: [] },
-                      workExperiences: [],
-                      educations: [],
-                      projects: [],
-                      certifications: [],
-                      summary: "",
-                    };
+                    // Support both flat (backend) and nested (ParsedResume) shapes
+                    const isNested = raw && typeof raw.profile === "object" && raw.profile !== null;
+                    const profileObj = isNested ? raw.profile : raw;
+                    const rawSkillsArr: any[] = isNested
+                      ? (raw.skills?.featuredSkills ?? [])
+                      : (Array.isArray(raw.skills) ? raw.skills : []);
 
                     // Sanitize name — reject section headings
                     const SECTION_HEADINGS = new Set([
-                      "about me",
-                      "about",
-                      "summary",
-                      "objective",
-                      "profile",
-                      "overview",
-                      "experience",
-                      "work experience",
-                      "education",
-                      "skills",
-                      "projects",
-                      "certifications",
-                      "contact",
+                      "about me", "about", "summary", "objective", "profile",
+                      "overview", "experience", "work experience", "education",
+                      "skills", "projects", "certifications", "contact",
                     ]);
                     const isValidName = (n: string) => {
                       if (!n || n.length < 2 || n.length > 60) return false;
                       if (SECTION_HEADINGS.has(n.toLowerCase())) return false;
-                      if (
-                        /^[A-Z\s]+$/.test(n) &&
-                        n.split(" ").length <= 2 &&
-                        n.length < 20
-                      )
-                        return false;
+                      if (/^[A-Z\s]+$/.test(n) && n.split(" ").length <= 2 && n.length < 20) return false;
                       return /[a-zA-Z]/.test(n);
                     };
-                    const cleanName = isValidName(tf.profile.name)
-                      ? tf.profile.name
-                      : "";
+                    const cleanName = isValidName(profileObj?.name) ? profileObj.name : "";
 
-                    // Build profileData from transformed result
-                    const expArr = Array.isArray(tf.workExperiences)
-                      ? tf.workExperiences
-                      : [];
+                    // Build profileData from normalized result
+                    const expArr = Array.isArray(raw.workExperiences) ? raw.workExperiences : [];
                     const p = {
                       name: cleanName,
-                      email: tf.profile.email,
-                      phone: tf.profile.phone,
-                      location: tf.profile.location,
-                      address: tf.profile.address,
-                      summary: tf.summary,
-                      skills: tf.skills.featuredSkills.map((s: any) => s.skill),
+                      email: profileObj?.email || "",
+                      phone: profileObj?.phone || "",
+                      location: profileObj?.location || "",
+                      address: profileObj?.address || null,
+                      summary: raw.summary || "",
+                      skills: rawSkillsArr.map((s: any) =>
+                        typeof s === "string" ? s : s?.skill || s?.name || ""
+                      ).filter(Boolean),
                       workExperiences: expArr,
-                      educations: tf.educations,
-                      projects: tf.projects,
-                      certifications: tf.certifications,
-                      jobTitle:
-                        expArr[0]?.jobTitle ||
-                        expArr[0]?.title ||
-                        "",
+                      educations: Array.isArray(raw.educations) ? raw.educations : [],
+                      projects: Array.isArray(raw.projects) ? raw.projects : [],
+                      certifications: raw.certifications || [],
+                      jobTitle: profileObj?.title || expArr[0]?.jobTitle || expArr[0]?.title || "",
                     };
                     // 2. Upload resume file to S3
                     const s3Result =

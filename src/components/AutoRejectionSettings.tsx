@@ -69,15 +69,13 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       const userEmail = user.email;
       if (!userEmail) return;
 
-      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}`);
+      const response = await fetch(`${API_ENDPOINTS.APPLICATIONS}?employerEmail=${encodeURIComponent(userEmail)}`);
       if (!response.ok) return;
 
       const allApplications = await response.json();
       const applications = Array.isArray(allApplications) ? allApplications : allApplications.applications || [];
 
-      const employerApplications = applications.filter((app: any) =>
-        app.employerEmail === userEmail
-      );
+      const employerApplications = applications;
 
       // Fetch job details only (not candidate profile — use application data directly)
       const appsWithData = await Promise.all(

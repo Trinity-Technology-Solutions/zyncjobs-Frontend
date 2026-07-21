@@ -141,15 +141,35 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     }
   }, [qaStep, completeness]);
 
-  // Resume versioning
-  const [versions, setVersions] = useState<string[]>([
-    'Master Resume',
-    'Frontend Engineer',
-    'Backend Engineer',
-    'DevOps Engineer',
-  ]);
-  const [activeVersion, setActiveVersion] = useState('Master Resume');
+  // Resume versioning with per-version data persistence
+  const VERSIONS_KEY = 'zyncjobs-resume-versions';
+  const VERSION_DATA_PREFIX = 'zyncjobs-resume-v-';
+  const getSavedVersions = (): string[] => {
+    try { return JSON.parse(localStorage.getItem(VERSIONS_KEY) || '["Master Resume","Frontend Engineer","Backend Engineer","DevOps Engineer"]'); } catch { return ['Master Resume']; }
+  };
+  const saveVersionList = (list: string[]) => { try { localStorage.setItem(VERSIONS_KEY, JSON.stringify(list)); } catch {} };
+  const loadVersionData = (versionName: string) => {
+    try {
+      const raw = localStorage.getItem(VERSION_DATA_PREFIX + versionName);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return null;
+  };
+  const persistCurrentVersion = (versionName: string) => {
+    try { localStorage.setItem(VERSION_DATA_PREFIX + versionName, JSON.stringify(data)); } catch {}
+  };
+
+  const [versions, setVersions] = useState<string[]>(() => getSavedVersions());
+  const [activeVersion, setActiveVersion] = useState<string>('Master Resume');
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'offline' | 'syncing'>('saved');
+
+  // On mount, load active version data
+  useEffect(() => {
+    const saved = loadVersionData(activeVersion);
+    if (saved && JSON.stringify(saved) !== JSON.stringify(data)) {
+      Object.keys(saved).forEach((k) => update(k as any, saved[k]));
+    }
+  }, []);
 
   // Undo/redo stack
   const historyRef = useRef<string[]>([JSON.stringify(data)]);
@@ -182,6 +202,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     const t = setTimeout(() => {
       touchSave();
       pushHistory();
+      persistCurrentVersion(activeVersion);
       setSaveStatus('saved');
     }, 500);
     return () => clearTimeout(t);
@@ -1175,7 +1196,15 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                 {versions.map((v) => (
                   <button
                     key={v}
-                    onClick={() => setActiveVersion(v)}
+                    onClick={() => {
+                      if (v === activeVersion) return;
+                      persistCurrentVersion(activeVersion);
+                      const saved = loadVersionData(v);
+                      if (saved) {
+                        Object.keys(saved).forEach((k) => update(k as any, saved[k]));
+                      }
+                      setActiveVersion(v);
+                    }}
                     className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center gap-3
                       ${v === activeVersion ? 'text-blue-700 font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}
                   >
@@ -1184,7 +1213,22 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                   </button>
                 ))}
                 <button
-                  onClick={() => { const name = prompt('Version name:'); if (name) { setVersions([...versions, name]); setActiveVersion(name); } }}
+                  onClick={() => {
+                    const name = prompt('Version name:');
+                    if (name) {
+                      persistCurrentVersion(activeVersion);
+                      const newList = [...versions, name];
+                      setVersions(newList);
+                      saveVersionList(newList);
+                      const preset = ROLE_PRESETS[name];
+                      if (preset) {
+                        update('summary', preset.summary);
+                        update('skills', preset.skills);
+                        update('targetRole', name);
+                      }
+                      setActiveVersion(name);
+                    }
+                  }}
                   className="w-full text-left px-4 py-2.5 text-sm text-blue-600 hover:bg-blue-50 flex items-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> New Version
@@ -1286,8 +1330,19 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
             <div className="grid grid-cols-2 gap-3 mb-6">
               <div className="p-4 bg-blue-50 rounded-xl text-center">
-                <p className="text-2xl font-bold text-blue-600">{Math.min(95, 60 + data.skills.length * 3 + (data.summary ? 10 : 0))}%</p>
-                <p className="text-xs text-gray-500">ATS Score</p>
+                {(function computeScore() {
+                  const hasName = !!data.personalInfo?.name;
+                  const hasEmail = !!data.personalInfo?.email;
+                  const hasSummary = !!data.summary;
+                  const hasExperience = data.experience.length > 0;
+                  const hasEducation = data.education.length > 0;
+                  const hasSkills = data.skills.length > 0;
+                  const items = [hasName, hasEmail, hasSummary, hasExperience, hasEducation, hasSkills];
+                  const filled = items.filter(Boolean).length;
+                  const completion = Math.round((filled / items.length) * 100);
+                  return completion;
+                })()}%
+                <p className="text-xs text-gray-500">Completion</p>
               </div>
               <div className="p-4 bg-green-50 rounded-xl text-center">
                 <p className="text-2xl font-bold text-green-600">{data.experience.length + (data.projects?.length || 0) + (data.certifications?.length || 0)}</p>

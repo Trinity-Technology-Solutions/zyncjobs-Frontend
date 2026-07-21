@@ -38,6 +38,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
   const [aiMentorOpen, setAiMentorOpen] = useState(false);
   const [mentorInput, setMentorInput] = useState('');
   const [mentorChat, setMentorChat] = useState<{ role: string; content: string }[]>([]);
+  const [mentorLoading, setMentorLoading] = useState(false);
   const [aiSkillSuggestions, setAiSkillSuggestions] = useState<any[]>(() => {
     try { return JSON.parse(localStorage.getItem(SKILL_CACHE_KEY) || '[]'); } catch { return []; }
   });
@@ -243,9 +244,9 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
   // AI-powered: evaluate answers and generate skill breakdown
   const aiEvaluateAnswers = async (questions: any[], answers: any[], skill: string) => {
     try {
-      const evalData = questions.filter((q: any) => q.correct !== undefined).map((q: any, i: number) => ({
-        question: q.question, correct: q.options?.[q.correct], userAnswer: q.options?.[answers[i]],
-        isCorrect: q.correct === answers[i],
+      const evalData = questions.filter((q: any) => q.correct !== undefined || q.correctAnswer !== undefined).map((q: any, i: number) => ({
+        question: q.question, correct: q.options?.[q.correct ?? q.correctAnswer], userAnswer: q.options?.[answers[i]],
+        isCorrect: (q.correct ?? q.correctAnswer) === answers[i],
       }));
       const prompt = `Evaluate this ${skill} assessment. Score each skill area (0-100%). Student answered ${evalData.filter((e: any) => e.isCorrect).length}/${evalData.length} correct.
 Return ONLY JSON: { "skillScores": {"SkillName": score}, "missingSkills": ["skill1","skill2"], "confidence": "high|medium|low", "feedback": "2-3 sentence summary" }
@@ -473,7 +474,7 @@ try {
       ],
     };
     const questions = bank[skill] || generateGenericForSkill(skill, activeTypes);
-    return questions.filter((q: any) => activeTypes.includes(q.type)).map((q: any, i: number) => ({ ...q, id: i + 1 }));
+    return questions.map((q: any, i: number) => ({ ...q, id: i + 1 }));
   };
 
   const generateGenericForSkill = (skill: string, types?: string[]) => {
@@ -494,13 +495,15 @@ try {
     let correctCount = 0;
     const questionResults = assessment.questions.map((q: any, i: number) => {
       const a = answers[i];
-      const isCorrect = q.correct !== undefined && a === q.correct;
+      // support both field names: fallback questions use `correct`, AI questions use `correctAnswer`
+      const correctIdx = q.correct !== undefined ? q.correct : q.correctAnswer;
+      const isCorrect = correctIdx !== undefined && a === correctIdx;
       if (isCorrect) correctCount++;
-      return { ...q, userAnswer: a, isCorrect, points: isCorrect ? 10 : 0 };
+      return { ...q, correct: correctIdx, userAnswer: a, isCorrect, points: isCorrect ? 10 : 0 };
     });
     const mcqScore = assessment.questions.filter((q: any) => q.type === 'mcq').length > 0
       ? Math.round((correctCount / assessment.questions.filter((q: any) => q.type === 'mcq').length) * 100) : 0;
-    const overallScore = Math.min(100, Math.round((correctCount / Math.max(1, assessment.questions.filter((q: any) => q.correct !== undefined).length)) * 100));
+    const overallScore = Math.min(100, Math.round((correctCount / Math.max(1, assessment.questions.filter((q: any) => q.correct !== undefined || q.correctAnswer !== undefined).length)) * 100));
 
     // AI-powered evaluation
     let skillBreakdown: Record<string, number> = {};
@@ -569,20 +572,41 @@ try {
   };
 
   const askMentor = async () => {
-    if (!mentorInput.trim()) return;
-    setMentorChat(prev => [...prev, { role: 'user', content: mentorInput }]);
+    if (!mentorInput.trim() || mentorLoading) return;
     const q = mentorInput;
+    setMentorChat(prev => [...prev, { role: 'user', content: q }]);
     setMentorInput('');
-    const data = await executeAI(
-      `career advice: ${q}`,
-      {
-        systemPrompt: `You are an AI mentor for ${selectedSkill} skill assessment. The user is asking about their assessment answers. Explain clearly and educationally. Focus only on ${selectedSkill} concepts.`,
-        skill: selectedSkill,
-        context_type: 'skill_assessment_mentor',
-      }
-    );
-    const reply = (data as any)?.result?.reply || (data as any)?.result?.advice || (data as any)?.result?.assessment || 'Great question! Let me explain...';
-    setMentorChat(prev => [...prev, { role: 'ai', content: reply }]);
+    setMentorLoading(true);
+
+    // Build structured question list with num, question text, options, answers
+    const questions = (result?.questions || []).map((q: any, i: number) => ({
+      num: i + 1,
+      question: q.question || q.title || q.scenario || '',
+      options: q.options || [],
+      userAnswer: q.options?.[q.userAnswer] ?? (q.userAnswer != null ? String(q.userAnswer) : 'Not answered'),
+      correctAnswer: q.correct !== undefined ? (q.options?.[q.correct] ?? String(q.correct)) : 'Open ended',
+      isCorrect: q.isCorrect ?? false,
+    }));
+
+    try {
+      const data = await executeAI(
+        `mentor: ${q}`,
+        {
+          skill: result?.skill ?? selectedSkill,
+          score: result?.score ?? 0,
+          questions,
+        }
+      );
+      const reply = (data as any)?.result?.reply;
+      setMentorChat(prev => [...prev, {
+        role: 'ai',
+        content: reply || 'I could not find that question in your results. Try asking "Why was question 2 wrong?" or "Explain my mistakes".',
+      }]);
+    } catch {
+      setMentorChat(prev => [...prev, { role: 'ai', content: 'Having trouble connecting. Please try again.' }]);
+    } finally {
+      setMentorLoading(false);
+    }
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
@@ -1303,13 +1327,16 @@ try {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Question Results</h3>
             <div className="space-y-3 max-h-[400px] overflow-y-auto">
-              {result.questions?.filter((q: any) => q.correct !== undefined).map((q: any, i: number) => (
+              {result.questions?.map((q: any, i: number) => (
                 <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50">
                   <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                    q.isCorrect ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                  }`}>{q.isCorrect ? '✓' : '✗'}</div>
+                    q.correct === undefined ? 'bg-blue-100 text-blue-600' : q.isCorrect ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
+                  }`}>{q.correct === undefined ? '~' : q.isCorrect ? '✓' : '✗'}</div>
                   <div className="min-w-0">
-                    <p className="text-xs text-gray-700 font-medium leading-relaxed">{q.question || q.title || q.description}</p>
+                    <p className="text-xs text-gray-700 font-medium leading-relaxed">{q.question || q.title || q.scenario || q.description}</p>
+                    {q.correct === undefined && (
+                      <p className="text-[11px] text-blue-500 mt-1 capitalize">{q.type} — open ended</p>
+                    )}
                     {!q.isCorrect && q.correct !== undefined && (
                       <p className="text-[11px] text-emerald-600 mt-1">Correct: {q.options?.[q.correct]}</p>
                     )}
@@ -1437,15 +1464,25 @@ try {
                     }`}>{m.content}</div>
                   </div>
                 ))}
+                {mentorLoading && (
+                  <div className="flex gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
+                    <div className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl">
+                      <div className="flex gap-1 items-center">
+                        {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <input type="text" value={mentorInput} onChange={e => setMentorInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && askMentor()}
-                  placeholder="Ask why your answer was wrong..."
+                  placeholder="Ask why an answer was wrong or get explanations..."
                   className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
                 />
-                <button onClick={askMentor} className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors">
-                  <Send className="w-4 h-4 text-white" />
+                <button onClick={askMentor} disabled={mentorLoading} className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                  {mentorLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
                 </button>
               </div>
             </div>
