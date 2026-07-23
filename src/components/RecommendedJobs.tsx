@@ -72,32 +72,30 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
     jobType: ''
   });
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
-  // Helper function to get numeric salary for filtering
-  const getNumericSalary = (salary: string | { min: number; max: number; currency: string; period?: string } | undefined): number => {
-    if (!salary) return 0;
-    
-    if (typeof salary === 'string') {
-      // Extract numbers from salary string (e.g., "₹50,000 - ₹80,000" or "50k-80k")
-      const numbers = salary.match(/\d+/g);
-      if (numbers && numbers.length > 0) {
-        let num = parseInt(numbers[0]);
-        // If salary contains 'k' or 'K', multiply by 1000
-        if (salary.toLowerCase().includes('k')) {
-          num = num * 1000;
-        }
-        // If salary contains 'l' or 'L' (lakh), multiply by 100000
-        if (salary.toLowerCase().includes('l')) {
-          num = num * 100000;
-        }
-        return num;
+
+  // Returns salary in LPA (Lakhs Per Annum) for consistent comparison
+  const getSalaryInLPA = (job: any): number => {
+    // Try salaryMin / salaryMax fields first
+    const raw = job.salaryMin ?? (typeof job.salary === 'object' ? job.salary?.min : null);
+    if (raw != null) {
+      const n = Number(raw);
+      if (!isNaN(n) && n > 0) {
+        // If value > 100000 it's in rupees — convert to LPA
+        return n > 100000 ? n / 100000 : n;
       }
-      return 0;
     }
-    
-    if (typeof salary === 'object' && salary.min) {
-      return salary.min;
+    // Try salary string
+    const s = typeof job.salary === 'string' ? job.salary : '';
+    if (s) {
+      const nums = s.replace(/,/g, '').match(/\d+(\.\d+)?/g);
+      if (nums && nums.length > 0) {
+        let n = parseFloat(nums[0]);
+        if (s.toLowerCase().includes('lpa') || s.toLowerCase().includes('lakh')) return n;
+        if (s.toLowerCase().includes('k')) return (n * 1000) / 100000;
+        if (n > 100000) return n / 100000; // raw rupees
+        return n;
+      }
     }
-    
     return 0;
   };
 
@@ -109,76 +107,27 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   useEffect(() => {
     let filtered = [...jobs];
 
-    // Filter by salary range
     if (filters.salaryRange) {
       filtered = filtered.filter(job => {
-        // Check multiple salary fields
-        const salaryFields = [
-          job.salary,
-          job.salaryMin != null ? String(job.salaryMin) : undefined,
-          job.salaryMax != null ? String(job.salaryMax) : undefined,
-          formatSalary(job.salary)
-        ];
-        
-        let hasSalaryInRange = false;
-        
-        for (const salaryField of salaryFields) {
-          if (!salaryField) continue;
-          
-          const salary = getNumericSalary(salaryField);
-          if (salary === 0) continue;
-          
-          if (filters.salaryRange === '0-50k' && salary <= 50000) {
-            hasSalaryInRange = true;
-            break;
-          }
-          if (filters.salaryRange === '50k-100k' && salary >= 50000 && salary <= 100000) {
-            hasSalaryInRange = true;
-            break;
-          }
-          if (filters.salaryRange === '100k-150k' && salary >= 100000 && salary <= 150000) {
-            hasSalaryInRange = true;
-            break;
-          }
-          if (filters.salaryRange === '150k+' && salary >= 150000) {
-            hasSalaryInRange = true;
-            break;
-          }
+        const lpa = getSalaryInLPA(job);
+        if (lpa === 0) return true; // no salary data — include by default
+        switch (filters.salaryRange) {
+          case '0-5':   return lpa <= 5;
+          case '5-15':  return lpa >= 5 && lpa <= 15;
+          case '15-30': return lpa >= 15 && lpa <= 30;
+          case '30+':   return lpa >= 30;
+          default:      return true;
         }
-        
-        return hasSalaryInRange;
       });
     }
 
-    // Filter by job type
     if (filters.jobType) {
       filtered = filtered.filter(job => {
-        const jobTypes = [
-          job.type,
-          job.jobType,
-          Array.isArray(job.jobType) ? job.jobType.join(' ') : job.jobType,
-          Array.isArray(job.type) ? job.type.join(' ') : job.type
-        ];
-        
-        return jobTypes.some(type => 
-          type && type.toString().toLowerCase().includes(filters.jobType.toLowerCase())
-        );
+        const t = job.type || job.jobType;
+        const arr: string[] = Array.isArray(t) ? t : t ? [String(t)] : [];
+        return arr.some(v => v.toLowerCase().includes(filters.jobType.toLowerCase()));
       });
     }
-
-    console.log('Filter Debug:', {
-      originalJobs: jobs.length,
-      filteredJobs: filtered.length,
-      salaryFilter: filters.salaryRange,
-      typeFilter: filters.jobType,
-      sampleJob: jobs[0] ? {
-        salary: jobs[0].salary,
-        salaryMin: jobs[0].salaryMin,
-        salaryMax: jobs[0].salaryMax,
-        type: jobs[0].type,
-        jobType: jobs[0].jobType
-      } : null
-    });
 
     setFilteredJobs(filtered);
   }, [jobs, filters]);
@@ -403,10 +352,10 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
             >
               <option value="">All Salaries</option>
-              <option value="0-50k">₹0 - ₹50k</option>
-              <option value="50k-100k">₹50k - ₹100k</option>
-              <option value="100k-150k">₹100k - ₹150k</option>
-              <option value="150k+">₹150k+</option>
+              <option value="0-5">Under 5 LPA</option>
+              <option value="5-15">5 – 15 LPA</option>
+              <option value="15-30">15 – 30 LPA</option>
+              <option value="30+">30+ LPA</option>
             </select>
           </div>
           <div>

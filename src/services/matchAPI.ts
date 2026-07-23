@@ -64,7 +64,7 @@ class MatchAPI {
     }
     const data = await res.json();
     const result = { jobs: Array.isArray(data?.jobs) ? data.jobs : [], total: data?.total ?? 0 };
-    setCached(key, result, 2 * 60 * 1000); // 2 min cache for recommendations
+    if (result.jobs.length > 0) setCached(key, result, 2 * 60 * 1000); // only cache non-empty results
     return result;
   }
 

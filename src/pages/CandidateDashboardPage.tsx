@@ -627,7 +627,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
       setLoading(false);
     };
 
-    loadUserProfile();
+    loadUserProfile().then(() => {
+      // Auto-open modal if requested via sessionStorage (e.g. from SearchAppearancesPage)
+      const pendingModal = sessionStorage.getItem('openModal');
+      if (pendingModal) {
+        sessionStorage.removeItem('openModal');
+        setTimeout(() => setActiveModal(pendingModal), 600);
+      }
+    });
 
     // Re-fetch assessments when a new local assessment is saved
     const onAssessmentDone = () => fetchMyAssessments();
@@ -3937,17 +3944,30 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       ? (raw.skills?.featuredSkills ?? [])
                       : (Array.isArray(raw.skills) ? raw.skills : []);
 
-                    // Sanitize name — reject section headings
-                    const SECTION_HEADINGS = new Set([
-                      "about me", "about", "summary", "objective", "profile",
-                      "overview", "experience", "work experience", "education",
-                      "skills", "projects", "certifications", "contact",
+                    // Strict name validator — same rules as parseLogic.ts
+                    const POPUP_SECTION_HEADINGS = new Set([
+                      "about me","about","summary","objective","profile","overview",
+                      "experience","work experience","employment","work history","professional experience",
+                      "education","academic background","qualifications",
+                      "skills","technical skills","key skills","core competencies",
+                      "projects","certifications","certificates","awards","achievements",
+                      "languages","interests","hobbies","references","contact","contact information",
+                      "internships","training","tools","soft skills",
                     ]);
+                    const DEGREE_KW = /\b(b\.?tech|b\.?e|b\.?sc|b\.?com|b\.?a|m\.?tech|m\.?e|m\.?sc|mba|m\.?a|ph\.?d|bachelor|master|diploma|sslc|hsc|10th|12th|information technology|computer science|engineering|data science|electronics|mechanical|civil|electrical|arts|commerce)\b/i;
+                    const INST_KW = /\b(university|college|institute|school|academy|polytechnic|iit|nit|loyola|icam|matriculation|higher secondary|secondary|cbse|state board)\b/i;
                     const isValidName = (n: string) => {
                       if (!n || n.length < 2 || n.length > 60) return false;
-                      if (SECTION_HEADINGS.has(n.toLowerCase())) return false;
-                      if (/^[A-Z\s]+$/.test(n) && n.split(" ").length <= 2 && n.length < 20) return false;
-                      return /[a-zA-Z]/.test(n);
+                      if (POPUP_SECTION_HEADINGS.has(n.toLowerCase())) return false;
+                      if (/[@|•\-_=*#/\\&]/.test(n)) return false;
+                      if (/\d{4}/.test(n)) return false;
+                      if (/^(http|www)/i.test(n)) return false;
+                      if (!/[a-zA-Z]/.test(n)) return false;
+                      if (DEGREE_KW.test(n) || INST_KW.test(n)) return false;
+                      // Must look like a person name: 2-5 words, each starting with capital or all-caps
+                      const words = n.trim().split(/\s+/);
+                      if (words.length < 2 || words.length > 5) return false;
+                      return words.every(w => /^[A-Za-z][a-zA-Z'.-]*$/.test(w) || /^[A-Z]+$/.test(w));
                     };
 
                     // Regex fallback for fields missing from AI response
@@ -3961,10 +3981,24 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     const aiSkills = rawSkillsArr.map((s: any) =>
                       typeof s === "string" ? s : s?.skill || s?.name || ""
                     ).filter(Boolean);
+
+                    // Strict phone validation — must have 7+ digits, not a date range
+                    const aiPhone = (profileObj?.phone || "").replace(/\D/g, "");
+                    const validPhone = aiPhone.length >= 7 ? (profileObj?.phone || "") : (regexData.phone || "");
+
+                    // Strict email validation
+                    const emailRegexStrict = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                    const aiEmail = profileObj?.email || "";
+                    const validEmail = emailRegexStrict.test(aiEmail) ? aiEmail : (regexData.email || "");
+
+                    // jobTitle must not be a name or section heading
+                    const rawJobTitle = profileObj?.title || expArr[0]?.jobTitle || expArr[0]?.title || "";
+                    const validJobTitle = isValidName(rawJobTitle) ? "" : rawJobTitle;
+
                     const p = {
                       name: cleanName,
-                      email: profileObj?.email || regexData.email || "",
-                      phone: profileObj?.phone || regexData.phone || "",
+                      email: validEmail,
+                      phone: validPhone,
                       location: profileObj?.location || regexData.location || "",
                       address: profileObj?.address || null,
                       summary: raw.summary || "",
@@ -3975,7 +4009,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                         : regexData.educations,
                       projects: Array.isArray(raw.projects) ? raw.projects : [],
                       certifications: raw.certifications || [],
-                      jobTitle: profileObj?.title || expArr[0]?.jobTitle || expArr[0]?.title || "",
+                      jobTitle: validJobTitle,
                     };
                     // 2. Upload resume file to S3
                     const s3Result =
@@ -4010,8 +4044,9 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       ...user,
                       resume: resumeData,
                       resumeUrl: fileUrl,
-                      // Always set from resume — empty string if not found
-                      name: cleanName || user?.name || "",
+                      // Strictly map each field from parsed resume only
+                      // name: only use parsed name if valid, never fall back to existing user name
+                      name: cleanName || "",
                       phone: p.phone || "",
                       location: p.location || "",
                       address: p.address || {
@@ -4031,10 +4066,18 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               const dateParts = String(w.date || "").split(
                                 /\s*[-–]\s*/,
                               );
+                              // Fix swapped company/jobTitle: if jobTitle is all-caps short word
+                              // and company looks like a role title, swap them
+                              let companyName = w.company || w.companyName || "";
+                              let designation = w.jobTitle || w.title || w.designation || "";
+                              const titleIsAllCaps = designation === designation.toUpperCase() && designation.length < 20 && designation.trim().split(/\s+/).length <= 3;
+                              const companyIsRole = /intern|developer|engineer|analyst|manager|designer|program/i.test(companyName);
+                              if (titleIsAllCaps && companyIsRole) {
+                                [companyName, designation] = [designation, companyName];
+                              }
                               return {
-                                companyName: w.company || w.companyName || "",
-                                designation:
-                                  w.jobTitle || w.title || w.designation || "",
+                                companyName,
+                                designation,
                                 description: Array.isArray(w.descriptions)
                                   ? w.descriptions.join(" ")
                                   : w.description || w.descriptions || "",

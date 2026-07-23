@@ -155,7 +155,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         console.log('Found COMPLETE company profile in localStorage, pre-filling entire form');
         setFormData({
           companyName: currentUser.companyName || '',
-          companyEmail: currentUser.email || '',
+          companyEmail: currentUser.email || '', // always locked to registered email
           companyWebsite: currentUser.companyWebsite || '',
           industry: currentUser.industry || '',
           companySize: currentUser.companySize || '',
@@ -191,7 +191,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         setFormData(prev => ({
           ...prev,
           companyName: currentUser.companyName || currentUser.company || '',
-          companyEmail: currentUser.email || '',
+          companyEmail: currentUser.email || '', // always locked to registered email
           companyWebsite: currentUser.companyWebsite || '',
           // Keep other fields empty for first-time completion
         }));
@@ -316,7 +316,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
             setFormData(prev => ({
               ...prev,
               companyName: companyData.name || companyData.companyName || prev.companyName,
-              companyEmail: currentUser.email || prev.companyEmail,
+              companyEmail: currentUser.email || prev.companyEmail, // always locked to registered email — never overwrite with backend value
               companyWebsite: companyData.website || companyData.companyWebsite || prev.companyWebsite,
               industry: companyData.industry || prev.industry,
               companySize: companyData.size || companyData.companySize || prev.companySize,
@@ -524,7 +524,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         locations: formData.locations,
         gstNumber: formData.gstNumber,
         cinNumber: formData.cinNumber,
-        companyEmail: formData.companyEmail,
+        companyEmail: currentUser.email, // always use authenticated user's email
         phoneNumber: formData.phoneNumber,
         logo: companyLogo
       };
@@ -581,7 +581,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
           benefits: formData.benefits,
           socialLinks: formData.socialLinks,
           gstNumber: formData.gstNumber,
-          companyEmail: formData.companyEmail,
+          companyEmail: currentUser.email, // always use authenticated user's email
           phoneNumber: formData.phoneNumber,
           companyLogo: companyLogo
         };
@@ -619,7 +619,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         benefits: formData.benefits,
         socialLinks: formData.socialLinks,
         gstNumber: formData.gstNumber,
-        companyEmail: formData.companyEmail,
+        companyEmail: currentUser.email, // always use authenticated user's email
         phoneNumber: formData.phoneNumber,
         companyLogo: companyLogo
       };
