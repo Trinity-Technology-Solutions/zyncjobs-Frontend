@@ -128,12 +128,9 @@ export function useJobAlertStore(userEmail: string | undefined) {
     previousNotificationsRef.current = notifications;
     previousUnreadCountRef.current = unreadCount;
     setNotifications(prev => {
-      const wasUnread = prev.find(n => n._id === id)?.status === 'unread';
-      const next = prev.map(n => n._id === id ? { ...n, status: 'dismissed' as const } : n);
-      if (wasUnread) {
-        const c = Math.max(0, next.filter(n => n.status === 'unread').length);
-        setUnreadCount(c); persist(c);
-      }
+      const next = prev.filter(n => n._id !== id);
+      const c = next.filter(n => n.status === 'unread').length;
+      setUnreadCount(c); persist(c);
       return next;
     });
     try {

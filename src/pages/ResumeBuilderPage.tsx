@@ -6,10 +6,11 @@ import {
   UserCircle, BookOpen, WrenchIcon, BarChart3, Palette, Copy, Plus,
   Loader2, RefreshCw, WifiOff, CheckCircle2, Circle, AlertTriangle,
   Search, ArrowRight, CheckCheck, TrendingUp, MessageSquare,
-  Eye, EyeOff,
+  Eye, EyeOff, Upload,
 } from 'lucide-react';
 
 const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
+import { API_ENDPOINTS } from '../config/env';
 import TemplateSelection from '../components/resume-builder/TemplateSelection';
 import PersonalInfoStep from '../components/resume-builder/PersonalInfoStep';
 import SummaryStep from '../components/resume-builder/SummaryStep';
@@ -99,7 +100,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
-  const [, setImportLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [wizardStep, setWizardStep] = useState(0);
   const [wizardStart, setWizardStart] = useState('');
   const [wizardGoal, setWizardGoal] = useState('');
@@ -509,16 +511,61 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     Design: Palette,
   };
 
-  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processResumeFile = async (file: File) => {
+    if (file.size < 100) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'The uploaded resume is empty. Please upload a valid resume.' } }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'File size exceeds the maximum allowed limit of 5 MB.' } }));
+      return;
+    }
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    if (isPdf) {
+      const header = await file.slice(0, 5).text();
+      if (header !== '%PDF-') {
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Invalid or corrupted resume file. Please upload a valid PDF.' } }));
+        return;
+      }
+    }
     setImportLoading(true);
     try {
-      const { readPdf } = await import('../lib/parse-resume-from-pdf/read-pdf');
-      const url = URL.createObjectURL(file);
-      const textItems = await readPdf(url);
-      URL.revokeObjectURL(url);
-      const text = textItems.map(t => t.text).join('\n');
+      let text = '';
+      if (isPdf) {
+        const { readPdf } = await import('../lib/parse-resume-from-pdf/read-pdf');
+        const url = URL.createObjectURL(file);
+        const textItems = await readPdf(url);
+        URL.revokeObjectURL(url);
+        text = textItems.map(t => t.text).join('\n');
+        if (!text.trim()) {
+          const formData = new FormData();
+          formData.append('resume', file);
+          const ocrRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/extract-text`, { method: 'POST', body: formData });
+          if (!ocrRes.ok) {
+            setImportLoading(false);
+            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
+            return;
+          }
+          const ocrData = await ocrRes.json();
+          text = ocrData.text || '';
+        }
+      } else {
+        const formData = new FormData();
+        formData.append('resume', file);
+        const extRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/extract-text`, { method: 'POST', body: formData });
+        if (!extRes.ok) {
+          setImportLoading(false);
+          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
+          return;
+        }
+        const extData = await extRes.json();
+        text = extData.text || '';
+      }
+      if (!text.trim()) {
+        setImportLoading(false);
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'The uploaded resume is empty. Please upload a valid resume.' } }));
+        return;
+      }
 
       const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
         method: 'POST',
@@ -529,7 +576,6 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const { access_token } = await tokenRes.json();
       const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` };
 
-      // --- Call 1: RESUME_PARSER brain for basic info ---
       const resumeRes = await fetch(`${AI_BASE}/ai/execute`, {
         method: 'POST',
         headers,
@@ -543,7 +589,6 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const resumeData = await resumeRes.json();
       const parsed = resumeData?.result || {};
 
-      // Map basic fields from RESUME_PARSER
       if (parsed.name || parsed.email || parsed.phone || parsed.location) {
         if (parsed.name) updatePersonalInfo('name', parsed.name);
         if (parsed.email) updatePersonalInfo('email', parsed.email);
@@ -571,67 +616,83 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           bullets: p.description ? [p.description] : (Array.isArray(p.bulletPoints) ? p.bulletPoints : []),
         })));
       }
-
-      // Map workExperiences from RESUME_PARSER as baseline (JOB_PARSER will override if it succeeds)
       if (Array.isArray(parsed.workExperiences) && parsed.workExperiences.length > 0) {
         update('experience', parsed.workExperiences.map((w: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
           title: w.jobTitle || w.title || '',
           company: w.company || '',
+          location: w.location || '',
           duration: w.date || w.duration || '',
+          current: false,
           bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
         })));
       }
 
-      // --- Call 2: JOB_PARSER brain for work experience ---
-      // Extract experience section from raw text
       const expSection = extractSection(text, ['experience', 'work experience', 'employment', 'work history']);
       if (expSection) {
         const expRes = await fetch(`${AI_BASE}/ai/execute`, {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            query: `Extract work experience entries from this resume section. Return a JSON array. Each entry has: title (job title), company (company name), duration (date range), bulletPoints (array of achievements). Include ALL entries. Data: ${expSection.slice(0, 3000)}`,
+            query: 'Extract detailed work experience from this section',
             user_role: 'candidate',
-            context: { section: 'resume', action: 'parse', content: expSection.slice(0, 3000) },
+            context: { section: 'job_experience', action: 'parse', content: expSection.slice(0, 3000) },
           }),
         });
         if (expRes.ok) {
           const expData = await expRes.json();
-          const workExps = expData?.result?.workExperiences || (Array.isArray(expData?.result) ? expData.result : null);
-          if (Array.isArray(workExps) && workExps.length > 0) {
-            update('experience', workExps.map((w: any) => ({
-              id: crypto.randomUUID(),
+          const jobs = expData?.result?.jobs || expData?.result?.workExperiences || [];
+          if (Array.isArray(jobs) && jobs.length > 0) {
+            update('experience', jobs.map((w: any) => ({
+              id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
               title: w.jobTitle || w.title || '',
               company: w.company || '',
               location: w.location || '',
               duration: w.date || w.duration || '',
-              current: w.current || false,
+              current: false,
               bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
             })));
           }
         }
       }
 
-      // --- Education: try AI first, fallback to regex ---
-      const eduSection = extractSection(text, ['education', 'educational', 'academic']);
-      let eduParsed: Array<{ degree: string; institution: string; duration: string; location?: string; grade?: string }> = [];
-
-      // Try RESUME_PARSER result first
-      if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
-        eduParsed = parsed.educations.map((e: any) => ({
-          degree: e.degree || '',
-          institution: e.school || e.institution || e.college || '',
-          duration: e.date || `${e.startDate || ''} - ${e.endDate || ''}`.replace(/^ - $/, '').replace(/^ - /, '').replace(/ - $/, '') || '',
-        }));
+      touchSave();
+    } catch (e: any) {
+      console.error('Import error:', e);
+      if (e?.message?.includes('Failed to fetch') || e?.name === 'TypeError') {
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
+      } else {
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
       }
+    } finally {
+      setImportLoading(false);
+    }
+  };
 
-      // Fallback to regex parsing
-      if (eduParsed.length === 0 && eduSection) {
-        eduParsed = parseEducationRegex(eduSection);
-      }
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    if (file.size < 100) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'The uploaded resume is empty. Please upload a valid resume.' } }));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'File size exceeds the maximum allowed limit of 5 MB.' } }));
+      return;
+    }
+    const allowed = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png'];
+    const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+    if (allowed.includes(ext)) {
+      processResumeFile(file);
+    }
+  };
 
-      if (eduParsed.length > 0) update('education', eduParsed.map(e => ({ ...e, id: crypto.randomUUID(), location: e.location || '', grade: e.grade || '' })));
-    } catch { /* silent */ } finally { setImportLoading(false); sessionStorage.setItem(onboardingKey, '1'); setShowOnboarding(false); }
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await processResumeFile(file);
   };
 
   /** Extract a section from resume text by heading keywords */
@@ -1016,7 +1077,21 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         />
       )}
 
-    <div className="flex flex-col flex-1 min-h-0 bg-[#f4f6fb]">
+    <div className="flex flex-col flex-1 min-h-0 bg-[#f4f6fb] relative"
+      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={handleDrop}
+    >
+      {/* Drag-over overlay */}
+      {dragOver && (
+        <div className="absolute inset-0 z-50 bg-blue-600/10 border-4 border-dashed border-blue-500 rounded-xl flex items-center justify-center pointer-events-none">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <Upload className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+            <p className="text-lg font-semibold text-gray-900">Drop your resume here</p>
+            <p className="text-sm text-gray-500 mt-1">PDF, DOC, DOCX, JPG, PNG supported</p>
+          </div>
+        </div>
+      )}
       {/* Workspace toolbar */}
       <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
         {/* Mobile menu toggle */}
@@ -1385,7 +1460,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                   const hasName = !!(data.personalInfo?.name?.trim());
                   const hasEmail = !!(data.personalInfo?.email?.trim());
                   const hasPhone = !!(data.personalInfo?.phone?.trim());
-                  const hasSummary = typeof data.summary === 'string' ? !!data.summary.trim() : Array.isArray(data.summary) && data.summary.some(s => s?.trim());
+                  const hasSummary = !!data.summary.trim();
                   const hasExperience = data.experience.length > 0;
                   const hasEducation = data.education.length > 0;
                   const hasSkills = data.skills.length > 0;

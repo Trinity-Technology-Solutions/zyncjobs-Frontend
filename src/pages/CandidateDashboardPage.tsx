@@ -95,6 +95,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
   const [resumePopupFile, setResumePopupFile] = useState<File | null>(null);
   const [resumePopupParsing, setResumePopupParsing] = useState(false);
   const [resumePopupError, setResumePopupError] = useState("");
+  const [resumePopupDragOver, setResumePopupDragOver] = useState(false);
   const [activeModal, setActiveModal] = useState<string | null>(null);
   const [modalData, setModalData] = useState<any>({});
   const [applications, setApplications] = useState<any[]>([]);
@@ -3735,15 +3736,35 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </button>
                 </div>
               ) : (
-                <label className="block border-2 border-dashed border-gray-300 rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors mb-4">
+                <div
+                  className={`block border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors mb-4 ${
+                    resumePopupDragOver
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'
+                  }`}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setResumePopupDragOver(true); }}
+                  onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setResumePopupDragOver(false); }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setResumePopupDragOver(false);
+                    const file = e.dataTransfer.files?.[0];
+                    if (file) {
+                      setResumePopupFile(file);
+                      setResumePopupError("");
+                    }
+                  }}
+                  onClick={() => document.getElementById('resume-popup-input')?.click()}
+                >
                   <FileText className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm font-medium text-gray-700">
-                    Click to upload resume
+                    Click or drag & drop to upload resume
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     PDF, DOC, DOCX, JPG, JPEG, PNG, WEBP up to 5MB
                   </p>
                   <input
+                    id="resume-popup-input"
                     type="file"
                     accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
                     className="hidden"
@@ -3755,7 +3776,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       }
                     }}
                   />
-                </label>
+                </div>
               )}
 
               {resumePopupParsing && (
@@ -3780,6 +3801,22 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 disabled={!resumePopupFile || resumePopupParsing}
                 onClick={async () => {
                   if (!resumePopupFile) return;
+                  if (resumePopupFile.size < 100) {
+                    setResumePopupError('The uploaded resume is empty. Please upload a valid resume.');
+                    return;
+                  }
+                  if (resumePopupFile.size > 5 * 1024 * 1024) {
+                    setResumePopupError('File size exceeds the maximum allowed limit of 5 MB.');
+                    return;
+                  }
+                  const isPdfType = resumePopupFile.type === 'application/pdf' || resumePopupFile.name.endsWith('.pdf');
+                  if (isPdfType) {
+                    const header = await resumePopupFile.slice(0, 5).text().catch(() => '');
+                    if (header !== '%PDF-') {
+                      setResumePopupError('Unable to read the uploaded resume. Please upload a valid PDF.');
+                      return;
+                    }
+                  }
                   setResumePopupParsing(true);
                   setResumePopupError("");
                   try {
@@ -4155,10 +4192,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       isVisible: true,
                     });
                   } catch (err: any) {
-                    setResumePopupError(
-                      err.message ||
-                        "Failed to parse resume. Please try again.",
-                    );
+                    if (err?.message?.includes('Failed to fetch') || err?.name === 'TypeError' || err?.message?.includes('Could not connect')) {
+                      setResumePopupError('Failed to process resume. Please try again.');
+                    } else {
+                      setResumePopupError(
+                        err.message ||
+                          "Unable to read the uploaded resume. Please upload a valid PDF.",
+                      );
+                    }
                   } finally {
                     setResumePopupParsing(false);
                   }
