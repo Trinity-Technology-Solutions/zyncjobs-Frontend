@@ -7,7 +7,7 @@ import BackButton from '../components/BackButton';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
-import { computeMatchBreakdown, normalizeSkill, getUserProfile } from '../utils/matchScore';
+import { computeMatchBreakdown, normalizeSkill, getUserProfile, resolveUserSkills } from '../utils/matchScore';
 
 interface Props {
   onNavigate?: (page: string, data?: any) => void;
@@ -38,19 +38,32 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
     } catch { return 'there'; }
   })();
 
-  const getUserSkills = (): string[] => {
-    try {
-      const profile = getUserProfile();
-      const raw = profile.skills || profile.keySkills || [];
-      return Array.isArray(raw)
-        ? raw.map((s: any) => String(s || '').toLowerCase().trim()).filter(Boolean)
-        : [];
-    } catch { return []; }
-  };
+  const getUserSkills = (): string[] => resolveUserSkills(getUserProfile());
 
   // Removed calcLocalMatchScore — now using computeMatchBreakdown from shared utility
 
-  useEffect(() => { loadRecommendations(); fetchCompanyLogos(); }, []);
+  useEffect(() => { 
+    // Fetch fresh profile from DB first to ensure skills are in localStorage
+    const init = async () => {
+      try {
+        const u = JSON.parse(localStorage.getItem('user') || '{}');
+        const email = u.email;
+        if (email && (!u.skills || u.skills.length === 0)) {
+          const res = await fetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(email)}`);
+          if (res.ok) {
+            const profileData = await res.json();
+            if (Array.isArray(profileData.skills) && profileData.skills.length > 0) {
+              const merged = { ...u, ...profileData, id: u.id, email: u.email, role: u.role };
+              localStorage.setItem('user', JSON.stringify(merged));
+            }
+          }
+        }
+      } catch {}
+      loadRecommendations();
+      fetchCompanyLogos();
+    };
+    init();
+  }, []);
 
   useEffect(() => {
     let result = [...jobs];
@@ -73,28 +86,66 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       setError('');
       const data = await matchAPI.getRecommendations(userId, 20);
       const raw = Array.isArray(data?.jobs) ? data.jobs : [];
-      const normalized = raw.map((j: any) => {
-        const jobSkills = Array.isArray(j.skills) ? j.skills : [];
-        const jobData = { ...j, title: j.title || j.jobTitle || '', skills: jobSkills };
-        // Always use the same weighted formula as the modal
-        const { overall } = computeMatchBreakdown(jobData);
-        return {
-          ...j,
-          id: j.id || j._id || '',
-          title: j.title || j.jobTitle || '',
-          company: j.company || '',
-          location: j.location || '',
-          salary: j.salary || null,
-          salaryMin: j.salaryMin || null,
-          salaryMax: j.salaryMax || null,
-          type: j.type || j.workType || j.jobType || '',
-          skills: jobSkills,
-          matchScore: overall,
-          description: j.description || '',
-          createdAt: j.createdAt || '',
-        };
-      });
-      setJobs(normalized);
+
+      if (raw.length > 0) {
+        const normalized = raw.map((j: any) => {
+          const jobSkills = Array.isArray(j.skills) ? j.skills : [];
+          const jobData = { ...j, title: j.title || j.jobTitle || '', skills: jobSkills };
+          const { overall } = computeMatchBreakdown(jobData);
+          return {
+            ...j,
+            id: j.id || j._id || '',
+            title: j.title || j.jobTitle || '',
+            company: j.company || '',
+            location: j.location || '',
+            salary: j.salary || null,
+            salaryMin: j.salaryMin || null,
+            salaryMax: j.salaryMax || null,
+            type: j.type || j.workType || j.jobType || '',
+            skills: jobSkills,
+            matchScore: overall,
+            description: j.description || '',
+            createdAt: j.createdAt || '',
+          };
+        });
+        setJobs(normalized);
+        return;
+      }
+
+      // Fallback: fetch all jobs and score locally using user skills
+      const userSkills = getUserSkills();
+      if (userSkills.length === 0) { setJobs([]); return; }
+
+      const res = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=100`);
+      if (!res.ok) { setJobs([]); return; }
+      const allData = await res.json();
+      const allJobs: any[] = Array.isArray(allData) ? allData : (allData.jobs || []);
+
+      const scored = allJobs
+        .map((j: any) => {
+          const jobData = { ...j, title: j.title || j.jobTitle || '', skills: Array.isArray(j.skills) ? j.skills : [] };
+          const { overall } = computeMatchBreakdown(jobData);
+          return {
+            ...j,
+            id: j.id || j._id || '',
+            title: jobData.title,
+            company: j.company || '',
+            location: j.location || '',
+            salary: j.salary || null,
+            salaryMin: j.salaryMin || null,
+            salaryMax: j.salaryMax || null,
+            type: j.type || j.workType || j.jobType || '',
+            skills: jobData.skills,
+            matchScore: overall,
+            description: j.description || '',
+            createdAt: j.createdAt || '',
+          };
+        })
+        .filter((j: any) => j.matchScore > 0)
+        .sort((a: any, b: any) => b.matchScore - a.matchScore)
+        .slice(0, 20);
+
+      setJobs(scored);
     } catch (err: any) {
       setError(err?.message || 'Failed to load recommendations');
     } finally {
@@ -131,7 +182,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
       getSafeCompanyLogo(job);
   };
 
-  const formatSalary = (job: any) => {
+  const getJobSalary = (job: any) => {
     if (job.salaryMin && job.salaryMax) return `₹${Number(job.salaryMin).toLocaleString()} – ₹${Number(job.salaryMax).toLocaleString()}`;
     if (job.salary) {
       if (typeof job.salary === 'object') return formatSalary(job.salary, job.salary.currency);
@@ -259,9 +310,14 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
             </div>
             <h3 className="text-gray-900 font-semibold text-lg mb-2">No recommendations yet</h3>
             <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">Complete your profile with skills, experience, and preferences to unlock personalized job matches.</p>
-            <button onClick={() => onNavigate?.('dashboard')} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors">
-              Complete Your Profile
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button onClick={loadRecommendations} className="border border-blue-600 text-blue-600 px-5 py-2.5 rounded-lg hover:bg-blue-50 font-medium text-sm transition-colors">
+                Retry
+              </button>
+              <button onClick={() => onNavigate?.('dashboard')} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors">
+                Complete Your Profile
+              </button>
+            </div>
           </div>
         )}
 
@@ -277,7 +333,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         {!loading && !error && filtered.length > 0 && (
           <div className="space-y-4">
             {filtered.map((job) => {
-              const salary = formatSalary(job);
+              const salary = getJobSalary(job);
               const isStrong = (job.matchScore || 0) >= 70;
               return (
                 <div key={job.id || job.title} className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
@@ -343,7 +399,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
                           <div className="flex flex-wrap gap-1.5">
                             {job.skills.slice(0, 5).map((skill: string, i: number) => {
                               const userSkills = getUserSkills();
-                              const isMatched = userSkills.some(us => us.includes(normalizeSkill(skill)) || normalizeSkill(skill).includes(us));
+                              const isMatched = computeMatchBreakdown({ ...job, skills: [skill] }).matched.length > 0;
                               return (
                                 <span key={i} className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium ${
                                   isMatched ? 'bg-green-100 text-green-700' : 'bg-indigo-50 text-indigo-700'

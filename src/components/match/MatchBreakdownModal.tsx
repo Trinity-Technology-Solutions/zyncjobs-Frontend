@@ -25,12 +25,12 @@ const getLabel = (s: number) =>
 export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, isOpen, onClose }) => {
   if (!isOpen || !job) return null;
 
-  const { overall, skillScore, roleScore, experienceScore, locationScore, educationScore, matched, missing, userSkills } =
+  const { overall, skillScore, roleScore, experienceScore, locationScore, educationScore, matched, missing, userSkills, jobSkills } =
     computeMatchBreakdown(job);
 
-  const userTitle = (() => {
-    try { return JSON.parse(localStorage.getItem('user') || '{}').jobTitle || 'Not set'; } catch { return 'Not set'; }
-  })();
+  const profile = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
+  const userTitle = profile.jobTitle || profile.title || 'Not set';
+  const userLocation = profile.location || 'Not set';
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -40,14 +40,14 @@ export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, i
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center rounded-t-2xl">
           <div>
             <h2 className="text-xl font-bold text-gray-900">Match Breakdown</h2>
-            <p className="text-sm text-gray-500">{job.title} · {job.company}</p>
+            <p className="text-sm text-gray-500">{job.title || job.jobTitle} · {job.company}</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-2xl leading-none">&times;</button>
         </div>
 
         <div className="p-6 space-y-5">
 
-          {/* Overall score — same value as card badge */}
+          {/* Overall score */}
           <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-4">
             <div className={`text-4xl font-black ${getColor(overall)}`}>{overall}%</div>
             <div>
@@ -65,24 +65,44 @@ export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, i
             <Bar score={skillScore} color={getBg(skillScore)} />
 
             {userSkills.length === 0 && (
-              <p className="text-xs text-amber-600 mt-2">⚠ Add skills to your profile for accurate matching</p>
+              <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-3 py-2 rounded-lg">
+                ⚠ No skills found in your profile. Add skills to your profile for accurate matching.
+              </p>
             )}
+
+            <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-gray-500">
+              <div><span className="font-medium">Job requires:</span> {jobSkills.length} skills</div>
+              <div><span className="font-medium">You have:</span> {userSkills.length} skills</div>
+            </div>
+
             {matched.length > 0 && (
               <div className="mt-3">
                 <p className="text-xs text-gray-500 mb-1.5 font-medium">✅ Matched Skills ({matched.length})</p>
                 <div className="flex flex-wrap gap-1.5">
                   {matched.map((s, i) => (
-                    <span key={i} className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full font-medium capitalize">{s}</span>
+                    <span key={i} className="bg-green-100 text-green-800 text-xs px-2 py-0.5 rounded-full font-medium">{s}</span>
                   ))}
                 </div>
               </div>
             )}
+
             {missing.length > 0 && (
               <div className="mt-3">
                 <p className="text-xs text-gray-500 mb-1.5 font-medium">❌ Missing Skills ({missing.length})</p>
                 <div className="flex flex-wrap gap-1.5">
                   {missing.map((s, i) => (
-                    <span key={i} className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium capitalize">{s}</span>
+                    <span key={i} className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full font-medium">{s}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {userSkills.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-xs text-gray-400 mb-1.5 font-medium">Your skills</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {userSkills.map((s, i) => (
+                    <span key={i} className="bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full">{s}</span>
                   ))}
                 </div>
               </div>
@@ -119,7 +139,10 @@ export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, i
                 <span className={`font-bold ${getColor(locationScore)}`}>{locationScore}%</span>
               </div>
               <Bar score={locationScore} color="bg-teal-500" />
-              <p className="text-xs text-gray-500 mt-1.5">{job.location || '—'}</p>
+              <div className="mt-1.5 text-xs text-gray-500 space-y-0.5">
+                <p>Job: <span className="font-medium text-gray-700">{job.location || '—'}</span></p>
+                <p>You: <span className="font-medium text-gray-700">{userLocation}</span></p>
+              </div>
             </div>
             <div className="border border-gray-100 rounded-xl p-4">
               <div className="flex justify-between items-center">
@@ -134,7 +157,7 @@ export const MatchBreakdownModal: React.FC<MatchBreakdownModalProps> = ({ job, i
           {missing.length > 0 && (
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-xs text-blue-700">
               💡 <strong>Tip:</strong> Adding <strong>{missing.slice(0, 3).join(', ')}</strong>
-              {missing.length > 3 ? ` and ${missing.length - 3} more skills` : ''} to your profile could improve your match score.
+              {missing.length > 3 ? ` and ${missing.length - 3} more skills` : ''} to your profile could significantly improve your match score.
             </div>
           )}
         </div>

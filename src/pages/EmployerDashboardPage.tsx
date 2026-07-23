@@ -2617,6 +2617,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   const [selectedRole, setSelectedRole] = React.useState<TeamRole | null>(null);
   const [inviteSent, setInviteSent] = React.useState(false);
   const [inviting, setInviting] = React.useState(false);
+  const [inviteError, setInviteError] = React.useState('');
   const [inviteToken, setInviteToken] = React.useState('');
   const [inviteCredentials, setInviteCredentials] = React.useState<{ email: string; password: string; role: string } | null>(null);
   const [confirmDialog, setConfirmDialog] = React.useState<{ isOpen: boolean; title: string; message: string; onConfirm: () => void }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
@@ -2670,9 +2671,10 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
   }, [members, fetchMembers]);
 
   const handleInvite = async () => {
-    if (!inviteEmail.trim() || !inviteEmail.includes('@')) { showToast('Enter a valid email address', 'error'); return; }
-    if (!invitePassword.trim() || invitePassword.length < 8) { showToast('Password must be at least 8 characters', 'error'); return; }
-    if (members.find(m => m.memberEmail === inviteEmail.trim())) { showToast('This email is already in the team', 'error'); return; }
+    setInviteError('');
+    if (!inviteEmail.trim() || !inviteEmail.includes('@')) { setInviteError('Enter a valid email address.'); return; }
+    if (!invitePassword.trim() || invitePassword.length < 8) { setInviteError('Password must be at least 8 characters.'); return; }
+    if (members.find(m => m.memberEmail === inviteEmail.trim())) { setInviteError('This email is already in the team.'); return; }
     setInviting(true);
     try {
       const res = await apiFetch(`${API_BASE}/team`, {
@@ -2698,9 +2700,9 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
         setInviteSent(true);
       } else {
         const err = await res.json();
-        showToast(err.error || 'Failed to invite', 'error');
+        setInviteError(err.error || 'Failed to invite. Please try again.');
       }
-    } catch { showToast('Network error', 'error'); }
+    } catch { setInviteError('Network error. Please try again.'); }
     finally { setInviting(false); }
   };
 
@@ -2713,6 +2715,7 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
     setInviteToken('');
     setInvitePassword('');
     setInviteCredentials(null);
+    setInviteError('');
   };
 
   const handleRoleChange = async (id: string, role: TeamRole) => {
@@ -2986,7 +2989,13 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                     </ul>
                   </div>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                {inviteError && (
+                  <div className="mt-4 flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-3 py-2.5 text-sm">
+                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    <span>{inviteError}</span>
+                  </div>
+                )}
+                <div className="flex flex-col sm:flex-row gap-3 mt-4">
                   <button onClick={handleCloseInvite}
                     className="flex-1 border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50">Cancel</button>
                   <button onClick={handleInvite} disabled={inviting || !inviteEmail.trim() || invitePassword.length < 8}
