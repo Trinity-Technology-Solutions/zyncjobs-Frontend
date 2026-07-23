@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { RefreshCw, Clock, CheckSquare, AlertCircle, TrendingUp, Calendar, MapPin, Briefcase, Building2, Eye, Users, BarChart3, Zap } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
+import { getId } from '../utils/getId';
 import BackButton from '../components/BackButton';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
@@ -86,13 +87,7 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
     }
   };
 
-  const handleSelectAll = () => {
-    if (selectedJobs.length === jobs.length) {
-      setSelectedJobs([]);
-    } else {
-      setSelectedJobs(jobs.map(job => job.id || job._id!));
-    }
-  };
+
 
   const handleJobSelect = (jobId: string) => {
     if (selectedJobs.includes(jobId)) {
@@ -168,6 +163,16 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
 
   const refreshableJobs = jobs.filter(canRefreshJob);
   const nonRefreshableJobs = jobs.filter(job => !canRefreshJob(job));
+
+  const isAllRefreshableSelected = refreshableJobs.length > 0 && refreshableJobs.every(job => selectedJobs.includes(job.id || job._id!));
+
+  const handleSelectAll = () => {
+    if (isAllRefreshableSelected) {
+      setSelectedJobs([]);
+    } else {
+      setSelectedJobs(refreshableJobs.map(job => job.id || job._id!));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -253,14 +258,14 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                 <label className="flex items-center space-x-3">
                   <input
                     type="checkbox"
-                    checked={selectedJobs.length === refreshableJobs.length && refreshableJobs.length > 0}
+                    checked={isAllRefreshableSelected}
                     onChange={handleSelectAll}
                     className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-gray-700">Select All Refreshable Jobs</span>
                 </label>
                 <span className="text-sm text-gray-500">
-                  {selectedJobs.length} of {refreshableJobs.length} selected
+                  {selectedJobs.filter(id => refreshableJobs.some(j => (j.id || j._id!) === id)).length} of {refreshableJobs.length} selected
                 </span>
               </div>
               
@@ -314,7 +319,7 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                                 type="checkbox"
                                 checked={selectedJobs.includes(jobId)}
                                 onChange={() => handleJobSelect(jobId)}
-                                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500 bg-white shadow-sm"
+                                className="w-5 h-5 rounded border-2 border-gray-300 text-blue-600 focus:ring-blue-500"
                               />
                             </div>
                             
@@ -344,7 +349,10 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                               </div>
                               
                               {/* Job Title */}
-                              <h3 className="text-xl font-bold text-gray-900 hover:text-green-600 cursor-pointer mb-3 line-clamp-2 leading-tight">
+                              <h3 
+                                onClick={() => onNavigate('job-detail', { jobId })}
+                                className="text-xl font-bold text-gray-900 hover:text-green-600 cursor-pointer mb-3 line-clamp-2 leading-tight"
+                              >
                                 {job.jobTitle || job.title}
                               </h3>
                             </div>
@@ -406,7 +414,10 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                               }}
                               className="flex-1 text-sm"
                             />
-                            <button className="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-100 hover:border-gray-300 transition-all text-sm flex items-center gap-2">
+                            <button
+                              onClick={() => onNavigate('job-detail', { jobId: jobId })}
+                              className="px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-600 rounded-xl font-semibold hover:bg-gray-100 hover:border-gray-300 transition-all text-sm flex items-center gap-2"
+                            >
                               <Eye className="w-4 h-4" />
                               View
                             </button>
@@ -530,7 +541,10 @@ const JobRefreshManagementPage: React.FC<JobRefreshManagementPageProps> = ({
                             >
                               {isLimitReached ? 'Limit Reached' : 'In Cooldown'}
                             </button>
-                            <button className="px-4 py-2.5 bg-gray-200 border border-gray-300 text-gray-500 rounded-xl font-medium hover:bg-gray-300 transition-all text-sm flex items-center gap-2">
+                            <button 
+                              onClick={() => onNavigate('job-detail', { jobId })}
+                              className="px-4 py-2.5 bg-gray-200 border border-gray-300 text-gray-500 rounded-xl font-medium hover:bg-gray-300 transition-all text-sm flex items-center gap-2"
+                            >
                               <Eye className="w-4 h-4" />
                               View
                             </button>

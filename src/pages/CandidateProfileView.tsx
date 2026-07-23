@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { API_ENDPOINTS } from '../config/env';
-import { MapPin, Mail, Phone, Download, MessageCircle, Briefcase, GraduationCap, Star, User, DollarSign, Clock } from 'lucide-react';
+import { MapPin, Mail, Phone, Download, MessageCircle, Briefcase, GraduationCap, Star, User, DollarSign, Clock, Loader2 } from 'lucide-react';
+import { downloadResumeByEmail } from '../services/resumeService';
 import BackButton from '../components/BackButton';
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
@@ -69,6 +70,19 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
   const [candidate, setCandidate] = useState<Record<string, any> | null>(null);
   const [loading, setLoading] = useState(true);
   const [showMessage, setShowMessage] = useState(false);
+  const [downloadingResume, setDownloadingResume] = useState(false);
+
+  const handleDownloadResume = async () => {
+    if (!candidate?.email || downloadingResume) return;
+    setDownloadingResume(true);
+    try {
+      await downloadResumeByEmail(candidate.email, candidate.name || 'candidate');
+    } catch (err) {
+      console.error('Error downloading resume:', err);
+    } finally {
+      setDownloadingResume(false);
+    }
+  };
 
   const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const storedData = (() => { try { return JSON.parse(sessionStorage.getItem('viewCandidateData') || '{}'); } catch { return {}; } })();
@@ -346,13 +360,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                 </button>
               )}
               {candidate.resumeUrl && (
-                <a
-                  href={`${import.meta.env.VITE_API_URL || '/api'}/resume/proxy-download?email=${encodeURIComponent(candidate.email)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[100px] min-h-[40px]">
-                  <Download className="w-4 h-4 flex-shrink-0" />Resume
-                </a>
+                <button
+                  onClick={handleDownloadResume}
+                  disabled={downloadingResume}
+                  className="flex items-center justify-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium transition-colors flex-1 min-w-[100px] min-h-[40px] disabled:opacity-50">
+                  {downloadingResume ? (
+                    <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                  ) : (
+                    <Download className="w-4 h-4 flex-shrink-0" />
+                  )}
+                  Resume
+                </button>
               )}
               {candidate.email && (
                 <a href={`mailto:${candidate.email}`}

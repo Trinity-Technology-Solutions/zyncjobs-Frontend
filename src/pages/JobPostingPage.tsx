@@ -8,6 +8,7 @@ import { API_ENDPOINTS } from '../config/constants';
 import { generatePositionId } from '../utils/jobMigrationUtils';
 import { getCompanyLogo } from '../utils/logoUtils';
 import { getCategoryBanner, getCategoryBannerOptions } from '../utils/categoryBannerImages';
+import JobBannerUploader from '../components/JobBannerUploader';
 import mistralAIService from '../services/mistralAIService';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
@@ -276,7 +277,6 @@ const sanitizeParsedCompany = (company?: string): string => {
 
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [showBannerPicker, setShowBannerPicker] = useState(false);
 
   // Check for edit mode data from sessionStorage
   const editJobRaw = sessionStorage.getItem('editJobData');
@@ -544,6 +544,31 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   });
   const [salaryFocused, setSalaryFocused] = useState<'min' | 'max' | null>(null);
 
+  const [showBannerPicker, setShowBannerPicker] = useState(false);
+  const [bannerType, setBannerType] = useState<'default' | 'uploaded'>(() => {
+    if (!editJob?.jobHeaderImage) return 'default';
+    if (editJob.jobHeaderImage.startsWith('https://images.unsplash.com')) return 'default';
+    return 'uploaded';
+  });
+
+  const handleDefaultBannerSelect = (url: string) => {
+    updateJobData('jobHeaderImage', url);
+    setBannerType('default');
+    setShowBannerPicker(false);
+  };
+
+  const handleUploadedBanner = (url: string) => {
+    updateJobData('jobHeaderImage', url);
+    setBannerType('uploaded');
+    setShowBannerPicker(false);
+  };
+
+  const handleUploadRemove = () => {
+    const defaultBanner = getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
+    updateJobData('jobHeaderImage', defaultBanner);
+    setBannerType('default');
+  };
+
   const cityCountryMap: Record<string, string> = {
     'Mumbai': 'India', 'Delhi': 'India', 'New Delhi': 'India', 'Bangalore': 'India',
     'Bengaluru': 'India', 'Chennai': 'India', 'Hyderabad': 'India', 'Kolkata': 'India',
@@ -694,12 +719,15 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobData.jobDescription]);
 
-  // Auto-set banner image when job category changes
+  // Set default banner image when job category changes, only if no user-uploaded banner exists
   useEffect(() => {
     if (jobData.jobCategory) {
-      const defaultBanner = getCategoryBanner(jobData.jobCategory);
-      if (defaultBanner && (!jobData.jobHeaderImage || jobData.jobHeaderImage === 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop')) {
-        updateJobData('jobHeaderImage', defaultBanner);
+      const hasUserUploadedBanner = jobData.jobHeaderImage && !jobData.jobHeaderImage.startsWith('https://images.unsplash.com');
+      if (!hasUserUploadedBanner) {
+        const defaultBanner = getCategoryBanner(jobData.jobCategory);
+        if (defaultBanner) {
+          updateJobData('jobHeaderImage', defaultBanner);
+        }
       }
     }
   }, [jobData.jobCategory]);
@@ -3296,9 +3324,28 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
   const renderStep7 = () => {
     const bannerUrl = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
     const bannerOptions = getCategoryBannerOptions(jobData.jobCategory);
-    
+
     return (
     <div className="px-6 py-8">
+      {/* Banner preview */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm font-medium text-gray-700">Job Banner</span>
+          <button type="button" onClick={() => setShowBannerPicker(true)}
+            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+            </svg>
+            Change Banner
+          </button>
+        </div>
+        <div className="relative h-36 rounded-lg overflow-hidden bg-gray-900">
+          <img src={bannerUrl} alt="Job banner" className="w-full h-full object-cover opacity-80"
+            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'; }} />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 to-purple-900/30" />
+        </div>
+      </div>
+
       {/* Banner picker modal */}
       {showBannerPicker && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -3309,7 +3356,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             </div>
             <div className="overflow-y-auto p-5 grid grid-cols-2 gap-3">
               {bannerOptions.map((url) => (
-                <button key={url} type="button" onClick={() => { updateJobData('jobHeaderImage', url); setShowBannerPicker(false); }}
+                <button key={url} type="button" onClick={() => handleDefaultBannerSelect(url)}
                   className={`relative h-28 rounded-lg overflow-hidden border-2 transition-all ${bannerUrl === url ? 'border-blue-600 ring-2 ring-blue-300' : 'border-transparent hover:border-blue-400'}`}>
                   <img src={url} alt="banner" className="w-full h-full object-cover" />
                   {bannerUrl === url && (
@@ -3321,33 +3368,17 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
               ))}
             </div>
             <div className="px-5 py-4 border-t">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Or paste a custom image URL</label>
-              <div className="flex gap-2">
-                <input id="custom-banner-url" type="url" placeholder="https://..." className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                  onKeyDown={(e) => { if (e.key === 'Enter') { const v = (e.target as HTMLInputElement).value.trim(); if (v) { updateJobData('jobHeaderImage', v); setShowBannerPicker(false); } } }} />
-                <button type="button" onClick={() => { const v = (document.getElementById('custom-banner-url') as HTMLInputElement)?.value.trim(); if (v) { updateJobData('jobHeaderImage', v); setShowBannerPicker(false); } }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700">Apply</button>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Upload Custom Banner</label>
+              <JobBannerUploader
+                currentBanner={bannerType === 'uploaded' ? jobData.jobHeaderImage : ''}
+                onChange={handleUploadedBanner}
+                onRemove={handleUploadRemove}
+              />
+              <p className="text-xs text-gray-400 mt-1">Supported: JPG &#8226; PNG &#8226; WEBP</p>
             </div>
           </div>
         </div>
       )}
-      {/* Banner preview */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">Job Banner</span>
-          <button type="button" onClick={() => setShowBannerPicker(true)}
-            className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
-            Change Banner
-          </button>
-        </div>
-        <div className="relative h-36 rounded-lg overflow-hidden bg-gray-900">
-          <img src={bannerUrl} alt="Job banner" className="w-full h-full object-cover opacity-80"
-            onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop'; }} />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/40 to-purple-900/30" />
-        </div>
-      </div>
       <div className="space-y-6">
         <div>
           <h2 className="text-xl font-semibold text-gray-800 mb-6">Job details</h2>
@@ -3501,12 +3532,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     const logoUrl = getCompanyLogo(jobData.companyName) || jobData.companyLogo || '';
     const companyTagline = (jobData.companyTagline || user?.tagline || '').trim();
     
-    // Ensure banner image is set — always derive from category if jobHeaderImage is missing/default
-    const DEFAULT_BANNER = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
-    const SALES_BANNER = 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=800&h=400&fit=crop';
-    const finalBannerImage = (jobData.jobHeaderImage && jobData.jobHeaderImage !== SALES_BANNER && jobData.jobHeaderImage !== DEFAULT_BANNER)
-      ? jobData.jobHeaderImage
-      : getCategoryBanner(jobData.jobCategory) || DEFAULT_BANNER;
+    // Use the uploaded banner URL directly, or fall back to category default
+    const finalBannerImage = jobData.jobHeaderImage || getCategoryBanner(jobData.jobCategory) || 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=400&fit=crop';
     console.log('Final banner image being sent:', finalBannerImage);
     
     // Check if salary should be included (only if user actually modified it)
@@ -3686,6 +3713,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           companyName: '',
           companyLogo: '',
           companyId: '',
+          companyTagline: '',
           jobHeaderImage: ''
         });
         setCurrentStep(1);
