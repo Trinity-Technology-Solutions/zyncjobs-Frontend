@@ -35,7 +35,7 @@ export const downloadResumeByApplicationId = async (
   const res = await apiFetch(`${API_BASE}/resume-viewer/download/${applicationId}`);
   if (!res.ok) throw new Error('Download failed');
   const blob = await res.blob();
-  triggerDownload(blob, candidateName);
+  await triggerDownload(blob, candidateName);
 };
 
 export const downloadResumeFromUrl = async (
@@ -43,18 +43,28 @@ export const downloadResumeFromUrl = async (
   candidateName: string = 'candidate'
 ): Promise<void> => {
   try {
-    const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+    const res = await apiFetch(url);
     if (!res.ok) throw new Error('Download failed');
-    triggerDownload(await res.blob(), candidateName);
-  } catch {
-    window.open(url, '_blank');
+    await triggerDownload(await res.blob(), candidateName);
+  } catch (error) {
+    console.error('downloadResumeFromUrl error:', error);
   }
 };
 
-function triggerDownload(blob: Blob, candidateName: string) {
-  const text = blob.type.includes('text/plain') || blob.type.includes('json') || blob.type.includes('xml')
-    ? blob.text?.() ?? ''
-    : '';
+export const downloadResumeByEmail = async (
+  email: string,
+  candidateName: string = 'candidate'
+): Promise<void> => {
+  const url = `${API_BASE}/resume/proxy-download?email=${encodeURIComponent(email)}`;
+  const res = await apiFetch(url);
+  if (!res.ok) throw new Error('Download failed');
+  const blob = await res.blob();
+  await triggerDownload(blob, candidateName);
+};
+
+async function triggerDownload(blob: Blob, candidateName: string) {
+  const isText = blob.type.includes('text/plain') || blob.type.includes('json') || blob.type.includes('xml');
+  const text = isText && blob.text ? await blob.text() : '';
 
   const finalBlob = text
     ? new Blob([text], { type: 'text/plain;charset=utf-8' })

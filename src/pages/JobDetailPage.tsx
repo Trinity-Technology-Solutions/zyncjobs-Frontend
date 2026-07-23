@@ -314,35 +314,46 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
       const response = await fetch(`${API_ENDPOINTS.JOBS}?limit=100`);
       if (!response.ok) return;
       const data = await response.json();
-      console.log('SimilarJobs raw data:', typeof data, Array.isArray(data), JSON.stringify(data).substring(0, 200));
       const allJobs: any[] = Array.isArray(data) ? data : (data.jobs || data.data || Object.values(data).find((v: any) => Array.isArray(v)) as any[] || []);
-      console.log('SimilarJobs allJobs count:', allJobs.length);
       if (!allJobs.length) return;
 
-      const currentTitle = (currentJob.jobTitle || currentJob.title || '').toLowerCase();
-      const currentCompany = (currentJob.company || '').toLowerCase();
-      const titleWords = currentTitle.split(/\s+/).filter((w: string) => w.length > 2);
+      const STOP_WORDS = new Set(['the','and','for','of','in','to','a','an','or','with','at','by','on','is','it','as','be','but','if','not']);
+      const normalize = (title: string): string[] => {
+        const cleaned = title.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ');
+        if (!cleaned) return [];
+        return cleaned.split(/\s+/).filter((w: string) => w.length > 2 && !STOP_WORDS.has(w));
+      };
+
+      const currentTitle = currentJob.jobTitle || currentJob.title || '';
+      const currentWords = normalize(currentTitle);
 
       const currentId = String(currentJob._id || currentJob.id || '');
       const others = allJobs.filter((j: any) => {
         const jId = String(j._id || j.id || '');
         return jId !== currentId;
       });
-      console.log('SimilarJobs others count:', others.length);
+
       const scored = others
         .map((j: any) => {
-          const jTitle = (j.jobTitle || j.title || '').toLowerCase();
-          const jCompany = (j.company || '').toLowerCase();
+          const jWords = normalize(j.jobTitle || j.title || '');
           let score = 0;
-          if (jCompany === currentCompany) score += 3;
-          titleWords.forEach((w: string) => { if (jTitle.includes(w)) score += 1; });
+          const matched = new Set<string>();
+          for (const cw of currentWords) {
+            for (const jw of jWords) {
+              if (jw === cw || jw.includes(cw) || cw.includes(jw)) {
+                if (!matched.has(jw)) {
+                  score += 1;
+                  matched.add(jw);
+                }
+              }
+            }
+          }
           return { ...j, _score: score };
         })
         .sort((a: any, b: any) => b._score - a._score)
         .slice(0, 4);
 
       const finalJobs = scored.length > 0 ? scored : others.slice(0, 4);
-      console.log('SimilarJobs final count:', finalJobs.length);
       setSimilarJobs(finalJobs);
     } catch (error) {
       console.error('Error fetching similar jobs:', error);
