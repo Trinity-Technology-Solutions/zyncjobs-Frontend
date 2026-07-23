@@ -28,11 +28,16 @@ const ResumeUploadWithModeration: React.FC<ResumeUploadProps> = ({ userId, onUpl
     const allowedTypes = [
       'application/pdf',
       'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/bmp',
+      'image/tiff'
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      setError('Invalid file type. Only PDF and DOC files are allowed.');
+      setError('Invalid file type. Only PDF, DOC, and image files are allowed.');
       return;
     }
 
