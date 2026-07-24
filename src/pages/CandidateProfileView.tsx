@@ -7,6 +7,7 @@ import BackButton from '../components/BackButton';
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import { EmploymentDisplay } from '../components/ProfileDisplayHelpers';
 
 interface CandidateProfileViewProps {
   candidateId: string;
@@ -86,8 +87,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
   const currentUser = (() => { try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; } })();
   const storedData = (() => { try { return JSON.parse(sessionStorage.getItem('viewCandidateData') || '{}'); } catch { return {}; } })();
-  const profileViewSource = sessionStorage.getItem('profileViewSource') || 'application-management';
-  const backLabel = profileViewSource === 'candidate-search' ? 'Back to Candidate Search' : 'Back to Applications';
+
 
   const handleBack = () => {
     sessionStorage.removeItem('profileViewSource');
@@ -221,7 +221,18 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     }
   };
 
+  function parseEmployment(raw: unknown): any[] | null {
+    if (!raw) return null;
+    if (Array.isArray(raw)) return raw.length > 0 ? raw : null;
+    if (typeof raw === 'string') {
+      try { const p = JSON.parse(raw); return Array.isArray(p) ? (p.length > 0 ? p : null) : null; } catch { return null; }
+    }
+    if (typeof raw === 'object' && (raw as Record<string, unknown>).companyName) return [raw];
+    return null;
+  }
+
   function buildFromApi(data: Record<string, any>): Record<string, any> {
+    const emp = parseEmployment(data.employment);
     return {
       name: data.name || data.fullName || data.candidateName || storedData.name || 'Candidate',
       email: data.email || data.candidateEmail || storedData.email || effectiveCandidateId,
@@ -233,7 +244,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
       resumeUrl: data.resumeUrl || (data.resume && typeof data.resume === 'object' ? (data.resume.url || data.resume.fileUrl || (data.resume.filename ? `${API_ENDPOINTS.BASE_URL}/uploads/${data.resume.filename}` : '')) : data.resume) || '',
       profileSummary: safeStr(data.profileSummary || data.bio || data.summary || ''),
       education: safeStr(data.educationCollege || data.education || ''),
-      employment: safeStr(data.employment || data.experience || ''),
+      employment: emp,
       projects: safeStr(data.projects || ''),
       internships: safeStr(data.internships || ''),
       languages: safeStr(data.languages || ''),
@@ -301,15 +312,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
   const initials = (candidate.name || 'C').split(' ').map((n: string) => n?.[0] || '').join('').toUpperCase().slice(0, 2) || 'C';
   const certs = parseCertifications(candidate.certifications);
 
-  const SectionRow = ({ icon, color, title, children }: { icon: React.ReactNode; color: string; title: string; children: React.ReactNode }) => (
-    <div className="py-5 border-t border-gray-100">
-      <div className={`flex items-center gap-2 mb-3 ${color}`}>
-        {icon}
-        <h2 className="text-sm font-semibold text-gray-800">{title}</h2>
-      </div>
-      {children}
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[#f0f2f7]">
@@ -450,13 +452,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
           </div>
         )}
 
-        {candidate.employment && (
+        {Array.isArray(candidate.employment) && candidate.employment.length > 0 && (
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 px-8 py-6">
             <div className="flex items-center gap-2 mb-3 text-orange-500">
               <Briefcase className="w-4 h-4" />
               <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide">Employment</h2>
             </div>
-            <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">{candidate.employment}</p>
+            <div className="space-y-4">
+              {candidate.employment.map((emp: any, idx: number) => (
+                <EmploymentDisplay key={idx} emp={emp} />
+              ))}
+            </div>
           </div>
         )}
 

@@ -253,7 +253,7 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
         const token = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken') || '';
         const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
         
-        await Promise.all(missingJobIds.map(async (jobId: string) => {
+        await Promise.all((missingJobIds as string[]).map(async (jobId: string) => {
           try {
             const jRes = await fetch(`${API}/jobs/${jobId}`, { headers: authHeaders });
             if (jRes.ok) {
@@ -277,7 +277,6 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
 
       const sectionTitle = (text: string) => {
         checkY(14);
-        doc.moveDown && null;
         y += 3;
         doc.setFillColor(30, 64, 175);
         doc.rect(margin, y, contentW, 9, 'F');
@@ -364,21 +363,16 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
       // ── PROFILE SECTION ──
       if (isEmployer) {
         sectionTitle('COMPANY PROFILE');
+        // GDPR export — only 4 required fields
         const companyName = profile.companyName || profile.company || profile.organizationName || '';
-        const phone = profile.phone || profile.phoneNumber || profile.contactPhone || '';
-        const location = profile.location || profile.city || profile.address || '';
-        const website = profile.companyWebsite || profile.website || profile.websiteUrl || '';
-        const industry = profile.industry || profile.sector || '';
-        const companySize = profile.companySize || profile.employeeCount || profile.size || '';
+        // Contact Name: Employer's own name from the User record
+        const contactName = profile.name || profile.fullName || profile.contactPerson || 'N/A';
+        const accountRole = (profile.role || profile.userType || 'Employer').charAt(0).toUpperCase()
+          + (profile.role || profile.userType || 'employer').slice(1);
         row('Company Name', companyName);
-        row('Contact Name', profile.name || profile.fullName || '');
+        row('Contact Name', contactName);
         row('Email', profile.email || '');
-        row('Phone', phone);
-        row('Location', location);
-        row('Website', website);
-        row('Industry', industry);
-        row('Company Size', companySize);
-        row('Account Role', (profile.role || profile.userType || 'Employer').charAt(0).toUpperCase() + (profile.role || profile.userType || 'employer').slice(1));
+        row('Account Role', accountRole);
       } else {
         sectionTitle('CANDIDATE PROFILE');
         const phone = profile.phone || profile.phoneNumber || profile.contactPhone || '';
@@ -444,14 +438,30 @@ const PrivacySettingsPage: React.FC<Props> = ({ onNavigate, user: propUser, onLo
           doc.text('No job postings found.', margin + 4, y); y += 8;
         } else {
           jobs.slice(0, 30).forEach((job: any, i: number) => {
-            checkY(35);
+            checkY(55);
             doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 64, 175);
             doc.text(`${i + 1}. ${job.jobTitle || job.title || 'Untitled'}`, margin + 4, y);
             y += 7;
-            row('Status',   (job.status || 'active').charAt(0).toUpperCase() + (job.status || 'active').slice(1), 4);
-            row('Location', job.location || job.jobLocation || '', 4);
-            row('Type',     job.jobType || job.employmentType || '', 4);
-            row('Posted',   job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '', 4);
+
+            // Employer ID — from backend-formatted field
+            const rawEmpId = job.employerId || profile.employerId || profile.id || '';
+            const formattedEmpId = rawEmpId
+              ? (/^EID/i.test(rawEmpId) ? rawEmpId : (/^\d+$/.test(rawEmpId) ? `EID${String(rawEmpId).padStart(4, '0')}` : rawEmpId))
+              : 'N/A';
+
+            // Position Code — prefer pre-formatted positionCode from backend
+            const positionCode = job.positionCode || job.positionId || 'N/A';
+
+            // Category
+            const category = job.jobCategory || job.category || 'N/A';
+
+            row('Employer ID',   formattedEmpId, 4);
+            row('Position Code', positionCode, 4);
+            row('Category',      category, 4);
+            row('Status',        (job.status || 'active').charAt(0).toUpperCase() + (job.status || 'active').slice(1), 4);
+            row('Location',      job.location || job.jobLocation || '', 4);
+            row('Type',          job.jobType || job.employmentType || '', 4);
+            row('Posted',        job.createdAt ? new Date(job.createdAt).toLocaleDateString() : '', 4);
 
             // Per-job hiring summary
             const jobApps = applications.filter((a: any) => a.jobId === (job.id || job._id));
