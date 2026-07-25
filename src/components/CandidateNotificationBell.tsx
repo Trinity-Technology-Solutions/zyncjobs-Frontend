@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell, X, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, X, CheckCheck, Trash2, Calendar, Clock, Video, Phone, MapPin } from 'lucide-react';
 import { AppNotification } from '../hooks/useApplicationNotifications';
 
 interface CandidateNotificationBellProps {
@@ -27,6 +27,19 @@ function timeAgo(ts: number): string {
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function getInterviewModeIcon(mode: string) {
+  switch (mode?.toLowerCase()) {
+    case 'video':
+      return <Video className="w-3.5 h-3.5" />;
+    case 'phone':
+      return <Phone className="w-3.5 h-3.5" />;
+    case 'in-person':
+      return <MapPin className="w-3.5 h-3.5" />;
+    default:
+      return <Video className="w-3.5 h-3.5" />;
+  }
 }
 
 const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
@@ -95,32 +108,67 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
                   <p className="text-xs text-gray-400 mt-1">We'll notify you when your application status changes</p>
                 </div>
               ) : (
-                notifications.map(n => (
-                  <div
-                    key={n.id}
-                    onClick={() => { onMarkRead(n.id); setOpen(false); onNavigate('my-applications'); }}
-                    className={`px-5 py-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50' : ''}`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{n.jobTitle}</p>
-                        <p className="text-xs text-gray-500 truncate">{n.company}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <span className="text-xs text-gray-400 line-through capitalize">{n.oldStatus}</span>
-                          <span className="text-xs text-gray-400">→</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium capitalize ${STATUS_COLORS[n.newStatus] || 'bg-gray-100 text-gray-700'}`}>
-                            {n.newStatus}
-                          </span>
+                notifications.map(n => {
+                  const isInterview = n.type === 'interview';
+                  
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={() => { onMarkRead(n.id); setOpen(false); onNavigate(isInterview ? 'my-applications' : 'my-applications'); }}
+                      className={`px-5 py-4 border-b border-gray-50 cursor-pointer hover:bg-gray-50 transition-colors ${!n.read ? 'bg-blue-50' : ''}`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{n.jobTitle}</p>
+                          <p className="text-xs text-gray-500 truncate">{n.company}</p>
+                          
+                          {isInterview ? (
+                            // Interview notification display
+                            <div className="mt-2 space-y-1">
+                              <p className="text-xs text-gray-600">{n.message}</p>
+                              <div className="flex items-center space-x-3 text-xs text-gray-500">
+                                {n.interviewDate && (
+                                  <span className="flex items-center space-x-1">
+                                    <Calendar className="w-3 h-3" />
+                                    <span>{n.interviewDate}</span>
+                                  </span>
+                                )}
+                                {n.interviewTime && (
+                                  <span className="flex items-center space-x-1">
+                                    <Clock className="w-3 h-3" />
+                                    <span>{n.interviewTime}</span>
+                                  </span>
+                                )}
+                                {n.interviewMode && (
+                                  <span className="flex items-center space-x-1">
+                                    {getInterviewModeIcon(n.interviewMode)}
+                                    <span className="capitalize">{n.interviewMode}</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            // Application status change display
+                            <>
+                              <div className="flex items-center space-x-2 mt-1">
+                                <span className="text-xs text-gray-400 line-through capitalize">{n.oldStatus}</span>
+                                <span className="text-xs text-gray-400">→</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium capitalize ${STATUS_COLORS[n.newStatus] || 'bg-gray-100 text-gray-700'}`}>
+                                  {n.newStatus}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">{n.message}</p>
+                            </>
+                          )}
                         </div>
-                        <p className="text-xs text-gray-600 mt-1">{n.message}</p>
-                      </div>
-                      <div className="flex flex-col items-end ml-2 flex-shrink-0">
-                        <span className="text-xs text-gray-400">{timeAgo(n.timestamp)}</span>
-                        {!n.read && <span className="w-2 h-2 bg-blue-500 rounded-full mt-1" />}
+                        <div className="flex flex-col items-end ml-2 flex-shrink-0">
+                          <span className="text-xs text-gray-400">{timeAgo(n.timestamp)}</span>
+                          {!n.read && <span className="w-2 h-2 bg-blue-500 rounded-full mt-1" />}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

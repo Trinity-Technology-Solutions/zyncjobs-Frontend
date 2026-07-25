@@ -73,6 +73,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [refreshingSaved, setRefreshingSaved] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<any>(null);
@@ -2011,25 +2012,28 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-3">
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Saved Candidates</h1>
                 <button
-                  onClick={() => {
-                    const token = getToken();
-                    if (token) {
-                      fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } })
-                        .then(res => res.ok ? res.json() : [])
-                        .then(data => {
-                          const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
-                          setSavedCandidates(candidates);
-                          showToast(`Refreshed! Found ${candidates.length} saved candidates.`, 'success');
-                        })
-                        .catch(() => showToast('Failed to refresh saved candidates.', 'error'));
+                  onClick={async () => {
+                    if (refreshingSaved) return;
+                    setRefreshingSaved(true);
+                    try {
+                      const token = getToken();
+                      if (!token) return;
+                      const res = await fetch(`${API_ENDPOINTS.SAVED_CANDIDATES}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                      const data = await (res.ok ? res.json() : []);
+                      const candidates = Array.isArray(data) ? data : data.savedCandidates || [];
+                      setSavedCandidates(candidates);
+                      showToast(`Refreshed! Found ${candidates.length} saved candidates.`, 'success');
+                    } catch {
+                      showToast('Failed to refresh saved candidates.', 'error');
+                    } finally {
+                      setRefreshingSaved(false);
                     }
                   }}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                  disabled={refreshingSaved}
+                  className={`bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 ${refreshingSaved ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Refresh
+                  <RefreshCw className={`w-4 h-4 ${refreshingSaved ? 'animate-spin' : ''}`} />
+                  {refreshingSaved ? 'Refreshing...' : 'Refresh'}
                 </button>
               </div>
               

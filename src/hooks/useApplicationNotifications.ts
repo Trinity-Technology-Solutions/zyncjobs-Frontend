@@ -11,6 +11,10 @@ export interface AppNotification {
   message: string;
   timestamp: number;
   read: boolean;
+  type?: 'application_status' | 'interview';
+  interviewDate?: string;
+  interviewTime?: string;
+  interviewMode?: string;
 }
 
 const STATUS_KEY = 'candidate_app_statuses';
@@ -123,22 +127,42 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       if (!res.ok) return;
       const dbNotifs: any[] = await res.json();
 
-      // Only keep application_status notifications created AFTER the last "Clear All"
+      // Only keep application_status and interview notifications created AFTER the last "Clear All"
       const clearedAt = getClearedAt();
 
       const converted: AppNotification[] = dbNotifs
-        .filter(n => n.type === 'application_status')
-        .map(n => ({
-          id: `db_${n.id}`,
-          applicationId: n.link?.split('/').pop() || '',
-          jobTitle: n.title,
-          company: '',
-          oldStatus: '',
-          newStatus: '',
-          message: n.message,
-          timestamp: new Date(n.createdAt).getTime(),
-          read: n.read ?? false,
-        }))
+        .filter(n => n.type === 'application_status' || n.type === 'interview')
+        .map(n => {
+          const isInterview = n.type === 'interview';
+          // Parse interview details from message if available
+          let interviewDate = '';
+          let interviewTime = '';
+          let interviewMode = '';
+          if (isInterview) {
+            // Message format: "Your interview for "Job Title" at Company has been scheduled for Date at Time (Mode)"
+            const dateMatch = n.message.match(/scheduled for ([^ at]+) at/);
+            const timeMatch = n.message.match(/at ([^(]+) \(/);
+            const modeMatch = n.message.match(/\(([^)]+)\)/);
+            if (dateMatch) interviewDate = dateMatch[1].trim();
+            if (timeMatch) interviewTime = timeMatch[1].trim();
+            if (modeMatch) interviewMode = modeMatch[1].trim();
+          }
+          return {
+            id: `db_${n.id}`,
+            applicationId: n.link?.split('/').pop() || '',
+            jobTitle: isInterview ? n.title : n.title,
+            company: '',
+            oldStatus: '',
+            newStatus: '',
+            message: n.message,
+            timestamp: new Date(n.createdAt).getTime(),
+            read: n.read ?? false,
+            type: n.type,
+            interviewDate,
+            interviewTime,
+            interviewMode,
+          };
+        })
         // 🔑 Skip any notification that was already visible before the user cleared all
         .filter(n => n.timestamp > clearedAt);
 

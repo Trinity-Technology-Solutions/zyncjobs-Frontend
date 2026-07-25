@@ -454,22 +454,28 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     }}
                   />
                   
-                  <button
-                    onClick={() => {
-                      if (selectedJobs.length === 0) {
-                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to collaborate" } }));
-                        return;
-                      }
-                      setCollaborateEmail('');
-                      setCollaborateMessage('');
-                      setShowCollaborateModal(true);
-                    }}
-                    className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
-                    title="Collaborate on selected jobs"
-                  >
-                    <Users className="w-4 h-4" />
-                    <span className="font-medium hidden sm:inline">Collaborate</span>
-                  </button>
+                  {/* TEMPORARILY HIDDEN:
+                  Collaborate feature postponed based on business discussion.
+                  Keep all implementation intact for future release.
+                  To re-enable, change false to true in the condition below. */}
+                  {false && (
+                    <button
+                      onClick={() => {
+                        if (selectedJobs.length === 0) {
+                          window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to collaborate" } }));
+                          return;
+                        }
+                        setCollaborateEmail('');
+                        setCollaborateMessage('');
+                        setShowCollaborateModal(true);
+                      }}
+                      className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors text-sm"
+                      title="Collaborate on selected jobs"
+                    >
+                      <Users className="w-4 h-4" />
+                      <span className="font-medium hidden sm:inline">Collaborate</span>
+                    </button>
+                  )}
                   
                   <button
                     onClick={() => {

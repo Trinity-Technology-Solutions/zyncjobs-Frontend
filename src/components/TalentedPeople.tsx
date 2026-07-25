@@ -114,7 +114,7 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
             { name: 'Persistent', logo: 'https://www.google.com/s2/favicons?domain=persistent.com&sz=64' },
             { name: 'LTIMindtree', logo: 'https://www.google.com/s2/favicons?domain=ltimindtree.com&sz=64' },
             { name: 'Saksoft', logo: 'https://www.google.com/s2/favicons?domain=saksoft.com&sz=64' },
-            { name: 'L&T', logo: 'https://www.google.com/s2/favicons?domain=larsentoubro.com&sz=64' },
+            { name: 'L&T', logo: '/images/company-logos/lt-logo.png' },
             { name: 'Cognizant', logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },
             { name: 'Accenture', logo: 'https://www.google.com/s2/favicons?domain=accenture.com&sz=64' },
           ].map((company, index) => (
