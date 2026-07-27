@@ -23,6 +23,8 @@ import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
+const DISMISSED_NOTIFS_KEY = 'employer_dismissed_notif_ids';
+const CLEARED_ALL_KEY = 'employer_notif_cleared_at';
 
 interface EmployerDashboardPageProps {
   user?: any;
@@ -72,6 +74,15 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [error, setError] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const getDismissedIds = (): Set<string> => {
+    try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_NOTIFS_KEY) || '[]')); } catch { return new Set(); }
+  };
+  const getNotifClearedAt = (): number => parseInt(localStorage.getItem(CLEARED_ALL_KEY) || '0', 10);
+  const filterNotifications = (list: Notification[]): Notification[] => {
+    const clearedAt = getNotifClearedAt();
+    const dismissed = getDismissedIds();
+    return list.filter(n => !dismissed.has(n.id) && new Date(n.createdAt).getTime() > clearedAt);
+  };
   const [refreshing, setRefreshing] = useState(false);
   const [refreshingSaved, setRefreshingSaved] = useState(false);
   const [activeMenu, setActiveMenu] = useState('dashboard');
@@ -1170,7 +1181,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     try {
                       if (user?.email) {
                         const fresh = await NotificationService.fetchNotifications(user.email);
-                        setNotifications(fresh);
+                        setNotifications(filterNotifications(fresh));
                       }
                     } catch (e) { console.error('Bell fetch error:', e); }
                   }
@@ -2195,7 +2206,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       setRefreshing(true);
                       try {
                         const dynamicNotifications = await NotificationService.fetchNotifications(user.email);
-                        setNotifications(dynamicNotifications);
+                        setNotifications(filterNotifications(dynamicNotifications));
                         showToast('Notifications are up to date.', 'success');
                       } catch (error) {
                         showToast('Failed to refresh notifications. Please try again.', 'error');
@@ -2253,7 +2264,12 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               View Details
                             </button>
                             <button 
-                              onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                              onClick={() => {
+                                setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                                const dismissed = getDismissedIds();
+                                dismissed.add(notification.id);
+                                localStorage.setItem(DISMISSED_NOTIFS_KEY, JSON.stringify([...dismissed]));
+                              }}
                               className="text-xs font-medium text-gray-500 border border-gray-300 px-3 py-1.5 rounded hover:bg-gray-50 transition-colors"
                             >
                               Dismiss
@@ -2377,7 +2393,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               <div className="flex items-center gap-3">
                 {notifications.length > 0 && (
                   <button
-                    onClick={() => setNotifications([])}
+                    onClick={() => {
+                      setNotifications([]);
+                      localStorage.setItem(DISMISSED_NOTIFS_KEY, '[]');
+                      localStorage.setItem(CLEARED_ALL_KEY, Date.now().toString());
+                    }}
                     className="text-xs text-gray-500 hover:text-red-600 transition-colors"
                   >
                     Clear all
@@ -2430,6 +2450,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                           onClick={(e) => {
                             e.stopPropagation();
                             setNotifications(prev => prev.filter(n => n.id !== notification.id));
+                            const dismissed = getDismissedIds();
+                            dismissed.add(notification.id);
+                            localStorage.setItem(DISMISSED_NOTIFS_KEY, JSON.stringify([...dismissed]));
                           }}
                           className="text-gray-300 hover:text-red-500 transition-colors flex-shrink-0 text-lg leading-none ml-2"
                         >

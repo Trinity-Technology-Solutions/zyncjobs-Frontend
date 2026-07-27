@@ -155,6 +155,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     markRead,
     markAllRead,
     clearAll,
+    dismissNotification: dismissAppNotif,
   } = useApplicationNotifications(candidateEmail);
 
   const fetchActivityInsights = async (userId: string) => {
@@ -773,6 +774,121 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
     }
   };
 
+  const clientSideParse = async (file: File, currentUser: any): Promise<any> => {
+    const old = currentUser || {};
+    try {
+      const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+      if (!isPdf) return {};
+      const { readPdf } = await import('../lib/parse-resume-from-pdf/read-pdf');
+      const url = URL.createObjectURL(file);
+      const textItems = await readPdf(url);
+      URL.revokeObjectURL(url);
+      const text = textItems.map(t => t.text).join('\n');
+      if (!text.trim()) return {};
+      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+      const nameMatch = text.match(/^([A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+){0,3})/m);
+      const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+      const phoneMatch = text.match(/(?:\+91[\s-]?)?[6-9]\d{9}/);
+      const cities = ['Chennai','Bangalore','Bengaluru','Mumbai','Hyderabad','Pune','Delhi','Noida','Gurgaon','Kolkata','Ahmedabad','Coimbatore','Kochi','Jaipur','Indore','Madurai'];
+      let location = '';
+      for (const city of cities) {
+        if (new RegExp(`\\b${city}\\b`, 'i').test(text)) { location = city; break; }
+      }
+      const techKeywords = [
+        'JavaScript','TypeScript','Python','Java','React','Angular','Vue','Node.js','Express',
+        'Django','Flask','Spring','SQL','MySQL','PostgreSQL','MongoDB','Redis','AWS','Azure',
+        'GCP','Docker','Kubernetes','Git','HTML','CSS','REST','GraphQL','C++','C#','PHP',
+        'Ruby','Go','Rust','Kotlin','Swift','Flutter','TensorFlow','PyTorch','Pandas','NumPy',
+        'Selenium','Jenkins','Terraform','Linux','Agile','Scrum','Odoo','Three.js',
+        'Power BI','Excel','Tableau','Machine Learning','Deep Learning','NLP','OpenCV',
+      ];
+      const skills = techKeywords.filter(k => new RegExp(`\\b${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text));
+      return {
+        name: nameMatch?.[1] || old.name || '',
+        phone: phoneMatch?.[0] || old.phone || '',
+        location: location || old.location || '',
+        skills: skills.length > 0 ? skills : (old.skills || []),
+        email: emailMatch?.[0] || old.email || '',
+      };
+    } catch {
+      return {};
+    }
+  };
+
+  const parseResumeFileAndMerge = async (file: File, currentUser: any): Promise<any> => {
+    const formData = new FormData();
+    formData.append('resume', file);
+    let p: any = null;
+    let fromBackend = false;
+    try {
+      const parseRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`, { method: 'POST', body: formData });
+      if (parseRes.ok) {
+        const parseData = await parseRes.json();
+        if (parseData.success && parseData.profileData) {
+          p = parseData.profileData;
+          fromBackend = true;
+        }
+      }
+    } catch {}
+    if (!p || !fromBackend) {
+      const fallback = await clientSideParse(file, currentUser);
+      if (fallback.name || fallback.phone || fallback.location || (Array.isArray(fallback.skills) && fallback.skills.length > 0)) {
+        p = {
+          name: fallback.name,
+          phone: fallback.phone,
+          location: fallback.location,
+          skills: fallback.skills,
+          email: fallback.email,
+          title: '',
+          summary: '',
+          workExperiences: [],
+          educations: [],
+          projects: [],
+          certifications: [],
+        };
+      } else {
+        p = {};
+      }
+    }
+    const eduArr = Array.isArray(p.educations) ? p.educations : [];
+    const old = currentUser || {};
+    return {
+      name: p.name || old.name || '',
+      phone: p.phone || old.phone || '',
+      location: p.location || old.location || '',
+      address: old.address || { city: '', state: '', country: '', postal_code: '', full_address: '' },
+      country: p.country || old.country || '',
+      profileSummary: p.summary || old.profileSummary || '',
+      skills: Array.isArray(p.skills) && p.skills.length > 0 ? p.skills : (old.skills || []),
+      jobTitle: p.title || old.jobTitle || '',
+      employment: Array.isArray(p.workExperiences) && p.workExperiences.length > 0
+        ? p.workExperiences.map((w: any) => {
+            const dateParts = String(w.date || '').split(/\s*[-–]\s*/);
+            return {
+              companyName: w.company || w.companyName || '',
+              designation: w.jobTitle || w.title || '',
+              description: Array.isArray(w.descriptions) ? w.descriptions.join(' ') : w.description || '',
+              startYear: (dateParts[0] || '').match(/\d{4}/)?.[0] || '',
+              endYear: (dateParts[1] || '').match(/\d{4}/)?.[0] || '',
+              currentlyWorking: /present|current/i.test(w.date || '') || !!w.current,
+            };
+          })
+        : (old.employment || []),
+      educationCollege: eduArr.length > 0 ? {
+        college: eduArr[0].school || eduArr[0].college || '',
+        degree: eduArr[0].degree || '',
+        passingYear: (eduArr[0].endYear || eduArr[0].passingYear || eduArr[0].date || '').match(/\d{4}/)?.[0] || '',
+        percentage: eduArr[0].percentage || eduArr[0].grade || '',
+      } : (old.educationCollege || {}),
+      projects: Array.isArray(p.projects) && p.projects.length > 0
+        ? p.projects.map((pr: any) => ({
+            projectName: pr.name || pr.projectName || '',
+            description: pr.description || '',
+          }))
+        : (old.projects || []),
+    };
+  };
+
   const calculateProfileCompletion = (userData: any) => {
     const checks = [
       { w: 10, ok: () => !!userData.name?.trim() },
@@ -1009,6 +1125,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     onMarkRead={markRead}
                     onMarkAllRead={markAllRead}
                     onClearAll={clearAll}
+                    onDismiss={dismissAppNotif}
                     onNavigate={onNavigate}
                   />
                 </div>
@@ -1025,6 +1142,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               onMarkRead={markRead}
               onMarkAllRead={markAllRead}
               onClearAll={clearAll}
+              onDismiss={dismissAppNotif}
               onNavigate={onNavigate}
             />
           </div>
@@ -3270,10 +3388,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               uploadDate: new Date().toLocaleDateString(),
                               url: fileUrl,
                             };
+                            const parsedFields = await parseResumeFileAndMerge(file, user).catch(() => ({}));
                             const updatedUser = {
                               ...user,
                               resume: resumeData,
                               resumeUrl: fileUrl,
+                              ...parsedFields,
                             };
                             setUser(updatedUser);
                             localStorage.setItem(
@@ -3289,14 +3409,16 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                 headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({
                                   email: userEmail,
-                                  resume: resumeData,
-                                  resumeUrl: fileUrl,
+                                  ...updatedUser,
                                 }),
                               },
                             );
+                            const hasNewData = Object.values(parsedFields).some(v => v && (typeof v === 'string' ? v.trim() : true));
                             setNotification({
                               type: "success",
-                              message: "Resume uploaded successfully!",
+                              message: hasNewData
+                                ? "Resume uploaded & profile updated successfully!"
+                                : "Resume uploaded successfully!",
                               isVisible: true,
                             });
                           } catch (error: any) {
@@ -3820,234 +3942,45 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   setResumePopupParsing(true);
                   setResumePopupError("");
                   try {
-                    // 1. Parse resume using hybrid architecture:
-                    //    read PDF client-side → hybrid-parse API → transform
-                    const isPdf =
-                      resumePopupFile.type === "application/pdf" ||
-                      resumePopupFile.name.endsWith(".pdf");
-                    let resumeText = "";
-                    let layoutBlocks: any[] = [];
-
-                    if (isPdf) {
-                      // Read PDF client-side for text + layout blocks
-                      const url = URL.createObjectURL(resumePopupFile);
-                      const textItems = await readPdf(url);
-                      URL.revokeObjectURL(url);
-                      if (textItems.length > 0) {
-                        resumeText = textItems.map((t) => t.text).join("\n");
-                        layoutBlocks = textItems.map((t) => ({
-                          text: t.text,
-                          x: t.x,
-                          y: t.y,
-                          width: t.width,
-                          height: t.height,
-                          page: t.page,
-                          bold: t.bold,
-                        }));
-                      }
-                    }
-
-                    // If no text from client-side read (non-PDF or failed), fall back to backend extraction
-                    if (!resumeText.trim()) {
-                      const formData = new FormData();
-                      formData.append("resume", resumePopupFile);
-                      const extractRes = await fetch(
-                        `${API_ENDPOINTS.BASE_URL}/resume/extract-text`,
-                        { method: "POST", body: formData },
-                      );
-                      if (!extractRes.ok)
-                        throw new Error("Could not extract text from file");
-                      const extractData = await extractRes.json();
-                      resumeText = extractData.text || "";
-                      if (!resumeText.trim())
-                        throw new Error(
-                          "Could not extract text from file. Ensure the file is not empty or corrupted.",
-                        );
-                    }
-
-                    // Call hybrid-parse API
-                    const accessToken = tokenStorage.getAccess();
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(
-                      () => controller.abort(),
-                      60000,
-                    );
-                    let parseRes: Response;
+                    // 1. Parse resume using upload-and-parse (backend handles extraction + AI + regex fallback)
+                    const parseFormData = new FormData();
+                    parseFormData.append("resume", resumePopupFile);
+                    let p: any = null;
+                    let fromBackend = false;
                     try {
-                      parseRes = await fetch(
-                        `${API_ENDPOINTS.BASE_URL}/resume/hybrid-parse`,
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                            ...(accessToken
-                              ? { Authorization: `Bearer ${accessToken}` }
-                              : {}),
-                          },
-                          body: JSON.stringify({
-                            resume_text: resumeText,
-                            layout_blocks: layoutBlocks,
-                          }),
-                          signal: controller.signal,
-                        },
+                      const parseRes = await fetch(
+                        `${API_ENDPOINTS.BASE_URL}/resume/upload-and-parse`,
+                        { method: "POST", body: parseFormData },
                       );
-                    } catch (fetchErr: any) {
-                      if (fetchErr?.name === "AbortError")
-                        throw new Error("Request timed out. Please try again.");
-                      throw new Error(
-                        "Could not connect to server. Please check your connection.",
-                      );
-                    } finally {
-                      clearTimeout(timeoutId);
-                    }
-
-                    if (!parseRes.ok) {
-                      const errText = await parseRes.text().catch(() => "");
-                      throw new Error(
-                        errText
-                          ? `Parse failed: ${errText.slice(0, 200)}`
-                          : "Parse failed",
-                      );
-                    }
-
-                    const hybridData = await parseRes.json();
-                    console.log(
-                      "[ResumePopup] Hybrid-parse raw response:",
-                      JSON.stringify(hybridData, null, 2),
-                    );
-
-                    // Normalize response — backend returns a flat object:
-                    // { name, email, phone, skills[], workExperiences[], educations[], ... }
-                    // The frontend previously expected a nested ParsedResume shape with
-                    // .profile.name / .skills.featuredSkills — that caused the crash.
-                    const raw = hybridData.hybridData || hybridData;
-                    console.log(
-                      "[ResumePopup] Parsed resume data:",
-                      JSON.stringify(raw, null, 2),
-                    );
-
-                    // ── Regex fallback helpers ──────────────────────────────
-                    const extractFromText = (text: string) => {
-                      const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-                      // Name: first non-email, non-phone line that looks like a name
-                      const nameRegex = /^[A-Za-z]+(\s[A-Za-z]+){1,3}$/;
-                      const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/;
-                      const phoneRegex = /[\+]?[\d][\d\s\-().]{7,15}/;
-                      let name = '', email = '', phone = '', location = '';
-                      for (const line of lines.slice(0, 10)) {
-                        if (!name && nameRegex.test(line) && line.length < 50) name = line;
-                        if (!email) { const m = line.match(emailRegex); if (m) email = m[0]; }
-                        if (!phone) { const m = line.match(phoneRegex); if (m) phone = m[0].trim(); }
+                      if (parseRes.ok) {
+                        const parseData = await parseRes.json();
+                        if (parseData.success && parseData.profileData) {
+                          p = parseData.profileData;
+                          fromBackend = true;
+                        }
                       }
-                      // Location: look for city/state pattern
-                      const locMatch = text.match(/([A-Za-z\s]+,\s*[A-Za-z\s]+(?:,\s*India)?)/m);
-                      if (locMatch) location = locMatch[1].trim();
-                      // Skills: look for skills section
-                      const skillsMatch = text.match(/(?:skills?|technologies|tech stack)[:\s]*([\s\S]{0,400}?)(?:\n[A-Z]|$)/i);
-                      const skills: string[] = [];
-                      if (skillsMatch) {
-                        skillsMatch[1].split(/[,|•\n]/).map(s => s.trim()).filter(s => s.length > 1 && s.length < 40).forEach(s => skills.push(s));
+                    } catch {}
+                    if (!p || !fromBackend) {
+                      const fallback = await clientSideParse(resumePopupFile, user);
+                      if (fallback.name || fallback.phone || fallback.location || (Array.isArray(fallback.skills) && fallback.skills.length > 0)) {
+                        p = {
+                          name: fallback.name,
+                          email: fallback.email,
+                          phone: fallback.phone,
+                          location: fallback.location,
+                          skills: fallback.skills,
+                          title: '',
+                          summary: '',
+                          workExperiences: [],
+                          educations: [],
+                          projects: [],
+                          certifications: [],
+                        };
+                      } else {
+                        throw new Error("Could not extract any data from this resume. The file may be empty, scanned (image-only PDF), or in an unsupported format.");
                       }
-                      // Education
-                      const eduMatch = text.match(/(?:b\.?tech|b\.?e|m\.?tech|mca|bca|b\.?sc|m\.?sc|bachelor|master|degree)[^\n]{0,100}/i);
-                      const educations: any[] = [];
-                      if (eduMatch) {
-                        educations.push({ degree: eduMatch[0].trim(), school: '', date: '' });
-                      }
-                      return { name, email, phone, location, skills, educations };
-                    };
-
-                    // ── Detect flat single-job response from AI ─────────────
-                    // AI sometimes returns a single job entry instead of full resume
-                    const isSingleJobResponse = raw && raw.jobTitle && raw.company && !Array.isArray(raw.workExperiences);
-
-                    // Normalize to full resume shape
-                    let workExperiencesFromAI: any[] = [];
-                    if (isSingleJobResponse) {
-                      workExperiencesFromAI = [{
-                        jobTitle: raw.jobTitle || raw.title || '',
-                        company: raw.company || raw.companyName || '',
-                        date: raw.date || '',
-                        descriptions: Array.isArray(raw.descriptions) ? raw.descriptions : [],
-                      }];
-                    } else {
-                      workExperiencesFromAI = Array.isArray(raw.workExperiences) ? raw.workExperiences : [];
                     }
-
-                    // Support both flat (backend) and nested (ParsedResume) shapes
-                    const isNested = raw && typeof raw.profile === "object" && raw.profile !== null;
-                    const profileObj = isNested ? raw.profile : raw;
-                    const rawSkillsArr: any[] = isNested
-                      ? (raw.skills?.featuredSkills ?? [])
-                      : (Array.isArray(raw.skills) ? raw.skills : []);
-
-                    // Strict name validator — same rules as parseLogic.ts
-                    const POPUP_SECTION_HEADINGS = new Set([
-                      "about me","about","summary","objective","profile","overview",
-                      "experience","work experience","employment","work history","professional experience",
-                      "education","academic background","qualifications",
-                      "skills","technical skills","key skills","core competencies",
-                      "projects","certifications","certificates","awards","achievements",
-                      "languages","interests","hobbies","references","contact","contact information",
-                      "internships","training","tools","soft skills",
-                    ]);
-                    const DEGREE_KW = /\b(b\.?tech|b\.?e|b\.?sc|b\.?com|b\.?a|m\.?tech|m\.?e|m\.?sc|mba|m\.?a|ph\.?d|bachelor|master|diploma|sslc|hsc|10th|12th|information technology|computer science|engineering|data science|electronics|mechanical|civil|electrical|arts|commerce)\b/i;
-                    const INST_KW = /\b(university|college|institute|school|academy|polytechnic|iit|nit|loyola|icam|matriculation|higher secondary|secondary|cbse|state board)\b/i;
-                    const isValidName = (n: string) => {
-                      if (!n || n.length < 2 || n.length > 60) return false;
-                      if (POPUP_SECTION_HEADINGS.has(n.toLowerCase())) return false;
-                      if (/[@|•\-_=*#/\\&]/.test(n)) return false;
-                      if (/\d{4}/.test(n)) return false;
-                      if (/^(http|www)/i.test(n)) return false;
-                      if (!/[a-zA-Z]/.test(n)) return false;
-                      if (DEGREE_KW.test(n) || INST_KW.test(n)) return false;
-                      // Must look like a person name: 2-5 words, each starting with capital or all-caps
-                      const words = n.trim().split(/\s+/);
-                      if (words.length < 2 || words.length > 5) return false;
-                      return words.every(w => /^[A-Za-z][a-zA-Z'.-]*$/.test(w) || /^[A-Z]+$/.test(w));
-                    };
-
-                    // Regex fallback for fields missing from AI response
-                    const regexData = extractFromText(resumeText);
-
-                    const aiName = isValidName(profileObj?.name) ? profileObj.name : '';
-                    const cleanName = aiName || (isValidName(regexData.name) ? regexData.name : '');
-
-                    // Build profileData — AI result takes priority, regex fills gaps
-                    const expArr = workExperiencesFromAI;
-                    const aiSkills = rawSkillsArr.map((s: any) =>
-                      typeof s === "string" ? s : s?.skill || s?.name || ""
-                    ).filter(Boolean);
-
-                    // Strict phone validation — must have 7+ digits, not a date range
-                    const aiPhone = (profileObj?.phone || "").replace(/\D/g, "");
-                    const validPhone = aiPhone.length >= 7 ? (profileObj?.phone || "") : (regexData.phone || "");
-
-                    // Strict email validation
-                    const emailRegexStrict = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-                    const aiEmail = profileObj?.email || "";
-                    const validEmail = emailRegexStrict.test(aiEmail) ? aiEmail : (regexData.email || "");
-
-                    // jobTitle must not be a name or section heading
-                    const rawJobTitle = profileObj?.title || expArr[0]?.jobTitle || expArr[0]?.title || "";
-                    const validJobTitle = isValidName(rawJobTitle) ? "" : rawJobTitle;
-
-                    const p = {
-                      name: cleanName,
-                      email: validEmail,
-                      phone: validPhone,
-                      location: profileObj?.location || regexData.location || "",
-                      address: profileObj?.address || null,
-                      summary: raw.summary || "",
-                      skills: aiSkills.length > 0 ? aiSkills : regexData.skills,
-                      workExperiences: expArr,
-                      educations: Array.isArray(raw.educations) && raw.educations.length > 0
-                        ? raw.educations
-                        : regexData.educations,
-                      projects: Array.isArray(raw.projects) ? raw.projects : [],
-                      certifications: raw.certifications || [],
-                      jobTitle: validJobTitle,
-                    };
+                    console.log("[ResumePopup] upload-and-parse result:", JSON.stringify(p, null, 2));
                     // 2. Upload resume file to S3
                     const s3Result =
                       await S3Service.uploadResumeToS3(resumePopupFile);
@@ -4081,30 +4014,26 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       ...user,
                       resume: resumeData,
                       resumeUrl: fileUrl,
-                      // Strictly map each field from parsed resume only
-                      // name: only use parsed name if valid, never fall back to existing user name
-                      name: cleanName || "",
-                      phone: p.phone || "",
-                      location: p.location || "",
-                      address: p.address || {
+                      name: p.name || user?.name || "",
+                      phone: p.phone || user?.phone || "",
+                      location: p.location || user?.location || "",
+                      address: user?.address || {
                         city: "",
                         state: "",
-                        country: "",
+                        country: p.country || "",
                         postal_code: "",
                         full_address: "",
                       },
-                      country: p.address?.country || user?.country || "",
-                      profileSummary: p.summary || "",
-                      skills: normalizedSkills,
-                      jobTitle: p.jobTitle || "",
+                      country: p.country || user?.country || "",
+                      profileSummary: p.summary || user?.profileSummary || "",
+                      skills: normalizedSkills.length > 0 ? normalizedSkills : (user?.skills || []),
+                      jobTitle: p.title || user?.jobTitle || "",
                       employment:
                         p.workExperiences.length > 0
                           ? p.workExperiences.map((w: any) => {
                               const dateParts = String(w.date || "").split(
                                 /\s*[-–]\s*/,
                               );
-                              // Fix swapped company/jobTitle: if jobTitle is all-caps short word
-                              // and company looks like a role title, swap them
                               let companyName = w.company || w.companyName || "";
                               let designation = w.jobTitle || w.title || w.designation || "";
                               const titleIsAllCaps = designation === designation.toUpperCase() && designation.length < 20 && designation.trim().split(/\s+/).length <= 3;
@@ -4130,7 +4059,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                   ) || !!w.current,
                               };
                             })
-                          : [],
+                          : user?.employment || [],
                       educationCollege:
                         eduArr.length > 0
                           ? {
@@ -4146,14 +4075,14 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               percentage:
                                 eduArr[0].percentage || eduArr[0].grade || "",
                             }
-                          : {},
+                          : user?.educationCollege || {},
                       projects:
                         p.projects?.length > 0
                           ? p.projects.map((pr: any) => ({
                               projectName: pr.name || pr.projectName || "",
                               description: pr.description || "",
                             }))
-                          : [],
+                          : user?.projects || [],
                     };
                     setUser(merged);
                     localStorage.setItem("user", JSON.stringify(merged));

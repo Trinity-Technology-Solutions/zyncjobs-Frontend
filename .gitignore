@@ -38,6 +38,7 @@ build/
 out/
 .next/
 .cache/
+zync-site/
 
 # Temporary files
 *.tmp

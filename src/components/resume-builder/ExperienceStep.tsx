@@ -57,15 +57,43 @@ export default function ExperienceStep() {
 
 
 
-  const improveBullet = async (expId: string, bIdx: number, text: string) => {
+    const improveBullet = async (expId: string, bIdx: number, text: string) => {
     if (!text.trim()) return;
+    
+    // Prevent duplicate suggestions
+    if (suggestion?.expId === expId && suggestion?.bIdx === bIdx) {
+      setSuggestion(null);
+      return;
+    }
+    
     setAiLoading(`${expId}-${bIdx}`);
     setAiError('');
     try {
       const res = await executeResumeAI({ section: 'experience', action: 'improve', content: text, experienceId: expId });
-      setSuggestion({ expId, bIdx, suggested: res.result || '' });
-    } catch {
-      setAiError('AI unavailable.');
+      
+      // Check if the suggestion would be a duplicate
+      const cleaned = res.result || '';
+      if (cleaned && cleaned.trim().length > 0) {
+        const existingBullets = data.experience.find(e => e.id === expId)?.bullets || [];
+        const normalizedText = text.trim().toLowerCase();
+        const normalizedSuggestion = cleaned.trim().toLowerCase();
+        
+        // Check if suggestion is too similar to existing bullet
+        const isSimilar = existingBullets.some(bullet => {
+          const normBullet = bullet.toLowerCase();
+          const words = Math.max(normBullet.split(' ').length, normalizedSuggestion.split(' ').length);
+          const similarityScore = (normBullet.length * normalizedSuggestion.length) > 0 && 
+            (Math.min(normBullet.length, normalizedSuggestion.length) / Math.max(normBullet.length, normalizedSuggestion.length)) > 0.7;
+          return similarityScore || normalizedText.includes(normBullet.substring(0, Math.min(20, normBullet.length)));        });
+        
+        if (!isSimilar && normalizedText !== normalizedSuggestion) {
+          setSuggestion({ expId, bIdx, suggested: cleaned });
+        } else {
+          setSuggestion(null); // Skip if too similar
+        }
+      }
+    } catch (error) {
+      setAiError('AI service is currently unavailable. Try again in a moment or enhance the bullet manually with action verbs and metrics.');
     } finally {
       setAiLoading(null);
     }
@@ -81,7 +109,22 @@ export default function ExperienceStep() {
       const res = await executeResumeAI({ section: 'experience', action: 'generate', content: context, experienceId: expId });
       if (res.result) {
         const bullets = res.result.split('\n').map(l => l.replace(/^[\d.▪•\-*\s]+/, '').trim()).filter(Boolean).slice(0, 4);
-        if (bullets.length > 0) updateExperience(expId, 'bullets', bullets);
+        
+        // Filter out bullets that are too similar to existing ones
+        const existingBullets = exp.bullets.map(b => b.toLowerCase());
+        const newBullets = bullets.filter(newBullet => {
+          const normalized = newBullet.toLowerCase();
+          return !existingBullets.some(existing => {
+            const similarity = Math.min(normalized.length, existing.length) / Math.max(normalized.length, existing.length);
+            return similarity > 0.8 || normalized.includes(existing.substring(0, 15)) || existing.includes(normalized.substring(0, 15));
+          });
+        });
+        
+        if (newBullets.length > 0) {
+          updateExperience(expId, 'bullets', [...exp.bullets, ...newBullets]);
+        } else if (bullets.length > 0 && newBullets.length === 0) {
+          setAiError('Generated bullets were too similar to existing ones. Try adding different achievements.');
+        }
       }
     } catch {
       setAiError('AI unavailable.');
@@ -328,7 +371,7 @@ export default function ExperienceStep() {
                               const b = [...exp.bullets]; b[bIdx] = e.target.value;
                               updateExperience(exp.id, 'bullets', b);
                             }}
-                            placeholder="e.g. Worked on REST APIs"
+                            placeholder="Describe your key achievements and impact"
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
                           />
                         </div>

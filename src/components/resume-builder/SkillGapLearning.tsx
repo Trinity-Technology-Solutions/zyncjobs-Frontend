@@ -3,27 +3,27 @@ import { Sparkles, Loader2, CheckCircle, BookOpen, TrendingUp, ExternalLink } fr
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
-const SKILL_COURSES: Record<string, { name: string; hours: string; platform: string }> = {
-  'Docker': { name: 'Docker Mastery', hours: '8h', platform: 'Udemy' },
-  'Kubernetes': { name: 'Kubernetes for Developers', hours: '12h', platform: 'Udemy' },
-  'AWS': { name: 'AWS Solutions Architect', hours: '40h', platform: 'AWS' },
-  'Azure': { name: 'Azure Fundamentals', hours: '10h', platform: 'Microsoft' },
-  'GCP': { name: 'Google Cloud Engineer', hours: '20h', platform: 'Google' },
-  'React': { name: 'React - The Complete Guide', hours: '40h', platform: 'Udemy' },
-  'Node.js': { name: 'Node.js Developer Course', hours: '25h', platform: 'Udemy' },
-  'Python': { name: 'Python for Everybody', hours: '20h', platform: 'Coursera' },
-  'TypeScript': { name: 'Understanding TypeScript', hours: '15h', platform: 'Udemy' },
-  'Machine Learning': { name: 'Machine Learning Specialization', hours: '60h', platform: 'Coursera' },
-  'System Design': { name: 'System Design Interview', hours: '30h', platform: 'Educative' },
-  'CI/CD': { name: 'Jenkins CI/CD Pipeline', hours: '8h', platform: 'Udemy' },
-  'Terraform': { name: 'Terraform for Beginners', hours: '10h', platform: 'Udemy' },
-  'SQL': { name: 'SQL for Data Analysis', hours: '12h', platform: 'Coursera' },
-  'MongoDB': { name: 'MongoDB University', hours: '10h', platform: 'MongoDB' },
-  'Redis': { name: 'Redis for Developers', hours: '6h', platform: 'Udemy' },
-  'Microservices': { name: 'Microservices Architecture', hours: '20h', platform: 'Udemy' },
-  'GraphQL': { name: 'GraphQL with Apollo', hours: '10h', platform: 'Udemy' },
-  'Agile': { name: 'Agile & Scrum', hours: '5h', platform: 'LinkedIn' },
-  'Leadership': { name: 'Leadership Principles', hours: '8h', platform: 'Coursera' },
+const SKILL_COURSES: Record<string, { name: string; hours: string; platform: string; url: string }> = {
+  'Docker': { name: 'Docker Mastery', hours: '8h', platform: 'Udemy', url: 'https://www.udemy.com/course/docker-mastery/' },
+  'Kubernetes': { name: 'Kubernetes for Developers', hours: '12h', platform: 'Udemy', url: 'https://www.udemy.com/course/kubernetes-for-developers/' },
+  'AWS': { name: 'AWS Solutions Architect', hours: '40h', platform: 'AWS', url: 'https://aws.amazon.com/training/learn-about/solutions-architect/' },
+  'Azure': { name: 'Azure Fundamentals', hours: '10h', platform: 'Microsoft', url: 'https://learn.microsoft.com/en-us/training/azure/' },
+  'GCP': { name: 'Google Cloud Engineer', hours: '20h', platform: 'Google', url: 'https://cloud.google.com/training' },
+  'React': { name: 'React - The Complete Guide', hours: '40h', platform: 'Udemy', url: 'https://www.udemy.com/course/react-the-complete-guide-incl-redux/' },
+  'Node.js': { name: 'Node.js Developer Course', hours: '25h', platform: 'Udemy', url: 'https://www.udemy.com/course/nodejs-the-complete-guide/' },
+  'Python': { name: 'Python for Everybody', hours: '20h', platform: 'Coursera', url: 'https://www.coursera.org/specializations/python' },
+  'TypeScript': { name: 'Understanding TypeScript', hours: '15h', platform: 'Udemy', url: 'https://www.udemy.com/course/understanding-typescript/' },
+  'Machine Learning': { name: 'Machine Learning Specialization', hours: '60h', platform: 'Coursera', url: 'https://www.coursera.org/specializations/machine-learning-introduction' },
+  'System Design': { name: 'System Design Interview', hours: '30h', platform: 'Educative', url: 'https://www.educative.io/courses/grokking-the-system-design-interview' },
+  'CI/CD': { name: 'Jenkins CI/CD Pipeline', hours: '8h', platform: 'Udemy', url: 'https://www.udemy.com/course/jenkins-ci-cd-pipeline/' },
+  'Terraform': { name: 'Terraform for Beginners', hours: '10h', platform: 'Udemy', url: 'https://www.udemy.com/course/terraform-beginner-to-advanced/' },
+  'SQL': { name: 'SQL for Data Analysis', hours: '12h', platform: 'Coursera', url: 'https://www.coursera.org/learn/sql-for-data-science' },
+  'MongoDB': { name: 'MongoDB University', hours: '10h', platform: 'MongoDB', url: 'https://university.mongodb.com/' },
+  'Redis': { name: 'Redis for Developers', hours: '6h', platform: 'Udemy', url: 'https://www.udemy.com/course/redis-complete-guide/' },
+  'Microservices': { name: 'Microservices Architecture', hours: '20h', platform: 'Udemy', url: 'https://www.udemy.com/course/microservices-architecture/' },
+  'GraphQL': { name: 'GraphQL with Apollo', hours: '10h', platform: 'Udemy', url: 'https://www.udemy.com/course/graphql-with-apollo/' },
+  'Agile': { name: 'Agile & Scrum', hours: '5h', platform: 'LinkedIn', url: 'https://www.linkedin.com/learning/agile-scrum-training' },
+  'Leadership': { name: 'Leadership Principles', hours: '8h', platform: 'Coursera', url: 'https://www.coursera.org/learn/leadership' },
 };
 
 const COMMON_SKILLS_BY_ROLE: Record<string, string[]> = {
@@ -93,6 +93,13 @@ export default function SkillGapLearning() {
     setTimeout(() => setLearning(prev => ({ ...prev, [skill]: false })), 2000);
   };
 
+  const openLearningResource = (skill: string) => {
+    const course = SKILL_COURSES[skill];
+    if (course?.url) {
+      window.open(course.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -144,11 +151,18 @@ export default function SkillGapLearning() {
                       </div>
                     </div>
                     {!isDone && (
-                      <button onClick={() => markLearning(skill)} disabled={learning[skill]}
-                        className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                        {learning[skill] ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
-                        {learning[skill] ? 'Adding...' : `Learn ${course.hours}`}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => markLearning(skill)} disabled={learning[skill]}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
+                          {learning[skill] ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
+                          {learning[skill] ? 'Adding...' : `Learn ${course.hours}`}
+                        </button>
+                        <button onClick={() => openLearningResource(skill)}
+                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                          <ExternalLink className="w-3 h-3" />
+                          Course
+                        </button>
+                      </div>
                     )}
                   </div>
                   {/* Progress bar (simulated ATS impact) */}

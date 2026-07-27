@@ -125,7 +125,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const [submitError, setSubmitError] = useState('');
   const [jobSearch, setJobSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { data, update, updatePersonalInfo, touchSave, toggleSection } = useResumeStore();
+  const { data, update, updatePersonalInfo, touchSave, toggleSection, undo, redo, canUndo, canRedo, pushHistory } = useResumeStore();
   const completeness = [!!data.summary, data.experience.length > 0, data.skills.length > 0, data.education.length > 0].filter(Boolean).length;
 
   // Auto-advance Quick Apply steps
@@ -187,41 +187,19 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     }
   }, []);
 
-  // Undo/redo stack
-  const historyRef = useRef<string[]>([JSON.stringify(data)]);
-  const historyIdx = useRef(0);
-
-  const pushHistory = useCallback(() => {
-    const snap = JSON.stringify(data);
-    if (snap === historyRef.current[historyIdx.current]) return;
-    historyRef.current = historyRef.current.slice(0, historyIdx.current + 1);
-    historyRef.current.push(snap);
-    historyIdx.current = historyRef.current.length - 1;
-  }, [data]);
-
-  const undo = () => {
-    if (historyIdx.current <= 0) return;
-    historyIdx.current--;
-    const prev = JSON.parse(historyRef.current[historyIdx.current]);
-    Object.keys(prev).forEach((k) => update(k as any, prev[k]));
-  };
-
-  const redo = () => {
-    if (historyIdx.current >= historyRef.current.length - 1) return;
-    historyIdx.current++;
-    const next = JSON.parse(historyRef.current[historyIdx.current]);
-    Object.keys(next).forEach((k) => update(k as any, next[k]));
-  };
-
   React.useEffect(() => {
-    setSaveStatus('saving');
-    const t = setTimeout(() => {
-      touchSave();
-      pushHistory();
-      persistCurrentVersion(activeVersion);
-      setSaveStatus('saved');
-    }, 500);
-    return () => clearTimeout(t);
+    // Only show saving state for longer operations, use longer debounce
+    const saveTimer = setTimeout(() => {
+      setSaveStatus('saving');
+      const persistTimer = setTimeout(() => {
+        touchSave();
+        pushHistory();
+        persistCurrentVersion(activeVersion);
+        setSaveStatus('saved');
+      }, 1000); // Longer debounce for actual persistence
+      return () => clearTimeout(persistTimer);
+    }, 1500); // Increased debounce to 1.5s to reduce flickering
+    return () => clearTimeout(saveTimer);
   }, [data]);
 
   React.useEffect(() => {
@@ -743,45 +721,145 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     try {
       const { default: jsPDF } = await import('jspdf');
       const name = (data.personalInfo?.name || '').trim() || 'Resume';
-      const html = buildResumeHTML(data);
-
+      
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - 2 * margin;
+      let y = margin;
 
-      // Render HTML to canvas via a temp element
-      const temp = document.createElement('div');
-      temp.innerHTML = html;
-      temp.style.position = 'fixed';
-      temp.style.left = '-9999px';
-      temp.style.top = '0';
-      temp.style.width = '794px';
-      temp.style.background = '#ffffff';
-      document.body.appendChild(temp);
-
-      try {
-        const { default: html2canvas } = await import('html2canvas');
-        const totalHeight = temp.scrollHeight;
-        const viewportHeight = temp.clientHeight;
-        const pageCount = Math.max(1, Math.ceil(totalHeight / viewportHeight));
-
-        for (let i = 0; i < pageCount; i++) {
-          if (i > 0) pdf.addPage();
-          temp.style.transform = `translateY(-${i * viewportHeight}px)`;
-          await new Promise(r => setTimeout(r, 150));
-          const canvas = await html2canvas(temp, {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: '#ffffff',
-            width: 794,
-            height: viewportHeight,
-            y: i * viewportHeight,
-          });
-          const imgData = canvas.toDataURL('image/jpeg', 1.0);
-          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+      // Helper function to add text with wrapping
+      const addText = (text: string, fontSize: number = 11, isBold: boolean = false, color: [number, number, number] = [0, 0, 0]) => {
+        pdf.setFontSize(fontSize);
+        pdf.setFont('', isBold ? 'bold' : 'normal');
+        pdf.setTextColor(...color);
+        const lines = pdf.splitTextToSize(text, contentWidth);
+        for (const line of lines) {
+          if (y + fontSize * 0.5 > pageHeight - margin) {
+            pdf.addPage();
+            y = margin;
+          }
+          pdf.text(line, margin, y);
+          y += fontSize * 0.6;
         }
-      } finally {
-        document.body.removeChild(temp);
+        y += 2; // Small gap after text block
+      };
+
+      const addSectionHeader = (text: string) => {
+        if (y + 8 > pageHeight - margin) { pdf.addPage(); y = margin; }
+        pdf.setFontSize(12);
+        pdf.setFont('', 'bold');
+        pdf.setTextColor(30, 64, 175); // Blue
+        pdf.text(text.toUpperCase(), margin, y);
+        y += 3;
+        pdf.setDrawColor(30, 64, 175);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, pageWidth - margin, y);
+        y += 6;
+      };
+
+      // Personal Info
+      const p = data.personalInfo;
+      if (p.name) addText(p.name, 18, true, [0, 0, 0]);
+      const contactParts = [p.email, p.phone, p.location, p.linkedin, p.portfolio].filter(Boolean);
+      if (contactParts.length) addText(contactParts.join('  |  '), 10, false, [100, 100, 100]);
+      y += 4;
+
+      // Summary
+      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary;
+      if (summaryVal) {
+        addSectionHeader('Professional Summary');
+        addText(summaryVal);
+      }
+
+      // Skills
+      if (data.skills.length) {
+        addSectionHeader('Core Competencies');
+        addText(data.skills.join('  ·  '), 10);
+      }
+
+      // Experience
+      if (data.experience.length) {
+        addSectionHeader('Experience');
+        data.experience.forEach(exp => {
+          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
+          const titleLine = `${exp.title}${exp.company ? `, ${exp.company}` : ''}`;
+          addText(titleLine, 11, true);
+          if (exp.duration) addText(exp.duration, 9, false, [100, 100, 100]);
+          exp.bullets.filter(b => b.trim()).forEach(bullet => {
+            addText(`• ${bullet}`, 10);
+          });
+          y += 3;
+        });
+      }
+
+      // Education
+      if (data.education.length) {
+        addSectionHeader('Education');
+        data.education.forEach(edu => {
+          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
+          let eduLine = edu.degree;
+          if (edu.institution) eduLine += ` — ${edu.institution}`;
+          if (edu.grade) eduLine += ` | ${edu.grade}`;
+          addText(eduLine, 11, true);
+          if (edu.duration) addText(edu.duration, 9, false, [100, 100, 100]);
+          y += 2;
+        });
+      }
+
+      // Certifications
+      if (data.certifications?.length) {
+        addSectionHeader('Certifications');
+        data.certifications.forEach(cert => {
+          let certLine = cert.name;
+          if (cert.issuer) certLine += ` — ${cert.issuer}`;
+          if (cert.year) certLine += ` (${cert.year})`;
+          addText(certLine, 10);
+        });
+      }
+
+      // Awards
+      if (data.awards?.length) {
+        addSectionHeader('Awards & Achievements');
+        data.awards.forEach(award => {
+          let awardLine = award.title;
+          if (award.issuer) awardLine += ` — ${award.issuer}`;
+          if (award.year) awardLine += ` (${award.year})`;
+          addText(awardLine, 10, true);
+          if (award.description) addText(award.description, 9);
+        });
+      }
+
+      // Projects
+      if (data.projects?.length) {
+        addSectionHeader('Projects');
+        data.projects.forEach(proj => {
+          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
+          const titleLine = `${proj.name}${proj.role ? ` — ${proj.role}` : ''}`;
+          addText(titleLine, 11, true);
+          if (proj.duration) addText(proj.duration, 9, false, [100, 100, 100]);
+          if (proj.url) addText(proj.url, 9, false, [37, 99, 235]);
+          proj.bullets.filter(b => b.trim()).forEach(bullet => {
+            addText(`• ${bullet}`, 10);
+          });
+          y += 3;
+        });
+      }
+
+      // Languages
+      if (data.languages?.length) {
+        addSectionHeader('Languages');
+        addText(data.languages.map(l => `${l.language} (${l.proficiency})`).join(', '), 10);
+      }
+
+      // Achievements
+      if (data.achievements?.length) {
+        addSectionHeader('Achievements');
+        data.achievements.forEach(a => {
+          addText(a.title, 10, true);
+          if (a.description) addText(a.description, 9);
+        });
       }
 
       pdf.save(`${name}.pdf`);
@@ -792,13 +870,151 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     }
   };
 
-  const downloadDOCX = () => {
+  const downloadDOCX = async () => {
     const name = (data.personalInfo?.name || '').trim() || 'Resume';
-    const html = buildResumeHTML(data);
-    const blob = new Blob([html], { type: 'application/msword' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `${name}.doc`; a.click();
-    URL.revokeObjectURL(url);
+    
+    // Generate a proper DOCX using docx library
+    try {
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
+      
+      const children: any[] = [];
+      
+      // Personal Info
+      const p = data.personalInfo;
+      if (p.name) {
+        children.push(new Paragraph({ children: [new TextRun({ text: p.name, bold: true, size: 32 })] }));
+      }
+      const contactParts = [p.email, p.phone, p.location, p.linkedin, p.portfolio].filter(Boolean);
+      if (contactParts.length) {
+        children.push(new Paragraph({
+          children: [new TextRun({ text: contactParts.join('  |  '), size: 20, color: '666666' })],
+          spacing: { after: 200 }
+        }));
+      }
+
+      const addSection = (title: string) => {
+        children.push(new Paragraph({ 
+          children: [new TextRun({ text: title.toUpperCase(), bold: true, size: 24, color: '1E40AF' })],
+          border: { bottom: { color: '1E40AF', size: 12, style: BorderStyle.SINGLE } },
+          spacing: { after: 200 }
+        }));
+      };
+
+      const addText = (text: string, bold = false, size = 22, color = '000000', spacingAfter = 100) => {
+        children.push(new Paragraph({ 
+          children: [new TextRun({ text, bold, size, color })],
+          spacing: { after: spacingAfter }
+        }));
+      };
+
+      // Summary
+      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary;
+      if (summaryVal) {
+        addSection('Professional Summary');
+        addText(summaryVal);
+      }
+
+      // Skills
+      if (data.skills.length) {
+        addSection('Core Competencies');
+        addText(data.skills.join('  ·  '));
+      }
+
+      // Experience
+      if (data.experience.length) {
+        addSection('Experience');
+        data.experience.forEach(exp => {
+          addText(`${exp.title}${exp.company ? `, ${exp.company}` : ''}`, true, 24);
+          if (exp.duration) addText(exp.duration, false, 20, '666666', 50);
+          exp.bullets.filter(b => b.trim()).forEach(bullet => {
+            addText(`• ${bullet}`, false, 22, '000000', 80);
+          });
+          addText('', false, 10, '000000', 100);
+        });
+      }
+
+      // Education
+      if (data.education.length) {
+        addSection('Education');
+        data.education.forEach(edu => {
+          let eduLine = edu.degree;
+          if (edu.institution) eduLine += ` — ${edu.institution}`;
+          if (edu.grade) eduLine += ` | ${edu.grade}`;
+          addText(eduLine, true, 24);
+          if (edu.duration) addText(edu.duration, false, 20, '666666', 50);
+          addText('', false, 10, '000000', 100);
+        });
+      }
+
+      // Certifications
+      if (data.certifications?.length) {
+        addSection('Certifications');
+        data.certifications.forEach(cert => {
+          let certLine = cert.name;
+          if (cert.issuer) certLine += ` — ${cert.issuer}`;
+          if (cert.year) certLine += ` (${cert.year})`;
+          addText(certLine);
+        });
+      }
+
+      // Awards
+      if (data.awards?.length) {
+        addSection('Awards & Achievements');
+        data.awards.forEach(award => {
+          let awardLine = award.title;
+          if (award.issuer) awardLine += ` — ${award.issuer}`;
+          if (award.year) awardLine += ` (${award.year})`;
+          addText(awardLine, true);
+          if (award.description) addText(award.description);
+        });
+      }
+
+      // Projects
+      if (data.projects?.length) {
+        addSection('Projects');
+        data.projects.forEach(proj => {
+          addText(`${proj.name}${proj.role ? ` — ${proj.role}` : ''}`, true, 24);
+          if (proj.duration) addText(proj.duration, false, 20, '666666', 50);
+          if (proj.url) addText(proj.url, false, 20, '2563EB', 50);
+          proj.bullets.filter(b => b.trim()).forEach(bullet => {
+            addText(`• ${bullet}`);
+          });
+          addText('', false, 10, '000000', 100);
+        });
+      }
+
+      // Languages
+      if (data.languages?.length) {
+        addSection('Languages');
+        addText(data.languages.map(l => `${l.language} (${l.proficiency})`).join(', '));
+      }
+
+      // Achievements
+      if (data.achievements?.length) {
+        addSection('Achievements');
+        data.achievements.forEach(a => {
+          addText(a.title, true);
+          if (a.description) addText(a.description);
+        });
+      }
+
+      const doc = new Document({ sections: [{ properties: {}, children }] });
+      const blob = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${name}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('DOCX generation failed, falling back to HTML:', e);
+      // Fallback to HTML method
+      const html = buildResumeHTML(data);
+      const blob = new Blob([html], { type: 'application/msword' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `${name}.doc`; a.click();
+      URL.revokeObjectURL(url);
+    }
   };
 
   const resumeEmpty = !data.experience.length && !data.skills.length && !data.summary && !data.education.length;
@@ -1041,7 +1257,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
       {/* ── AI Suggestions Panel (Grammarly-like) ────────────────────── */}
       {showSuggestions && (
-        <div className="fixed right-4 top-20 z-40">
+        <div className="fixed right-4 top-20 z-40 max-w-full sm:right-6 sm:top-24 md:right-8 md:top-28 lg:right-12 lg:top-32">
           <AISuggestionsPanel onClose={() => setShowSuggestions(false)} onNavigate={(section) => { setActiveId(section); setShowSuggestions(false); }} />
         </div>
       )}
@@ -1117,10 +1333,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </span>
         <div className="flex-1 min-w-0" />
         <div className="flex items-center gap-1">
-          <button onClick={undo} title="Undo" className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+          <button onClick={undo} disabled={!canUndo()} title="Undo (Ctrl+Z)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: canUndo() ? 'inherit' : 'inherit' }}>
             <Undo2 className="w-3.5 h-3.5" />
           </button>
-          <button onClick={redo} title="Redo" className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
+          <button onClick={redo} disabled={!canRedo()} title="Redo (Ctrl+Y)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
             <Redo2 className="w-3.5 h-3.5" />
           </button>
           <div className="w-px h-4 bg-gray-200 mx-1" />
@@ -1132,11 +1348,11 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </div>
         <div className="hidden sm:block w-px h-4 bg-gray-200" />
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-          <button onClick={() => { setMode('editor'); setQaStep(0); }}
+          <button onClick={() => { setMode('editor'); setQaStep(0); setAiMode(false); }}
             className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'editor' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <PenLine className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Editor</span>
           </button>
-          <button onClick={() => { setMode('quick-apply'); setQaStep(0); }}
+          <button onClick={() => { setMode('quick-apply'); setQaStep(0); setAiMode(false); }}
             className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'quick-apply' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <Send className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Quick Apply</span>
           </button>
@@ -1149,6 +1365,16 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           <button onClick={downloadDOCX} title="Download DOCX" className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors">
             <FileDown className="w-3 h-3" /> DOCX
           </button>
+          <div className="w-px h-6 bg-gray-200 mx-1" />
+          <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-2 py-1 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Prev</span>
+          </button>
+          <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <span className="hidden sm:inline">Next</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+          <div className="w-px h-6 bg-gray-200 mx-1" />
           <button onClick={() => setShowCompletion(true)} title="Finish" className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
             <CheckCircle2 className="w-3 h-3" /> Finish
           </button>
@@ -1419,7 +1645,33 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                 {qaStep === 5 && renderApply()}
               </div>
             ) : (
-              <ActiveComponent />
+              <div className="flex flex-col">
+                {/* Desktop Next/Prev buttons at top */}
+                <div className="hidden sm:flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
+                  <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <ChevronLeft className="w-4 h-4" />
+                    Prev
+                  </button>
+                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {NAV.length} · {active.label}</span>
+                  <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* Mobile Next/Prev buttons */}
+                <div className="sm:hidden flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
+                  <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <ChevronLeft className="w-4 h-4" />
+                    Prev
+                  </button>
+                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {NAV.length}</span>
+                  <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                    Next
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                <ActiveComponent />
+              </div>
             )}
           </div>
         </main>

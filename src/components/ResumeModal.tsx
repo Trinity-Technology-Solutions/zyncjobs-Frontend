@@ -7,6 +7,17 @@ import {
   downloadResumeFromUrl,
 } from '../services/resumeService';
 
+function inferMimeType(url: string): string {
+  const ext = url.split('?')[0].toLowerCase();
+  if (ext.endsWith('.pdf')) return 'application/pdf';
+  if (ext.endsWith('.docx')) return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  if (ext.endsWith('.doc')) return 'application/msword';
+  if (ext.endsWith('.png')) return 'image/png';
+  if (ext.endsWith('.jpg') || ext.endsWith('.jpeg')) return 'image/jpeg';
+  if (ext.endsWith('.txt')) return 'text/plain';
+  return 'application/octet-stream';
+}
+
 interface ResumeModalProps {
   applicationId: string | null;
   isOpen: boolean;
@@ -87,48 +98,33 @@ const ResumeModal: React.FC<ResumeModalProps> = ({
 
       setPresignedUrl(rawUrl);
 
-      const isBackendStream = rawUrl.startsWith('/') || rawUrl.includes('localhost') || rawUrl.includes(window.location.hostname);
-      const isHTML = rawUrl.endsWith('.html') || rawUrl.includes('resume_from_quick_apply');
-
-      if (isBackendStream) {
+      const doFetch = async (url: string) => {
         try {
-          const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
+          const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
           if (!res.ok) throw new Error('fetch failed');
-          const contentType = res.headers.get('content-type') || '';
+          let contentType = res.headers.get('content-type') || '';
+          if (contentType === 'application/octet-stream' || !contentType) {
+            contentType = inferMimeType(url);
+          }
           if (contentType.includes('text/plain') || contentType.includes('application/json')) {
             const text = await res.text();
-            const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-            prevBlobUrl.current = url;
-            setBlobUrl(url);
+            const blobUrl = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+            prevBlobUrl.current = blobUrl;
+            setBlobUrl(blobUrl);
           } else {
             const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            prevBlobUrl.current = url;
-            setBlobUrl(url);
+            const finalBlob = blob.type === 'application/octet-stream' || !blob.type
+              ? new Blob([blob], { type: contentType })
+              : blob;
+            const blobUrl = URL.createObjectURL(finalBlob);
+            prevBlobUrl.current = blobUrl;
+            setBlobUrl(blobUrl);
           }
         } catch {
           setBlobUrl(rawUrl);
         }
-      } else {
-        try {
-          const res = await fetch(rawUrl, { mode: 'cors', credentials: 'omit' });
-          if (!res.ok) throw new Error('fetch failed');
-          const contentType = res.headers.get('content-type') || '';
-          if (contentType.includes('text/plain') || contentType.includes('application/json')) {
-            const text = await res.text();
-            const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-            prevBlobUrl.current = url;
-            setBlobUrl(url);
-          } else {
-            const blob = await res.blob();
-            const url = URL.createObjectURL(blob);
-            prevBlobUrl.current = url;
-            setBlobUrl(url);
-          }
-        } catch {
-          setBlobUrl(rawUrl);
-        }
-      }
+      };
+      await doFetch(rawUrl);
     } catch {
       setError('Failed to load resume. Please try downloading it instead.');
     } finally {

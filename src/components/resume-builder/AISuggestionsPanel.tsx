@@ -170,7 +170,7 @@ export default function AISuggestionsPanel({ onClose, onNavigate }: { onClose: (
   const warnings = suggestions.filter(s => s.severity !== 'error' && !s.fixed).length;
 
   return (
-    <div ref={panelRef} className="w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden">
+    <div ref={panelRef} className="w-full max-w-sm sm:w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden flex flex-col">
       {/* Header */}
       <div className="px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
         <div className="flex items-center justify-between">
