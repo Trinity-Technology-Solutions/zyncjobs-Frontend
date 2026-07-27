@@ -271,7 +271,11 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
     setMeta('og:url', ogUrl);
     setMeta('og:type', 'website');
     setMeta('og:site_name', 'ZyncJobs');
-    if (job.jobHeaderImage) setMeta('og:image', job.jobHeaderImage);
+    const ogImageUrl = `${backendUrl}/og/job-image?id=${job.id || job._id}`;
+    setMeta('og:image', ogImageUrl);
+    setMeta('og:image:width', '1200');
+    setMeta('og:image:height', '630');
+    setMeta('og:image:type', 'image/png');
     
     // Set Twitter meta tags
     const setTwitterMeta = (name: string, content: string) => {
