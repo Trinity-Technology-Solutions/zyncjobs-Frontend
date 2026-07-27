@@ -4,23 +4,33 @@ import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import { resumeIntelligenceEngine, ResumeAnalysis } from '../services/resumeIntelligenceEngine';
-import { resumeAIService } from '../services/resumeAIService';
+import { resumeAIService, ATSResult } from '../services/resumeAIService';
 import { comprehensiveAnalyticsSystem } from '../services/comprehensiveAnalyticsSystem';
 import { readPdf } from '../lib/parse-resume-from-pdf/read-pdf';
 import mammoth from 'mammoth';
 
 type ScoreResult = ResumeAnalysis;
 
-const ScoreCircle = ({ score, label, size = 'lg' }: { score: number; label: string; size?: 'lg' | 'sm' }) => {
-  const rounded = Math.round(score);
-  const color = rounded >= 75 ? 'text-green-600' : rounded >= 50 ? 'text-yellow-500' : 'text-red-500';
-  const ring = rounded >= 75 ? 'border-green-400' : rounded >= 50 ? 'border-yellow-400' : 'border-red-400';
-  const bg = rounded >= 75 ? 'bg-green-50' : rounded >= 50 ? 'bg-yellow-50' : 'bg-red-50';
-  const dim = size === 'lg' ? 'w-24 h-24 text-2xl' : 'w-14 h-14 text-base';
+const DonutChart = ({ score, label, size = 'lg' }: { score: number; label: string; size?: 'lg' | 'sm' }) => {
+  const rounded = Math.min(100, Math.max(0, Math.round(score)));
+  const color = rounded >= 75 ? '#22c55e' : rounded >= 50 ? '#eab308' : '#ef4444';
+  const textColor = rounded >= 75 ? 'text-green-600' : rounded >= 50 ? 'text-yellow-500' : 'text-red-500';
+  const dim = size === 'lg' ? 80 : 56;
+  const strokeW = size === 'lg' ? 6 : 5;
+  const r = (dim - strokeW) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (circ * rounded) / 100;
   return (
     <div className="flex flex-col items-center gap-1">
-      <div className={`${dim} ${bg} ${ring} border-4 rounded-full flex items-center justify-center font-bold ${color}`}>
-        {rounded}%
+      <div className="relative" style={{ width: dim, height: dim }}>
+        <svg width={dim} height={dim} viewBox={`0 0 ${dim} ${dim}`} className="-rotate-90">
+          <circle cx={dim / 2} cy={dim / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={strokeW} />
+          <circle cx={dim / 2} cy={dim / 2} r={r} fill="none" stroke={color}
+            strokeWidth={strokeW} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center text-lg font-bold">
+          <span className={textColor}>{rounded}%</span>
+        </span>
       </div>
       <p className="text-xs text-gray-500 text-center">{label}</p>
     </div>
@@ -34,6 +44,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
   const [inputMode, setInputMode] = useState<'file' | 'text'>('file');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ScoreResult | null>(null);
+  const [aiResult, setAiResult] = useState<ATSResult | null>(null);
   const [error, setError] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +91,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
       let finalResult = resumeIntelligenceEngine.analyzeResume(parsedContent, jobDescription);
       try {
         const hybrid = await resumeAIService.atsScoreV2(resumeContent, jobDescription);
+        setAiResult(hybrid);
         finalResult = {
           ...finalResult,
           overallScore: hybrid.score,
@@ -95,7 +107,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
           verdict: hybrid.reason || finalResult.verdict,
         };
       } catch {
-        // AI service unavailable — use local engine result as-is
+        setAiResult(null);
       }
       setResult(finalResult);
 
@@ -228,9 +240,15 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
               <div className="bg-white rounded-xl border border-gray-200 p-6">
                 <h2 className="text-lg font-bold text-gray-800 mb-4">Score Overview</h2>
                 <div className="flex flex-wrap gap-6 justify-center mb-4">
-                  <ScoreCircle score={result.overallScore} label="Overall Score" />
-                  <ScoreCircle score={result.atsScore} label="ATS Score" />
-                  {result.keywordMatch !== null && <ScoreCircle score={result.keywordMatch} label="Keyword Match" />}
+                  <DonutChart score={result.overallScore} label="Overall Score" />
+                  <DonutChart score={result.atsScore} label="ATS Score" />
+                  {result.keywordMatch !== null && <DonutChart score={result.keywordMatch} label="Keyword Match" />}
+                  {aiResult && (
+                    <>
+                      <DonutChart score={aiResult.experience_relevance} label="Exp. Relevance" />
+                      <DonutChart score={aiResult.formatting_score} label="Formatting" />
+                    </>
+                  )}
                 </div>
                 <p className="text-center text-gray-600 text-sm italic">"{result.verdict}"</p>
               </div>
@@ -334,6 +352,20 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                   <div className="flex flex-wrap gap-2">
                     {result.missingKeywords.map(k => (
                       <span key={k} className="bg-red-50 border border-red-200 text-red-700 px-3 py-1 rounded-full text-sm">{k}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Matched Keywords */}
+              {aiResult?.matched_keywords?.length > 0 && (
+                <div className="bg-white rounded-xl border border-green-200 p-5">
+                  <h2 className="text-base font-bold text-green-600 mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" /> Matched Keywords
+                  </h2>
+                  <div className="flex flex-wrap gap-2">
+                    {aiResult.matched_keywords.map(k => (
+                      <span key={k} className="bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full text-sm font-medium">{k}</span>
                     ))}
                   </div>
                 </div>

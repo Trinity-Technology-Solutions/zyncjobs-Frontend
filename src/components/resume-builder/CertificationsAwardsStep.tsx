@@ -74,19 +74,19 @@ export default function CertificationsAwardsStep() {
                   <div className="md:col-span-1">
                     <label className="block text-xs font-medium text-gray-600 mb-1">Name *</label>
                     <input type="text" value={cert.name} onChange={e => updateCertification(cert.id, 'name', e.target.value)}
-                      placeholder="e.g. AWS Solutions Architect"
+                      placeholder="Enter certification name"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Issuer</label>
                     <input type="text" value={cert.issuer} onChange={e => updateCertification(cert.id, 'issuer', e.target.value)}
-                      placeholder="e.g. Amazon Web Services"
+                      placeholder="Enter issuing organization"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
                     <input type="text" value={cert.year} onChange={e => updateCertification(cert.id, 'year', e.target.value)}
-                      placeholder="e.g. 2023"
+                      placeholder="Year obtained"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
                   </div>
                 </div>
@@ -126,19 +126,19 @@ export default function CertificationsAwardsStep() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Title *</label>
                     <input type="text" value={award.title} onChange={e => updateAward(award.id, 'title', e.target.value)}
-                      placeholder="e.g. Employee of the Year"
+                      placeholder="Enter award title"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Issuer</label>
                     <input type="text" value={award.issuer} onChange={e => updateAward(award.id, 'issuer', e.target.value)}
-                      placeholder="e.g. TCS"
+                      placeholder="Issuing organization"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Year</label>
                     <input type="text" value={award.year} onChange={e => updateAward(award.id, 'year', e.target.value)}
-                      placeholder="e.g. 2023"
+                      placeholder="Year"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white hover:border-gray-300 transition-colors" />
                   </div>
                 </div>

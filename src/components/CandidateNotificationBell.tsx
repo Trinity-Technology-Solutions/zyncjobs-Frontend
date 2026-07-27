@@ -8,6 +8,7 @@ interface CandidateNotificationBellProps {
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onClearAll: () => void;
+  onDismiss?: (id: string) => void;
   onNavigate: (page: string) => void;
 }
 
@@ -51,6 +52,7 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
   onNavigate,
 }) => {
   const [open, setOpen] = useState(false);
+  const badgeCount = notifications.filter(n => !n.read).length;
 
   return (
     <div className="relative">
@@ -60,9 +62,9 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
         aria-label="Notifications"
       >
         <Bell className="w-5 h-5" />
-        {unreadCount > 0 && (
+        {badgeCount > 0 && (
           <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
-            {unreadCount > 9 ? '9+' : unreadCount}
+            {badgeCount > 9 ? '9+' : badgeCount}
           </span>
         )}
       </button>
@@ -78,7 +80,7 @@ const CandidateNotificationBell: React.FC<CandidateNotificationBellProps> = ({
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
               <h3 className="font-semibold text-gray-900 text-base">Application Updates</h3>
               <div className="flex items-center space-x-3">
-                {unreadCount > 0 && (
+                {badgeCount > 0 && (
                   <button
                     onClick={onMarkAllRead}
                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1"

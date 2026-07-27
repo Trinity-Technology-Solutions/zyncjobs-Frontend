@@ -92,8 +92,16 @@ export interface ResumeData {
   lastSaved: number | null;
 }
 
+// History entry for undo/redo
+interface HistoryEntry {
+  data: ResumeData;
+  timestamp: number;
+}
+
 interface ResumeStore {
   data: ResumeData;
+  history: HistoryEntry[];
+  historyIndex: number;
   update: <K extends keyof ResumeData>(field: K, value: ResumeData[K]) => void;
   updatePersonalInfo: (field: keyof PersonalInfo, value: string) => void;
   addExperience: () => void;
@@ -123,6 +131,12 @@ interface ResumeStore {
   toggleSection: (sectionId: string) => void;
   touchSave: () => void;
   reset: () => void;
+  // Undo/Redo
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  pushHistory: () => void;
 }
 
 const defaultData: ResumeData = {
@@ -150,6 +164,8 @@ export const useResumeStore = create<ResumeStore>()(
   persist(
     (set) => ({
       data: defaultData,
+      history: [],
+      historyIndex: 0,
 
       update: (field, value) =>
         set((s: ResumeStore) => ({ data: { ...s.data, [field]: typeof value === 'string' ? value.trim() : value } })),
@@ -323,8 +339,52 @@ export const useResumeStore = create<ResumeStore>()(
         set((s: ResumeStore) => ({ data: { ...s.data, lastSaved: Date.now() } })),
 
       reset: () => {
-        set({ data: defaultData });
+        set({ data: defaultData, history: [], historyIndex: 0 });
         try { localStorage.removeItem('zyncjobs-resume-builder'); } catch { /* silent */ }
+      },
+
+      // Undo/Redo functionality
+      pushHistory: () =>
+        set((s: ResumeStore) => {
+          const newHistory = s.history.slice(0, s.historyIndex + 1);
+          newHistory.push({ data: JSON.parse(JSON.stringify(s.data)), timestamp: Date.now() });
+          // Keep last 50 history entries
+          if (newHistory.length > 50) newHistory.shift();
+          return { history: newHistory, historyIndex: newHistory.length - 1 };
+        }),
+
+      undo: () =>
+        set((s: ResumeStore) => {
+          if (s.historyIndex > 0) {
+            const newIndex = s.historyIndex - 1;
+            return {
+              data: JSON.parse(JSON.stringify(s.history[newIndex].data)),
+              historyIndex: newIndex,
+            };
+          }
+          return s;
+        }),
+
+      redo: () =>
+        set((s: ResumeStore) => {
+          if (s.historyIndex < s.history.length - 1) {
+            const newIndex = s.historyIndex + 1;
+            return {
+              data: JSON.parse(JSON.stringify(s.history[newIndex].data)),
+              historyIndex: newIndex,
+            };
+          }
+          return s;
+        }),
+
+      canUndo: () => {
+        const { historyIndex } = useResumeStore.getState();
+        return historyIndex > 0;
+      },
+
+      canRedo: () => {
+        const { history, historyIndex } = useResumeStore.getState();
+        return historyIndex < history.length - 1;
       },
     }),
     {
@@ -332,6 +392,8 @@ export const useResumeStore = create<ResumeStore>()(
       merge: (persisted: any, current: any) => ({
         ...current,
         data: { ...defaultData, ...persisted?.data },
+        history: persisted?.history || [],
+        historyIndex: persisted?.historyIndex ?? 0,
       }),
     }
   )

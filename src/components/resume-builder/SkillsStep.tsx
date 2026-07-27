@@ -78,19 +78,28 @@ export default function SkillsStep() {
   const generateSkills = async () => {
     setAiLoading(true);
     try {
-      const experienceText = data.experience
-        .map(e => `${e.title} at ${e.company}: ${e.bullets.join('. ')}`)
-        .join('\n');
+      // Build comprehensive context from profile for better AI skills generation
+      const profileText = [
+        `Name: ${data.personalInfo.name || 'Professional'}`,
+        `Current Skills: ${data.skills.join(', ')}`,
+        `Target Role: ${data.targetRole || 'Not specified'}`,
+        data.summary ? `Summary: ${data.summary}` : '',
+        // Add experience titles for context
+        data.experience.length > 0 ? 'Experience:' : '',
+        ...data.experience.map(e => `• ${e.title || ''} at ${e.company || ''}`)
+      ].filter(Boolean).join('\n');
+      
       const res = await executeResumeAI({
         section: 'skills',
         action: 'generate',
-        content: experienceText || data.personalInfo.name || 'Professional',
+        content: profileText || 'Professional',
       });
       const skills = extractSkills(res.result);
       const merged = [...new Set([...data.skills, ...skills])];
       setAiResult(skills);
       update('skills', merged);
-    } catch {
+    } catch (error) {
+      console.error('Skills generation failed:', error);
       setAiResult(null);
     } finally {
       setAiLoading(false);
@@ -100,6 +109,20 @@ export default function SkillsStep() {
   const findMissingSkills = async () => {
     setAiLoading(true);
     try {
+      // First, try to extract skills from work experience and other resume sections
+      const experienceSkills = extractSkillsFromExperience();
+      const allCurrentSkills = [...data.skills, ...expSkills];
+      
+      // If we have skills from experience and current skills are limited, 
+      // generate from experience first to avoid AI dependency
+      if (expSkills.length > 0 && allCurrentSkills.length < 5) {
+        const merged = [...new Set([...data.skills, ...expSkills])];
+        update('skills', merged);
+        setAiResult(expSkills);
+        return;
+      }
+      
+      // Otherwise, call the AI API as fallback
       const res = await executeResumeAI({
         section: 'skills',
         action: 'find_missing',
@@ -109,7 +132,7 @@ export default function SkillsStep() {
       const merged = [...new Set([...data.skills, ...missing])];
       setAiResult(missing);
       update('skills', merged);
-    } catch {
+    } catch (error) {
       setAiResult(null);
     } finally {
       setAiLoading(false);
@@ -199,12 +222,12 @@ export default function SkillsStep() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="e.g. React, Node.js, Python..."
-            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Add a skill (e.g., React, Python, Project Management)"
+            className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 text-sm"
           />
           <button
             onClick={addSkill}
-            className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
           >
             Add
           </button>
@@ -213,17 +236,21 @@ export default function SkillsStep() {
 
       {data.skills.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Your Skills ({data.skills.length})</h3>
+          <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center justify-between">
+            Your Skills ({data.skills.length})
+            <span className="text-xs text-gray-400">Click to remove</span>
+          </h3>
           <div className="flex flex-wrap gap-2">
             {data.skills.map((skill) => (
               <span
                 key={skill}
-                className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 rounded-full text-sm border border-blue-100 hover:bg-blue-100 hover:border-blue-200 transition-all"
               >
                 {skill}
                 <button
                   onClick={() => removeSkill(skill)}
-                  className="hover:text-blue-900"
+                  className="p-0.5 hover:text-blue-900 hover:bg-blue-100 rounded-full transition-colors"
+                  title="Remove skill"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>

@@ -127,7 +127,7 @@ export default function ProjectsStep() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Project URL (optional)</label>
                     <input type="url" value={p.url} onChange={e => updateProject(p.id, 'url', e.target.value)}
-                      placeholder="e.g. github.com/user/project"
+                      placeholder="https://github.com/username/project"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                 </div>
@@ -154,7 +154,7 @@ export default function ProjectsStep() {
                               const nb = [...p.bullets]; nb[bi] = e.target.value;
                               updateProject(p.id, 'bullets', nb);
                             }}
-                            placeholder="e.g. Built REST APIs"
+                            placeholder="Describe your key achievements and technologies used"
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
                           />
                         </div>

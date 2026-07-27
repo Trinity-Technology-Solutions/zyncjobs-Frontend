@@ -20,6 +20,7 @@ export interface AppNotification {
 const STATUS_KEY = 'candidate_app_statuses';
 const NOTIF_KEY = 'candidate_notifications';
 const CLEARED_AT_KEY = 'candidate_notifications_cleared_at';
+const DISMISSED_APP_IDS_KEY = 'candidate_dismissed_app_ids';
 const POLL_INTERVAL = 30000; // 30 seconds
 
 /** Returns the epoch ms when the user last pressed "Clear All", or 0 if never. */
@@ -86,11 +87,12 @@ export function useApplicationNotifications(userEmail: string | undefined) {
       const prev = prevStatusesRef.current;
       const newNotifs: AppNotification[] = [];
 
+      const dismissedAppIds: Set<string> = new Set(JSON.parse(localStorage.getItem(DISMISSED_APP_IDS_KEY) || '[]'));
       data.forEach(app => {
         if (!app?._id || !app?.jobId) return;
         const prevStatus = prev[app._id];
         const currStatus = app.status;
-        if (prevStatus && prevStatus !== currStatus) {
+        if (prevStatus && prevStatus !== currStatus && !dismissedAppIds.has(app._id + '_' + currStatus)) {
           newNotifs.push({
             id: `${app._id}_${currStatus}_${Date.now()}`,
             applicationId: app._id,
@@ -210,10 +212,9 @@ export function useApplicationNotifications(userEmail: string | undefined) {
     setNotifications([]);
     localStorage.removeItem(NOTIF_KEY);
     localStorage.removeItem(STATUS_KEY);
-    // Persist a timestamp so that historical DB notifications are never re-fetched
-    // by the 30-second polling loop after the user pressed "Clear All".
-    localStorage.setItem(CLEARED_AT_KEY, Date.now().toString());
-    // Reset status tracking so the next poll doesn't recreate stale notifications
+    localStorage.removeItem(DISMISSED_APP_IDS_KEY);
+    const clearedAtMs = Date.now();
+    localStorage.setItem(CLEARED_AT_KEY, clearedAtMs.toString());
     prevStatusesRef.current = {};
 
     // Permanently delete notifications on the backend so they never reappear
@@ -233,5 +234,32 @@ export function useApplicationNotifications(userEmail: string | undefined) {
     }
   }, [userEmail]);
 
-  return { notifications, unreadCount, toast, clearToast, markRead, markAllRead, clearAll };
+  const dismissNotification = useCallback(async (id: string) => {
+    const notif = notifications.find(n => n.id === id);
+    setNotifications(prev => {
+      const next = prev.filter(n => n.id !== id);
+      persist(next);
+      return next;
+    });
+    // Track application ID so pollApplications never recreates this status change
+    if (notif?.applicationId) {
+      const dismissed = new Set(JSON.parse(localStorage.getItem(DISMISSED_APP_IDS_KEY) || '[]'));
+      dismissed.add(notif.applicationId + '_' + notif.newStatus);
+      localStorage.setItem(DISMISSED_APP_IDS_KEY, JSON.stringify([...dismissed]));
+    }
+    // Delete from backend — strip frontend-only "db_" prefix if present
+    const backendId = id.startsWith('db_') ? id.slice(3) : id;
+    if (userEmail) {
+      try {
+        await fetch(
+          `${API_ENDPOINTS.BASE_URL}/notifications/user/email/${encodeURIComponent(userEmail)}/dismiss/${backendId}`,
+          { method: 'DELETE' }
+        );
+      } catch {
+        // Silently fail — local removal is enough
+      }
+    }
+  }, [userEmail, notifications]);
+
+  return { notifications, unreadCount, toast, clearToast, markRead, markAllRead, clearAll, dismissNotification };
 }

@@ -96,7 +96,25 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
   const applyOptimization = () => {
     if (!optimizationResult) return;
     update('jobDescription', jdText);
-    setSuccess('✅ Applied optimizations to your resume!');
+    
+    // Add suggested keywords to skills
+    if (optimizationResult.keywords && optimizationResult.keywords.length > 0) {
+      const existingSkills = new Set(data.skills.map(s => s.toLowerCase()));
+      const newSkills = optimizationResult.keywords.filter((kw: string) => !existingSkills.has(kw.toLowerCase()));
+      if (newSkills.length > 0) {
+        update('skills', [...data.skills, ...newSkills]);
+      }
+    }
+    
+    // Update summary with JD-optimized version if not present
+    if (optimizationResult.improvements && optimizationResult.improvements.length > 0 && !data.summary) {
+      const title = data.experience[0]?.title || 'Professional';
+      const company = data.experience[0]?.company || 'a leading company';
+      const skills = data.skills.slice(0, 3).join(', ');
+      update('summary', `Results-driven ${title} with hands-on experience at ${company}. Skilled in ${skills || 'delivering high-quality solutions'}. Proven ability to optimize for ${optimizationResult.keywords.slice(0, 3).join(', ')} and drive measurable business impact.`);
+    }
+    
+    setSuccess('✅ Applied optimizations to your resume! Skills and summary updated.');
     setOptimizationResult(null);
   };
 
