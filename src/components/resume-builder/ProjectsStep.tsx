@@ -3,8 +3,11 @@ import { Plus, Trash2, Sparkles, Loader2, Check, X, Clock } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
+import { ph } from '../../utils/goalPlaceholders';
+
 export default function ProjectsStep() {
   const { data, addProject, updateProject, removeProject } = useResumeStore();
+  const goal = data.goal || '';
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiError, setAiError] = useState('');
   const [suggestion, setSuggestion] = useState<{ projId: string; bIdx: number; suggested: string } | null>(null);
@@ -109,19 +112,19 @@ export default function ProjectsStep() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Project Name *</label>
                     <input type="text" value={p.name} onChange={e => updateProject(p.id, 'name', e.target.value)}
-                      placeholder="e.g. E-Commerce Platform"
+                      placeholder={ph(goal, 'projectName')}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Your Role</label>
                     <input type="text" value={p.role} onChange={e => updateProject(p.id, 'role', e.target.value)}
-                      placeholder="e.g. Full Stack Developer"
+                      placeholder={ph(goal, 'role')}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                     <input type="text" value={p.duration} onChange={e => updateProject(p.id, 'duration', e.target.value)}
-                      placeholder="e.g. Jan 2023 – Mar 2023"
+                      placeholder="Start Date – End Date"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
@@ -154,7 +157,7 @@ export default function ProjectsStep() {
                               const nb = [...p.bullets]; nb[bi] = e.target.value;
                               updateProject(p.id, 'bullets', nb);
                             }}
-                            placeholder="Describe your key achievements and technologies used"
+                            placeholder={ph(goal, 'achievement')}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
                           />
                         </div>

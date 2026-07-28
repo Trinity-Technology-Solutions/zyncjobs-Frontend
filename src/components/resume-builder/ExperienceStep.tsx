@@ -2,9 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Sparkles, Loader2, Check, X, Copy } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
+import { ph } from '../../utils/goalPlaceholders';
 
 export default function ExperienceStep() {
   const { data, addExperience, updateExperience, removeExperience } = useResumeStore();
+  const goal = data.goal || '';
   const [aiLoading, setAiLoading] = useState<string | null>(null);
   const [aiError, setAiError] = useState('');
   const [suggestion, setSuggestion] = useState<{
@@ -222,25 +224,25 @@ export default function ExperienceStep() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Job Title <span className="text-red-500">*</span></label>
                     <input type="text" value={exp.title} onChange={(e) => updateExperience(exp.id, 'title', e.target.value)}
-                      placeholder="e.g. Software Engineer"
+                      placeholder={ph(goal, 'title')}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Company <span className="text-red-500">*</span></label>
                     <input type="text" value={exp.company} onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
-                      placeholder="e.g. TCS"
+                      placeholder={ph(goal, 'company')}
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
                     <input type="text" value={exp.location ?? ''} onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
-                      placeholder="e.g. Chennai, India"
+                      placeholder="City, State"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Duration <span className="text-red-500">*</span></label>
                     <input type="text" value={exp.duration} onChange={(e) => updateExperience(exp.id, 'duration', e.target.value)}
-                      placeholder="e.g. Jan 2020 - Present"
+                      placeholder="Start Date - End Date"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div className="flex items-center gap-2">
@@ -371,7 +373,7 @@ export default function ExperienceStep() {
                               const b = [...exp.bullets]; b[bIdx] = e.target.value;
                               updateExperience(exp.id, 'bullets', b);
                             }}
-                            placeholder="Describe your key achievements and impact"
+                            placeholder={ph(goal, 'achievement')}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors"
                           />
                         </div>

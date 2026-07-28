@@ -9,6 +9,7 @@ interface Props {
 
 export default function AISuggestionsStep({ selectedJob }: Props) {
   const { data, update } = useResumeStore();
+  const goal = data.goal || '';
   const [loading, setLoading] = useState(false);
   const [optimizing, setOptimizing] = useState(false);
   const [error, setError] = useState('');
@@ -29,9 +30,10 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
     setError('');
     setSuccess('');
     try {
-      const expText = data.experience
+      const goalContext = goal ? `Career goal: ${goal}. Tailor the summary for this career level.` : '';
+      const expText = [goalContext, ...data.experience
         .map((e) => `${e.title} at ${e.company} - ${e.bullets.join('. ')}`)
-        .join('. ');
+        .join('. ')].filter(Boolean).join('\n');
       try {
         const res = await executeResumeAI({
           section: 'summary',
@@ -42,7 +44,14 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
       } catch {
         const title = data.experience[0]?.title || 'Professional';
         const company = data.experience[0]?.company || 'a leading company';
-        update('summary', `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions and collaborate with cross-functional teams to drive measurable business impact.`);
+        const goalFallbacks: Record<string, string> = {
+          'first-job': `Motivated recent graduate with hands-on experience as ${title} at ${company}. Eager to apply academic knowledge and internship experience to deliver high-quality solutions in a dynamic team environment.`,
+          'internship': `Enthusiastic student with practical experience as ${title} at ${company}. Quick learner seeking an internship opportunity to develop skills and contribute to meaningful projects.`,
+          'career-switch': `Career-driven professional with transferable expertise from experience as ${title} at ${company}. Bringing a unique cross-functional perspective and strong adaptability to a new field.`,
+          'experienced': `Results-driven ${title} with a proven track record at ${company}. Experienced in delivering high-impact solutions, leading cross-functional teams, and driving measurable business outcomes.`,
+          'executive': `Visionary leader with executive-level experience as ${title} at ${company}. Proven ability to drive organizational strategy, lead large-scale initiatives, and deliver transformative business results.`,
+        };
+        update('summary', goalFallbacks[goal] || `Results-driven ${title} with hands-on experience at ${company}. Proven ability to deliver high-quality solutions and collaborate with cross-functional teams to drive measurable business impact.`);
       }
       setSuccess('✅ AI generated summary and skills!');
     } finally {
@@ -61,11 +70,12 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
     try {
       const bullets = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim()));
       const resumeText = [data.summary, ...bullets, ...data.skills].filter(Boolean).join('\n');
+      const goalContextStr = goal ? `The candidate's career goal is: ${goal}. Provide optimization advice tailored to this career level. ` : '';
       try {
         const res = await executeResumeAI({
           section: 'resume',
           action: 'optimize',
-          content: `${jdText}\n---\n${resumeText}`,
+          content: `${goalContextStr}${jdText}\n---\n${resumeText}`,
         });
         setOptimizationResult({
           keywords: (res.result || '').split(',').map(s => s.trim()).filter(Boolean),
@@ -78,10 +88,17 @@ export default function AISuggestionsStep({ selectedJob }: Props) {
         const freq: Record<string,number> = {};
         words.forEach(w => { const c = w.toLowerCase(); if (c.length > 3 && !stop.has(c)) freq[c] = (freq[c]||0)+1; });
         const keywords = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([w])=>w.charAt(0).toUpperCase()+w.slice(1));
+        const goalImprovements: Record<string, string[]> = {
+          'first-job': [`Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`, 'Highlight academic projects and internships relevant to this role', 'Use action verbs to describe your contributions'],
+          'internship': [`Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`, 'Emphasize coursework, projects, and relevant skills', 'Show enthusiasm and willingness to learn in your summary'],
+          'career-switch': [`Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`, 'Frame previous experience as transferable skills for this role', 'Highlight relevant projects and certifications'],
+          'experienced': [`Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`, 'Quantify your achievements with numbers and percentages', 'Show career progression and increasing responsibility'],
+          'executive': [`Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`, 'Emphasize strategic impact and organizational leadership', 'Highlight board-level results and revenue growth'],
+        };
         setOptimizationResult({
           keywords,
           atsScore: Math.min(95, 60 + keywords.length * 3),
-          improvements: [
+          improvements: goalImprovements[goal] || [
             `Add these keywords from the JD: ${keywords.slice(0,3).join(', ')}`,
             'Quantify your achievements with numbers and percentages',
             'Use action verbs at the start of each bullet point',

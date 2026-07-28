@@ -172,7 +172,7 @@ export const useResumeStore = create<ResumeStore>()(
 
       updatePersonalInfo: (field, value) =>
         set((s: ResumeStore) => ({
-          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value.trim() } },
+          data: { ...s.data, personalInfo: { ...s.data.personalInfo, [field]: value } },
         })),
 
       addExperience: () =>
@@ -391,7 +391,7 @@ export const useResumeStore = create<ResumeStore>()(
       name: 'zyncjobs-resume-builder',
       merge: (persisted: any, current: any) => ({
         ...current,
-        data: { ...defaultData, ...persisted?.data },
+        data: { ...defaultData, ...(persisted?.data || {}), ...current.data },
         history: persisted?.history || [],
         historyIndex: persisted?.historyIndex ?? 0,
       }),

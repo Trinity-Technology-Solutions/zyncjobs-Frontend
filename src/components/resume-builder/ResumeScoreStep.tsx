@@ -3,6 +3,14 @@ import { Sparkles, Loader2, AlertTriangle, Target, FileText, FolderOpen, Crown, 
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
+const GOAL_LABELS: Record<string, string> = {
+  'first-job': 'First Job',
+  'internship': 'Internship',
+  'career-switch': 'Career Switch',
+  'experienced': 'Experienced Professional',
+  'executive': 'Executive',
+};
+
 interface ScoreDimension {
   label: string;
   score: number;
@@ -13,6 +21,7 @@ interface ScoreDimension {
 }
 
 function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimension[] {
+  const goal = data.goal || '';
   const summaryVal = Array.isArray(data.summary)
     ? (data.summary as string[]).filter(Boolean).join(' ')
     : data.summary || '';
@@ -48,7 +57,18 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
     ? skillsLower.filter(s => roleKeywords.some(k => s.includes(k))).length
     : 0;
 
+  const isEntry = goal === 'first-job' || goal === 'internship';
+  const isSenior = goal === 'experienced';
+  const isExecutive = goal === 'executive';
+  const isSwitch = goal === 'career-switch';
+
   const atsMin = (!name && !email && data.experience.length === 0 && data.skills.length === 0) ? 0 : undefined;
+
+  const atsExpScore = isEntry
+    ? Math.min(15, (data.experience.length ? 10 : 0) + bullets.length * 1.5)
+    : isSenior || isExecutive
+    ? Math.min(25, data.experience.length * 7 + bullets.length * 1.5)
+    : data.experience.length ? 20 : 0;
 
   return [
     {
@@ -60,10 +80,13 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
           (specificCount >= 3 ? 10 : specificCount >= 1 ? 5 : 0) +
           skillDiversity +
           (roleSkillMatch > 0 ? 5 : 0) +
-          (data.experience.length ? 20 : 0) +
+          atsExpScore +
           Math.min(10, bullets.length * 2)
         )
-      ), max: 100, tip: 'Add 8-15 specific, diverse skills. Align skills with target role.', color: 'bg-blue-500', icon: <Target className="w-4 h-4 text-blue-500" />,
+      ), max: 100, tip: isEntry ? 'Focus on projects, education, and relevant skills to offset limited experience.'
+           : isSwitch ? 'Highlight transferable skills and relevant projects from previous roles.'
+           : isExecutive ? 'Emphasize strategic impact, board-level results, and organizational leadership.'
+           : 'Add 8-15 specific, diverse skills. Align skills with target role.', color: 'bg-blue-500', icon: <Target className="w-4 h-4 text-blue-500" />,
     },
     {
       label: 'Grammar', score: bullets.length === 0 ? 0 : Math.min(100,
@@ -74,7 +97,10 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
       label: 'Projects', score: Math.min(100,
         ((data.projects?.length || 0) >= 2 ? 60 : (data.projects?.length || 0) * 25) +
         Math.min(40, bullets.length * 5)
-      ), max: 100, tip: 'Add 2+ projects with detailed bullet points.', color: 'bg-green-500', icon: <FolderOpen className="w-4 h-4 text-green-500" />,
+      ), max: 100, tip: isEntry ? 'Projects are critical — add 2+ with detailed bullet points and tech stack.'
+           : isSwitch ? 'Showcase projects that demonstrate your new target skills.'
+           : isExecutive ? 'Focus on strategic initiatives and organizational impact rather than technical projects.'
+           : 'Add 2+ projects with detailed bullet points.', color: 'bg-green-500', icon: <FolderOpen className="w-4 h-4 text-green-500" />,
     },
     {
       label: 'Leadership', score: Math.min(100,
@@ -82,7 +108,9 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
         ((data.awards?.length || 0) > 0 ? 25 : 0) +
         (data.experience.filter(e => e.title?.toLowerCase().includes('lead') || e.title?.toLowerCase().includes('manager')).length > 0 ? 25 : 0) +
         (bullets.some(b => /(led|managed|mentor|team|directed|supervised)/i.test(b)) ? 20 : 0)
-      ), max: 100, tip: 'Add leadership roles, awards, and mentoring experience.', color: 'bg-amber-500', icon: <Crown className="w-4 h-4 text-amber-500" />,
+      ), max: 100, tip: isExecutive ? 'Board-level results, organizational strategy, and C-suite impact are essential.'
+           : isEntry ? 'Mention team projects, volunteer leadership, or student org roles.'
+           : 'Add leadership roles, awards, and mentoring experience.', color: 'bg-amber-500', icon: <Crown className="w-4 h-4 text-amber-500" />,
     },
     {
       label: 'Formatting', score: (() => {
@@ -106,14 +134,17 @@ function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimen
       label: 'Impact', score: bullets.length === 0 ? 0 : Math.min(100,
         (hasNumbers ? 50 : 0) + (hasActionVerbs ? 30 : 0) +
         ((data.achievements?.length || 0) > 0 ? 20 : 0)
-      ), max: 100, tip: 'Add numbers (%, $) and measurable achievements.', color: 'bg-orange-500', icon: <TrendingUp className="w-4 h-4 text-orange-500" />,
+      ), max: 100, tip: isExecutive ? 'Revenue impact, cost savings, team growth, and market share metrics are key.'
+           : 'Add numbers (%, $) and measurable achievements.', color: 'bg-orange-500', icon: <TrendingUp className="w-4 h-4 text-orange-500" />,
     },
     {
       label: 'Confidence', score: Math.min(100,
         ((data.personalInfo?.linkedin || '').trim() ? 20 : 0) + ((data.personalInfo?.portfolio || '').trim() ? 20 : 0) +
         ((data.certifications?.length || 0) > 0 ? 20 : 0) + ((data.awards?.length || 0) > 0 ? 20 : 0) +
         (data.experience.length >= 2 ? 20 : data.experience.length * 10)
-      ), max: 100, tip: 'Add LinkedIn, portfolio, certs, and 2+ experiences.', color: 'bg-rose-500', icon: <Star className="w-4 h-4 text-rose-500" />,
+      ), max: 100, tip: isEntry ? 'Add LinkedIn, certifications, and portfolio to boost credibility.'
+           : isExecutive ? 'Board memberships, speaking engagements, and executive presence signals help.'
+           : 'Add LinkedIn, portfolio, certs, and 2+ experiences.', color: 'bg-rose-500', icon: <Star className="w-4 h-4 text-rose-500" />,
     },
   ];
 }
@@ -176,6 +207,12 @@ export default function ResumeScoreStep() {
              overall >= 60 ? 'Good — a few tweaks will make it great.' :
              'Needs significant improvement.'}
           </p>
+          {data.goal && (
+            <span className="inline-flex items-center gap-1 mt-2 px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
+              <Target className="w-3 h-3" />
+              Goal: {GOAL_LABELS[data.goal] || data.goal}
+            </span>
+          )}
           <button onClick={getAIExplanation} disabled={loading}
             className="mt-3 flex items-center gap-2 px-4 py-1.5 text-xs bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
             {loading ? <><Loader2 className="w-3 h-3 animate-spin" />Analyzing...</> : <><Sparkles className="w-3 h-3" />Get AI Tips</>}
