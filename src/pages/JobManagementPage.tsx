@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
 import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, MoreVertical, CheckSquare, Mail, UserCheck } from 'lucide-react';
 import Header from '../components/Header';
@@ -206,6 +206,66 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
           detail: { message: 'Error deleting jobs. Please try again.' } 
         }));
       }
+    }
+  };
+
+  const closingRef = useRef(false);
+
+  const handleCloseSelectedJobs = async () => {
+    if (closingRef.current) return;
+    if (selectedJobs.length === 0) {
+      window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to close" } }));
+      return;
+    }
+
+    const ok = await (window as any).confirmAsync(`Close ${selectedJobs.length} job(s)?`);
+    if (!ok) return;
+
+    closingRef.current = true;
+    const idsToClose = [...selectedJobs];
+    try {
+      const closePromises = idsToClose.map(jobId =>
+        apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/${jobId}/close`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'closed' })
+        })
+      );
+
+      const results = await Promise.allSettled(closePromises);
+
+      const successCount = results.filter(result =>
+        result.status === 'fulfilled' && result.value.ok
+      ).length;
+
+      const failedCount = idsToClose.length - successCount;
+
+      if (successCount > 0) {
+        setJobs(prevJobs => prevJobs.map(job => {
+          const jobId = getId(job);
+          return idsToClose.includes(jobId) ? { ...job, status: 'closed' } : job;
+        }));
+        setSelectedJobs([]);
+      }
+
+      if (failedCount === 0) {
+        window.dispatchEvent(new CustomEvent('zync:alert', {
+          detail: { message: `${successCount} job(s) closed successfully` }
+        }));
+      } else {
+        window.dispatchEvent(new CustomEvent('zync:alert', {
+          detail: {
+            message: `Closed ${successCount} job(s). ${failedCount} job(s) failed to close.`
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Error closing selected jobs:', error);
+      window.dispatchEvent(new CustomEvent('zync:alert', {
+        detail: { message: 'Error closing jobs. Please try again.' }
+      }));
+    } finally {
+      closingRef.current = false;
     }
   };
 
@@ -477,30 +537,20 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                     </button>
                   )}
                   
-                  <button
-                    onClick={() => {
-                      if (selectedJobs.length === 0) {
-                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: "Please select jobs to close" } }));
-                        return;
-                      }
-                      const ok = (window as any).confirmAsync(`Close ${selectedJobs.length} job(s)?`);
-                      if (ok) {
-                        // TODO: Implement bulk close functionality
-                        console.log('Closing jobs:', selectedJobs);
-                        window.dispatchEvent(new CustomEvent("zync:alert", { detail: { message: `${selectedJobs.length} job(s) closed successfully` } }));
-                        setSelectedJobs([]);
-                      }
-                    }}
-                    disabled={selectedJobs.length === 0}
-                    className={`flex items-center space-x-2 text-sm transition-colors ${
-                      selectedJobs.length === 0
-                        ? 'text-gray-400 cursor-not-allowed'
-                        : 'text-gray-600 hover:text-red-600 cursor-pointer'
-                    }`}
-                    title="Close selected jobs"
-                  >
-                    <span className="font-medium">Close Selected</span>
-                  </button>
+                  {false && (
+                    <button
+                      onClick={handleCloseSelectedJobs}
+                      disabled={selectedJobs.length === 0}
+                      className={`flex items-center space-x-2 text-sm transition-colors ${
+                        selectedJobs.length === 0
+                          ? 'text-gray-400 cursor-not-allowed'
+                          : 'text-gray-600 hover:text-red-600 cursor-pointer'
+                      }`}
+                      title="Close selected jobs"
+                    >
+                      <span className="font-medium">Close Selected</span>
+                    </button>
+                  )}
                 </div>
                 <span className="text-xs sm:text-sm text-gray-500 self-start sm:self-center">Sort by: {sortBy === 'posted' ? 'Posted/sent date' : sortBy === 'responses' ? 'Response count' : 'Job title'}</span>
               </div>
