@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import ResumeTemplate from './ResumeTemplate';
 import type { ResumeData } from '../../store/useResumeStore';
@@ -55,18 +55,27 @@ const DUMMY: ResumeData = {
 };
 
 const TEMPLATES = [
-  { id: 'classic',      name: 'Classic',      desc: 'Centered header, bold section rules.', badge: 'Best for ATS', badgeColor: 'bg-blue-500' },
-  { id: 'modern',       name: 'Modern',       desc: 'Left-aligned name, thin rule divider.', badge: 'Best for Startups', badgeColor: 'bg-purple-500' },
-  { id: 'minimal',      name: 'Minimal',      desc: 'Two-column label sidebar, clean serif.', badge: 'Best for Designers', badgeColor: 'bg-teal-500' },
-  { id: 'executive',    name: 'Executive',    desc: 'Double-rule header, formal serif.', badge: 'Best for Managers', badgeColor: 'bg-amber-600' },
-  { id: 'compact',      name: 'Compact',      desc: 'Dense layout, fits more content.', badge: 'Experienced Pros', badgeColor: 'bg-rose-500' },
-  { id: 'professional', name: 'Professional', desc: 'Dark sidebar with contact & skills.', badge: 'Best for Consulting', badgeColor: 'bg-indigo-500' },
+  { id: 'classic',      name: 'Classic',      desc: 'Centered header, bold section rules.', badge: 'Best for ATS', badgeColor: 'bg-blue-500', goalHint: 'experienced' },
+  { id: 'modern',       name: 'Modern',       desc: 'Left-aligned name, thin rule divider.', badge: 'Best for Startups', badgeColor: 'bg-purple-500', goalHint: 'first-job' },
+  { id: 'minimal',      name: 'Minimal',      desc: 'Two-column label sidebar, clean serif.', badge: 'Best for Designers', badgeColor: 'bg-teal-500', goalHint: 'internship' },
+  { id: 'executive',    name: 'Executive',    desc: 'Double-rule header, formal serif.', badge: 'Best for Managers', badgeColor: 'bg-amber-600', goalHint: 'executive' },
+  { id: 'compact',      name: 'Compact',      desc: 'Dense layout, fits more content.', badge: 'Experienced Pros', badgeColor: 'bg-rose-500', goalHint: 'career-switch' },
+  { id: 'professional', name: 'Professional', desc: 'Dark sidebar with contact & skills.', badge: 'Best for Consulting', badgeColor: 'bg-indigo-500', goalHint: 'experienced' },
 ] as const;
 
 type TemplateId = typeof TEMPLATES[number]['id'];
 
 export default function TemplateSelection() {
   const { data, update } = useResumeStore();
+  const goal = data.goal || '';
+
+  const ordered = goal
+    ? [...TEMPLATES].sort((a, b) => {
+        const aMatch = a.goalHint === goal ? 0 : 1;
+        const bMatch = b.goalHint === goal ? 0 : 1;
+        return aMatch - bMatch;
+      })
+    : TEMPLATES;
 
   return (
     <div>
@@ -77,8 +86,9 @@ export default function TemplateSelection() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {TEMPLATES.map(t => {
+        {ordered.map(t => {
           const isSelected = data.template === t.id;
+          const isRecommended = goal && t.goalHint === goal;
           const previewData: ResumeData = { ...DUMMY, template: t.id };
           return (
             <button
@@ -103,9 +113,16 @@ export default function TemplateSelection() {
                   </span>
                 </div>
 
-                {/* Badge */}
-                <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[9px] font-bold text-white ${t.badgeColor}`}>
-                  {t.badge}
+                {/* Badges */}
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                  <div className={`px-2 py-0.5 rounded text-[9px] font-bold text-white ${t.badgeColor}`}>
+                    {t.badge}
+                  </div>
+                  {isRecommended && (
+                    <div className="px-2 py-0.5 rounded text-[9px] font-bold text-white bg-green-600 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5" /> Recommended
+                    </div>
+                  )}
                 </div>
                 {/* Selected check */}
                 {isSelected && (

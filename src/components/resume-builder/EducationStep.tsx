@@ -9,8 +9,11 @@ const QUICK_DEGREES = [
   'B.E Electrical', 'B.E Electronics', 'B.Sc Mathematics', 'B.Sc Physics',
 ];
 
+import { ph } from '../../utils/goalPlaceholders';
+
 export default function EducationStep() {
   const { data, addEducation, updateEducation, removeEducation } = useResumeStore();
+  const goal = data.goal || '';
   const [aiLoading, setAiLoading] = useState(false);
 
     const suggestEducation = async () => {
@@ -95,13 +98,13 @@ export default function EducationStep() {
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Degree *</label>
                   <input type="text" value={edu.degree} onChange={e => updateEducation(edu.id, 'degree', e.target.value)}
-                    placeholder="Enter degree name"
+                    placeholder={ph(goal, 'degree')}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Institution *</label>
                   <input type="text" value={edu.institution} onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
-                    placeholder="Enter institution name"
+                    placeholder={ph(goal, 'institution')}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
                 </div>
                 <div>

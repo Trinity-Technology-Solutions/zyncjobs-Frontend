@@ -22,8 +22,11 @@ function extractSkills(raw: string): string[] {
   return skills;
 }
 
+import { ph } from '../../utils/goalPlaceholders';
+
 export default function SkillsStep() {
   const { data, update } = useResumeStore();
+  const goal = data.goal || '';
   const [input, setInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<string[] | null>(null);
@@ -222,7 +225,7 @@ export default function SkillsStep() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Add a skill (e.g., React, Python, Project Management)"
+            placeholder={ph(goal, 'skill')}
             className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400 text-sm"
           />
           <button

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PenLine, Upload, Sparkles, X } from 'lucide-react';
+import { PenLine, Upload, Sparkles, X, GraduationCap, ClipboardList, RefreshCw, Briefcase, Crown } from 'lucide-react';
 
 interface Props {
   goal: string;
@@ -10,14 +10,15 @@ interface Props {
   onSetStep: (v: number) => void;
   onStart: (v: string) => void;
   onComplete: () => void;
+  onUploadNow?: () => void;
 }
 
 const GOALS = [
-  { id: 'first-job', label: 'First Job', icon: '🎓', desc: 'Fresh graduate or entry-level' },
-  { id: 'internship', label: 'Internship', icon: '📋', desc: 'Looking for internship opportunities' },
-  { id: 'career-switch', label: 'Career Switch', icon: '🔄', desc: 'Moving to a new field or role' },
-  { id: 'experienced', label: 'Experienced Professional', icon: '💼', desc: '5+ years of experience' },
-  { id: 'executive', label: 'Executive', icon: '👔', desc: 'Senior leadership & management' },
+  { id: 'first-job', label: 'First Job', icon: GraduationCap, desc: 'Fresh graduate or entry-level' },
+  { id: 'internship', label: 'Internship', icon: ClipboardList, desc: 'Looking for internship opportunities' },
+  { id: 'career-switch', label: 'Career Switch', icon: RefreshCw, desc: 'Moving to a new field or role' },
+  { id: 'experienced', label: 'Experienced Professional', icon: Briefcase, desc: '5+ years of experience' },
+  { id: 'executive', label: 'Executive', icon: Crown, desc: 'Senior leadership & management' },
 ];
 
 const ROLES = [
@@ -31,7 +32,7 @@ const ROLES = [
 
 const STEPS = ['How to Start', 'Your Goal', 'Target Job'];
 
-export default function WelcomeWizard({ goal, role, step, onSetGoal, onSetRole, onSetStep, onStart, onComplete }: Props) {
+export default function WelcomeWizard({ goal, role, step, onSetGoal, onSetRole, onSetStep, onStart, onComplete, onUploadNow }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl mx-4 p-8 max-h-[90vh] overflow-y-auto">
@@ -65,8 +66,8 @@ export default function WelcomeWizard({ goal, role, step, onSetGoal, onSetRole, 
                   <p className="text-xs text-gray-500">Build your resume step by step with AI guidance</p>
                 </div>
               </button>
-              <button onClick={() => { onStart('import'); onSetStep(1); }}
-                className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-blue-400 hover:bg-blue-50/50 transition-all text-left group">
+              <button onClick={() => { if (onUploadNow) { onUploadNow(); } else { onStart('import'); onSetStep(1); } }}
+                className="w-full flex items-center gap-4 p-4 border border-gray-200 rounded-xl hover:border-green-400 hover:bg-green-50/50 transition-all text-left group">
                 <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center flex-shrink-0 group-hover:bg-green-200 transition-colors">
                   <Upload className="w-5 h-5 text-green-600" />
                 </div>
@@ -107,8 +108,8 @@ export default function WelcomeWizard({ goal, role, step, onSetGoal, onSetRole, 
               {GOALS.map(g => (
                 <button key={g.id} onClick={() => { onSetGoal(g.id); onSetStep(2); }}
                   className={`w-full flex items-center gap-4 p-4 border rounded-xl transition-all text-left ${goal === g.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'}`}>
-                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-lg">
-                    {g.icon}
+                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <g.icon className="w-5 h-5 text-gray-600" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-900">{g.label}</p>

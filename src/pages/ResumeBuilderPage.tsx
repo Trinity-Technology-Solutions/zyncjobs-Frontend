@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   Save, Undo2, Redo2, Download, FileText, Briefcase, GraduationCap,
   User, Sparkles, Award, FolderOpen, Wrench, ChevronLeft, ChevronRight,
@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
-import { API_ENDPOINTS } from '../config/env';
 import TemplateSelection from '../components/resume-builder/TemplateSelection';
 import PersonalInfoStep from '../components/resume-builder/PersonalInfoStep';
 import SummaryStep from '../components/resume-builder/SummaryStep';
@@ -95,6 +94,29 @@ const ROLE_PRESETS: Record<string, { summary: string; skills: string[] }> = {
   'Systems Analyst': { summary: 'Systems Analyst skilled in evaluating and improving IT systems to meet business objectives. Experienced in system design, integration, and optimization.', skills: ['System Analysis', 'SQL', 'UML', 'Process Modeling', 'Jira', 'Testing', 'Documentation', 'Python'] },
 };
 
+const GOAL_PRESETS: Record<string, { summaryPrefix: string; skills: string[] }> = {
+  'first-job': {
+    summaryPrefix: 'Motivated and detail-oriented recent graduate',
+    skills: ['Team Collaboration', 'Communication', 'Problem Solving', 'Fast Learner', 'Time Management'],
+  },
+  'internship': {
+    summaryPrefix: 'Enthusiastic and eager to learn',
+    skills: ['Quick Learner', 'Teamwork', 'Communication', 'Adaptability', 'Problem Solving'],
+  },
+  'career-switch': {
+    summaryPrefix: 'Career-driven professional with transferable expertise',
+    skills: ['Adaptability', 'Transferable Skills', 'Cross-functional Collaboration', 'Problem Solving', 'Communication'],
+  },
+  'experienced': {
+    summaryPrefix: 'Seasoned professional with a proven track record',
+    skills: ['Leadership', 'Strategic Planning', 'Cross-functional Collaboration', 'Mentoring', 'Stakeholder Management'],
+  },
+  'executive': {
+    summaryPrefix: 'Visionary executive with extensive experience leading organizations',
+    skills: ['Executive Leadership', 'Strategic Vision', 'Board Governance', 'Organizational Development', 'C-suite Communication'],
+  },
+};
+
 export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const [activeId, setActiveId] = useState('personal');
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -127,8 +149,24 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data, update, updatePersonalInfo, touchSave, toggleSection, undo, redo, canUndo, canRedo, pushHistory } = useResumeStore();
   const completeness = [!!data.summary, data.experience.length > 0, data.skills.length > 0, data.education.length > 0].filter(Boolean).length;
+  
+  const profilePrefilledRef = useRef(false);
+  const processResumeFileRef = useRef<(file: File) => Promise<void>>();
 
-  // Auto-advance Quick Apply steps
+  useEffect(() => {
+    const handler = (e: any) => { if (e.detail?.file) processResumeFileRef.current?.(e.detail.file); };
+    window.addEventListener('zync:import-resume', handler);
+    return () => window.removeEventListener('zync:import-resume', handler);
+  }, []);
+
+  // Push history only on section change, not every keystroke
+  const prevActiveId = useRef(activeId);
+  useEffect(() => {
+    if (prevActiveId.current !== activeId) {
+      pushHistory();
+      prevActiveId.current = activeId;
+    }
+  }, [activeId]);
   useEffect(() => {
     if (selectedJob && qaStep === 0) {
       const t = setTimeout(() => setQaStep(1), 350);
@@ -188,60 +226,41 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   }, []);
 
   React.useEffect(() => {
-    // Only show saving state for longer operations, use longer debounce
+    setSaveStatus('saving');
     const saveTimer = setTimeout(() => {
-      setSaveStatus('saving');
-      const persistTimer = setTimeout(() => {
+      try {
         touchSave();
-        pushHistory();
         persistCurrentVersion(activeVersion);
         setSaveStatus('saved');
-      }, 1000); // Longer debounce for actual persistence
-      return () => clearTimeout(persistTimer);
-    }, 1500); // Increased debounce to 1.5s to reduce flickering
-    return () => clearTimeout(saveTimer);
+      } catch {
+        setSaveStatus('offline');
+      }
+    }, 800);
+    return () => {
+      clearTimeout(saveTimer);
+      setSaveStatus('saved');
+    };
   }, [data]);
 
-  React.useEffect(() => {
-    if (!user?.email) return;
-    let profile: any = user;
-    try { const s = localStorage.getItem('user'); if (s) profile = { ...user, ...JSON.parse(s) }; } catch {}
-    
-    if (!data.personalInfo.email) updatePersonalInfo('email', user.email);
-    if (profile?.name && !data.personalInfo.name) updatePersonalInfo('name', profile.name);
-    if (profile?.phone && !data.personalInfo.phone) updatePersonalInfo('phone', profile.phone);
-    if (profile?.location && !data.personalInfo.location) updatePersonalInfo('location', profile.location);
-    
-    // Sync versions from profile courses after initial load
-    const profileCourses = profile?.courses || [];
-    const courseVersions = profileCourses
-      .map((c: any) => (typeof c === 'string' ? c : c?.title))
-      .filter(Boolean);
-    if (courseVersions.length > 0) {
-      const savedVersions = getSavedVersions();
-      const merged = [...new Set([...savedVersions, ...courseVersions])];
-      const needsUpdate = merged.some(v => !versions.includes(v));
-      if (needsUpdate) {
-        setVersions(merged);
-        saveVersionList(merged);
-      }
-    }
-  }, [user?.email, versions, getSavedVersions, saveVersionList]);
+  
 
   // Prefill resume from profile API (only once, when resume is still default)
   React.useEffect(() => {
     if (!user?.email) return;
+    if (profilePrefilledRef.current) return;
     const hasData = data.experience.length > 0 || data.education.length > 0 || data.skills.length > 0;
     if (hasData) return;
     const prefillKey = `resume_prefilled_${user.email}`;
     if (sessionStorage.getItem(prefillKey)) return;
     (async () => {
-      try {
-        const { apiFetch } = await import('../api/apiFetch');
-        const { API_ENDPOINTS } = await import('../config/env');
-        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
-        if (!res.ok) return;
-        const p: any = await res.json();
+      if (!profilePrefilledRef.current) {
+        profilePrefilledRef.current = true;
+        try {
+          const { apiFetch } = await import('../api/apiFetch');
+          const { API_ENDPOINTS } = await import('../config/env');
+          const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(user.email)}`);
+          if (!res.ok) return;
+          const p: any = await res.json();
 
         // Skills
         if (Array.isArray(p.skills) && p.skills.length > 0) {
@@ -368,6 +387,8 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
         sessionStorage.setItem(prefillKey, '1');
       } catch { /* silent */ }
+      profilePrefilledRef.current = true;
+      }
     })();
   }, [user?.email]);
 
@@ -476,11 +497,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     } finally { setApplying(false); }
   };
 
-  const active = NAV.find((n) => n.id === activeId) ?? NAV[0];
-  const ActiveComponent = active.component;
-  const activeIdx = NAV.findIndex((n) => n.id === activeId);
-
-  const sections = [...new Set(NAV.map(n => n.section))];
+  const sections = [...new Set(orderedNav.map(n => n.section))];
   const sectionIcons: Record<string, any> = {
     Profile: UserCircle,
     Content: BookOpen,
@@ -488,6 +505,32 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     Analyze: BarChart3,
     Design: Palette,
   };
+
+  const GOAL_HIDDEN_SECTIONS: Record<string, string[]> = {
+    'first-job': ['certs', 'languages', 'custom'],
+    'internship': ['certs', 'languages', 'custom'],
+    'career-switch': ['languages'],
+    'experienced': ['languages'],
+    'executive': ['projects', 'languages'],
+  };
+
+  const GOAL_SECTION_ORDER: Record<string, string[]> = {
+    'first-job':    ['personal', 'education', 'projects', 'skills', 'summary', 'experience', 'certs', 'languages', 'achievements', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'internship':   ['personal', 'education', 'projects', 'skills', 'summary', 'experience', 'certs', 'languages', 'achievements', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'career-switch':['personal', 'summary', 'skills', 'projects', 'experience', 'education', 'certs', 'languages', 'achievements', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'experienced':  ['personal', 'experience', 'skills', 'achievements', 'summary', 'education', 'projects', 'certs', 'languages', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+    'executive':    ['personal', 'summary', 'experience', 'achievements', 'certs', 'skills', 'education', 'projects', 'languages', 'custom', 'score', 'cover', 'ai', 'skills-gap', 'template'],
+  };
+
+  const orderedNav = useMemo(() => {
+    const order = data.goal ? GOAL_SECTION_ORDER[data.goal] : undefined;
+    if (!order) return NAV;
+    const navMap = new Map(NAV.map(n => [n.id, n]));
+    return order.map(id => navMap.get(id)).filter(Boolean) as NavItem[];
+  }, [data.goal]);
+  const active = orderedNav.find((n) => n.id === activeId) ?? orderedNav[0];
+  const activeIdx = orderedNav.findIndex((n) => n.id === activeId);
+  const ActiveComponent = active?.component ?? (() => null);
 
   const processResumeFile = async (file: File) => {
     if (file.size < 100) {
@@ -500,51 +543,17 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     }
     const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
     if (isPdf) {
-      const header = await file.slice(0, 5).text();
-      if (header !== '%PDF-') {
+      const buf = await file.slice(0, 5).arrayBuffer();
+      const header = new Uint8Array(buf);
+      const isPdfHeader = header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46 && header[4] === 0x2D;
+      if (!isPdfHeader) {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Invalid or corrupted resume file. Please upload a valid PDF.' } }));
         return;
       }
     }
     setImportLoading(true);
     try {
-      let text = '';
-      if (isPdf) {
-        const { readPdf } = await import('../lib/parse-resume-from-pdf/read-pdf');
-        const url = URL.createObjectURL(file);
-        const textItems = await readPdf(url);
-        URL.revokeObjectURL(url);
-        text = textItems.map(t => t.text).join('\n');
-        if (!text.trim()) {
-          const formData = new FormData();
-          formData.append('resume', file);
-          const ocrRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/extract-text`, { method: 'POST', body: formData });
-          if (!ocrRes.ok) {
-            setImportLoading(false);
-            window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
-            return;
-          }
-          const ocrData = await ocrRes.json();
-          text = ocrData.text || '';
-        }
-      } else {
-        const formData = new FormData();
-        formData.append('resume', file);
-        const extRes = await fetch(`${API_ENDPOINTS.BASE_URL}/resume/extract-text`, { method: 'POST', body: formData });
-        if (!extRes.ok) {
-          setImportLoading(false);
-          window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
-          return;
-        }
-        const extData = await extRes.json();
-        text = extData.text || '';
-      }
-      if (!text.trim()) {
-        setImportLoading(false);
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'The uploaded resume is empty. Please upload a valid resume.' } }));
-        return;
-      }
-
+      // Get AI token
       const tokenRes = await fetch(`${AI_BASE}/auth/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -552,27 +561,28 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       });
       if (!tokenRes.ok) throw new Error('AI auth failed');
       const { access_token } = await tokenRes.json();
-      const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${access_token}` };
 
-      const resumeRes = await fetch(`${AI_BASE}/ai/execute`, {
+      // Use parse-upload endpoint — backend handles OCR + LLM parsing, always fresh (no cache)
+      const formData = new FormData();
+      formData.append('file', file);
+      const resumeRes = await fetch(`${AI_BASE}/ai/resume/parse-upload`, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({
-          query: 'Parse this resume and extract structured data',
-          user_role: 'candidate',
-          context: { section: 'resume', action: 'parse', content: text.slice(0, 8000) },
-        }),
+        headers: { Authorization: `Bearer ${access_token}` },
+        body: formData,
       });
-      if (!resumeRes.ok) throw new Error('AI parse failed');
+      if (!resumeRes.ok) throw new Error(`AI parse failed: ${resumeRes.status}`);
       const resumeData = await resumeRes.json();
-      const parsed = resumeData?.result || {};
+      if (!resumeData.success) throw new Error(resumeData.error || 'Parse failed');
+      const parsed = resumeData.parsed || {};
 
       if (parsed.name || parsed.email || parsed.phone || parsed.location) {
         if (parsed.name) updatePersonalInfo('name', parsed.name);
         if (parsed.email) updatePersonalInfo('email', parsed.email);
         if (parsed.phone) updatePersonalInfo('phone', parsed.phone);
         if (parsed.location) updatePersonalInfo('location', parsed.location);
+        if (parsed.name) update('resumeName', `${parsed.name}'s Resume`);
       }
+      if (parsed.title && !data.personalInfo.title) updatePersonalInfo('title' as any, parsed.title);
       if (parsed.summary) update('summary', parsed.summary);
 
       const allSkills = [
@@ -581,17 +591,33 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         ...(Array.isArray(parsed.tools) ? parsed.tools : []),
       ];
       if (allSkills.length > 0) update('skills', allSkills);
-      else if (Array.isArray(parsed.skills) && parsed.skills.length > 0) update('skills', parsed.skills);
 
       if (Array.isArray(parsed.certifications) && parsed.certifications.length > 0) {
-        update('certifications', parsed.certifications);
+        update('certifications', parsed.certifications.map((c: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          name: c.name || '',
+          issuer: c.provider || c.issuer || '',
+          year: c.date || c.year || '',
+        })));
+      }
+      if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
+        update('education', parsed.educations.map((e: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+          degree: e.degree || '',
+          institution: e.school || e.institution || '',
+          location: e.location || '',
+          duration: e.date || e.duration || '',
+          grade: e.grade || '',
+        })));
       }
       if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
         update('projects', parsed.projects.map((p: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
           name: p.name || '',
           role: p.role || '',
           duration: p.date || p.duration || '',
-          bullets: p.description ? [p.description] : (Array.isArray(p.bulletPoints) ? p.bulletPoints : []),
+          url: p.url || '',
+          bullets: Array.isArray(p.descriptions) ? p.descriptions : (p.description ? [p.description] : []),
         })));
       }
       if (Array.isArray(parsed.workExperiences) && parsed.workExperiences.length > 0) {
@@ -606,46 +632,22 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         })));
       }
 
-      const expSection = extractSection(text, ['experience', 'work experience', 'employment', 'work history']);
-      if (expSection) {
-        const expRes = await fetch(`${AI_BASE}/ai/execute`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            query: 'Extract detailed work experience from this section',
-            user_role: 'candidate',
-            context: { section: 'job_experience', action: 'parse', content: expSection.slice(0, 3000) },
-          }),
-        });
-        if (expRes.ok) {
-          const expData = await expRes.json();
-          const jobs = expData?.result?.jobs || expData?.result?.workExperiences || [];
-          if (Array.isArray(jobs) && jobs.length > 0) {
-            update('experience', jobs.map((w: any) => ({
-              id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-              title: w.jobTitle || w.title || '',
-              company: w.company || '',
-              location: w.location || '',
-              duration: w.date || w.duration || '',
-              current: false,
-              bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
-            })));
-          }
-        }
-      }
-
       touchSave();
+      pushHistory();
+      setActiveId('personal');
     } catch (e: any) {
       console.error('Import error:', e);
       if (e?.message?.includes('Failed to fetch') || e?.name === 'TypeError') {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Failed to process resume. Please try again.' } }));
       } else {
-        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
+        window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: e?.message || 'Unable to read the uploaded resume. Please upload a valid PDF.' } }));
       }
     } finally {
       setImportLoading(false);
     }
   };
+
+  processResumeFileRef.current = processResumeFile;
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -671,43 +673,12 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     await processResumeFile(file);
+    e.target.value = '';
   };
 
-  /** Extract a section from resume text by heading keywords */
-  function extractSection(text: string, headings: string[]): string | null {
-    const lines = text.split('\n');
-    const headingRegex = new RegExp(`^\\s*(${headings.join('|')})\\s*[:\\-]*\\s*$`, 'im');
-    const nextHeadingRegex = /^\s*(EDUCATION|EXPERIENCE|SKILLS|CERTIFICATION|PROJECT|SUMMARY|PROFILE|PERSONAL|LANGUAGE|REFERENCE|AWARD|PUBLICATION|VOLUNTEER|TRAINING|COURSE|INTERNSHIP|ACHIEVEMENT|ACTIVITY|INTEREST)\s*[:\\-]*\s*$/im;
-
-    let startIdx = -1;
-    for (let i = 0; i < lines.length; i++) {
-      if (headingRegex.test(lines[i])) { startIdx = i + 1; break; }
-    }
-    if (startIdx === -1) return null;
-
-    let endIdx = lines.length;
-    for (let i = startIdx; i < lines.length; i++) {
-      if (i > startIdx && nextHeadingRegex.test(lines[i])) { endIdx = i; break; }
-    }
-    const section = lines.slice(startIdx, endIdx).join('\n').trim();
-    return section || null;
-  }
-
-  /** Parse education section with regex */
-  function parseEducationRegex(text: string): Array<{ degree: string; institution: string; duration: string }> {
-    const results: Array<{ degree: string; institution: string; duration: string }> = [];
-    // Match patterns like: "B.Tech in CS, Stanford University, 2014-2018" or "Degree - Institution (Year-Year)"
-    const eduRegex = /([A-Za-z0-9.,&\s]+?)\s*(?:,|\s+[-–]\s+|\s+at\s+)\s*([A-Za-z0-9.,&\s]+?)\s*(?:,|\s+[-–]\s+|\s*\(|,\s*)(\d{4}\s*[-–]\s*\d{4}|\d{4}\s*[-–]\s*(?:Present|Current|\d{4})|\d{4})/g;
-    let match;
-    while ((match = eduRegex.exec(text)) !== null) {
-      results.push({
-        degree: match[1].trim(),
-        institution: match[2].trim(),
-        duration: match[3].trim(),
-      });
-    }
-    return results;
-  }
+  /** Extract a section from resume text by heading keywords — kept for potential future use */
+  function extractSection(_text: string, _headings: string[]): string | null { return null; }
+  function parseEducationRegex(_text: string): Array<{ degree: string; institution: string; duration: string }> { return []; }
 
   const lastSavedLabel = data.lastSaved
     ? `Saved locally at ${new Date(data.lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
@@ -1253,7 +1224,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   return (
     <>
       {/* Hidden file input for import */}
-      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleFileImport} />
+      <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" className="hidden" onChange={handleFileImport} />
 
       {/* ── AI Suggestions Panel (Grammarly-like) ────────────────────── */}
       {showSuggestions && (
@@ -1272,19 +1243,54 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           onSetRole={setWizardRole}
           onSetStep={setWizardStep}
           onStart={setWizardStart}
+          onUploadNow={() => {
+            sessionStorage.setItem(onboardingKey, '1');
+            setShowOnboarding(false);
+            setTimeout(() => fileInputRef.current?.click(), 50);
+          }}
           onComplete={() => {
             sessionStorage.setItem(onboardingKey, '1');
             if (wizardGoal) update('goal', wizardGoal);
-            if (wizardRole) {
-              update('targetRole', wizardRole);
-              const roleData = ROLE_PRESETS[wizardRole];
-              if (roleData && !data.summary) update('summary', roleData.summary);
-              if (roleData) {
-                const existing = new Set(data.skills.map(s => s.toLowerCase()));
-                const newSkills = roleData.skills.filter(s => !existing.has(s.toLowerCase()));
-                if (newSkills.length > 0) update('skills', [...data.skills, ...newSkills]);
+            if (wizardRole) update('targetRole', wizardRole);
+
+            const goalData = wizardGoal ? GOAL_PRESETS[wizardGoal] : undefined;
+            const roleData = wizardRole ? ROLE_PRESETS[wizardRole] : undefined;
+
+            if (!data.summary) {
+              let summary = '';
+              if (goalData && roleData) {
+                summary = `${goalData.summaryPrefix} ${roleData.summary.charAt(0).toLowerCase() + roleData.summary.slice(1)}`;
+              } else if (roleData) {
+                summary = roleData.summary;
+              } else if (goalData) {
+                summary = `${goalData.summaryPrefix} professional`;
               }
+              if (summary) update('summary', summary);
             }
+
+            const existing = new Set(data.skills.map(s => s.toLowerCase()));
+            const newSkills = [...(roleData?.skills || []), ...(goalData?.skills || [])].filter(s => !existing.has(s.toLowerCase()));
+            if (newSkills.length > 0) update('skills', [...data.skills, ...newSkills]);
+
+            // Auto-hide irrelevant sections based on goal (only if empty)
+            const toHide = wizardGoal ? GOAL_HIDDEN_SECTIONS[wizardGoal] : undefined;
+            if (toHide && !data.hiddenSections?.length) {
+              toHide.forEach(sectionId => {
+                const hasData = (
+                  (sectionId === 'experience' && data.experience.length > 0) ||
+                  (sectionId === 'education' && data.education.length > 0) ||
+                  (sectionId === 'projects' && (data.projects?.length || 0) > 0) ||
+                  (sectionId === 'skills' && data.skills.length > 0) ||
+                  (sectionId === 'certs' && (data.certifications?.length || 0) > 0) ||
+                  (sectionId === 'languages' && (data.languages?.length || 0) > 0) ||
+                  (sectionId === 'achievements' && (data.achievements?.length || 0) > 0) ||
+                  (sectionId === 'custom' && (data.customSections?.length || 0) > 0) ||
+                  (sectionId === 'summary' && !!data.summary)
+                );
+                if (!hasData) toggleSection(sectionId);
+              });
+            }
+
             setShowOnboarding(false);
             if (wizardStart === 'import') fileInputRef.current?.click();
             else if (wizardStart === 'linkedin') setTriggerLinkedin(true);
@@ -1308,30 +1314,37 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           </div>
         </div>
       )}
+      {/* Import loading overlay */}
+      {importLoading && (
+        <div className="absolute inset-0 z-50 bg-white/80 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+          <p className="text-sm font-semibold text-gray-700">Parsing your resume with AI...</p>
+          <p className="text-xs text-gray-400">This may take up to 30 seconds</p>
+        </div>
+      )}
       {/* Workspace toolbar */}
-      <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0 flex-wrap">
+      <div className="bg-white border-b border-gray-200 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
         {/* Mobile menu toggle */}
         <button onClick={() => setShowMobileSidebar(true)} className="md:hidden p-1 rounded hover:bg-gray-100 text-gray-500">
           <LayoutList className="w-4 h-4" />
         </button>
-        <input
-          value={data.resumeName}
-          onChange={(e) => update('resumeName', e.target.value)}
-          className="text-sm font-semibold text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent min-w-[80px] max-w-[140px] sm:max-w-[180px] px-1"
-        />
-        <span
-          title={saveNote}
-          className={`text-[10px] flex items-center gap-1 cursor-default ${
-          saveStatus === 'saving' ? 'text-amber-500' :
-          saveStatus === 'syncing' ? 'text-blue-500' :
-          saveStatus === 'offline' ? 'text-red-400' : 'text-emerald-600'
-        }`}>
-          {saveStatus === 'saving' && <><Loader2 className="w-2.5 h-2.5 animate-spin" />Saving...</>}
-          {saveStatus === 'saved' && <><Save className="w-2.5 h-2.5" />{lastSavedLabel}</>}
-          {saveStatus === 'syncing' && <><RefreshCw className="w-2.5 h-2.5 animate-spin" />Syncing...</>}
-          {saveStatus === 'offline' && <><WifiOff className="w-2.5 h-2.5" />Offline</>}
-        </span>
-        <div className="flex-1 min-w-0" />
+        <div className="flex items-center gap-1 min-w-0" style={{maxWidth: '180px'}}>
+          <input
+            value={data.resumeName}
+            onChange={(e) => update('resumeName', e.target.value)}
+            className="text-sm font-semibold text-gray-800 border-b border-transparent hover:border-gray-300 focus:border-blue-500 focus:outline-none bg-transparent min-w-0 w-[90px] sm:w-[120px] px-1 truncate"
+          />
+          <span title={saveNote} className={`text-[10px] hidden lg:flex items-center gap-1 cursor-default shrink-0 ${
+            saveStatus === 'saving' ? 'text-amber-500' :
+            saveStatus === 'syncing' ? 'text-blue-500' :
+            saveStatus === 'offline' ? 'text-red-400' : 'text-emerald-600'
+          }`}>
+            {saveStatus === 'saving' && <><Loader2 className="w-2.5 h-2.5 animate-spin" />Saving...</>}
+            {saveStatus === 'saved' && <><Save className="w-2.5 h-2.5" />Saved</>}
+            {saveStatus === 'syncing' && <><RefreshCw className="w-2.5 h-2.5 animate-spin" />Syncing...</>}
+            {saveStatus === 'offline' && <><WifiOff className="w-2.5 h-2.5" />Offline</>}
+          </span>
+        </div>
         <div className="flex items-center gap-1">
           <button onClick={undo} disabled={!canUndo()} title="Undo (Ctrl+Z)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: canUndo() ? 'inherit' : 'inherit' }}>
             <Undo2 className="w-3.5 h-3.5" />
@@ -1357,28 +1370,23 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
             <Send className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Quick Apply</span>
           </button>
         </div>
-        <div className="hidden sm:block w-px h-4 bg-gray-200" />
+        <div className="w-px h-4 bg-gray-200" />
+        <button onClick={() => fileInputRef.current?.click()} title="Import Resume" className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium border border-green-300 bg-green-50 rounded hover:bg-green-100 text-green-700 transition-colors">
+          <Upload className="w-3 h-3" />Import
+        </button>
         <div className="hidden sm:flex items-center gap-1">
-          <button onClick={downloadPDF} disabled={pdfLoading} title="Download PDF" className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50">
+          <div className="w-px h-4 bg-gray-200" />
+          <button onClick={downloadPDF} disabled={pdfLoading} title="Download PDF" className="hidden sm:flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50">
             {pdfLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />} PDF
           </button>
-          <button onClick={downloadDOCX} title="Download DOCX" className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors">
+          <button onClick={downloadDOCX} title="Download DOCX" className="hidden sm:flex items-center gap-1 px-2 py-1 text-[10px] font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors">
             <FileDown className="w-3 h-3" /> DOCX
           </button>
-          <div className="w-px h-6 bg-gray-200 mx-1" />
-          <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-2 py-1 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Prev</span>
-          </button>
-          <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-            <span className="hidden sm:inline">Next</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </button>
-          <div className="w-px h-6 bg-gray-200 mx-1" />
-          <button onClick={() => setShowCompletion(true)} title="Finish" className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
+          <div className="hidden sm:block w-px h-6 bg-gray-200 mx-1" />
+          <button onClick={() => setShowCompletion(true)} title="Finish" className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-green-600 text-white rounded hover:bg-green-700 transition-colors">
             <CheckCircle2 className="w-3 h-3" /> Finish
           </button>
-          <button onClick={() => onNavigate?.('job-listings')} title="Browse jobs" className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+          <button onClick={() => onNavigate?.('job-listings')} title="Browse jobs" className="hidden sm:flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
             <Send className="w-3 h-3" /> Apply
           </button>
         </div>
@@ -1460,7 +1468,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           <nav className="flex-1 py-1 overflow-y-auto">
             {sections.map((section) => {
               const SectionIcon = sectionIcons[section] || UserCircle;
-              const sectionItems = NAV.filter(n => n.section === section);
+              const sectionItems = orderedNav.filter(n => n.section === section);
               return (
                 <div key={section} className="mb-1">
                   {sidebarOpen && (
@@ -1594,15 +1602,15 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           {mode === 'editor' && sidebarOpen && (
             <div className="border-t border-gray-100 p-2 flex gap-1.5">
               <button
-                onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)}
+                onClick={() => setActiveId(orderedNav[Math.max(0, activeIdx - 1)].id)}
                 disabled={activeIdx === 0}
                 className="flex-1 flex items-center justify-center gap-1 py-1 text-[11px] border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-gray-600"
               >
                 <ChevronLeft className="w-3 h-3" />
               </button>
               <button
-                onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)}
-                disabled={activeIdx === NAV.length - 1}
+                onClick={() => setActiveId(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)}
+                disabled={activeIdx === orderedNav.length - 1}
                 className="flex-1 flex items-center justify-center gap-1 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight className="w-3 h-3" />
@@ -1648,24 +1656,24 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               <div className="flex flex-col">
                 {/* Desktop Next/Prev buttons at top */}
                 <div className="hidden sm:flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                  <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={() => setActiveId(orderedNav[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronLeft className="w-4 h-4" />
                     Prev
                   </button>
-                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {NAV.length} · {active.label}</span>
-                  <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {orderedNav.length} · {active.label}</span>
+                  <button onClick={() => setActiveId(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)} disabled={activeIdx === orderedNav.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                     Next
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
                 {/* Mobile Next/Prev buttons */}
                 <div className="sm:hidden flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                  <button onClick={() => setActiveId(NAV[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                  <button onClick={() => setActiveId(orderedNav[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronLeft className="w-4 h-4" />
                     Prev
                   </button>
-                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {NAV.length}</span>
-                  <button onClick={() => setActiveId(NAV[Math.min(NAV.length - 1, activeIdx + 1)].id)} disabled={activeIdx === NAV.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {orderedNav.length}</span>
+                  <button onClick={() => setActiveId(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)} disabled={activeIdx === orderedNav.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                     Next
                     <ChevronRight className="w-4 h-4" />
                   </button>
