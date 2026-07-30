@@ -138,103 +138,6 @@ const KNOWN_TOOLS = [
   'machine learning', 'tensorflow', 'pytorch', 'rest', 'graphql', 'soap', 'api', 'sql'
 ];
 
-const TRENDING_COMPANIES = [
-  { id: '1', name: 'Google', logo: '' },
-  { id: '2', name: 'Microsoft', logo: '' },
-  { id: '3', name: 'Apple', logo: '' },
-  { id: '4', name: 'Amazon', logo: '' },
-  { id: '5', name: 'Meta', logo: '' },
-  { id: '6', name: 'Netflix', logo: '' },
-  { id: '7', name: 'Tesla', logo: '' },
-  { id: '8', name: 'Uber', logo: '' },
-  { id: '9', name: 'Airbnb', logo: '' },
-  { id: '10', name: 'Spotify', logo: '' },
-  { id: '11', name: 'Twitter', logo: '' },
-  { id: '12', name: 'LinkedIn', logo: '' },
-  { id: '13', name: 'Adobe', logo: '' },
-  { id: '14', name: 'Salesforce', logo: '' },
-  { id: '15', name: 'Oracle', logo: '' },
-  { id: '16', name: 'SAP', logo: '' },
-  { id: '17', name: 'IBM', logo: '' },
-  { id: '18', name: 'Intel', logo: '' },
-  { id: '19', name: 'NVIDIA', logo: '' },
-  { id: '20', name: 'Qualcomm', logo: '' },
-  { id: '21', name: 'PayPal', logo: '' },
-  { id: '22', name: 'Stripe', logo: '' },
-  { id: '23', name: 'Shopify', logo: '' },
-  { id: '24', name: 'Zoom', logo: '' },
-  { id: '25', name: 'Slack', logo: '' },
-  { id: '26', name: 'Atlassian', logo: '' },
-  { id: '27', name: 'GitHub', logo: '' },
-  { id: '28', name: 'GitLab', logo: '' },
-  { id: '29', name: 'Docker', logo: '' },
-  { id: '30', name: 'MongoDB', logo: '' },
-  { id: '31', name: 'Snowflake', logo: '' },
-  { id: '32', name: 'Databricks', logo: '' },
-  { id: '33', name: 'Cloudflare', logo: '' },
-  { id: '34', name: 'Figma', logo: '' },
-  { id: '35', name: 'Notion', logo: '' },
-  { id: '36', name: 'Canva', logo: '' },
-  { id: '37', name: 'HubSpot', logo: '' },
-  { id: '38', name: 'Zendesk', logo: '' },
-  { id: '39', name: 'ServiceNow', logo: '' },
-  { id: '40', name: 'Workday', logo: '' },
-  { id: '41', name: 'Datadog', logo: '' },
-  { id: '42', name: 'Twilio', logo: '' },
-  { id: '43', name: 'OpenAI', logo: '' },
-  { id: '44', name: 'Anthropic', logo: '' },
-  { id: '45', name: 'Palantir', logo: '' },
-  { id: '46', name: 'TCS', logo: '' },
-  { id: '47', name: 'Infosys', logo: '' },
-  { id: '48', name: 'Wipro', logo: '' },
-  { id: '49', name: 'HCL Technologies', logo: '' },
-  { id: '50', name: 'Tech Mahindra', logo: '' },
-  { id: '51', name: 'Accenture', logo: '' },
-  { id: '52', name: 'Cognizant', logo: '' },
-  { id: '53', name: 'Capgemini', logo: '' },
-  { id: '54', name: 'Mphasis', logo: '' },
-  { id: '55', name: 'Hexaware', logo: '' },
-  { id: '56', name: 'LTIMindtree', logo: '' },
-  { id: '57', name: 'Persistent Systems', logo: '' },
-  { id: '58', name: 'Coforge', logo: '' },
-  { id: '59', name: 'Zoho', logo: '' },
-  { id: '60', name: 'Freshworks', logo: '' },
-  { id: '61', name: 'Flipkart', logo: '' },
-  { id: '62', name: 'Swiggy', logo: '' },
-  { id: '63', name: 'Zomato', logo: '' },
-  { id: '64', name: 'Ola', logo: '' },
-  { id: '65', name: 'Paytm', logo: '' },
-  { id: '66', name: 'Razorpay', logo: '' },
-  { id: '67', name: "BYJU'S", logo: '' },
-  { id: '68', name: 'Unacademy', logo: '' },
-  { id: '69', name: 'upGrad', logo: '' },
-  { id: '70', name: 'Meesho', logo: '' },
-  { id: '71', name: 'Myntra', logo: '' },
-  { id: '72', name: 'Nykaa', logo: '' },
-  { id: '73', name: 'OYO', logo: '' },
-  { id: '74', name: 'Dream11', logo: '' },
-  { id: '75', name: 'PhonePe', logo: '' },
-  { id: '76', name: 'Zerodha', logo: '' },
-  { id: '77', name: 'Groww', logo: '' },
-  { id: '78', name: 'CRED', logo: '' },
-  { id: '79', name: 'Delhivery', logo: '' },
-  { id: '80', name: 'Postman', logo: '' },
-  { id: '81', name: 'BrowserStack', logo: '' },
-  { id: '82', name: 'Deloitte', logo: '' },
-  { id: '83', name: 'PwC', logo: '' },
-  { id: '84', name: 'KPMG', logo: '' },
-  { id: '85', name: 'EY', logo: '' },
-  { id: '86', name: 'McKinsey', logo: '' },
-  { id: '87', name: 'BCG', logo: '' },
-  { id: '88', name: 'HDFC Bank', logo: '' },
-  { id: '89', name: 'ICICI Bank', logo: '' },
-  { id: '90', name: 'JPMorgan', logo: '' },
-  { id: '91', name: 'Goldman Sachs', logo: '' },
-  { id: '92', name: 'Samsung', logo: '' },
-  { id: '93', name: 'Trinity Technology Solutions', logo: '/images/company-logos/trinity-logo.png' },
-  { id: '94', name: 'Nambikkai India', logo: '/images/company-logos/nambikkai-logo.png' },
-];
-
 const INVALID_COMPANY_PHRASES = [
   'good to have', 'must have', 'nice to have', 'required skills', 'preferred skills',
   'key skills', 'technical skills', 'soft skills', 'job description',
@@ -499,7 +402,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     goodToHaveSkills: parsedData?.goodToHaveSkills || [],
     educationLevel: editJob?.educationLevel || parsedData?.educationLevel || "Bachelor's degree",
     certifications: [],
-    companyName: editJob?.company || editJob?.companyName || (parsedData?.companyName?.trim() || '') || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.companyName || u.company || ''; } catch { return ''; } })() || (user?.companyName || user?.company || ''),
+    companyName: isEditMode ? (editJob?.company || editJob?.companyName || '') : (user?.companyName || user?.company || ''),
     companyLogo: editJob?.companyLogo || '',
     companyId: '',
     companyTagline: editJob?.companyTagline || editJob?.tagline || parsedData?.tagline || parsedData?.companyTagline || (() => { try { const u = JSON.parse(localStorage.getItem('user') || '{}'); return u.tagline || ''; } catch { return ''; } })() || (user?.tagline || ''),
@@ -527,8 +430,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [isLoadingLocations, setIsLoadingLocations] = useState(false);
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [skillInput, setSkillInput] = useState('');
-  const [companySearchResults, setCompanySearchResults] = useState<any[]>([]);
-  const [showCompanyDropdown, setShowCompanyDropdown] = useState(false);
   const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
   const [catOpen, setCatOpen] = useState(false);
   const [catInput, setCatInput] = useState(jobData?.jobCategory || '');
@@ -621,7 +522,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     const fetchCompanyLogo = async () => {
       if (parsedData?.companyName && !jobData.companyLogo) {
         try {
-          // Try to fetch company from backend first
           const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(parsedData.companyName)}`);
           if (response.ok) {
             const data = await response.json();
@@ -635,7 +535,6 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
             if (matchedCompany) {
               const name = matchedCompany.name || matchedCompany.companyName || '';
               updateJobData('companyLogo', getCompanyLogo(name) || matchedCompany.logo || matchedCompany.logoUrl || matchedCompany.imageUrl || matchedCompany.image || '');
-              updateJobData('companyId', matchedCompany._id || matchedCompany.id || matchedCompany.name);
               return;
             }
           }
@@ -643,19 +542,8 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
           console.error('Error fetching company logo:', error);
         }
         
-        const matchedCompany = TRENDING_COMPANIES.find(company => 
-          company.name.toLowerCase().includes(parsedData.companyName.toLowerCase()) ||
-          parsedData.companyName.toLowerCase().includes(company.name.toLowerCase())
-        );
-        
-        if (matchedCompany) {
-          const companyLogo = matchedCompany.logo || getCompanyLogo(parsedData.companyName);
-          updateJobData('companyLogo', companyLogo);
-          updateJobData('companyId', matchedCompany.id);
-        } else {
-          const logo = getCompanyLogo(parsedData.companyName);
-          if (logo) updateJobData('companyLogo', logo);
-        }
+        const logo = getCompanyLogo(parsedData.companyName);
+        if (logo) updateJobData('companyLogo', logo);
       }
     };
     
@@ -1870,117 +1758,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     setShowSkillSuggestions(false);
   };
 
-  const searchCompanies = async (query: string) => {
-    if (query.length < 2) {
-      setCompanySearchResults([]);
-      setShowCompanyDropdown(false);
-      return;
-    }
-
-    try {
-      // Fetch companies from backend API
-      const response = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(query)}`);
-      if (response.ok) {
-        const data = await response.json();
-        const companies = Array.isArray(data) ? data : (data.companies || data.data || []);
-        
-        const mappedCompanies = companies.map((company: any) => {
-          const name = company.name || company.companyName || '';
-          return {
-            id: company._id || company.id || name,
-            name,
-            logo: getCompanyLogo(name) || company.logo || company.logoUrl || company.imageUrl || company.image || '',
-            tagline: company.tagline || company.companyTagline || company.companySlogan || ''
-          };
-        });
-
-        // Enhanced search: also check if the query matches any part of company names
-        const queryLower = query.toLowerCase();
-        const additionalMatches = TRENDING_COMPANIES.filter(c => {
-          const nameLower = c.name.toLowerCase();
-          return nameLower.includes(queryLower) || 
-                 queryLower.includes(nameLower) ||
-                 // Check for partial word matches
-                 nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
-                 queryLower.split(' ').some(word => nameLower.includes(word));
-        });
-        
-        // Merge backend results with trending companies, avoiding duplicates
-        const merged = [...mappedCompanies];
-        additionalMatches.forEach(trending => {
-          if (!merged.some(m => m.name.toLowerCase() === trending.name.toLowerCase())) {
-            merged.push(trending);
-          }
-        });
-        
-        // If no results found, allow user to add the company they typed
-        if (merged.length === 0 && query.trim().length > 2) {
-          merged.push({
-            id: 'custom-' + Date.now(),
-            name: query.trim(),
-            logo: ''
-          });
-        }
-        
-        setCompanySearchResults(merged);
-        setShowCompanyDropdown(merged.length > 0);
-      } else {
-        // Fallback to trending companies with enhanced search
-        const queryLower = query.toLowerCase();
-        const filtered = TRENDING_COMPANIES.filter(company => {
-          const nameLower = company.name.toLowerCase();
-          return nameLower.includes(queryLower) || 
-                 queryLower.includes(nameLower) ||
-                 nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
-                 queryLower.split(' ').some(word => nameLower.includes(word));
-        });
-        
-        // If no matches in trending companies, allow custom company
-        if (filtered.length === 0 && query.trim().length > 2) {
-          filtered.push({
-            id: 'custom-' + Date.now(),
-            name: query.trim(),
-            logo: ''
-          });
-        }
-        
-        setCompanySearchResults(filtered);
-        setShowCompanyDropdown(filtered.length > 0);
-      }
-    } catch (error) {
-      console.error('Error fetching companies:', error);
-      // Enhanced fallback search
-      const queryLower = query.toLowerCase();
-      const filtered = TRENDING_COMPANIES.filter(company => {
-        const nameLower = company.name.toLowerCase();
-        return nameLower.includes(queryLower) || 
-               queryLower.includes(nameLower) ||
-               nameLower.split(' ').some(word => word.startsWith(queryLower)) ||
-               queryLower.split(' ').some(word => nameLower.includes(word));
-      });
-      
-      // Always allow custom company entry
-      if (query.trim().length > 2) {
-        filtered.push({
-          id: 'custom-' + Date.now(),
-          name: query.trim(),
-          logo: ''
-        });
-      }
-      
-      setCompanySearchResults(filtered);
-      setShowCompanyDropdown(filtered.length > 0);
-    }
-  };
-
-  const selectCompany = (company: any) => {
-    updateJobData('companyName', company.name);
-    updateJobData('companyLogo', company.logo);
-    updateJobData('companyId', company.id);
-    updateJobData('companyTagline', company.tagline || company.companyTagline || company.companySlogan || '');
-    setShowCompanyDropdown(false);
-  };
-
   const removeSkill = (skillToRemove: string) => {
     updateJobData('skills', jobData.skills.filter(skill => skill !== skillToRemove));
   };
@@ -1989,7 +1766,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
     switch (step) {
       case 1:
         if (!jobData.jobTitle.trim()) return { isValid: false, message: 'Job title is required' };
-        if (!jobData.companyName.trim()) return { isValid: false, message: 'Company name is required' };
         if (!jobData.jobLocation.trim()) return { isValid: false, message: 'Job location is required' };
         if (!jobData.jobCategory.trim()) return { isValid: false, message: 'Job category is required' };
         if (!jobData.country.trim()) return { isValid: false, message: 'Country is required' };
@@ -2122,49 +1898,10 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           </select>
         </div>
         
-        <div className="relative">
+        <div>
           <label className="block text-gray-700 font-medium mb-3">Company for this job *</label>
-          <p className="text-gray-500 text-sm mb-3">You can post jobs for any company, not just your registered company</p>
-          <div className="relative">
-            <input
-              type="text"
-              value={jobData.companyName}
-              onChange={(e) => {
-                updateJobData('companyName', e.target.value);
-                searchCompanies(e.target.value);
-              }}
-              onFocus={() => {
-                if (jobData.companyName.length >= 2) {
-                  searchCompanies(jobData.companyName);
-                }
-              }}
-              onBlur={() => {
-                setTimeout(() => setShowCompanyDropdown(false), 200);
-              }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Search for company (e.g., Google, Microsoft, Netflix)..."
-            />
-            {showCompanyDropdown && companySearchResults.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {companySearchResults.map((company) => (
-                  <div
-                    key={company.id}
-                    onMouseDown={() => selectCompany(company)}
-                    className="px-4 py-3 hover:bg-blue-50 cursor-pointer transition-colors flex items-center space-x-3 border-b last:border-b-0"
-                  >
-                    <div className="w-8 h-8 flex-shrink-0">
-                      <img
-                        src={company.logo}
-                        alt={company.name}
-                        className="w-8 h-8 rounded object-contain bg-white border"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                    </div>
-                    <span className="text-gray-900 font-medium">{company.name}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-lg text-gray-700">
+            {jobData.companyName || (user?.companyName || user?.company || 'Your Company')}
           </div>
         </div>
         
@@ -3394,10 +3131,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
             
             <div className="flex justify-between items-center py-3 border-b border-gray-200">
               <span className="text-gray-600">Company for this job</span>
-              <div className="flex items-center space-x-2">
-                <span className="text-gray-800">{jobData.companyName}</span>
-                <button onClick={() => setCurrentStep(1)} className="text-blue-600 hover:text-blue-700"><EditIcon /></button>
-              </div>
+              <span className="text-gray-800">{jobData.companyName}</span>
             </div>
             
             {/* Only show number of openings if it's actually set and not 0 */}
@@ -3578,8 +3312,8 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
 
     const jobPostData = {
       jobTitle: jobData.jobTitle,
-      company: jobData.companyName || user?.companyName || 'Your Company',
-      companyName: jobData.companyName || user?.companyName || 'Your Company',
+      company: jobData.companyName || user?.companyName || '',
+      companyName: jobData.companyName || user?.companyName || '',
       companyLogo: logoUrl,
       companyTagline,
       companySlogan: companyTagline,
@@ -3627,9 +3361,9 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       postedByEmail: user.email,
       employerEmail: getEffectiveEmployerEmail(),
       employerName: user.name,
-      employerCompany: user?.companyName || jobData.companyName || 'Your Company',
+      employerCompany: user?.companyName || jobData.companyName || '',
       employerId: user.employerId || 'EID0001',
-      positionId: generatePositionId(jobData.companyName || user?.companyName),
+      positionId: generatePositionId(jobData.companyName || user?.companyName || ''),
       jobCategory: jobData.jobCategory || '',
       locationType: jobData.locationType || '',
       language: Array.isArray(jobData.language) ? jobData.language : jobData.language ? [jobData.language] : [],
@@ -3710,7 +3444,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           goodToHaveSkills: [],
           educationLevel: "Bachelor's degree",
           certifications: [],
-          companyName: '',
+          companyName: user?.companyName || user?.company || '',
           companyLogo: '',
           companyId: '',
           companyTagline: '',
