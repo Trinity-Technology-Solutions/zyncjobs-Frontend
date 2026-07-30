@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle, Info } from 'lucide-react';
+import { Building2, Check, AlertTriangle, Shield, ArrowLeft, CheckCircle } from 'lucide-react';
 import Header from '../components/Header';
 import { apiFetch } from '../api/apiFetch';
 import { updateUserInStorage } from '../utils/userStorage';
+import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -69,11 +70,6 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
     if (!formData.socialLinks.linkedin.trim()) errors.push('LinkedIn URL is required');
     if (!formData.gstNumber.trim()) errors.push('GST number is required for verification');
     return errors;
-  };
-
-  const validateStep3 = () => {
-    // Step 3 is optional, no mandatory fields
-    return [];
   };
 
   const handleNextStep = () => {
@@ -178,7 +174,18 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         });
         
         if (currentUser.companyLogo) {
-          setCompanyLogo(currentUser.companyLogo);
+          const storedLogo = currentUser.companyLogo;
+          if (storedLogo.startsWith('blob:') && currentUser.companyWebsite) {
+            const d = currentUser.companyWebsite.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+            if (d) {
+              const API = import.meta.env.VITE_API_URL || '/api';
+              setCompanyLogo(`${API}/logo-proxy?domain=${encodeURIComponent(d)}`);
+            } else {
+              setCompanyLogo(storedLogo);
+            }
+          } else {
+            setCompanyLogo(storedLogo);
+          }
         }
         return; // Don't fetch from backend if we have complete profile
       }
@@ -197,7 +204,18 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         }));
         
         if (currentUser.companyLogo) {
-          setCompanyLogo(currentUser.companyLogo);
+          const storedLogo = currentUser.companyLogo;
+          if (storedLogo.startsWith('blob:') && currentUser.companyWebsite) {
+            const d = currentUser.companyWebsite.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+            if (d) {
+              const API = import.meta.env.VITE_API_URL || '/api';
+              setCompanyLogo(`${API}/logo-proxy?domain=${encodeURIComponent(d)}`);
+            } else {
+              setCompanyLogo(storedLogo);
+            }
+          } else {
+            setCompanyLogo(storedLogo);
+          }
         }
       }
       
@@ -338,7 +356,23 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
             }));
             
             if (companyData.logo || companyData.companyLogo) {
-              setCompanyLogo(companyData.logo || companyData.companyLogo);
+              const storedLogo = companyData.logo || companyData.companyLogo;
+              if (storedLogo.startsWith('blob:')) {
+                const site = companyData.website || companyData.companyWebsite || formData.companyWebsite;
+                if (site) {
+                  const d = site.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
+                  if (d) {
+                    const API = import.meta.env.VITE_API_URL || '/api';
+                    setCompanyLogo(`${API}/logo-proxy?domain=${encodeURIComponent(d)}`);
+                  } else {
+                    setCompanyLogo(storedLogo);
+                  }
+                } else {
+                  setCompanyLogo(storedLogo);
+                }
+              } else {
+                setCompanyLogo(storedLogo);
+              }
             }
           } else {
             console.log('Found company data but it does not belong to current user - ignoring');
@@ -409,11 +443,10 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
       const domain = website.replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '');
       if (!domain) return;
       const API = import.meta.env.VITE_API_URL || '/api';
-      const res = await fetch(`${API}/logo-proxy?domain=${encodeURIComponent(domain)}`);
+      const proxyUrl = `${API}/logo-proxy?domain=${encodeURIComponent(domain)}`;
+      const res = await fetch(proxyUrl);
       if (res.ok) {
-        const blob = await res.blob();
-        const url = URL.createObjectURL(blob);
-        setCompanyLogo(url);
+        setCompanyLogo(proxyUrl);
       } else {
         setCompanyLogo('');
       }
@@ -426,44 +459,11 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
 
   const [blockedCompany, setBlockedCompany] = useState('');
 
-  // Calculate completion percentage based on current step
-  const calculateCompletion = () => {
-    if (currentStep === 1) {
-      const step1Fields = [
-        formData.companyName,
-        formData.industry,
-        formData.companySize,
-        formData.foundedYear,
-        formData.headquarters,
-        formData.description,
-        formData.companyWebsite,
-        formData.tagline
-      ];
-      const completed = step1Fields.filter(field => field && field.toString().trim()).length;
-      return Math.round((completed / step1Fields.length) * 33); // 33% for step 1
-    } else if (currentStep === 2) {
-      const step2Fields = [
-        formData.companyEmail,
-        formData.phoneNumber,
-        formData.socialLinks.linkedin,
-        formData.gstNumber
-      ];
-      const completed = step2Fields.filter(field => field && field.toString().trim()).length;
-      return 33 + Math.round((completed / step2Fields.length) * 33); // 33% + step 2
-    } else {
-      const step3Fields = [
-        formData.benefits.length > 0 ? 'benefits' : '',
-        formData.locations.length > 0 ? 'locations' : ''
-      ];
-      const completed = step3Fields.filter(field => field && field.toString().trim()).length;
-      return 66 + Math.round((completed / step3Fields.length) * 34); // 66% + step 3
-    }
-  };
-
+  // Calculate completion percentage using shared single-source-of-truth helper
   useEffect(() => {
-    const percentage = calculateCompletion();
+    const percentage = calculateEmployerProfileCompletion(formData);
     setCompletionPercentage(percentage);
-  }, [formData, currentStep]);
+  }, [formData]);
 
   const handleSubmit = async () => {
     // Validate all steps before submission
@@ -579,6 +579,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
           foundedYear: formData.foundedYear,
           companyType: formData.companyType,
           benefits: formData.benefits,
+          locations: formData.locations,
           socialLinks: formData.socialLinks,
           gstNumber: formData.gstNumber,
           companyEmail: currentUser.email, // always use authenticated user's email
@@ -617,6 +618,7 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
         foundedYear: formData.foundedYear,
         companyType: formData.companyType,
         benefits: formData.benefits,
+        locations: formData.locations,
         socialLinks: formData.socialLinks,
         gstNumber: formData.gstNumber,
         companyEmail: currentUser.email, // always use authenticated user's email

@@ -4,10 +4,10 @@ import { MapPin, Users, Globe, Building, Briefcase } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { getCompanyLogo as getLogoFromUtils } from '../utils/logoUtils';
+import CompanyLogo from '../components/CompanyLogo';
 
 interface CompanyViewPageProps {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, data?: any) => void;
   companyName: string;
   user?: {name: string, type: 'candidate' | 'employer'} | null;
   onLogout?: () => void;
@@ -15,25 +15,23 @@ interface CompanyViewPageProps {
 
 const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyName, user, onLogout }) => {
   const [company, setCompany] = useState<any>(null);
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCompanyData = async () => {
       try {
-        // Fetch company details
         const companyResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/companies?search=${encodeURIComponent(companyName)}`);
         if (companyResponse.ok) {
-          const companies = await companyResponse.json();
-          const foundCompany = companies.find(c => c.name === companyName);
+          const companies: any[] = await companyResponse.json();
+          const foundCompany = companies.find((c: any) => c.name === companyName);
           setCompany(foundCompany);
         }
 
-        // Fetch jobs posted by this company
         const jobsResponse = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs`);
         if (jobsResponse.ok) {
-          const allJobs = await jobsResponse.json();
-          const companyJobs = allJobs.filter(job => job.company === companyName);
+          const allJobs: any[] = await jobsResponse.json();
+          const companyJobs = allJobs.filter((job: any) => job.company === companyName);
           setJobs(companyJobs);
         }
       } catch (error) {
@@ -45,10 +43,6 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
 
     fetchCompanyData();
   }, [companyName]);
-
-  const getCompanyLogo = (name: string) => {
-    return getLogoFromUtils(name);
-  };
 
   if (loading) {
     return (
@@ -83,9 +77,11 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
         {/* Company Header */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
           <div className="flex items-start space-x-6">
-            <img
-              src={getCompanyLogo(company.name)}
-              alt={company.name}
+            <CompanyLogo
+              companyName={company.name}
+              website={company.website}
+              storedLogo={company.logo}
+              size={128}
               className="w-32 h-32 rounded-lg border border-gray-200"
             />
             <div className="flex-1">
@@ -126,7 +122,7 @@ const CompanyViewPage: React.FC<CompanyViewPageProps> = ({ onNavigate, companyNa
             </div>
           ) : (
             <div className="space-y-4">
-              {jobs.map((job) => (
+              {jobs.map((job: any) => (
                 <div key={job._id} className="border border-gray-200 rounded-lg p-6 hover:border-blue-300 transition-colors">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">

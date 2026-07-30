@@ -86,9 +86,15 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
 
   const getCompanyLogo = (app: any) => {
     const name = app?.company || app?.companyName || '';
+    // 1. Persisted logo from companies API (canonical source)
+    if (companyLogoUrl) return companyLogoUrl;
+    // 2. Job-level persisted logo from jobs API
+    const jobLogo = app?.companyLogo || app?.logoUrl || '';
+    if (jobLogo && !jobLogo.startsWith('blob:')) return jobLogo;
+    // 3. Local utility fallback
     const localLogo = getLogoFromUtils(name);
     if (localLogo) return localLogo;
-    if (companyLogoUrl) return companyLogoUrl;
+    // 4. Backend proxy via website
     if (companyWebsite) {
       try {
         const domain = new URL(companyWebsite.startsWith('http') ? companyWebsite : `https://${companyWebsite}`).hostname.replace('www.', '');
@@ -96,6 +102,7 @@ const JobDetailPage: React.FC<JobDetailPageProps> = ({ onNavigate, jobId, user }
         if (domain) return `${BACKEND}/logo-proxy?domain=${encodeURIComponent(domain)}`;
       } catch {}
     }
+    // 5. Safe company logo fallback (initials SVG)
     return getSafeCompanyLogo(app);
   };
 

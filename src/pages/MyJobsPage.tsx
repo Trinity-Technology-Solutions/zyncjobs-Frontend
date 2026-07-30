@@ -185,6 +185,7 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
         const sorted = jobs.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         setPostedJobs(sorted);
         setPostedJobsPage(1);
+        fetchCompanyLogos(sorted);
         
         console.log('Posted jobs updated in state:', sorted.length);
       } else {
