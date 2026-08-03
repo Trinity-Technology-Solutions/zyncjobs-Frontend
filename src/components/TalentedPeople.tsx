@@ -111,8 +111,8 @@ const TalentedPeople: React.FC<TalentedPeopleProps> = ({ onNavigate }) => {
         <div className="flex flex-wrap justify-center items-center gap-12 opacity-50 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
           {[
             { name: 'Birlasoft', logo: 'https://www.google.com/s2/favicons?domain=birlasoft.com&sz=64' },
-            { name: 'Persistent', logo: 'https://www.google.com/s2/favicons?domain=persistent.com&sz=64' },
-            { name: 'LTIMindtree', logo: 'https://www.google.com/s2/favicons?domain=ltimindtree.com&sz=64' },
+            { name: 'Persistent', logo: '/images/company-logos/persistent-favicon.svg' },
+            { name: 'LTIMindtree', logo: 'https://www.google.com/s2/favicons?domain=ltm.com&sz=64' },
             { name: 'Saksoft', logo: 'https://www.google.com/s2/favicons?domain=saksoft.com&sz=64' },
             { name: 'L&T', logo: '/images/company-logos/lt-logo.png' },
             { name: 'Cognizant', logo: 'https://www.google.com/s2/favicons?domain=cognizant.com&sz=64' },

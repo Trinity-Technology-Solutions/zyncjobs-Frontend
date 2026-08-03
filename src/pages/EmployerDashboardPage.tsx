@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw } from 'lucide-react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -20,6 +20,7 @@ import NotificationComponent from '../components/Notification';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
+import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
@@ -456,6 +457,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       window.removeEventListener('storage', syncUser);
     };
   }, []);
+
+  const profileCompletion = useMemo(() => {
+    if (!user) return 0;
+    return calculateEmployerProfileCompletion(user);
+  }, [user]);
 
   // Add effect to refresh data when component becomes visible
   useEffect(() => {
@@ -1216,6 +1222,31 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   </div>
                 )}
               </div>
+
+              {/* Profile Completion Top Alert (Only shown if completion < 100%) */}
+              {user && profileCompletion < 100 && (
+                <div className="mb-4 sm:mb-6 bg-gradient-to-r from-amber-50 via-orange-50 to-amber-50 border border-amber-200/80 rounded-xl p-3.5 sm:p-4 text-amber-900 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-all">
+                  <div className="flex items-start sm:items-center gap-3 min-w-0">
+                    <div className="p-2 bg-amber-100/80 rounded-lg text-amber-700 flex-shrink-0 mt-0.5 sm:mt-0">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-semibold text-amber-950 flex flex-wrap items-center gap-1.5">
+                        <span>Complete your company profile — {profileCompletion}% completed.</span>
+                      </p>
+                      <p className="text-xs text-amber-700/90 mt-0.5">
+                        Complete your profile to get the most out of ZyncJobs.
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onNavigate('employer-complete-profile')}
+                    className="flex-shrink-0 inline-flex items-center justify-center px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 hover:bg-amber-700 text-white shadow-sm transition-colors whitespace-nowrap self-start sm:self-center"
+                  >
+                    Complete Profile
+                  </button>
+                </div>
+              )}
               <div className="bg-gradient-to-br from-slate-50 to-white rounded-xl sm:rounded-2xl shadow-md border-2 border-gray-200 p-3 sm:p-4 lg:p-6">
 
               {/* ── Stat Cards ── */}
@@ -1533,7 +1564,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               </div>
 
               {/* ── Row 2: Bottom Cards ── */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 mb-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
                 {/* New Applicants */}
                 <div className="bg-gradient-to-br from-green-50 to-white rounded-2xl p-6 shadow-md border-2 border-green-100 hover:shadow-lg transition-all duration-300">
                   <div className="flex items-center justify-between mb-4">

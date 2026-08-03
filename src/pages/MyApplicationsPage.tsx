@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_ENDPOINTS } from '../config/env';
-import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, MessageSquare, Bell, RefreshCw } from 'lucide-react';
-import { getCompanyLogo } from '../utils/logoUtils';
+import { Clock, CheckCircle, XCircle, Eye, AlertCircle, Briefcase, MapPin, Calendar, X, RefreshCw } from 'lucide-react';
 import { getId } from '../utils/getId';
 import Header from '../components/Header';
+import CompanyLogo from '../components/CompanyLogo';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -36,6 +36,7 @@ interface Application {
     jobDescription?: string;
     salary?: any;
     skills?: string[];
+    companyLogo?: string;
   };
 }
 
@@ -51,7 +52,7 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
   const [filter, setFilter] = useState<string>('all');
   const [editingApp, setEditingApp] = useState<string | null>(null);
   const [editCoverLetter, setEditCoverLetter] = useState<string>('');
-  const [showTimeline, setShowTimeline] = useState<string | null>(null);
+  const [showTimeline] = useState<string | null>(null);
   const [withdrawingApp, setWithdrawingApp] = useState<string | null>(null);
   const [withdrawalReason, setWithdrawalReason] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -431,23 +432,11 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
                           {/* Company logo + name row */}
                           <div className="flex items-center gap-3 mb-2">
                             <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden bg-blue-50 border border-blue-100">
-                              <img 
-                                src={(() => {
-                                  // Force Nambikkai companies to use the local logo
-                                  if ((application.jobId?.company || '').toLowerCase().includes('nambikkai')) {
-                                    return '/images/company-logos/nambikkai-logo.png';
-                                  }
-                                  return getCompanyLogo(application.jobId?.company || '');
-                                })()
-                                } 
-                                alt={`${application.jobId?.company || 'Company'} Logo`} 
+                              <CompanyLogo
+                                companyName={application.jobId?.company || ''}
+                                storedLogo={application.jobId?.companyLogo}
+                                size={40}
                                 className="w-10 h-10 object-contain"
-                                onError={(e) => {
-                                  const target = e.target as HTMLImageElement;
-                                  target.onerror = null;
-                                  // Use Nambikkai logo as fallback for all companies
-                                  target.src = '/images/company-logos/nambikkai-logo.png';
-                                }}
                               />
                             </div>
                             <span className="font-semibold text-blue-700 text-base">{application.jobId?.company || 'Company Not Available'}</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Star, MapPin, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
@@ -46,7 +46,19 @@ interface Job {
   jobTitle: string;
   location: string;
   salary?: any;
+  company?: string;
+  jobType?: string;
+  jobCategory?: string;
+  slug?: string;
 }
+
+const displayValue = (val: string | undefined | null): string =>
+  val && val !== 'N/A' ? val : 'Not specified';
+
+const cleanEmployees = (val: string | undefined | null): string => {
+  if (!val) return 'Not specified';
+  return val.replace(/\s*employees?\s*$/i, '').trim();
+};
 
 const formatSalary = (salary: any): string => {
   if (!salary) return '';
@@ -73,7 +85,7 @@ const formatSalary = (salary: any): string => {
 };
 
 const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: string, params?: any) => void;
   user?: any;
   onLogout?: () => void;
   companyId?: string;
@@ -99,11 +111,28 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
   const [_reviewBreakdown, _setReviewBreakdown] = useState<any>(null);
   const [_similarCompanies, _setSimilarCompanies] = useState<any[]>([]);
 
+  const [selectedLocation, setSelectedLocation] = useState('');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+
   const isCandidate = user?.role === 'candidate' || user?.userType === 'candidate' || user?.type === 'candidate';
   const isEmployer = user?.role === 'employer' || user?.userType === 'employer' || user?.type === 'employer';
   const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
   const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
   const unsaveJobGlobal = useSavedJobsStore(s => s.unsaveJob);
+
+  const jobLocations = useMemo(() => [...new Set(jobs.map(j => j.location).filter(Boolean))], [jobs]);
+  const jobCategories = useMemo(() => [...new Set(jobs.map(j => j.jobCategory || j.jobType || '').filter(Boolean))], [jobs]);
+
+  const filteredJobs = useMemo(() => {
+    return jobs.filter(job => {
+      if (selectedLocation && job.location !== selectedLocation) return false;
+      if (selectedDepartment) {
+        const deptVal = job.jobCategory || job.jobType || '';
+        if (deptVal !== selectedDepartment) return false;
+      }
+      return true;
+    });
+  }, [jobs, selectedLocation, selectedDepartment]);
 
   useEffect(() => {
     const savedCompany = localStorage.getItem('selectedCompany');
@@ -337,7 +366,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}/jobs?limit=1000`);
       if (response.ok) {
         const allJobs = await response.json();
-        const jobsArray = Array.isArray(allJobs) ? allJobs : [];
+        const jobsArray = Array.isArray(allJobs) ? allJobs : allJobs.jobs || allJobs.data || [];
         const companyJobs = jobsArray
           .filter((job: any) => (job.company || job.companyName)?.toLowerCase() === companyName.toLowerCase())
           .map((job: any) => ({
@@ -346,8 +375,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
             jobTitle: job.jobTitle || job.title,
             location: job.location,
             salary: job.salary,
+            company: job.company || job.companyName || companyName,
+            jobType: job.jobType,
+            jobCategory: job.jobCategory,
+            slug: job.slug,
           }));
         setJobs(companyJobs);
+        setSelectedLocation('');
+        setSelectedDepartment('');
       }
     } catch (error) {
       console.error('Error fetching company jobs:', error);
@@ -545,6 +580,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               <CompanyLogo 
                 companyName={company.name}
                 website={company.website || company.companyWebsite}
+                storedLogo={company.logo}
                 size={112}
                 className="w-full h-full rounded-xl"
               />
@@ -581,8 +617,14 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3 sm:gap-4 mb-4 sm:mb-6">
                     <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
                       <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-lg font-bold text-gray-900">{avgRating ?? '—'}</span>
-                      <span className="text-gray-600 text-sm">({reviews.length} reviews)</span>
+                      {reviews.length > 0 ? (
+                        <>
+                          <span className="text-lg font-bold text-gray-900">{avgRating}</span>
+                          <span className="text-gray-600 text-sm">({reviews.length} review{reviews.length !== 1 ? 's' : ''})</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-600 text-sm">0 reviews</span>
+                      )}
                     </div>
                     {followersCount > 0 && (
                       <div className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-200 rounded-lg shadow-sm">
@@ -604,15 +646,21 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   
                   {/* Tag Chips */}
                   <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2 sm:gap-3 mb-4">
-                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs sm:text-sm font-semibold">
-                      {company.industry}
-                    </span>
-                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                      {company.companyType || '—'}
-                    </span>
-                    <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
-                      {company.employees || '—'} Employees
-                    </span>
+                    {company.industry && (
+                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg text-xs sm:text-sm font-semibold">
+                        {company.industry}
+                      </span>
+                    )}
+                    {company.companyType && (
+                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
+                        {company.companyType}
+                      </span>
+                    )}
+                    {company.employees && (
+                      <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
+                        {cleanEmployees(company.employees)} employees
+                      </span>
+                    )}
                     {company.foundedYear && (
                       <span className="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-lg text-xs sm:text-sm font-medium">
                         Founded {company.foundedYear}
@@ -646,13 +694,13 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {company?.foundedYear || '—'}
+              {company?.foundedYear || 'Not specified'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Founded</div>
           </div>
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2">
-              {company?.employees || '—'}
+              {company?.employees ? cleanEmployees(company.employees) : 'Not specified'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Employees</div>
           </div>
@@ -664,7 +712,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
           </div>
           <div className="rounded-xl sm:rounded-2xl bg-white shadow-lg border border-gray-200 p-4 sm:p-6 text-center hover:shadow-xl hover:scale-105 transition-all duration-300">
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-900 mb-1 sm:mb-2 truncate">
-              {company?.location?.split(',')[0] || company?.headquarters?.split(',')[0] || '—'}
+              {(company?.location || company?.headquarters) ? displayValue(company.location?.split(',')[0] || company.headquarters?.split(',')[0]) : 'Not specified'}
             </div>
             <div className="text-xs sm:text-sm text-gray-600 font-medium">Headquarters</div>
           </div>
@@ -1197,31 +1245,45 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                 <div className="flex-1">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Job Openings at {company?.name}</h2>
-                  <p className="text-gray-600 mt-1">{jobs.length} positions available</p>
+                  <p className="text-gray-600 mt-1">{filteredJobs.length} positions available</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-                  <select className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                    <option>All Locations</option>
-                    {Array.from(new Set(jobs.map(job => job.location))).map(location => (
+                  <select
+                    value={selectedLocation}
+                    onChange={e => setSelectedLocation(e.target.value)}
+                    className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                  >
+                    <option value="">All Locations</option>
+                    {jobLocations.map(location => (
                       <option key={location} value={location}>{location}</option>
                     ))}
                   </select>
-                  <select className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white">
-                    <option>All Departments</option>
-                    <option>Technology</option>
-                    <option>Sales</option>
-                    <option>Marketing</option>
-                    <option>Operations</option>
-                    <option>HR</option>
+                  <select
+                    value={selectedDepartment}
+                    onChange={e => setSelectedDepartment(e.target.value)}
+                    className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                  >
+                    <option value="">All Departments</option>
+                    {jobCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
                   </select>
+                  {(selectedLocation || selectedDepartment) && (
+                    <button
+                      onClick={() => { setSelectedLocation(''); setSelectedDepartment(''); }}
+                      className="px-3 py-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    >
+                      Clear Filters
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
             
             {/* Jobs List */}
-            {jobs.length > 0 ? (
+            {filteredJobs.length > 0 ? (
               <div className="space-y-4">
-                {jobs.map((job, idx) => (
+                {filteredJobs.map((job, idx) => (
                   <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 hover:shadow-md transition-shadow cursor-pointer">
                     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -1248,23 +1310,45 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                         </p>
                       </div>
                       <div className="flex flex-row lg:flex-col gap-2 lg:ml-6 w-full lg:w-auto">
-                        <button className="flex-1 lg:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base">
-                          Apply Now
-                        </button>
-                        <button
-                          onClick={() => {
-                            const jid = job._id || job.id;
-                            if (!jid || !isCandidate) return;
-                            savedJobIds.has(jid) ? unsaveJobGlobal(jid) : saveJobGlobal(jid, job);
-                          }}
-                          className={`flex-1 lg:flex-none px-4 sm:px-6 py-2 border rounded-lg font-medium transition-colors text-sm sm:text-base ${
-                            savedJobIds.has(job._id || job.id || '')
-                              ? 'border-blue-300 bg-blue-50 text-blue-700'
-                              : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          {savedJobIds.has(job._id || job.id || '') ? '✓ Saved' : 'Save Job'}
-                        </button>
+                        {isEmployer ? (
+                          <button
+                            onClick={() => {
+                              const jid = job._id || job.id;
+                              if (!jid) return;
+                              onNavigate && onNavigate('job-detail', { jobId: jid });
+                            }}
+                            className="flex-1 lg:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                          >
+                            View Details
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                const jid = job._id || job.id;
+                                if (!jid) return;
+                                onNavigate && onNavigate('job-detail', { jobId: jid });
+                              }}
+                              className="flex-1 lg:flex-none px-4 sm:px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors text-sm sm:text-base"
+                            >
+                              Apply Now
+                            </button>
+                            <button
+                              onClick={() => {
+                                const jid = job._id || job.id;
+                                if (!jid) return;
+                                savedJobIds.has(jid) ? unsaveJobGlobal(jid) : saveJobGlobal(jid, { ...job, company: job.company || company?.name });
+                              }}
+                              className={`flex-1 lg:flex-none px-4 sm:px-6 py-2 border rounded-lg font-medium transition-colors text-sm sm:text-base ${
+                                savedJobIds.has(job._id || job.id || '')
+                                  ? 'border-blue-300 bg-blue-50 text-blue-700'
+                                  : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              {savedJobIds.has(job._id || job.id || '') ? '✓ Saved' : 'Save Job'}
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                     
@@ -1283,7 +1367,7 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : jobs.length === 0 ? (
               <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1299,6 +1383,24 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
                 >
                   Follow Company for Updates
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6M8 8v10l4-4 4 4V8" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Matching Jobs</h3>
+                <p className="text-gray-600 mb-4">
+                  No jobs match your current filters. Try adjusting your search criteria.
+                </p>
+                <button
+                  onClick={() => { setSelectedLocation(''); setSelectedDepartment(''); }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700"
+                >
+                  Clear All Filters
                 </button>
               </div>
             )}
