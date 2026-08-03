@@ -162,7 +162,6 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
       if (res.ok) {
         setSubmitted(true);
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: '🎉 Application submitted successfully!' } }));
-        setTimeout(() => onNavigate('my-applications'), 2000);
       } else {
         window.dispatchEvent(new CustomEvent('zync:alert', { detail: { message: result.error || 'Submission failed. Please try again.' } }));
       }
@@ -172,20 +171,6 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
       setSubmitting(false);
     }
   };
-
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <div className="text-center bg-white rounded-2xl p-10 shadow-lg max-w-sm w-full">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-9 h-9 text-green-600" />
-          </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-1">Application Submitted!</h2>
-          <p className="text-gray-500 text-sm">Redirecting to your applications...</p>
-        </div>
-      </div>
-    );
-  }
 
   const jobTitle = jobData.jobTitle || jobData.title || 'Job Position';
   const company  = jobData.company || 'Company';
@@ -327,11 +312,13 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
             <div className="pb-4">
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !resumeUrl}
+                disabled={submitting || !resumeUrl || submitted}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
               >
                 {submitting ? (
                   <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Submitting...</>
+                ) : submitted ? (
+                  <><CheckCircle className="w-4 h-4" />Application Submitted</>
                 ) : (
                   <><Send className="w-4 h-4" />Submit Application</>
                 )}
@@ -344,6 +331,35 @@ const JobApplicationPage: React.FC<JobApplicationPageProps> = ({ onNavigate, use
           </div>
         </div>
       </div>
+
+      {/* Success popup — stays on the same page */}
+      {submitted && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 shadow-2xl max-w-sm w-full text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-9 h-9 text-green-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-1">Application Submitted!</h2>
+            <p className="text-gray-500 text-sm mb-6">
+              Your application for <span className="font-medium text-gray-700">{jobTitle}</span> at {company} has been submitted successfully.
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => onNavigate('my-applications')}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-semibold text-sm transition-colors"
+              >
+                View My Applications
+              </button>
+              <button
+                onClick={() => setSubmitted(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold text-sm transition-colors"
+              >
+                Stay on this page
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

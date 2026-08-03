@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, Check, Pencil } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
@@ -6,8 +6,11 @@ import { executeResumeAI } from '../../services/resumeAIClient';
 const ROLE_SUGGESTIONS = [
   'Software Engineer', 'Frontend Developer', 'Backend Developer',
   'Full Stack Developer', 'DevOps Engineer', 'Data Engineer',
-  'Data Scientist', 'Product Manager', 'UI/UX Designer',
-  'Project Manager', 'Business Analyst', 'QA Engineer',
+  'Data Scientist', 'Data Analyst', 'Product Manager', 'UI/UX Designer',
+  'Project Manager', 'Business Analyst', 'QA Engineer', 'QA Analyst',
+  'Mobile Developer', 'Cloud Engineer', 'Machine Learning Engineer',
+  'Cybersecurity Analyst', 'Database Administrator', 'Technical Writer',
+  'Scrum Master', 'Solutions Architect', 'Network Engineer',
 ];
 
 const STYLE_TOGGLES = [
@@ -43,16 +46,36 @@ export default function SummaryStep() {
   const [editText, setEditText] = useState('');
   const [options, setOptions] = useState<string[]>([]);
   const [selectedRole, setSelectedRole] = useState('');
+  const [customRole, setCustomRole] = useState('');
+
+  // Auto-generate using wizard role if no summary yet
+  useEffect(() => {
+    if (!summaryText && !loading && options.length === 0 && data.targetRole?.trim()) {
+      generateOptions(data.targetRole.trim());
+    }
+  }, []);
 
   const summaryText = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary || '';
 
   // ── Build context string from experience + skills ─────────────────────
   const buildContext = (role: string) => {
-    const expText = data.experience.map(e =>
-      `${e.title} at ${e.company}${e.bullets.filter(Boolean).length ? ` - ${e.bullets.filter(Boolean).join('. ')}` : ''}`
-    ).join('. ');
+    const expText = data.experience
+      .filter(e => e.title?.trim() || e.company?.trim())
+      .map(e => `${e.title} at ${e.company}${e.bullets.filter(Boolean).length ? `: ${e.bullets.filter(Boolean).join('. ')}` : ''}`)
+      .join(' | ');
     const skillsText = data.skills.join(', ');
-    return `Role: ${role || data.experience[0]?.title || 'Professional'}\nExperience: ${expText}\nSkills: ${skillsText}`;
+    const achievementsText = (data.achievements || [])
+      .filter((a: any) => a.title?.trim())
+      .map((a: any) => a.description ? `${a.title}: ${a.description}` : a.title)
+      .join('. ');
+    const parts = [
+      `Target Role: ${role}`,
+      expText ? `Experience: ${expText}` : '',
+      skillsText ? `Skills: ${skillsText}` : '',
+      achievementsText ? `Achievements: ${achievementsText}` : '',
+      data.personalInfo?.name ? `Name: ${data.personalInfo.name}` : '',
+    ];
+    return parts.filter(Boolean).join('\n');
   };
 
   // ── Generate 3 summary options ────────────────────────────────────────
@@ -70,8 +93,12 @@ export default function SummaryStep() {
       if (res.result) {
         const opts = res.result.split('---').map(s => s.replace(/^Option\s*\d*[:.]?\s*/i, '').trim()).filter(Boolean).slice(0, 3);
         setOptions(opts.length >= 2 ? opts : [res.result]);
+      } else {
+        setOptions(fallbackForRole(role));
       }
-    } catch { /* silent */ } finally { setLoading(false); }
+    } catch {
+      setOptions(fallbackForRole(role));
+    } finally { setLoading(false); }
   };
 
   // ── Select an option ──────────────────────────────────────────────────
@@ -95,9 +122,9 @@ export default function SummaryStep() {
 
   // ── Fallback summaries per role ───────────────────────────────────────
   const fallbackForRole = (role: string): string[] => [
-    `Experienced ${role} with a proven track record of delivering high-quality software solutions. Skilled in full development lifecycle from requirements analysis to deployment, with strong collaboration across cross-functional teams.`,
-    `Results-driven ${role} with expertise in building scalable applications and optimizing system performance. Passionate about writing clean code and adopting modern development practices to drive business value.`,
-    `Dedicated ${role} with a focus on creating user-centric solutions and improving team productivity. Adept at translating complex requirements into efficient, maintainable code.`,
+    `Experienced ${role} with a proven track record of delivering high-quality results. Skilled across the full ${role} lifecycle with strong collaboration across cross-functional teams.`,
+    `Results-driven ${role} with expertise in optimizing processes and driving measurable outcomes. Passionate about applying best practices to deliver consistent business value.`,
+    `Dedicated ${role} focused on quality, efficiency, and continuous improvement. Adept at translating complex requirements into effective, reliable solutions.`,
   ];
 
   return (
@@ -105,17 +132,40 @@ export default function SummaryStep() {
       <div>
         <h2 className="text-xl font-bold text-gray-900">Professional Summary</h2>
         <p className="text-sm text-gray-500 mt-0.5">Pick a role — AI generates 3 options to choose from</p>
-        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-blue-400">💡</span> Keep it 3-4 sentences — highlight your top <span className="text-blue-500 font-medium">achievements</span>, <span className="text-blue-500 font-medium">years of experience</span>, and <span className="text-blue-500 font-medium">key skills</span></p>
+        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Keep it 3-4 sentences — highlight your top <span className="text-blue-500 font-medium">achievements</span>, <span className="text-blue-500 font-medium">years of experience</span>, and <span className="text-blue-500 font-medium">key skills</span></p>
       </div>
 
       {!summaryText && options.length === 0 && !loading && (
         /* ── Role picker (empty state) ─────────────────────────────────── */
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-3">What job are you applying for?</p>
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-gray-700">What job are you applying for?</p>
+          {/* Custom role input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={customRole}
+              onChange={e => setCustomRole(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && customRole.trim()) { generateOptions(customRole.trim()); setCustomRole(''); } }}
+              placeholder="Type your role (e.g. QA Analyst, Data Analyst...)"
+              className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent placeholder:text-gray-400"
+            />
+            <button
+              onClick={() => { if (customRole.trim()) { generateOptions(customRole.trim()); setCustomRole(''); } }}
+              disabled={!customRole.trim() || loading}
+              className="px-4 py-2 text-sm bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Generate
+            </button>
+          </div>
+          <p className="text-xs text-gray-400">Or pick from common roles:</p>
           <div className="flex flex-wrap gap-2">
             {ROLE_SUGGESTIONS.map(role => (
               <button key={role} onClick={() => generateOptions(role)} disabled={loading}
-                className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 disabled:opacity-40 transition-all"
+                className={`px-3 py-1.5 text-xs border rounded-lg transition-all ${
+                  selectedRole === role
+                    ? 'border-purple-500 bg-purple-50 text-purple-700 font-medium'
+                    : 'border-gray-200 hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700'
+                } disabled:opacity-40`}
               >
                 {role}
               </button>

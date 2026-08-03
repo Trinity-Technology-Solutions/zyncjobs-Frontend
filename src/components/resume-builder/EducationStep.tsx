@@ -3,11 +3,8 @@ import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
-const QUICK_DEGREES = [
-  'B.E Computer Science', 'B.Tech Information Technology', 'B.Sc Computer Science',
-  'BCA', 'MCA', 'M.Tech', 'MBA', 'B.Com', 'BBA', 'B.E Mechanical', 'B.E Civil',
-  'B.E Electrical', 'B.E Electronics', 'B.Sc Mathematics', 'B.Sc Physics',
-];
+const QUICK_UG = ['B.E Computer Science', 'B.Tech Information Technology', 'B.Sc Computer Science', 'BCA', 'B.Com', 'BBA', 'B.E Mechanical', 'B.E Civil'];
+const QUICK_PG = ['MCA', 'M.Tech', 'MBA', 'M.Sc Computer Science', 'M.Com', 'MA'];
 
 import { ph } from '../../utils/goalPlaceholders';
 
@@ -22,23 +19,22 @@ export default function EducationStep() {
     try {
       const res = await executeResumeAI({ section: 'education', action: 'generate', content: `Target role: ${title}\n\nGenerate 2-3 relevant educational entries. Format: Degree, Institution, Year` });
       const lines = (res.result || '').split('\n').filter(Boolean);
-      lines.forEach(line => {
-        // Parse education line like "B.Sc Computer Science, Anna University, 2017-2021"
+      for (const line of lines) {
         const parts = line.split(',').map(s => s.trim());
-        if (parts.length >= 2) {
-          const degree = parts[0];
-          const institution = parts[1];
+        if (parts.length >= 1) {
+          const deg = parts[0];
+          const institution = parts[1] || '';
           addEducation();
-          const newId = (data.education.length > 0 ? data.education[data.education.length - 1]?.id : '') || Date.now().toString();
-          if (degree) updateEducation(newId, 'degree', degree);
-          if (institution) updateEducation(newId, 'institution', institution);
-        } else if (parts.length === 1) {
-          // Partial entry, just add degree
-          addEducation();
-          const newId = (data.education.length > 0 ? data.education[data.education.length - 1]?.id : '') || Date.now().toString();
-          if (parts[0]) updateEducation(newId, 'degree', parts[0]);
+          // Use getState() to get fresh state after the mutation
+          const fresh = useResumeStore.getState();
+          const newItem = fresh.data.education[fresh.data.education.length - 1];
+          if (newItem) {
+            const isPG = /^(m\.|mca|mba|m\.sc|m\.com|ma\b)/i.test(deg);
+            if (deg) fresh.updateEducation(newItem.id, isPG ? 'pgDegree' : 'ugDegree', deg);
+            if (institution) fresh.updateEducation(newItem.id, 'institution', institution);
+          }
         }
-      });
+      }
     } catch (error) {
       console.error('Education suggestion failed:', error);
     } finally { setAiLoading(false); }
@@ -52,7 +48,7 @@ export default function EducationStep() {
         <div>
           <h2 className="text-xl font-bold text-gray-900">Education</h2>
           <p className="text-sm text-gray-500 mt-0.5">Add your educational background</p>
-          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-blue-400">💡</span> Include <span className="text-blue-500 font-medium">GPA &gt; 3.0</span> and relevant coursework — especially if you're a recent graduate</p>
+          <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Include <span className="text-blue-500 font-medium">GPA &gt; 3.0</span> and relevant coursework — especially if you're a recent graduate</p>
         </div>
         <div className="flex items-center gap-2">
           {hasRole && (
@@ -70,15 +66,24 @@ export default function EducationStep() {
 
       {data.education.length === 0 ? (
         <div>
-          <p className="text-xs text-gray-500 mb-3">Quick add — pick a degree to get started:</p>
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {QUICK_DEGREES.slice(0, 8).map(d => (
-              <button key={d} onClick={() => { addEducation(); const id = Date.now().toString(); updateEducation(id, 'degree', d); }}
+          <p className="text-xs text-gray-500 mb-2">Quick add UG:</p>
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {QUICK_UG.map(d => (
+              <button key={d} onClick={() => { addEducation(); const id = Date.now().toString(); updateEducation(id, 'ugDegree', d); }}
                 className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:border-blue-400 hover:text-blue-700 transition-colors">{d}</button>
             ))}
           </div>
+          <div className="mt-3">
+            <p className="text-xs text-gray-500 mb-2">Quick add PG:</p>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_PG.map(d => (
+                <button key={d} onClick={() => { addEducation(); const id = Date.now().toString(); updateEducation(id, 'pgDegree', d); }}
+                  className="px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:border-purple-400 hover:text-purple-700 transition-colors">{d}</button>
+              ))}
+            </div>
+          </div>
           {data.education.length === 0 && (
-            <div className="text-center py-10 border-2 border-dashed border-gray-200 rounded-xl">
+            <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-xl mt-3">
               <p className="text-gray-400 text-sm">Or manually add your education</p>
             </div>
           )}
@@ -96,13 +101,19 @@ export default function EducationStep() {
               </div>
               <div className="p-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Degree *</label>
-                  <input type="text" value={edu.degree} onChange={e => updateEducation(edu.id, 'degree', e.target.value)}
-                    placeholder={ph(goal, 'degree')}
+                  <label className="block text-xs font-medium text-gray-600 mb-1">UG Degree</label>
+                  <input type="text" value={edu.ugDegree || ''} onChange={e => updateEducation(edu.id, 'ugDegree', e.target.value)}
+                    placeholder="e.g. B.Tech Computer Science"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Institution *</label>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">PG Degree</label>
+                  <input type="text" value={edu.pgDegree || ''} onChange={e => updateEducation(edu.id, 'pgDegree', e.target.value)}
+                    placeholder="e.g. MBA, M.Tech (leave blank if not applicable)"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">School / Institution *</label>
                   <input type="text" value={edu.institution} onChange={e => updateEducation(edu.id, 'institution', e.target.value)}
                     placeholder={ph(goal, 'institution')}
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
@@ -110,19 +121,19 @@ export default function EducationStep() {
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Location</label>
                   <input type="text" value={edu.location} onChange={e => updateEducation(edu.id, 'location', e.target.value)}
-                    placeholder="City, State"
+                    placeholder="Enter your city and country"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Duration</label>
                   <input type="text" value={edu.duration} onChange={e => updateEducation(edu.id, 'duration', e.target.value)}
-                    placeholder="Start Year – End Year"
+                    placeholder="Enter start and end year"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-1">Grade (optional)</label>
                   <input type="text" value={edu.grade} onChange={e => updateEducation(edu.id, 'grade', e.target.value)}
-                    placeholder="GPA / Percentage"
+                    placeholder="Enter your GPA or percentage"
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
                 </div>
               </div>

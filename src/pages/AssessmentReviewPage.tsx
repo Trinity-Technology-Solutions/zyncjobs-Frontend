@@ -22,7 +22,7 @@ const getAuthToken = async (): Promise<string | null> => {
     if (payload.exp * 1000 < Date.now()) {
       const refreshToken = tokenStorage.getRefresh();
       if (!refreshToken) return null;
-      const res = await apiFetch(`${API_BASE_URL}/users/refresh`, {
+      const res = await fetch(`${API_BASE_URL}/users/refresh`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken })
       });
@@ -54,14 +54,12 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
       
       // Check if it's a practice assessment (stored in localStorage)
       if (assessmentId.startsWith('local-')) {
-        const storageKey = `assessment_${assessmentId}`;
+        // SkillAssessmentPage saves with key `assessment_local-${id}` so assessmentId is already `local-xxx`
+        const storageKey = `assessment_local-${assessmentId}`;
         const stored = localStorage.getItem(storageKey);
-        console.log('Looking for:', storageKey);
-        console.log('Found:', stored ? 'Yes' : 'No');
         
         if (stored) {
           const practiceData = JSON.parse(stored);
-          console.log('✅ Loaded practice assessment:', practiceData);
           setReview({
             ...practiceData,
             review: {
@@ -87,8 +85,6 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
           setLoading(false);
           return;
         } else {
-          console.error('❌ Practice assessment not found in localStorage');
-          console.log('Available keys:', Object.keys(localStorage).filter(k => k.startsWith('assessment_')));
           setError('Practice assessment not found. It may have been cleared.');
           setLoading(false);
           return;
@@ -98,7 +94,7 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
       // Regular backend assessment
       const token = await getAuthToken();
       if (!token) { setError('Please log in to view your assessment review.'); setLoading(false); return; }
-      const response = await apiFetch(`${API_BASE_URL}/skill-assessments/review/${assessmentId}`, {
+      const response = await fetch(`${API_BASE_URL}/skill-assessments/review/${assessmentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Failed to fetch review');
@@ -221,80 +217,73 @@ const AssessmentReviewPage: React.FC<AssessmentReviewPageProps> = ({ assessmentI
               </h2>
               <div className="space-y-4 sm:space-y-5">
                 {questions.map((q: any, idx: number) => {
+                  const isMcq = q.type === 'mcq' || Array.isArray(q.options);
                   const correctVal = q.correctAnswer !== undefined ? q.correctAnswer : q.correct;
                   const userAns = Number(q.userAnswer);
                   const correctAns = Number(correctVal);
-                  const isCorrect = userAns === correctAns;
+                  const isCorrect = isMcq ? userAns === correctAns : !!q.isCorrect;
+                  const qText = q.question || q.title || q.scenario || q.description || `Question ${idx + 1}`;
                   return (
                     <div key={idx} style={{
                       borderRadius: '16px',
                       padding: '16px',
-                      border: `1.5px solid ${isCorrect ? '#6ee7b7' : '#fca5a5'}`,
-                      backgroundColor: isCorrect ? '#f0fdf4' : '#fff5f5'
+                      border: `1.5px solid ${isCorrect ? '#6ee7b7' : isMcq ? '#fca5a5' : '#e5e7eb'}`,
+                      backgroundColor: isCorrect ? '#f0fdf4' : isMcq ? '#fff5f5' : '#fafafa'
                     }}>
                       {/* Question header */}
-                      <div className="flex items-start gap-2 sm:gap-3 mb-3 sm:mb-4">
+                      <div className="flex items-start gap-2 sm:gap-3 mb-3">
                         <span style={{
                           flexShrink: 0, width: 22, height: 22, borderRadius: '50%',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           color: '#fff', fontSize: 11, fontWeight: 700,
-                          backgroundColor: isCorrect ? '#34d399' : '#f87171'
+                          backgroundColor: isCorrect ? '#34d399' : isMcq ? '#f87171' : '#94a3b8'
                         }}>{idx + 1}</span>
-                        <p className="text-sm font-medium text-gray-800 leading-relaxed flex-1">{q.question}</p>
-                        {isCorrect
+                        <p className="text-sm font-medium text-gray-800 leading-relaxed flex-1">{qText}</p>
+                        {isMcq && (isCorrect
                           ? <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#10b981' }} />
-                          : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />}
+                          : <XCircle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: '#ef4444' }} />)}
+                        {!isMcq && <span className="text-[10px] text-gray-400 capitalize flex-shrink-0 mt-0.5">{q.type}</span>}
                       </div>
 
-                      {/* Options — single column on mobile, 2 cols on sm+ */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {q.options.map((option: string, optIdx: number) => {
-                          const isCorrectOpt = optIdx === correctAns;
-                          const isWrongUserAns = optIdx === userAns && !isCorrect;
+                      {/* MCQ options */}
+                      {isMcq && Array.isArray(q.options) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {q.options.map((option: string, optIdx: number) => {
+                            const isCorrectOpt = optIdx === correctAns;
+                            const isWrongUserAns = optIdx === userAns && !isCorrect;
+                            let bg = '#ffffff', border = '#e5e7eb', color = '#6b7280';
+                            let fontWeight: number | string = 400;
+                            if (isCorrectOpt) { bg = '#dcfce7'; border = '#22c55e'; color = '#15803d'; fontWeight = 600; }
+                            else if (isWrongUserAns) { bg = '#fee2e2'; border = '#ef4444'; color = '#b91c1c'; fontWeight = 600; }
+                            return (
+                              <div key={optIdx} style={{
+                                display: 'flex', alignItems: 'center', gap: 8,
+                                padding: '10px 12px', borderRadius: 12,
+                                backgroundColor: bg, border: `2px solid ${border}`,
+                                color, fontWeight, minHeight: 44
+                              }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, width: 18, flexShrink: 0 }}>{String.fromCharCode(65 + optIdx)}.</span>
+                                <span style={{ flex: 1, fontSize: 13, lineHeight: 1.4, wordBreak: 'break-word' }}>{option}</span>
+                                {isCorrectOpt && (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                    {!isCorrect && <span style={{ fontSize: 10, fontWeight: 700, backgroundColor: '#bbf7d0', color: '#15803d', padding: '1px 6px', borderRadius: 999, whiteSpace: 'nowrap' }}>Correct</span>}
+                                    <CheckCircle style={{ width: 14, height: 14, color: '#16a34a', flexShrink: 0 }} />
+                                  </span>
+                                )}
+                                {isWrongUserAns && <XCircle style={{ width: 14, height: 14, color: '#dc2626', flexShrink: 0 }} />}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
 
-                          let bg = '#ffffff';
-                          let border = '#e5e7eb';
-                          let color = '#6b7280';
-                          let fontWeight: number | string = 400;
-
-                          if (isCorrectOpt) {
-                            bg = '#dcfce7'; border = '#22c55e'; color = '#15803d'; fontWeight = 600;
-                          } else if (isWrongUserAns) {
-                            bg = '#fee2e2'; border = '#ef4444'; color = '#b91c1c'; fontWeight = 600;
-                          }
-
-                          return (
-                            <div key={optIdx} style={{
-                              display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '10px 12px', borderRadius: 12,
-                              backgroundColor: bg,
-                              border: `2px solid ${border}`,
-                              color, fontWeight,
-                              minHeight: 44
-                            }}>
-                              <span style={{ fontSize: 11, fontWeight: 700, width: 18, flexShrink: 0 }}>
-                                {String.fromCharCode(65 + optIdx)}.
-                              </span>
-                              <span style={{ flex: 1, fontSize: 13, lineHeight: 1.4, wordBreak: 'break-word' }}>{option}</span>
-                              {isCorrectOpt && (
-                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                                  {!isCorrect && (
-                                    <span style={{
-                                      fontSize: 10, fontWeight: 700, backgroundColor: '#bbf7d0',
-                                      color: '#15803d', padding: '1px 6px', borderRadius: 999,
-                                      whiteSpace: 'nowrap'
-                                    }}>Correct</span>
-                                  )}
-                                  <CheckCircle style={{ width: 14, height: 14, color: '#16a34a', flexShrink: 0 }} />
-                                </span>
-                              )}
-                              {isWrongUserAns && (
-                                <XCircle style={{ width: 14, height: 14, color: '#dc2626', flexShrink: 0 }} />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {/* Open-ended answer (coding / debugging / scenario) */}
+                      {!isMcq && q.userAnswer && (
+                        <div className="mt-2 p-3 bg-white border border-gray-200 rounded-xl">
+                          <p className="text-[11px] text-gray-400 mb-1">Your answer</p>
+                          <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">{String(q.userAnswer)}</pre>
+                        </div>
+                      )}
                     </div>
                   );
                 })}

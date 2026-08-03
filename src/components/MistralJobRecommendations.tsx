@@ -4,6 +4,28 @@ import { rankJobs, computeMatchScore, type MatchBreakdown } from '../services/jo
 import { EnhancedAIRecommendationEngine, type EnhancedJobRecommendation } from '../services/enhancedAIRecommendationEngine';
 import { IntelligentSkillsService } from '../services/intelligentSkillsService';
 
+const icons = {
+  check: "M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  cross: "M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  star: "M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z",
+  chevronUp: "M4.5 15.75l7.5-7.5 7.5 7.5",
+  chevronDown: "M19.5 8.25l-7.5 7.5-7.5-7.5",
+  target: "M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z",
+  robot: "M9 3.75H6.912a2.25 2.25 0 00-2.15 1.588L2.35 13.177a2.25 2.25 0 00-.1.661V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18v-4.162c0-.224-.034-.447-.1-.661L19.24 5.338a2.25 2.25 0 00-2.15-1.588H15M2.25 13.5h3.86a2.25 2.25 0 012.012 1.244l.256.512a2.25 2.25 0 002.013 1.244h3.218a2.25 2.25 0 002.013-1.244l.256-.512a2.25 2.25 0 012.013-1.244h3.859M12 3v.75",
+  thumbsUp: "M6.633 10.5c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23H5.904M14.25 9h2.25M5.904 18.75c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 01-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 10.203 4.167 9.75 5 9.75h1.053c.472 0 .745.556.5.96a8.958 8.958 0 00-1.302 4.665c0 1.194.232 2.333.654 3.375z",
+  note: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z",
+  trendUp: "M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941",
+  warning: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
+  book: "M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25",
+};
+function SvgIcon({ name, className = "w-4 h-4" }: { name: keyof typeof icons; className?: string }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" d={icons[name]} />
+    </svg>
+  );
+}
+
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 interface MistralJobRecommendationsProps {
@@ -70,13 +92,13 @@ const EnhancedMatchCard: React.FC<{
       {skillMatch.matched.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {skillMatch.matched.slice(0, 4).map((s, i) => (
-            <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium">✓ {s}</span>
+            <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-medium inline-flex items-center gap-0.5"><SvgIcon name="check" className="w-3 h-3" />{s}</span>
           ))}
           {skillMatch.missing.slice(0, 2).map((s, i) => (
-            <span key={i} className="bg-red-50 text-red-500 px-2 py-0.5 rounded text-xs">✗ {s}</span>
+            <span key={i} className="bg-red-50 text-red-500 px-2 py-0.5 rounded text-xs inline-flex items-center gap-0.5"><SvgIcon name="cross" className="w-3 h-3" />{s}</span>
           ))}
           {skillMatch.bonus.slice(0, 2).map((s, i) => (
-            <span key={i} className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs">⭐ {s}</span>
+            <span key={i} className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs inline-flex items-center gap-0.5"><SvgIcon name="star" className="w-3 h-3" />{s}</span>
           ))}
         </div>
       )}
@@ -85,7 +107,7 @@ const EnhancedMatchCard: React.FC<{
         onClick={() => setExpanded(!expanded)}
         className="text-xs text-blue-600 hover:text-blue-800 font-medium mb-2"
       >
-        {expanded ? '▲ Hide explanation' : '▼ Why this match?'}
+        {expanded ? <><SvgIcon name="chevronUp" className="w-3 h-3 inline" /> Hide explanation</> : <><SvgIcon name="chevronDown" className="w-3 h-3 inline" /> Why this match?</>}
       </button>
 
       {expanded && (
@@ -154,7 +176,7 @@ const EnhancedMatchCard: React.FC<{
               : 'border border-gray-400 text-gray-500 hover:bg-gray-50'
           }`}
         >
-          {rec.shouldApply ? '✓ Recommended' : 'Consider'}
+          {rec.shouldApply ? <><SvgIcon name="check" className="w-3 h-3 inline" /> Recommended</> : 'Consider'}
         </button>
       </div>
     </div>
@@ -272,13 +294,13 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
     const avgMatchScore = Math.round(recommendations.reduce((sum, r) => sum + r.matchScore, 0) / recommendations.length);
     
     if (highConfidenceJobs >= 3) {
-      insights.push(`🎯 ${highConfidenceJobs} high-confidence matches found - you're well-positioned!`);
+      insights.push(`» ${highConfidenceJobs} high-confidence matches found - you're well-positioned!`);
     }
     
     if (avgMatchScore >= 75) {
-      insights.push(`⭐ Strong overall profile match (${avgMatchScore}% average)`);
+      insights.push(`» Strong overall profile match (${avgMatchScore}% average)`);
     } else if (avgMatchScore >= 60) {
-      insights.push(`📈 Good profile match with room for improvement (${avgMatchScore}% average)`);
+      insights.push(`» Good profile match with room for improvement (${avgMatchScore}% average)`);
     }
     
     // Skill insights
@@ -295,7 +317,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
       .map(([skill]) => skill);
     
     if (topMissingSkills.length > 0) {
-      insights.push(`📚 Focus on learning: ${topMissingSkills.join(', ')} to improve match rates`);
+      insights.push(`» Focus on learning: ${topMissingSkills.join(', ')} to improve match rates`);
     }
     
     return insights;
@@ -375,15 +397,15 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
       const explanation: string[] = [];
       if (matchedSkills.length > 0)
-        explanation.push(`✅ ${matchedSkills.length} of your skills match this job: ${matchedSkills.slice(0, 3).join(', ')}`);
+        explanation.push(`${matchedSkills.length} of your skills match this job: ${matchedSkills.slice(0, 3).join(', ')}`);
       if (missingSkills.length > 0)
-        explanation.push(`⚠️ Skills gap: ${missingSkills.slice(0, 3).join(', ')}`);
+        explanation.push(`Skills gap: ${missingSkills.slice(0, 3).join(', ')}`);
       if (titleScore > 40)
-        explanation.push(`🎯 Your experience as "${exp}" aligns with this role`);
+        explanation.push(`Your experience as "${exp}" aligns with this role`);
       if (overall >= 60)
-        explanation.push(`👍 Good match — worth applying`);
+        explanation.push(`Good match — worth applying`);
       else
-        explanation.push(`📝 Partial match — consider applying anyway`);
+        explanation.push(`Partial match — consider applying anyway`);
 
       const breakdown: MatchBreakdown = {
         overall: Math.max(overall, matchedSkills.length > 0 ? 20 : 10),
@@ -443,7 +465,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
     <div className="space-y-4">
       <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl p-3">
         <p className="text-sm font-semibold text-blue-900">
-          🎯 Found {rankedJobs.length} matching jobs • {recommendedCount} recommended
+          <SvgIcon name="target" className="w-4 h-4 inline mr-1" />Found {rankedJobs.length} matching jobs • {recommendedCount} recommended
         </p>
         <p className="text-xs text-blue-700 mt-0.5">
           Best match: <strong>{topScore}%</strong> — AI-powered matching with career insights
@@ -452,7 +474,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
 
       {aiInsights.length > 0 && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
-          <p className="text-sm font-semibold text-blue-900 mb-2">🤖 AI Career Insights</p>
+          <p className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-1"><SvgIcon name="robot" className="w-4 h-4" /> AI Career Insights</p>
           {aiInsights.map((insight, i) => (
             <p key={i} className="text-xs text-blue-700 mb-1">{insight}</p>
           ))}
@@ -474,7 +496,7 @@ const MistralJobRecommendations: React.FC<MistralJobRecommendationsProps> = ({
           onClick={() => setShowAll(!showAll)}
           className="w-full text-sm text-blue-600 hover:text-blue-800 font-medium py-2 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
         >
-          {showAll ? '▲ Show less' : `▼ Show ${rankedJobs.length - 3} more jobs`}
+          {showAll ? <><SvgIcon name="chevronUp" className="w-3 h-3 inline" /> Show less</> : <><SvgIcon name="chevronDown" className="w-3 h-3 inline" /> Show {rankedJobs.length - 3} more jobs</>}
         </button>
       )}
     </div>

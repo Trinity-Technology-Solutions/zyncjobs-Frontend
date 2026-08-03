@@ -4,7 +4,7 @@ import {
   Brain, Target, Award, BookOpen, ArrowRight, Download, Linkedin,
   Briefcase, Star, TrendingUp, Lightbulb, Play, RotateCcw, BarChart3,
   Globe, Code, PenTool, MessageSquare, FileText, Zap, AlertTriangle,
-  Loader2, Sparkles, ChevronDown, ChevronUp, User, Bot, Send, X, Eye, Shield, Database, Terminal, Box, Braces, FileCode, Server, Cpu, GitBranch, Layers, Cog, Coffee, Cloud
+  Loader2, Sparkles, ChevronDown, ChevronUp, Bot, Send, X, Eye, Shield, Database, Terminal, Box, Braces, FileCode, Server, Cpu, GitBranch, Layers, Cog, Coffee, Cloud
 } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -21,6 +21,7 @@ interface Props {
 
 const SKILL_CACHE_KEY = 'zyncjobs-skill-cache';
 const ASSESSMENT_TYPES_CACHE_KEY = 'zyncjobs-assessment-types-cache';
+const getQuestionCacheKey = (skill: string, type: string) => `zyncjobs-questions-${skill}-${type}`;
 
 const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) => {
   const [step, setStep] = useState<'dashboard' | 'detail' | 'in-progress' | 'result' | 'skill-gap' | 'learning-path' | 'certificate'>('dashboard');
@@ -33,10 +34,6 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
   const [loading, setLoading] = useState(false);
   const [myAssessments, setMyAssessments] = useState<any[]>([]);
   const [questionTypes, setQuestionTypes] = useState<string[]>(['mcq', 'coding', 'debugging', 'scenario']);
-  const [aiVivaMessages, setAiVivaMessages] = useState<{ role: string; content: string }[]>([]);
-  const [vivaInput, setVivaInput] = useState('');
-  const [vivaScore, setVivaScore] = useState(0);
-  const [vivaQCount, setVivaQCount] = useState(0);
   const [aiMentorOpen, setAiMentorOpen] = useState(false);
   const [mentorInput, setMentorInput] = useState('');
   const [mentorChat, setMentorChat] = useState<{ role: string; content: string }[]>([]);
@@ -48,15 +45,21 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
     try { return JSON.parse(localStorage.getItem(ASSESSMENT_TYPES_CACHE_KEY) || '[]'); } catch { return []; }
   });
   const [aiMissingSkills, setAiMissingSkills] = useState<string[]>([]);
+  const [skillGapLoading, setSkillGapLoading] = useState(false);
   const [aiLearningPath, setAiLearningPath] = useState<any[]>([]);
-  const [aiSkillsCovered, setAiSkillsCovered] = useState<string[]>([]);
-  const [aiDifficulty, setAiDifficulty] = useState('Intermediate');
   const [aiCertificateNote, setAiCertificateNote] = useState('');
+  const assessmentDifficulty = 'Intermediate';
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [targetRole, setTargetRole] = useState('Senior Developer');
   const [aiCoachMessage, setAiCoachMessage] = useState('');
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
   const vivaChatRef = useRef<HTMLDivElement>(null);
+  const mentorChatRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (mentorChatRef.current) mentorChatRef.current.scrollTop = mentorChatRef.current.scrollHeight;
+  }, [mentorChat, mentorLoading]);
 
   // Icon map for assessment types (string -> Lucide component)
   const iconMap: Record<string, any> = {
@@ -79,7 +82,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
 
   useEffect(() => {
     if (vivaChatRef.current) vivaChatRef.current.scrollTop = vivaChatRef.current.scrollHeight;
-  }, [aiVivaMessages]);
+  }, []);
 
   // AI Coach: generate message when assessments load
   useEffect(() => {
@@ -150,7 +153,6 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
   };
 
   // Generate realistic varied numbers
-  const genNum = (base: number, variance = 0.3) => Math.round(base * (1 + (Math.random() - 0.5) * variance * 2));
   const genRating = (base = 4.5) => (base + (Math.random() - 0.5) * 0.8).toFixed(1);
   const genCandidates = (base: number) => `${Math.round(base * (0.8 + Math.random() * 0.4))}K`;
 
@@ -257,7 +259,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
       );
       const reply = (data as any)?.result?.reply || '';
       const skills = reply.split(',').map((s: string) => s.trim().replace(/^[-•*\d.\s]+/, '')).filter(Boolean);
-      if (skills.length >= 3) { setAiSkillsCovered(skills); return skills; }
+      if (skills.length >= 3) { return skills; }
     } catch { /* fallthrough */ }
     return generateSkillsCoveredFallback(skill);
   };
@@ -267,7 +269,7 @@ const SkillAssessmentPage: React.FC<Props> = ({ onNavigate, user, onLogout }) =>
     try {
       const evalData = questions.filter((q: any) => q.correct !== undefined || q.correctAnswer !== undefined).map((q: any, i: number) => ({
         question: q.question, correct: q.options?.[q.correct ?? q.correctAnswer], userAnswer: q.options?.[answers[i]],
-        isCorrect: (q.correct ?? q.correctAnswer) === answers[i],
+        isCorrect: Number(q.correct ?? q.correctAnswer) === Number(answers[i]),
       }));
       const prompt = `Evaluate this ${skill} assessment. Score each skill area (0-100%). Student answered ${evalData.filter((e: any) => e.isCorrect).length}/${evalData.length} correct.
 Return ONLY JSON: { "skillScores": {"SkillName": score}, "missingSkills": ["skill1","skill2"], "confidence": "high|medium|low", "feedback": "2-3 sentence summary" }
@@ -281,16 +283,25 @@ Data: ${JSON.stringify(evalData)}`;
   };
 
   // AI-powered: generate skill gap analysis
-  const aiGenerateSkillGap = async (skill: string, score: number) => {
+  const aiGenerateSkillGap = async (skill: string, score: number, skillBreakdown?: Record<string, number>) => {
+    // Derive weak areas from actual assessment breakdown
+    const weakAreas = skillBreakdown
+      ? Object.entries(skillBreakdown).filter(([, s]) => s < 70).map(([k]) => k)
+      : [];
     try {
+      const context = weakAreas.length > 0
+        ? `They scored below 70% in: ${weakAreas.join(', ')}.`
+        : '';
       const data = await executeAI(
-        `skill gap: For a ${skill} developer who scored ${score}% on assessment, list 4-6 missing skills they need for a senior role. Return ONLY a comma-separated list.`,
+        `skill gap: For a ${skill} developer who scored ${score}% on assessment. ${context} List 4-6 specific missing skills they need to reach a senior level. Return ONLY a comma-separated list.`,
         { systemPrompt: 'You are a career gap analyst.' }
       );
       const reply = (data as any)?.result?.reply || '';
       const skills = reply.split(',').map((s: string) => s.trim().replace(/^[-•*\d.\s]+/, '')).filter(Boolean);
       if (skills.length >= 2) { setAiMissingSkills(skills); return skills; }
     } catch { /* fallthrough */ }
+    // Fallback: derive from weak areas in breakdown
+    if (weakAreas.length > 0) { setAiMissingSkills(weakAreas); return weakAreas; }
     return [];
   };
 
@@ -314,6 +325,26 @@ Keep descriptions under 15 words. 2-3 skills per week.`,
       { week: 'Week 3', title: 'Advanced Topics', desc: `Build production-ready expertise`, skills: missingSkills.slice(2,4) },
       { week: 'Week 4', title: 'Capstone Project', desc: `Apply all skills in a real project`, skills: missingSkills.slice(0,3) },
     ];
+  };
+
+  const getAIRecommendations = async () => {
+    setRecommendationLoading(true);
+    try {
+      const weakestAssessment = myAssessments.length > 0
+        ? myAssessments.reduce((w: any, a: any) => (!w || a.score < w.score) ? a : w, null)
+        : null;
+      const skillName = weakestAssessment?.skill || (aiSkillSuggestions[0]?.name) || targetRole || 'Python';
+      const score = weakestAssessment?.score ?? 0;
+      const breakdown = weakestAssessment?.skillBreakdown;
+      setSelectedSkill(skillName);
+      const missing = await aiGenerateSkillGap(skillName, score, breakdown);
+      await aiGenerateLearningPath(skillName, missing.length > 0 ? missing : generateSkillsCoveredFallback(skillName));
+      setStep('skill-gap');
+    } catch {
+      setStep('skill-gap');
+    } finally {
+      setRecommendationLoading(false);
+    }
   };
 
   const parseJSONObject = (str: string): any => {
@@ -340,19 +371,103 @@ Keep descriptions under 15 words. 2-3 skills per week.`,
     const skillToUse = skill || selectedSkill;
     if (!skillToUse) return;
     setLoading(true);
+    // Clear any cached questions from previous skill to prevent bleed-over
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('zyncjobs-skill-cache') || k.startsWith('assessment_questions_') || k.startsWith('zyncjobs-questions-'))
+        .forEach(k => localStorage.removeItem(k));
+    } catch { }
 try {
       const aiQuestions: any[] = [];
-      // Generate questions per type
+      // Generate exactly the specified distribution for EACH type
+      // Enforce the documented question distribution:
+      // MCQ – 5, Coding – 2, Debugging – 3, Scenario – 3 (Total: 13)
       for (const type of questionTypes) {
-        const prompt = type === 'mcq' ? `Generate 5 MCQ questions for ${skillToUse}. Return JSON array: [{question, options:[4], correct:index}]` :
-          type === 'coding' ? `Generate 2 coding challenges for ${skillToUse}. Return JSON array: [{title, description, starterCode, testCases}]` :
-          type === 'debugging' ? `Generate 3 debugging questions for ${skillToUse}. Return JSON array: [{buggyCode, description, fixHint}]` :
-          type === 'scenario' ? `Generate 3 scenario-based questions for ${skillToUse}. Return JSON array: [{scenario, question, expectedPoints:[]}]` : '[]';
-        const data = await executeAI(`skill assessment: ${prompt}`, { systemPrompt: 'You are a technical assessment creator. Return ONLY valid JSON. No markdown.' });
-        const reply = (data as any)?.result?.reply || (data as any)?.result?.advice || '[]';
-        const parsed = parseJSONArray(reply);
-        if (parsed.length > 0) aiQuestions.push(...parsed.map((q: any) => ({ ...q, type })));
+        let targetCount = 0;
+        switch (type) {
+          case 'mcq': targetCount = 5; break;
+          case 'coding': targetCount = 2; break;
+          case 'debugging': targetCount = 3; break;
+          case 'scenario': targetCount = 3; break;
+          default: targetCount = 5;
+        }
+
+        let generatedQuestions = [];
+        // Check skill+type specific cache first
+        const qCacheKey = getQuestionCacheKey(skillToUse, type);
+        try {
+          const cached = localStorage.getItem(qCacheKey);
+          if (cached) generatedQuestions = JSON.parse(cached);
+        } catch { }
+        if (generatedQuestions.length < targetCount) {
+        try {
+          const prompt = type === 'mcq'
+                ? `Generate exactly ${targetCount} MCQ questions specifically about ${skillToUse} concepts, syntax, and best practices. Each question must be unique and directly test ${skillToUse} knowledge. Return ONLY a JSON array: [{"question":"...","options":["A","B","C","D"],"correct":0}]. No extra text.`
+                : type === 'coding'
+                ? `Generate exactly ${targetCount} coding challenges that ONLY use ${skillToUse}. Each challenge must be a real ${skillToUse}-specific problem (NOT palindrome, NOT generic). Examples for context: if skill is React generate hooks/component challenges, if Python generate list comprehension/OOP, if SQL generate JOIN/aggregation queries, if AWS generate SDK/boto3 tasks. Return ONLY a JSON array: [{"title":"${skillToUse}-specific title","description":"problem description","starterCode":"// ${skillToUse} starter code here","testCases":[{"input":"...","expected":"..."}]}]. No extra text.`
+                : type === 'debugging'
+                ? `Generate exactly ${targetCount} debugging questions with buggy ${skillToUse} code snippets. Each snippet must contain a real ${skillToUse}-specific bug. Return ONLY a JSON array: [{"description":"what to find","buggyCode":"actual ${skillToUse} code with bug","fixHint":"hint"}]. No extra text.`
+                : type === 'scenario'
+                ? `Generate exactly ${targetCount} real-world scenario questions for a ${skillToUse} developer. Each scenario must be specific to ${skillToUse} use cases. Return ONLY a JSON array: [{"scenario":"real ${skillToUse} situation","question":"what would you do?","expectedPoints":["point1","point2"]}]. No extra text.`
+                : '[]';
+          const data = await executeAI(`skill assessment: ${prompt}`, { systemPrompt: 'You are a technical assessment creator. Return ONLY valid JSON. Generate the exact number of questions specified.' });
+          const reply = (data as any)?.result?.reply || (data as any)?.result?.advice || '[]';
+          const parsed = parseJSONArray(reply);
+          generatedQuestions = Array.isArray(parsed) ? parsed : [];
+          if (generatedQuestions.length > 0) {
+            try { localStorage.setItem(qCacheKey, JSON.stringify(generatedQuestions)); } catch { }
+          }
+        } catch (e) {}
+        }
+
+        // Validate and fix generated questions
+        const validQuestions = generatedQuestions
+          .filter((q: any) => (type === 'mcq' && q.question && Array.isArray(q.options) && q.options.length >= 2 && typeof q.correct !== 'undefined') ||
+                       (type === 'coding' && q.title && q.description) ||
+                       (type === 'debugging' && q.buggyCode && q.description) ||
+                       (type === 'scenario' && q.scenario && q.question))
+          .slice(0, targetCount);
+
+        // If not enough valid questions, use fallback
+        if (validQuestions.length < targetCount) {
+          const fallback = generateFallbackQuestions(skillToUse, [type]);
+          const typeFallback = fallback.filter(q => q.type === type).slice(0, Math.max(0, targetCount - validQuestions.length));
+          validQuestions.push(...typeFallback);
+        }
+
+        // Ensure we have exactly the target count
+        const finalQuestions = validQuestions.slice(0, targetCount);
+        if (finalQuestions.length > 0) {
+          aiQuestions.push(...finalQuestions.map((q: any) => ({ ...q, type })));
+        } else {
+          // Ultimate fallback
+          const fallback = type === 'mcq' ? 'No MCQ questions available' :
+                         type === 'coding' ? 'No coding challenges available' :
+                         type === 'debugging' ? 'No debugging questions available' :
+                         type === 'scenario' ? 'No scenario questions available' : '';
+          aiQuestions.push({
+            type,
+            question: `No questions available for ${type} assessment`,
+            description: fallback,
+            title: type === 'coding' ? 'Coding Challenge' : undefined,
+            scenario: type === 'scenario' ? 'Scenario' : undefined,
+            buggyCode: type === 'debugging' ? 'const bug = require(`./bugs/${skillToUse}.js`);' : undefined,
+            options: type === 'mcq' ? ['Option 1', 'Option 2', 'Option 3', 'Option 4'] : undefined,
+            correct: type === 'mcq' ? 0 : undefined,
+            starterCode: type === 'coding' ? `// ${skillToUse} assessment\nfunction solution() {\n  // Implement here\n}` : undefined,
+            testCases: type === 'coding' ? [] : undefined,
+            expectedPoints: type === 'scenario' ? [] : undefined,
+          });
+        }
       }
+      // Validate distribution
+      const counts: Record<string, number> = { mcq: 0, coding: 0, debugging: 0, scenario: 0 };
+      aiQuestions.forEach((q: any) => {
+        const questionType = String(q?.type ?? '');
+        if (counts[questionType] !== undefined) counts[questionType]++;
+      });
+
+      console.log('Question distribution:', counts);
       // Fallback if AI fails
       const questions = aiQuestions.length >= 5 ? aiQuestions : generateFallbackQuestions(skillToUse, questionTypes);
       const skillsCovered = await aiGenerateSkillsCovered(skillToUse);
@@ -361,9 +476,9 @@ try {
         skill: skillToUse,
         questions,
         totalQuestions: questions.length,
-        timeLimit: Math.max(30, Math.round(questions.length * 2.5)),
+        timeLimit: computeDurationMinutes(questions.length),
         passingScore: 70,
-        difficulty: aiDifficulty,
+        difficulty: assessmentDifficulty,
         skillsCovered,
       });
       setAnswers(new Array(questions.length).fill(null));
@@ -378,9 +493,9 @@ try {
         skill: skillToUse,
         questions,
         totalQuestions: questions.length,
-        timeLimit: Math.max(30, Math.round(questions.length * 2.5)),
+        timeLimit: computeDurationMinutes(questions.length),
         passingScore: 70,
-        difficulty: aiDifficulty,
+        difficulty: assessmentDifficulty,
         skillsCovered,
       });
       setAnswers(new Array(questions.length).fill(null));
@@ -390,12 +505,14 @@ try {
     } finally { setLoading(false); }
   };
 
-  const setTimeLimitFromQuestions = (count: number) => {
-    // Assessment types affect time
+  const computeDurationMinutes = (count: number) => {
     const hasCoding = questionTypes.includes('coding');
-    const hasViva = questionTypes.includes('viva');
     const base = count * (hasCoding ? 4 : 2);
-    setTimeLeft(Math.max(15 * 60, Math.min(120 * 60, base * 60)));
+    return Math.max(15, Math.min(120, base));
+  };
+
+  const setTimeLimitFromQuestions = (count: number) => {
+    setTimeLeft(computeDurationMinutes(count) * 60);
   };
 
   const parseJSONArray = (str: string): any[] => {
@@ -501,13 +618,18 @@ try {
   const generateGenericForSkill = (skill: string, types?: string[]) => {
     const activeTypes = types || questionTypes;
     const all = [
-    { type: 'mcq', question: `What is the main purpose of ${skill}?`, options: ['Web development', 'Data processing', 'Depends on use case', 'All of the above'], correct: 3 },
-    { type: 'mcq', question: `Which feature is most important in ${skill}?`, options: ['Performance', 'Scalability', 'Ease of use', 'Depends on context'], correct: 3 },
-    { type: 'mcq', question: `How do you debug ${skill} code?`, options: ['Logging', 'Debugger', 'Both', 'Neither'], correct: 2 },
-    { type: 'mcq', question: `Which tool integrates well with ${skill}?`, options: ['Git', 'Docker', 'CI/CD', 'All of the above'], correct: 3 },
-    { type: 'mcq', question: `What is best practice for ${skill}?`, options: ['Write clean code', 'Test thoroughly', 'Document', 'All of the above'], correct: 3 },
-    { type: 'scenario', scenario: `Critical bug in ${skill} production code`, question: 'How do you resolve?', expectedPoints: ['Identify root cause', 'Write fix', 'Test', 'Deploy', 'Monitor'] },
-  ];
+      { type: 'mcq', question: `What is the main purpose of ${skill}?`, options: ['Web development', 'Data processing', 'Depends on use case', 'All of the above'], correct: 3 },
+      { type: 'mcq', question: `Which feature is most important in ${skill}?`, options: ['Performance', 'Scalability', 'Ease of use', 'Depends on context'], correct: 3 },
+      { type: 'mcq', question: `How do you debug ${skill} code?`, options: ['Logging', 'Debugger', 'Both', 'Neither'], correct: 2 },
+      { type: 'mcq', question: `Which tool integrates well with ${skill}?`, options: ['Git', 'Docker', 'CI/CD', 'All of the above'], correct: 3 },
+      { type: 'mcq', question: `What is best practice for ${skill}?`, options: ['Write clean code', 'Test thoroughly', 'Document', 'All of the above'], correct: 3 },
+      { type: 'scenario', scenario: `Critical bug in ${skill} production code`, question: 'How do you resolve?', expectedPoints: ['Identify root cause', 'Write fix', 'Test', 'Deploy', 'Monitor'] },
+      { type: 'scenario', scenario: `Scaling a ${skill} application`, question: 'What strategies would you apply?', expectedPoints: ['Profiling', 'Caching', 'Load balancing', 'Optimize queries'] },
+      { type: 'coding', title: `${skill} Core Implementation`, description: `Implement a core utility function commonly used in ${skill} development`, starterCode: `// ${skill} implementation\n// Write your solution below\n\nfunction solution(input) {\n  // TODO: implement\n}` },
+      { type: 'coding', title: `${skill} Data Processing`, description: `Write a ${skill} function to process and transform a dataset`, starterCode: `// ${skill} data processing\n\nfunction processData(data) {\n  // TODO: filter, transform, and return result\n}` },
+      { type: 'debugging', description: `Find and fix the bug in this ${skill} code`, buggyCode: `// Buggy ${skill} code\nfunction calculate(items) {\n  let total = 0;\n  for (let i = 0; i <= items.length; i++) { // Bug: should be <\n    total += items[i].value;\n  }\n  return total;\n}`, fixHint: `Check the loop boundary condition` },
+      { type: 'debugging', description: `This ${skill} async function has a bug`, buggyCode: `// Buggy async ${skill} code\nasync function fetchData(url) {\n  const res = fetch(url); // Bug: missing await\n  return res.json();\n}`, fixHint: 'Check async/await usage' },
+    ];
     return all.filter((q: any) => activeTypes.includes(q.type));
   };
 
@@ -518,7 +640,7 @@ try {
       const a = answers[i];
       // support both field names: fallback questions use `correct`, AI questions use `correctAnswer`
       const correctIdx = q.correct !== undefined ? q.correct : q.correctAnswer;
-      const isCorrect = correctIdx !== undefined && a === correctIdx;
+      const isCorrect = correctIdx !== undefined && a !== null && a !== undefined && Number(a) === Number(correctIdx);
       if (isCorrect) correctCount++;
       return { ...q, correct: correctIdx, userAnswer: a, isCorrect, points: isCorrect ? 10 : 0 };
     });
@@ -547,10 +669,10 @@ try {
       skill: selectedSkill,
       score: overallScore,
       mcqScore,
-      vivaScore: vivaScore || 0,
+      vivaScore: 0,
       correctCount,
       totalQuestions: assessment.totalQuestions,
-      timeSpent: (assessment.timeLimit * 60) - timeLeft,
+      timeSpent: Math.max(0, (assessment.timeLimit * 60) - timeLeft),
       passingScore: 70,
       passed: overallScore >= 70,
       questions: questionResults,
@@ -573,7 +695,7 @@ try {
             score: overallScore,
             questions: questionResults,
             answers,
-            timeSpent: (assessment.timeLimit * 60) - timeLeft,
+            timeSpent: Math.max(0, (assessment.timeLimit * 60) - timeLeft),
             skillBreakdown,
             difficulty: assessment.difficulty,
             passed: overallScore >= 70,
@@ -590,61 +712,41 @@ try {
 
   const startAssessment = () => { setStep('in-progress'); setCurrentQ(0); };
 
-  const startViva = async () => {
-    setAiVivaMessages([{ role: 'ai', content: `Hello! I'll interview you on ${selectedSkill}. Let's start with a basic question.` }]);
-    setVivaScore(0);
-    setVivaQCount(0);
-    // Generate first question
-    const data = await executeAI(`skill assessment: Ask an interview question about ${selectedSkill}. Just one question, no extra text.`, { systemPrompt: 'You are a technical interviewer.' });
-    const reply = (data as any)?.result?.reply || `Explain the core concepts of ${selectedSkill}.`;
-    setAiVivaMessages(prev => [...prev, { role: 'ai', content: reply }]);
-  };
-
-  const sendVivaAnswer = async () => {
-    if (!vivaInput.trim()) return;
-    setAiVivaMessages(prev => [...prev, { role: 'user', content: vivaInput }]);
-    const answer = vivaInput;
-    setVivaInput('');
-    const data = await executeAI(
-      `skill assessment: Candidate answered: "${answer}". Score out of 10 and feedback in short. Then ask next question.`,
-      { systemPrompt: `You are interviewing for ${selectedSkill}. Be professional.` }
-    );
-    const reply = (data as any)?.result?.reply || 'Good answer. Next question...';
-    setAiVivaMessages(prev => [...prev, { role: 'ai', content: reply }]);
-    setVivaQCount(c => c + 1);
-    setVivaScore(s => Math.min(100, s + 8 + Math.floor(Math.random() * 5)));
-  };
-
   const askMentor = async () => {
     if (!mentorInput.trim() || mentorLoading) return;
-    const q = mentorInput;
-    setMentorChat(prev => [...prev, { role: 'user', content: q }]);
+    const userQuestion = mentorInput;
+    setMentorChat(prev => [...prev, { role: 'user', content: userQuestion }]);
     setMentorInput('');
     setMentorLoading(true);
 
-    // Build structured question list with num, question text, options, answers
-    const questions = (result?.questions || []).map((q: any, i: number) => ({
-      num: i + 1,
-      question: q.question || q.title || q.scenario || '',
-      options: q.options || [],
-      userAnswer: q.options?.[q.userAnswer] ?? (q.userAnswer != null ? String(q.userAnswer) : 'Not answered'),
-      correctAnswer: q.correct !== undefined ? (q.options?.[q.correct] ?? String(q.correct)) : 'Open ended',
-      isCorrect: q.isCorrect ?? false,
-    }));
+    const skill = result?.skill ?? selectedSkill;
+    const score = result?.score ?? 0;
+
+    // Inline the assessment context into the prompt so the AI answers the current question
+    const questionSummary = (result?.questions || []).map((q: any, i: number) => {
+      const qText = q.question || q.title || q.scenario || q.description || `Question ${i + 1}`;
+      const userAns = q.options?.[q.userAnswer] ?? (q.userAnswer != null ? String(q.userAnswer) : 'Not answered');
+      const correctAns = q.correct !== undefined ? (q.options?.[q.correct] ?? String(q.correct)) : 'Open ended';
+      const status = q.correct === undefined ? 'open-ended' : q.isCorrect ? 'correct' : 'wrong';
+      return `Q${i + 1} [${status}]: ${qText}${q.options ? ` | User: ${userAns} | Correct: ${correctAns}` : ''}`;
+    }).join('\n');
+
+    const systemPrompt = `You are an AI Mentor for a ${skill} skill assessment. The student scored ${score}%.
+
+Assessment questions and results:
+${questionSummary || 'No questions available.'}
+
+Answer the student's question directly and specifically based on the assessment above. Do NOT describe platform features. Give a clear, educational explanation.`;
 
     try {
       const data = await executeAI(
-        `mentor: ${q}`,
-        {
-          skill: result?.skill ?? selectedSkill,
-          score: result?.score ?? 0,
-          questions,
-        }
+        `mentor: ${userQuestion}`,
+        { systemPrompt, history: mentorChat.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })) }
       );
-      const reply = (data as any)?.result?.reply;
+      const reply = (data as any)?.result?.reply || (data as any)?.result?.advice;
       setMentorChat(prev => [...prev, {
         role: 'ai',
-        content: reply || 'I could not find that question in your results. Try asking "Why was question 2 wrong?" or "Explain my mistakes".',
+        content: reply || 'I could not generate an explanation. Try asking "Why was question 2 wrong?" or "Explain the correct answer for Q3".',
       }]);
     } catch {
       setMentorChat(prev => [...prev, { role: 'ai', content: 'Having trouble connecting. Please try again.' }]);
@@ -860,7 +962,7 @@ try {
               </div>
 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {filteredSkills.length > 0 ? (
-                  filteredSkills.map((s: any, i: number) => {
+                  filteredSkills.map((s: any) => {
                     const SkillIcon = skillIconMapComp[s.icon] || Code;
                     return (
                       <button key={s.name} onClick={() => { setSelectedSkill(s.name); generateAssessment(s.name); }}
@@ -992,9 +1094,10 @@ try {
               <p className="text-white/90 text-sm leading-relaxed mb-4">
                 {aiCoachMessage || 'Start your first assessment to unlock personalized AI recommendations.'}
               </p>
-              <button onClick={() => { if (aiSkillSuggestions.length > 0) { setSelectedSkill(aiSkillSuggestions[0].name); generateAssessment(aiSkillSuggestions[0].name); } }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/15 backdrop-blur-sm text-white rounded-xl text-xs font-semibold hover:bg-white/25 transition-all border border-white/10">
-                <Lightbulb className="w-3.5 h-3.5" /> Get AI Recommendation
+              <button onClick={getAIRecommendations} disabled={recommendationLoading}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/15 backdrop-blur-sm text-white rounded-xl text-xs font-semibold hover:bg-white/25 transition-all border border-white/10 disabled:opacity-60 disabled:cursor-not-allowed">
+                {recommendationLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Lightbulb className="w-3.5 h-3.5" />}
+                {recommendationLoading ? 'Analyzing...' : 'Get AI Recommendation'}
               </button>
             </div>
 
@@ -1065,7 +1168,7 @@ try {
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
                   <RotateCcw className="w-3.5 h-3.5" /> New Assessment
                 </button>
-                <button onClick={() => setAiMentorOpen(true)}
+                <button onClick={() => { setAiMentorOpen(true); setMentorChat([]); }}
                   className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-all">
                   <Bot className="w-3.5 h-3.5" /> AI Mentor Chat
                 </button>
@@ -1083,6 +1186,74 @@ try {
         </div>
       </div>
       <Footer onNavigate={onNavigate} />
+
+      {/* ── FLOATING AI MENTOR MODAL (available on all steps) ── */}
+      {aiMentorOpen && step === 'dashboard' && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '80vh' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">AI Mentor</p>
+                  <p className="text-xs text-gray-400">Ask anything about your skills or assessments</p>
+                </div>
+              </div>
+              <button onClick={() => setAiMentorOpen(false)} className="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors">
+                <X className="w-4 h-4 text-gray-500" />
+              </button>
+            </div>
+            {/* Chat */}
+            <div ref={mentorChatRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-[200px]">
+              {mentorChat.length === 0 && (
+                <div className="text-center py-8">
+                  <Bot className="w-10 h-10 text-indigo-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-500">Hi! I'm your AI Mentor.</p>
+                  <p className="text-xs text-gray-400 mt-1">Ask me about any skill, concept, or how to improve your assessment scores.</p>
+                </div>
+              )}
+              {mentorChat.map((m, i) => (
+                <div key={i} className={`flex gap-2 ${m.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${
+                    m.role === 'ai' ? 'bg-gradient-to-br from-indigo-500 to-purple-600 text-white' : 'bg-slate-200 text-slate-600'
+                  }`}>{m.role === 'ai' ? 'AI' : 'U'}</div>
+                  <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed ${
+                    m.role === 'ai' ? 'bg-gray-50 border border-gray-100 text-gray-700' : 'bg-indigo-600 text-white'
+                  }`}>{m.content}</div>
+                </div>
+              ))}
+              {mentorLoading && (
+                <div className="flex gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs flex-shrink-0">AI</div>
+                  <div className="bg-gray-50 border border-gray-100 px-4 py-2.5 rounded-2xl">
+                    <div className="flex gap-1 items-center">
+                      {[0, 150, 300].map(d => <span key={d} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Input */}
+            <div className="px-5 py-4 border-t border-gray-100">
+              <div className="flex gap-2">
+                <input
+                  type="text" value={mentorInput} onChange={e => setMentorInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && askMentor()}
+                  placeholder="Ask about any skill or concept..."
+                  className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500/40"
+                  autoFocus
+                />
+                <button onClick={askMentor} disabled={mentorLoading || !mentorInput.trim()} className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center hover:bg-indigo-700 transition-colors disabled:opacity-50">
+                  {mentorLoading ? <Loader2 className="w-4 h-4 text-white animate-spin" /> : <Send className="w-4 h-4 text-white" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -1236,11 +1407,19 @@ try {
                   <span className="text-xs text-slate-500 ml-2">code-editor</span>
                 </div>
                 <textarea
-                  value={answers[currentQ] || currentQuestion.starterCode || ''}
+                  value={answers[currentQ] !== null && answers[currentQ] !== undefined ? answers[currentQ] : (currentQuestion.starterCode || '')}
                   onChange={e => { const a = [...answers]; a[currentQ] = e.target.value; setAnswers(a); }}
+                  onFocus={() => { if (answers[currentQ] === null || answers[currentQ] === undefined) { const a = [...answers]; a[currentQ] = currentQuestion.starterCode || ''; setAnswers(a); } }}
                   className="w-full bg-transparent text-sm text-slate-200 font-mono p-4 outline-none resize-none min-h-[200px]"
                   placeholder="Write your code here..."
                 />
+                <div className="flex items-center justify-between px-4 py-2 border-t border-slate-700/50">
+                  <span className="text-xs text-slate-500">You can clear and rewrite from scratch</span>
+                  <button
+                    onClick={() => { const a = [...answers]; a[currentQ] = ''; setAnswers(a); }}
+                    className="text-xs text-slate-400 hover:text-red-400 transition-colors px-2 py-1 rounded hover:bg-slate-800"
+                  >Clear All</button>
+                </div>
               </div>
             </div>
           )}
@@ -1456,7 +1635,7 @@ try {
           <button onClick={async () => {
             const skill = result?.skill || selectedSkill;
             const score = result?.score ?? 0;
-            try { await aiGenerateSkillGap(skill, score); } catch {}
+            try { await aiGenerateSkillGap(skill, score, result?.skillBreakdown); } catch {}
             setStep('skill-gap');
           }}
             className="flex-1 border border-gray-200 text-gray-700 py-3.5 rounded-2xl font-medium hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
@@ -1538,12 +1717,31 @@ try {
   );
 
   // ── SKILL GAP ──────────────────────────────────────────────────────────────
-  if (step === 'skill-gap') return (
+  if (step === 'skill-gap') {
+    const gapSkill = result?.skill || selectedSkill;
+    const currentScore = result?.score ?? 0;
+    const breakdown: Record<string, number> = result?.skillBreakdown || {};
+    const weakSubSkills = Object.entries(breakdown).filter(([, s]) => s < 70).sort(([, a], [, b]) => a - b);
+    const strongSubSkills = Object.entries(breakdown).filter(([, s]) => s >= 70).sort(([, a], [, b]) => b - a);
+
+    // Auto-load missing skills if not yet populated
+    const handleEnterSkillGap = async () => {
+      if (aiMissingSkills.length === 0 && gapSkill) {
+        setSkillGapLoading(true);
+        try {
+          await aiGenerateSkillGap(gapSkill, currentScore, breakdown);
+        } finally {
+          setSkillGapLoading(false);
+        }
+      }
+    };
+
+    return (
     <div className="min-h-screen bg-gray-50">
       <Header onNavigate={onNavigate} user={user} onLogout={onLogout} />
       <div className="max-w-3xl mx-auto px-4 py-12">
-        <button onClick={() => setStep('result')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
-          <ChevronLeft className="w-4 h-4" /> Back to Results
+        <button onClick={() => result ? setStep('result') : setStep('dashboard')} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
+          <ChevronLeft className="w-4 h-4" /> {result ? 'Back to Results' : 'Back to Dashboard'}
         </button>
 
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8">
@@ -1553,58 +1751,131 @@ try {
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">Skill Gap Analysis</h2>
-              <p className="text-sm text-gray-500">Target: Senior {result?.skill || selectedSkill} Developer</p>
+              <p className="text-sm text-gray-500">Target: Senior {gapSkill} Developer</p>
             </div>
           </div>
 
           {/* Current vs Required */}
           <div className="grid grid-cols-2 gap-6 mb-8">
-            {[
-              { label: 'Current Score', value: result?.score || 0, color: 'text-indigo-600' },
-              { label: 'Required', value: 85, color: 'text-emerald-600' },
-            ].map((s, i) => (
-              <div key={i} className="text-center bg-gray-50 rounded-2xl p-6">
-                <div className={`text-4xl font-black ${s.color} mb-1`}>{s.value}%</div>
-                <div className="text-sm text-gray-500">{s.label}</div>
-              </div>
-            ))}
+            <div className="text-center bg-gray-50 rounded-2xl p-6">
+              <div className="text-4xl font-black text-indigo-600 mb-1">{currentScore}%</div>
+              <div className="text-sm text-gray-500">Current Score</div>
+            </div>
+            <div className="text-center bg-gray-50 rounded-2xl p-6">
+              <div className="text-4xl font-black text-emerald-600 mb-1">85%</div>
+              <div className="text-sm text-gray-500">Required for Senior</div>
+            </div>
           </div>
 
           {/* Gap Bar */}
           <div className="mb-8">
             <div className="flex justify-between text-xs text-gray-500 mb-2">
-              <span>Current: {result?.score || 0}%</span>
-              <span>Gap: {85 - (result?.score || 0)}%</span>
+              <span>Current: {currentScore}%</span>
+              <span className={currentScore >= 85 ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold'}>
+                {currentScore >= 85 ? 'Target reached! 🎉' : `Gap: ${85 - currentScore}%`}
+              </span>
               <span>Target: 85%</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-4 relative overflow-hidden">
-              <div className="bg-indigo-500 h-4 rounded-full" style={{ width: `${result?.score || 0}%` }} />
-              <div className="absolute top-0 right-0 h-4 bg-emerald-500/30" style={{ width: `${Math.max(0, 85 - (result?.score || 0))}%`, left: `${result?.score || 0}%` }} />
+              <div className="bg-indigo-500 h-4 rounded-full transition-all duration-700" style={{ width: `${currentScore}%` }} />
+              {currentScore < 85 && (
+                <div className="absolute top-0 h-4 bg-emerald-500/30" style={{ left: `${currentScore}%`, width: `${85 - currentScore}%` }} />
+              )}
               <div className="absolute top-0 border-l-2 border-dashed border-emerald-500 h-4" style={{ left: '85%' }} />
             </div>
           </div>
 
-          {/* Missing Skills */}
-          <h3 className="font-semibold text-gray-900 mb-4">Missing Skills to Target</h3>
-          <div className="space-y-3">
-            {(aiMissingSkills.length > 0 ? aiMissingSkills : []).map((skill, i) => (
-              <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-800">{typeof skill === 'string' ? skill : skill.name || skill}</p>
-                  <p className="text-xs text-gray-500">Not yet assessed</p>
-                </div>
-                <button onClick={() => { const name = typeof skill === 'string' ? skill : skill.name || skill; setSelectedSkill(name); generateAssessment(name); }}
-                  className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
-                  Assess
-                </button>
+          {/* Sub-skill breakdown from actual assessment */}
+          {Object.keys(breakdown).length > 0 && (
+            <div className="mb-8">
+              <h3 className="font-semibold text-gray-900 mb-4">Your {gapSkill} Sub-skill Scores</h3>
+              <div className="space-y-3">
+                {Object.entries(breakdown).sort(([, a], [, b]) => b - a).map(([skill, score]) => (
+                  <div key={skill}>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="font-medium text-gray-700">{skill}</span>
+                      <span className={`font-bold ${score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'}`}>{score}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div className={`h-2 rounded-full transition-all duration-500 ${score >= 80 ? 'bg-emerald-500' : score >= 60 ? 'bg-amber-400' : 'bg-red-400'}`}
+                        style={{ width: `${score}%` }} />
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* Strong areas */}
+          {strongSubSkills.length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-gray-900 mb-3">Strong Areas</h3>
+              <div className="flex flex-wrap gap-2">
+                {strongSubSkills.map(([skill, score]) => (
+                  <span key={skill} className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-medium border border-emerald-200">
+                    {skill} · {score}%
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Missing / weak skills */}
+          <h3 className="font-semibold text-gray-900 mb-4">Skills to Improve</h3>
+          {skillGapLoading ? (
+            <div className="flex items-center gap-3 py-6 text-gray-400">
+              <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+              <span className="text-sm">Analyzing your assessment results...</span>
+            </div>
+          ) : aiMissingSkills.length > 0 ? (
+            <div className="space-y-3">
+              {aiMissingSkills.map((skill, i) => {
+                const name = typeof skill === 'string' ? skill : (skill as any).name || skill;
+                const subScore = breakdown[name];
+                return (
+                  <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-800">{name}</p>
+                      <p className="text-xs text-gray-500">
+                        {subScore !== undefined ? `Scored ${subScore}% — needs improvement` : 'Not yet assessed'}
+                      </p>
+                    </div>
+                    <button onClick={() => { setSelectedSkill(name); generateAssessment(name); }}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+                      Assess
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {weakSubSkills.length > 0 ? weakSubSkills.map(([skill, score]) => (
+                <div key={skill} className="flex items-center gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800">{skill}</p>
+                    <p className="text-xs text-gray-500">Scored {score}% — needs improvement</p>
+                  </div>
+                  <button onClick={() => { setSelectedSkill(skill); generateAssessment(skill); }}
+                    className="text-xs font-semibold text-indigo-600 hover:text-indigo-800">Assess</button>
+                </div>
+              )) : (
+                <div className="text-center py-6">
+                  <button onClick={handleEnterSkillGap}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors">
+                    <Sparkles className="w-4 h-4" /> Generate AI Skill Gap
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <button onClick={async () => {
-          await aiGenerateLearningPath(result?.skill || selectedSkill, aiMissingSkills);
+          const missing = aiMissingSkills.length > 0 ? aiMissingSkills : weakSubSkills.map(([s]) => s);
+          await aiGenerateLearningPath(gapSkill, missing.length > 0 ? missing : generateSkillsCoveredFallback(gapSkill));
           setStep('learning-path');
         }}
           className="w-full mt-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3.5 rounded-2xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-200">
@@ -1613,7 +1884,8 @@ try {
       </div>
       <Footer onNavigate={onNavigate} />
     </div>
-  );
+    );
+  }
 
   // ── LEARNING PATH ──────────────────────────────────────────────────────────
   if (step === 'learning-path') return (
@@ -1671,13 +1943,12 @@ try {
               )}
             </div>
           </div>
+          <button onClick={() => onNavigate('home')}
+            className="mt-6 w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3.5 rounded-2xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-200">
+            <Briefcase className="w-4 h-4" /> Browse Matching Jobs
+          </button>
         </div>
       </div>
-
-      <button onClick={() => onNavigate('home')}
-        className="w-full mt-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white py-3.5 rounded-2xl font-semibold hover:from-emerald-700 hover:to-teal-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-200">
-        <Briefcase className="w-4 h-4" /> Browse Matching Jobs
-      </button>
       <Footer onNavigate={onNavigate} />
     </div>
   );

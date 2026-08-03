@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useResumeStore } from '../../store/useResumeStore';
 
 interface FieldProps {
@@ -11,14 +11,8 @@ interface FieldProps {
   error?: string;
 }
 
-function Field({ label, required, value, onChange, placeholder, type = 'text', error }: FieldProps) {
+function Field({ label, required, value, onChange, placeholder, type = 'text' }: FieldProps) {
   const [touched, setTouched] = useState(false);
-  const ref = React.useRef<HTMLInputElement>(null);
-
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-  }, [onChange]);
-
   const showError = touched && required && !value.trim();
   return (
     <div>
@@ -26,10 +20,9 @@ function Field({ label, required, value, onChange, placeholder, type = 'text', e
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
-        ref={ref}
         type={type}
         value={value}
-        onChange={handleChange}
+        onChange={(e) => onChange(e.target.value)}
         onBlur={() => setTouched(true)}
         placeholder={placeholder}
         className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
@@ -50,7 +43,7 @@ export default function PersonalInfoStep() {
       <div>
         <h2 className="text-xl font-bold text-gray-900">Personal Information</h2>
         <p className="text-sm text-gray-500 mt-0.5">Tell us about yourself</p>
-        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-amber-400">💡</span> Add <span className="text-amber-500 font-medium">LinkedIn</span> and <span className="text-amber-500 font-medium">Portfolio</span> — recruiters check these to verify your background</p>
+        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Add <span className="text-amber-500 font-medium">LinkedIn</span> and <span className="text-amber-500 font-medium">Portfolio</span> — recruiters check these to verify your background</p>
       </div>
 
       {/* Upload Resume Banner */}
@@ -71,12 +64,12 @@ export default function PersonalInfoStep() {
       </label>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Field label="Full Name" required value={personalInfo.name} onChange={(v) => updatePersonalInfo('name', v)} placeholder="e.g. Priya Sharma" />
-        <Field label="Email" required value={personalInfo.email} onChange={(v) => updatePersonalInfo('email', v)} placeholder="e.g. priya@gmail.com" type="email" />
-        <Field label="Phone" required value={personalInfo.phone} onChange={(v) => updatePersonalInfo('phone', v)} placeholder="e.g. +91 98765 43210" type="tel" />
-        <Field label="Location" required value={personalInfo.location} onChange={(v) => updatePersonalInfo('location', v)} placeholder="e.g. Bangalore, India" />
-        <Field label="LinkedIn" value={personalInfo.linkedin} onChange={(v) => updatePersonalInfo('linkedin', v)} placeholder="e.g. linkedin.com/in/priyasharma" type="url" />
-        <Field label="Portfolio" value={personalInfo.portfolio} onChange={(v) => updatePersonalInfo('portfolio', v)} placeholder="e.g. priyasharma.dev" type="url" />
+        <Field label="Full Name" required value={personalInfo.name} onChange={(v) => updatePersonalInfo('name', v)} placeholder="Enter your full name" />
+        <Field label="Email" required value={personalInfo.email} onChange={(v) => updatePersonalInfo('email', v)} placeholder="Enter your email address" type="email" />
+        <Field label="Phone" required value={personalInfo.phone} onChange={(v) => updatePersonalInfo('phone', v)} placeholder="Enter your phone number" type="tel" />
+        <Field label="Location" required value={personalInfo.location} onChange={(v) => updatePersonalInfo('location', v)} placeholder="Enter your city and country" />
+        <Field label="LinkedIn" value={personalInfo.linkedin} onChange={(v) => updatePersonalInfo('linkedin', v)} placeholder="Enter your LinkedIn profile URL" type="url" />
+        <Field label="Portfolio" value={personalInfo.portfolio} onChange={(v) => updatePersonalInfo('portfolio', v)} placeholder="Enter your portfolio or website URL" type="url" />
       </div>
     </div>
   );

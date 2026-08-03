@@ -30,10 +30,10 @@ async function hashText(text: string): Promise<string> {
 }
 
 // ─── Known institution keywords ───────────────────────────────────────────────
-const INSTITUTION_KEYWORDS = /\b(university|college|institute|school|academy|polytechnic|iit|nit|licet|loyola|icam|mat\.hr|matriculation|higher secondary|secondary|sslc|hsc|cbse|state board|engineering|technology|science|arts|commerce)\b/i;
+const INSTITUTION_KEYWORDS = /\b(university|college|institute|school|academy|polytechnic|iit|nit|licet|loyola|icam|matriculation|higher secondary|secondary)\b/i;
 
 // ─── Known degree keywords ────────────────────────────────────────────────────
-const DEGREE_KEYWORDS = /\b(b\.?tech|b\.?e|b\.?sc|b\.?com|b\.?a|m\.?tech|m\.?e|m\.?sc|mba|m\.?a|ph\.?d|bachelor|master|diploma|sslc|hsc|10th|12th|standard|information technology|computer science|engineering|data science|electronics|mechanical|civil|electrical|arts|commerce|pcmb|pcmc)\b/i;
+const DEGREE_KEYWORDS = /\b(b\.?tech|b\.?e|b\.?sc|b\.?com|b\.?a|m\.?tech|m\.?e|m\.?sc|mba|m\.?a|ph\.?d|bachelor|master|diploma|sslc|hsc|10th|12th|standard)\b/i;
 
 // ─── Section heading detector ─────────────────────────────────────────────────
 const HEADING_PATTERN = /^(work\s+experience|professional\s+experience|experience|employment|work\s+history|education|academic|qualification|skills|technical\s+skills|key\s+skills|core\s+skills|projects?|personal\s+projects?|academic\s+projects?|certifications?|certificates?|awards?|achievements?|languages?|interests?|hobbies|references?|contact|internship|training|summary|objective|profile|about(\s+me)?|extra.?curricular|extracurricular|hackathons?|short\s+courses?|competitions?|workshops?|volunteer|publications?|research|tools?|soft\s+skills?)s?$/i;
@@ -93,6 +93,16 @@ const TECH_SKILLS = [
 
 // ─── Pure skill/tech-only lines — never treat as company or job title ────────
 const SKILL_ONLY_PATTERN = /^(programming\s+languages?|web\s+development|data\s+base|database|tools?|frameworks?|java|python|html|css|javascript|typescript|mysql|mongodb|sql|php|ruby|swift|kotlin|c\+\+|c#|react|angular|vue|node\.?js|express|django|flask|spring|bootstrap|tailwind|sass|jquery|aws|azure|gcp|docker|kubernetes|git|linux|terraform|jenkins|figma|canva|excel|matlab|power\s*bi|tableau|hadoop|spark|kafka|rest|graphql|microservices|agile|scrum|jira|postman)$/i;
+
+// ─── Resume content validator ────────────────────────────────────────────────
+function isResumeContent(text: string): boolean {
+  const t = text.toLowerCase();
+  const hasContact = /[\w.+-]+@[\w-]+\.[\w.]+/.test(text) || /(?:\+?\d[\d\s\-().]{7,}\d)/.test(text);
+  const sectionKeywords = ['experience','education','skill','summary','objective','profile',
+    'certification','project','internship','employment','qualification','achievement'];
+  const sectionHits = sectionKeywords.filter(k => t.includes(k)).length;
+  return hasContact && sectionHits >= 2;
+}
 
 // ─── LOCAL PARSER ─────────────────────────────────────────────────────────────
 function parseResumeLocally(text: string): ParsedResume {
@@ -154,13 +164,13 @@ function parseResumeLocally(text: string): ParsedResume {
   // Merge, deduplicate
   const allSkills = [...new Set([...skillsFromText, ...skillsFromSection])];
 
-  // Work Experience
-  const expSection = extractSection(lines, /^(work\s+)?(experience|employment|history|professional\s+experience|internship)$/i);
+  // Work Experience — also handles "internship experience" as a section heading
+  const expSection = extractSection(lines, /^(work\s+|professional\s+|internship\s+)?(experience|employment|history)$/i);
   const workExperiences: ParsedResume['workExperiences'] = [];
   if (expSection.length > 0) {
-    const datePattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4}|present|current)/i;
-    const dateRangePattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{4})\b.*\b(\d{4}|present|current)\b/i;
-    // A line is a job/company header if it's short, not a bullet, not a pure date, starts with capital
+    const dateRangePattern = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{2,4})\b.*\b(\d{4}|present|current)\b/i;
+    // Strip pipe-separated suffixes: "Dvara KGFS | Chennai" → "Dvara KGFS"
+    const stripPipe = (s: string) => s.split(/\s*[|]\s*/)[0].trim();
     const isHeader = (l: string) =>
       !(/^[•\-–*]/.test(l)) &&
       !(/^https?:\/\/|^www\./i.test(l)) &&
@@ -168,40 +178,57 @@ function parseResumeLocally(text: string): ParsedResume {
       !SKILL_ONLY_PATTERN.test(l) &&
       l.length > 2 && l.length < 100 &&
       /^[A-Z]/.test(l) &&
-      !/^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|responsible|managed|led|handled|assisted)/i.test(l);
+      !/^(software|developer|engineer|analyst|manager|designer|intern|student|professional|experienced|skilled|passionate|motivated|dedicated|strong|excellent|proven|responsible|i\s)/i.test(l) &&
+      !/^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|responsible|managed|led|handled|assisted|wrote|identified|collaborated|studied|conducted|coordinated|facilitated|participated|performed|optimized|proposed|monitored|ensured|presented|organized|maintained|trained|mentored|coached|launched|delivered|established|improved|increased|reduced|streamlined|strengthened|transformed|generated|prepared|produced|provided|researched|resolved|reviewed|supported|tested|validated|automated|configured|deployed|documented|integrated|migrated|upgraded|architected|authored|championed|spearheaded|pioneered|acted|contributed|learned)/i.test(l);
 
     let cur: { jobTitle: string; company: string; date: string; descriptions: string[] } | null = null;
     for (const line of expSection) {
       const isBullet = /^[•\-–*]/.test(line);
-      const isDateLine = dateRangePattern.test(line) && line.length < 60;
-      const isBulletDesc = /^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|responsible|managed|led|handled|assisted)/i.test(line);
+      const isDateLine = dateRangePattern.test(line) && line.length < 80;
+      const isBulletDesc = /^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|responsible|managed|led|handled|assisted|wrote|identified|collaborated|studied|conducted|coordinated|facilitated|participated|performed|optimized|proposed|monitored|ensured|presented|organized|maintained|trained|mentored|coached|launched|delivered|established|improved|increased|reduced|streamlined|strengthened|transformed|generated|prepared|produced|provided|researched|resolved|reviewed|supported|tested|validated|automated|configured|deployed|documented|integrated|migrated|upgraded|architected|authored|championed|spearheaded|pioneered)/i.test(line);
 
       if (isBullet || isBulletDesc) {
-        if (cur) cur.descriptions.push(line.replace(/^[•\-–*]\s*/, ''));
+        if (cur) { const cleaned = line.replace(/^[•\-–*\d.]+[\s)]*/, '').trim(); if (cleaned) cur.descriptions.push(cleaned); }
         continue;
       }
-      // Skip pure skill/tech lines that leaked from adjacent column
       if (SKILL_ONLY_PATTERN.test(line)) continue;
-      if (isDateLine) {
-        if (cur && !cur.date) { cur.date = line; continue; }
+
+      // Line like "Dvara KGFS | Chennai" or "8Queens | Chennai" — company with location
+      const isPipeCompanyLine = /^[A-Z][\w\s.&'-]+\s*\|\s*[A-Z][a-z]/.test(line) && !dateRangePattern.test(line);
+      if (isPipeCompanyLine) {
+        if (cur && !cur.company) { cur.company = stripPipe(line); continue; }
         if (cur && (cur.jobTitle || cur.company)) workExperiences.push(cur);
-        cur = { jobTitle: '', company: '', date: line, descriptions: [] };
+        cur = { jobTitle: '', company: stripPipe(line), date: '', descriptions: [] };
+        continue;
+      }
+
+      if (isDateLine) {
+        const dateOnly = line.match(dateRangePattern)?.[0] || line;
+        if (cur && !cur.date) { cur.date = dateOnly; continue; }
+        if (cur && (cur.jobTitle || cur.company)) workExperiences.push(cur);
+        cur = { jobTitle: '', company: '', date: dateOnly, descriptions: [] };
         continue;
       }
       if (isHeader(line)) {
-        if (cur && !cur.date && !cur.jobTitle) { cur.jobTitle = line; continue; }
-        if (cur && cur.date && !cur.jobTitle) { cur.jobTitle = line; continue; }
-        if (cur && cur.jobTitle && !cur.company) { cur.company = line; continue; }
+        // Extract company from "Job Title at Company" or "Job Title - Company" patterns
+        const companySplit = line.match(/^(.*?)\s+at\s+(.+)$/i) || line.match(/^(.*?)\s+[-–]\s+(.+)$/);
+        const titleOnly = companySplit ? companySplit[1].trim() : line;
+        const companyFromTitle = companySplit ? companySplit[2].trim() : '';
+
+        if (cur && !cur.date && !cur.jobTitle) { cur.jobTitle = titleOnly; if (companyFromTitle && !cur.company) cur.company = companyFromTitle; continue; }
+        if (cur && cur.date && !cur.jobTitle) { cur.jobTitle = titleOnly; if (companyFromTitle && !cur.company) cur.company = companyFromTitle; continue; }
+        if (cur && cur.jobTitle && !cur.company) { cur.company = companyFromTitle || line; continue; }
         if (cur && (cur.jobTitle || cur.company)) workExperiences.push(cur);
-        cur = { jobTitle: line, company: '', date: '', descriptions: [] };
+        cur = { jobTitle: titleOnly, company: companyFromTitle, date: '', descriptions: [] };
       } else if (cur) {
-        cur.descriptions.push(line);
+        const trimmed = line.trim();
+        if (trimmed) cur.descriptions.push(trimmed);
       }
     }
     if (cur && (cur.jobTitle || cur.company)) workExperiences.push(cur);
   }
 
-  // Education — group by degree entry: degree line → school line → gpa/date lines
+  // Education — handles: inline "B.Tech in IT LICET - Loyola-ICAM", wrapped "College of\nEngineering", standalone degree/school lines
   const eduSection = extractSection(lines, /^education(al\s+(background|qualification))?s?$/i);
   const educations: ParsedResume['educations'] = [];
   if (eduSection.length > 0) {
@@ -210,52 +237,100 @@ function parseResumeLocally(text: string): ParsedResume {
     const percentRe = /\b(\d{1,3}\.?\d*)\s*%/;
     const yearOfCompletionRe = /year\s+of\s+completion[:\s]*(\d{4})/i;
     const dateRangeRe = /\b(19|20)\d{2}\s*[-–]\s*(?:(19|20)\d{2}|present|current)\b/i;
-
     const isMetaLine = (l: string) =>
-      yearOfCompletionRe.test(l) || percentRe.test(l) || gpaRe.test(l) ||
-      /^[\d\s\-–\/]+$/.test(l) || dateRangeRe.test(l);
-
-    // A line is a degree/level header (B.Tech, HSC, SSLC, SENIOR SECONDARY, etc.)
-    const isDegreeHeader = (l: string) => DEGREE_KEYWORDS.test(l) && !INSTITUTION_KEYWORDS.test(l);
-    // A line is an institution name
-    const isInstitution = (l: string) => INSTITUTION_KEYWORDS.test(l);
+      yearOfCompletionRe.test(l) ||
+      (!INSTITUTION_KEYWORDS.test(l) && gpaRe.test(l)) ||
+      /^[\d\s\-–\/]+$/.test(l) ||
+      (!INSTITUTION_KEYWORDS.test(l) && dateRangeRe.test(l));
+    // Degree-only label: short line that IS a degree keyword but NOT an institution name
+    const isDegreeOnlyLabel = (l: string) => {
+      if (!DEGREE_KEYWORDS.test(l)) return false;
+      if (INSTITUTION_KEYWORDS.test(l)) return false;
+      if (/\b(loyola|icam|licet|anna|vit|srm|psg|zion|matriculation|higher secondary school|secondary school)\b/i.test(l)) return false;
+      if (/\bof\s+\w+\s+and\b/i.test(l) || /\bcollege\s+of\b/i.test(l)) return false;
+      return true;
+    };
+    // Inline line: contains BOTH a degree keyword AND a specific institution word (e.g. "B.Tech in IT LICET - Loyola-ICAM")
+    const isInlineDegreeSchool = (l: string) => DEGREE_KEYWORDS.test(l) && /\b(university|college|institute|school|academy|polytechnic|iit|nit|licet|loyola|icam|matriculation)\b/i.test(l);
+    // Continuation fragment: short line that is clearly a wrapped part of the previous school name
+    const isContinuation = (l: string) =>
+      /^(college|university|institute|school|of|and|engineering|technology|science|arts|commerce)\b/i.test(l) &&
+      l.split(/\s+/).length <= 5;
+    const isInstitutionLine = (l: string) => INSTITUTION_KEYWORDS.test(l) && !isDegreeOnlyLabel(l);
 
     let cur: ParsedResume['educations'][0] | null = null;
-
     const pushCur = () => { if (cur && (cur.school || cur.degree)) educations.push(cur); };
 
     for (const line of eduSection) {
-      if (/^[•\-–*]/.test(line)) continue; // skip bullets
-
+      if (/^[•\-–*]/.test(line)) continue;
       const yocMatch = line.match(yearOfCompletionRe);
       const pctMatch = line.match(percentRe);
       const gpaMatch = line.match(gpaRe);
       const hasYear = yearRe.test(line);
+      const dateRangeMatch = line.match(dateRangeRe);
 
       if (yocMatch) { if (cur) cur.date = yocMatch[1]; continue; }
-      if (gpaMatch) { if (cur) { cur.gpa = gpaMatch[2]; if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; } continue; }
-      if (pctMatch && !gpaMatch) { if (cur) { cur.gpa = pctMatch[1]; if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; } continue; }
+      if (!INSTITUTION_KEYWORDS.test(line)) {
+        if (gpaMatch) { if (cur) { cur.gpa = gpaMatch[2]; if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; } continue; }
+        if (pctMatch && !gpaMatch) { if (cur) { cur.gpa = pctMatch[1]; if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; } continue; }
+      }
       if (isMetaLine(line)) { if (cur && !cur.date) cur.date = line.match(yearRe)?.[0] || ''; continue; }
 
-      if (isDegreeHeader(line)) {
+      // Strip pipe-separated metadata: "Loyola-ICAM College of Engineering | CGPA: 8.42" → school + gpa
+      const stripEduPipe = (s: string) => s.split(/\s*\|\s*/)[0].trim();
+      const extractPipeGpa = (s: string) => {
+        const after = s.split(/\s*\|\s*/).slice(1).join(' ');
+        const m = after.match(/\b(gpa|cgpa)[:\s]*([\d.]+)/i) || after.match(/([\d.]+)/);
+        return m ? (m[2] || m[1]) : null;
+      };
+
+      // Continuation fragment of previous school name (e.g. "College of" or "Engineering and Technology")
+      if (isContinuation(line) && cur && cur.school && !hasYear) {
+        cur.school = (cur.school + ' ' + line).trim();
+        continue;
+      }
+
+      // Inline: degree + school on same line (e.g. "B.Tech in Information Technology LICET - Loyola-ICAM")
+      if (isInlineDegreeSchool(line)) {
         pushCur();
-        const clean = line.replace(yearRe, '').replace(gpaRe, '').replace(percentRe, '').trim();
-        cur = {
-          degree: clean,
-          school: '',
-          date: hasYear ? (line.match(yearRe)?.[0] || '') : '',
-          gpa: gpaMatch?.[2] || (pctMatch?.[1] ?? undefined),
-        };
-      } else if (isInstitution(line)) {
-        if (cur && !cur.school) {
-          cur.school = line.replace(yearRe, '').replace(gpaRe, '').trim();
+        const instMatch = line.match(/\b(licet|loyola|icam|zion|bethel|matriculation|university|college|institute|school|academy|polytechnic|iit|nit)\b/i);
+        if (instMatch && instMatch.index !== undefined) {
+          const rawDegree = line.slice(0, instMatch.index).replace(yearRe, '').trim().replace(/[-–,]\s*$/, '').trim();
+          const rawSchool = line.slice(instMatch.index);
+          const pipeGpa = extractPipeGpa(rawSchool);
+          cur = {
+            degree: rawDegree,
+            school: stripEduPipe(rawSchool).replace(yearRe, '').trim(),
+            date: dateRangeMatch ? dateRangeMatch[0] : (hasYear ? line.match(yearRe)?.[0] || '' : ''),
+            gpa: pipeGpa || undefined,
+          };
+        } else {
+          cur = { degree: stripEduPipe(line).replace(yearRe, '').trim(), school: '', date: hasYear ? line.match(yearRe)?.[0] || '' : '', gpa: undefined };
+        }
+        continue;
+      }
+
+      if (isDegreeOnlyLabel(line)) {
+        if (cur && !cur.degree) {
+          cur.degree = line.replace(yearRe, '').replace(gpaRe, '').replace(percentRe, '').trim();
           if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || '';
         } else {
           pushCur();
-          cur = { degree: '', school: line.replace(yearRe, '').trim(), date: hasYear ? (line.match(yearRe)?.[0] || '') : '' };
+          cur = { degree: line.replace(yearRe, '').replace(gpaRe, '').replace(percentRe, '').trim(), school: '', date: hasYear ? line.match(yearRe)?.[0] || '' : '', gpa: undefined };
+        }
+      } else if (isInstitutionLine(line)) {
+        // Strip pipe metadata from institution lines too: "Bethel Matriculation Higher Secondary School | 93.64%"
+        const pipeGpa = extractPipeGpa(line);
+        const cleanSchool = stripEduPipe(line).replace(yearRe, '').replace(gpaRe, '').trim();
+        if (cur && !cur.school) {
+          cur.school = cleanSchool;
+          if (pipeGpa && !cur.gpa) cur.gpa = pipeGpa;
+          if (hasYear && !cur.date) cur.date = line.match(yearRe)?.[0] || '';
+        } else {
+          pushCur();
+          cur = { degree: '', school: cleanSchool, date: hasYear ? line.match(yearRe)?.[0] || '' : '', gpa: pipeGpa || undefined };
         }
       }
-      // else: non-edu line (location, activity text) — skip
     }
     pushCur();
   }
@@ -267,9 +342,21 @@ function parseResumeLocally(text: string): ParsedResume {
     let cur: { name: string; date?: string; descriptions: string[]; description?: string } | null = null;
     for (const line of projSection) {
       const isBullet = /^[•\-–*]/.test(line);
-      const isDesc = /^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|innovated|engineered)/i.test(line);
       const hasYear = /\b(19|20)\d{2}\b/.test(line);
-      const isProjectHeader = !isBullet && !isDesc && line.length > 3 && line.length < 120 && /^[A-Z]/.test(line);
+      // A project header must: start with capital, be 2+ real words, NOT be a tech-stack/tool-list line,
+      // NOT be a sentence fragment (no verb phrases mid-sentence), NOT start with a tech keyword alone
+      const wordCount = line.trim().split(/\s+/).length;
+      const looksLikeTechList = /^(tech\s+stack|tools?|technologies|stack)[:\s]/i.test(line) ||
+        /^[A-Z][a-z]+(?:\s*,\s*[A-Z][a-z]+){2,}/.test(line); // "Ruby on Rails, PostgreSQL, HTML"
+      const looksLikeFragment = /,\s*$/.test(line) || // ends with comma
+        /^(and|or|with|for|using|via|through|by|of|in|at|to|from|the|a|an)\s/i.test(line) || // starts with conjunction
+        /\b(and|for|using|with|via)\s+[a-z]/.test(line.slice(-30)); // ends mid-phrase
+      const isProjectHeader = !isBullet && !looksLikeTechList && !looksLikeFragment &&
+        wordCount >= 2 && wordCount <= 10 && line.length >= 5 && line.length <= 80 &&
+        /^[A-Z]/.test(line) && !SKILL_ONLY_PATTERN.test(line) &&
+        // Reject Strengths/soft-skill lines bleeding in
+        !/^(strong|excellent|dedicated|proven|highly|passionate|motivated|skilled|experienced|good|great|ability|communication|problem|team|leadership)/i.test(line) &&
+        !/^(developed|built|created|analyzed|implemented|designed|completed|worked|gained|innovated|engineered|enabled|ensured|managed|handled|integrated|contributed|learned|performed|deployed)/i.test(line);
       if (isProjectHeader && (!cur || cur.descriptions!.length > 0 || !cur.name)) {
         if (cur) projects.push(cur);
         cur = { name: line.replace(/\b(19|20)\d{2}\b/, '').replace(/[-–]\s*$/, '').trim(), date: hasYear ? line.match(/\b(19|20)\d{2}\b/)?.[0] : undefined, descriptions: [] };
@@ -284,10 +371,19 @@ function parseResumeLocally(text: string): ParsedResume {
   const summarySection = extractSection(lines, /^(summary|objective|profile|about(\s+me)?)$/i);
   const summary = summarySection.join(' ').trim();
 
-  // Certifications
+  // Certifications — each entry must look like a real cert name (not a sentence fragment)
   const certSection = extractSection(lines, /^certifications?$/i);
   const certifications = certSection
-    .filter(l => l.length > 3 && !/^[•\-–*]/.test(l) === false || l.length > 3)
+    .filter(l => {
+      if (l.length < 4) return false;
+      // Skip lines that are clearly sentence continuations or tech-stack lists
+      if (/^(and|or|with|for|using|via|through|by|of|in|at|to|from|a|an|the)\s/i.test(l)) return false;
+      if (/,\s*$/.test(l)) return false; // ends with comma = fragment
+      if (/^(month|week|day|year|intensive|program|covering|completed|course|bootcamp)/i.test(l)) return false;
+      // Must start with capital and have at least 2 words OR be a known cert pattern
+      const words = l.trim().split(/\s+/);
+      return /^[A-Z]/.test(l) && words.length >= 2;
+    })
     .map(l => ({ name: l.replace(/^[•\-–*]\s*/, ''), provider: '', date: '' }));
 
   // Soft skills
@@ -332,11 +428,8 @@ function mergeResults(ai: ParsedResume, local: ParsedResume): ParsedResume {
   const aiPhone = (ai.profile.phone || '').replace(/\s/g, '');
   const phone = aiPhone.length >= 7 ? ai.profile.phone : local.profile.phone;
 
-  // Education: prefer local, filter out non-edu lines (responsibility/activity text)
-  const cleanLocalEdu = local.educations.filter(e =>
-    INSTITUTION_KEYWORDS.test(e.school) || DEGREE_KEYWORDS.test(e.school) ||
-    INSTITUTION_KEYWORDS.test(e.degree) || DEGREE_KEYWORDS.test(e.degree)
-  );
+  // Education: prefer local, keep any entry with a real school name or degree label
+  const cleanLocalEdu = local.educations.filter(e => e.school.length > 3 || e.degree.length > 1);
   const educations = cleanLocalEdu.length > 0 ? cleanLocalEdu : (ai.educations || []);
 
   // Work experience: prefer AI only if company AND jobTitle are both clean real values
@@ -395,17 +488,20 @@ export async function parseResumeFromText(
   text: string,
   onStatus?: (status: AIParseStatus, detail?: string) => void
 ): Promise<ParsedResume> {
+  if (!isResumeContent(text))
+    throw new Error('The uploaded file does not appear to be a resume. Please upload a valid resume.');
+
   // LOCAL PARSER IS PRIMARY — always run first, result is the baseline
   const localResult = parseResumeLocally(text);
 
   try {
     const textHash = await hashText(text);
-    const cKey = cacheKey('resume-parse-v13', textHash);
+    const cKey = cacheKey('resume-parse-v16', textHash);
     const cached = getCached<ParsedResume>(cKey);
     if (cached) { onStatus?.('ai'); return cached; }
 
     const token = tokenStorage.getAccess();
-    const truncatedText = text.length > 8000 ? text.slice(0, 8000) : text;
+    const truncatedText = text.length > 15000 ? text.slice(0, 15000) : text;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30000);
     const res = await fetch(`${API_BASE_URL}/resume/parse-profile`, {
@@ -416,7 +512,7 @@ export async function parseResumeFromText(
       },
       body: JSON.stringify({
         resumeText: truncatedText,
-        instructions: 'Extract resume data as strict JSON. Keys: name (full name, no letter-spacing), email, phone (full digits), location, summary, skills[], workExperiences[{jobTitle,company,date,descriptions[]}], educations[{degree,school,date,gpa}], projects[{name,descriptions[]}]. Project name must be 3+ words. Never split sentences into separate projects.',
+        instructions: 'Extract resume data as strict JSON. Keys: name (full name, no letter-spacing), email, phone (full digits), location, summary, skills[], workExperiences[{jobTitle,company,date,descriptions[]}], educations[{degree,school,date,gpa}], projects[{name,descriptions[]}]. IMPORTANT: Each description must be a complete bullet-point sentence. NEVER split sentences across array entries. NEVER put single words or fragments as separate descriptions. Combine multi-line bullet points into one string. Project name must be 3+ words.',
       }),
       signal: controller.signal,
     });
@@ -456,10 +552,10 @@ export async function parseResumeFromText(
       : {
           ...raw,
           educations: (raw.educations || raw.education || []).map((e: any) => ({
-            degree: e.degree || '',
-            school: e.school || e.institution || e.college || '',
-            date: e.date || e.end_date || '',
-            gpa: e.gpa || e.cgpa || '',
+            degree: e.degree || e.class || '',
+            school: e.school || e.college || e.institution || '',
+            date: e.date || e.year || e.end_date || '',
+            gpa: e.gpa || e.cgpa || e.percentage || '',
           })),
         };
 
@@ -475,11 +571,40 @@ export async function parseResumeFromText(
 
     // Validate AI work — filter garbage company/jobTitle
     const isGarbage = (s: string) => !s || /^https?:\/\/|^www\./i.test(s) || /^\d{5,}/.test(s) || SKILL_ONLY_PATTERN.test(s);
+
+    // Merge fragmented AI descriptions (e.g. "startup" + "Trinity Tech Solution" → single entry)
+    const mergeFrags = (arr: string[]): string[] => {
+      const merged: string[] = [];
+      for (const item of arr) {
+        const trimmed = item.trim();
+        if (!trimmed) continue;
+        const wordCount = trimmed.split(/\s+/).length;
+        const lastIdx = merged.length - 1;
+        // If current fragment is short (≤3 words) and previous entry exists, append to previous
+        if (wordCount <= 3 && lastIdx >= 0 && !/^[A-Z][a-z]+/.test(trimmed)) {
+          merged[lastIdx] = merged[lastIdx] + ' ' + trimmed;
+        } else {
+          merged.push(trimmed);
+        }
+      }
+      // Final pass: merge entries ending with punctuation or short entries
+      const final: string[] = [];
+      for (const item of merged) {
+        const endsWithSep = /[,;:]\s*$/.test(item) || item.split(/\s+/).length <= 4;
+        if (endsWithSep && final.length > 0) {
+          final[final.length - 1] = final[final.length - 1] + ' ' + item;
+        } else {
+          final.push(item);
+        }
+      }
+      return final;
+    };
+
     const aiWork = (p.workExperiences || p.experience || []).map((e: any) => ({
       jobTitle: e.jobTitle || e.title || '',
       company: e.company || e.companyName || '',
       date: e.date || '',
-      descriptions: Array.isArray(e.descriptions) ? e.descriptions : (e.description ? [e.description] : []),
+      descriptions: mergeFrags(Array.isArray(e.descriptions) ? e.descriptions : (e.description ? [e.description] : [])),
     })).filter((e: any) => !isGarbage(e.company) && !isGarbage(e.jobTitle));
 
     // Fix swapped company/jobTitle
@@ -498,21 +623,17 @@ export async function parseResumeFromText(
 
     // Validate AI education — must have school or degree with real keywords
     const aiEdu = (p.educations || []).map((e: any) => ({
-      degree: e.degree || '',
-      school: e.school || e.institution || '',
-      date: e.date || '',
-      gpa: e.gpa || '',
+      degree: e.degree || e.class || '',
+      school: e.school || e.college || e.institution || '',
+      date: e.date || e.year || '',
+      gpa: e.gpa || e.cgpa || e.percentage || '',
       descriptions: e.descriptions || [],
     })).filter((e: any) =>
-      INSTITUTION_KEYWORDS.test(e.school) || DEGREE_KEYWORDS.test(e.school) ||
-      INSTITUTION_KEYWORDS.test(e.degree) || DEGREE_KEYWORDS.test(e.degree)
+      e.school.length > 3 || e.degree.length > 1
     );
 
     // BUILD FINAL RESULT: local is primary, AI fills gaps only
-    const cleanLocalEdu = localResult.educations.filter(e =>
-      INSTITUTION_KEYWORDS.test(e.school) || DEGREE_KEYWORDS.test(e.school) ||
-      INSTITUTION_KEYWORDS.test(e.degree) || DEGREE_KEYWORDS.test(e.degree)
-    );
+    const cleanLocalEdu = localResult.educations.filter(e => e.school.length > 3 || e.degree.length > 1);
 
     const merged: ParsedResume = {
       profile: {
@@ -528,8 +649,8 @@ export async function parseResumeFromText(
           ...localResult.skills.featuredSkills.map(s => s.skill),
         ])].map(s => ({ skill: s })),
       },
-      // Work: use AI if valid, else local
-      workExperiences: fixedAiWork.length > 0 ? fixedAiWork : localResult.workExperiences,
+      // Work: local preferred (structured), AI fills gaps only
+      workExperiences: localResult.workExperiences.length > 0 ? localResult.workExperiences : fixedAiWork,
       // Education: local first, AI fallback
       educations: cleanLocalEdu.length > 0 ? cleanLocalEdu : aiEdu,
       // Projects: AI if valid (2+ word names), else local

@@ -32,7 +32,7 @@ export default function CertificationsAwardsStep() {
       <div>
         <h2 className="text-xl font-bold text-gray-900">Certifications & Awards</h2>
         <p className="text-sm text-gray-500 mt-0.5">Add your certifications and achievements</p>
-        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><span className="text-purple-400">💡</span> Certifications from <span className="text-purple-500 font-medium">AWS, Google, Microsoft</span> — hiring managers prioritize recognized vendors</p>
+        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><svg className="w-3 h-3 text-purple-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Certifications from <span className="text-purple-500 font-medium">recognized industry bodies</span> — hiring managers prioritize verified credentials</p>
       </div>
 
       {/* Certifications */}

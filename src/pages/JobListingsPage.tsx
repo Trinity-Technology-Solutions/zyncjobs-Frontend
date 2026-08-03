@@ -667,63 +667,117 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   }, [filters, jobs, clientFilter]);
   
   const generateKeywordSuggestions = (input: string): string[] => {
-    const keywordPatterns = {
-      'so': ['Software', 'Solutions', 'Social Media', 'Software Engineer'],
+    const keywordPatterns: Record<string, string[]> = {
+      // Tech
       'react': ['React', 'React.js', 'React Native', 'Redux'],
       'python': ['Python', 'Django', 'Flask', 'FastAPI'],
       'java': ['Java', 'Spring Boot', 'Hibernate', 'Maven'],
       'node': ['Node.js', 'Express.js', 'npm', 'JavaScript'],
       'data': ['Data Analysis', 'Data Science', 'Big Data', 'Analytics'],
-      'ai': ['Artificial Intelligence', 'Machine Learning', 'Deep Learning', 'Neural Networks'],
+      'ai': ['Artificial Intelligence', 'Machine Learning', 'Deep Learning'],
       'cloud': ['AWS', 'Azure', 'Google Cloud', 'Cloud Computing'],
       'mobile': ['iOS', 'Android', 'React Native', 'Flutter'],
       'web': ['HTML', 'CSS', 'JavaScript', 'Web Development'],
-      'database': ['SQL', 'MongoDB', 'PostgreSQL', 'MySQL']
+      'database': ['SQL', 'MongoDB', 'PostgreSQL', 'MySQL'],
+      // Sales / Marketing
+      'sales': ['Sales Executive', 'Business Development', 'Inside Sales', 'Field Sales', 'B2B Sales'],
+      'market': ['Digital Marketing', 'SEO', 'Social Media Marketing', 'Content Marketing'],
+      'customer': ['Customer Service', 'Customer Support', 'Customer Success', 'CRM'],
+      // Finance
+      'account': ['Accounting', 'Tally', 'GST', 'Auditing', 'Financial Analysis'],
+      'finance': ['Financial Analysis', 'Banking', 'Investment', 'Budgeting', 'MIS'],
+      'tax': ['GST', 'Income Tax', 'TDS', 'Tax Filing', 'Indirect Tax'],
+      // HR
+      'hr': ['HR Generalist', 'Recruitment', 'Talent Acquisition', 'Payroll', 'HRMS'],
+      'recruit': ['Recruitment', 'Talent Acquisition', 'Sourcing', 'Hiring', 'Staffing'],
+      // Civil / Construction
+      'civil': ['Civil Engineering', 'Site Engineer', 'Structural Engineering', 'AutoCAD', 'Construction'],
+      'auto': ['AutoCAD', 'Auto CAD', 'Revit', 'STAAD Pro', 'Drafting'],
+      'construct': ['Construction Management', 'Site Supervision', 'Project Execution', 'BOQ'],
+      // Mechanical
+      'mech': ['Mechanical Engineering', 'Production', 'Manufacturing', 'CNC', 'Maintenance'],
+      'produc': ['Production Planning', 'Manufacturing', 'Shop Floor', 'Lean Manufacturing'],
+      // Healthcare
+      'nurs': ['Nursing', 'Staff Nurse', 'ICU Nurse', 'OT Nurse', 'Patient Care'],
+      'doctor': ['MBBS', 'MD', 'Physician', 'General Practitioner', 'Specialist'],
+      'pharma': ['Pharmacist', 'Clinical Pharmacy', 'Pharmaceutical', 'Drug Dispensing'],
+      // Gulf
+      'gulf': ['Gulf Jobs', 'UAE Jobs', 'Saudi Arabia Jobs', 'Qatar Jobs', 'Kuwait Jobs'],
+      'dubai': ['Dubai Jobs', 'UAE Jobs', 'Gulf Jobs'],
+      // Hospitality
+      'hotel': ['Hotel Management', 'Front Office', 'Housekeeping', 'F&B', 'Hospitality'],
+      'chef': ['Chef', 'Kitchen Management', 'Food Service', 'Catering'],
+      // Education
+      'teach': ['Teacher', 'Faculty', 'Lecturer', 'Tutor', 'Trainer'],
+      // Logistics
+      'logis': ['Logistics', 'Supply Chain', 'Warehouse', 'Freight', 'Transportation'],
+      'warehouse': ['Warehouse Management', 'Inventory Control', 'Dispatch', 'Logistics'],
     };
-    
-    // First check for exact prefix matches
+    const q = input.toLowerCase();
     for (const [key, suggestions] of Object.entries(keywordPatterns)) {
-      if (key.startsWith(input.toLowerCase())) {
+      if (q.startsWith(key) || key.startsWith(q) || q.includes(key) || key.includes(q)) {
         return suggestions;
       }
     }
-    
-    // Then check for contains matches
-    for (const [key, suggestions] of Object.entries(keywordPatterns)) {
-      if (input.toLowerCase().includes(key) || key.includes(input.toLowerCase())) {
-        return suggestions;
-      }
-    }
-    
     return [];
   };
   
   const generateJobTitleSuggestions = (input: string): string[] => {
-    const titlePatterns = {
-      'so': ['Software Engineer', 'Software Developer', 'Solutions Architect', 'Social Media Manager'],
-      'develop': ['Software Developer', 'Full Stack Developer', 'Frontend Developer', 'Backend Developer'],
-      'engineer': ['Software Engineer', 'DevOps Engineer', 'Data Engineer', 'Cloud Engineer'],
-      'manager': ['Product Manager', 'Engineering Manager', 'Project Manager', 'Technical Manager'],
-      'analyst': ['Business Analyst', 'Data Analyst', 'Systems Analyst', 'Financial Analyst'],
-      'designer': ['UI/UX Designer', 'Product Designer', 'Graphic Designer', 'Web Designer'],
-      'scientist': ['Data Scientist', 'Research Scientist', 'Machine Learning Scientist'],
-      'architect': ['Software Architect', 'Solutions Architect', 'Cloud Architect', 'System Architect']
+    const titlePatterns: Record<string, string[]> = {
+      // Tech
+      'develop': ['Software Developer', 'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Web Developer'],
+      'engineer': ['Software Engineer', 'Civil Engineer', 'Mechanical Engineer', 'Electrical Engineer', 'DevOps Engineer'],
+      'analyst': ['Business Analyst', 'Data Analyst', 'Financial Analyst', 'Systems Analyst', 'HR Analyst'],
+      'designer': ['UI/UX Designer', 'Graphic Designer', 'Product Designer', 'Web Designer', 'Interior Designer'],
+      'manager': ['Project Manager', 'Sales Manager', 'HR Manager', 'Operations Manager', 'Product Manager', 'Branch Manager'],
+      'architect': ['Software Architect', 'Solutions Architect', 'Cloud Architect', 'System Architect'],
+      // Sales / Marketing
+      'sales': ['Sales Executive', 'Sales Manager', 'Business Development Executive', 'Inside Sales Executive', 'Field Sales Officer'],
+      'market': ['Digital Marketing Executive', 'Marketing Manager', 'SEO Executive', 'Social Media Manager', 'Content Writer'],
+      'business': ['Business Development Executive', 'Business Analyst', 'Business Development Manager'],
+      // Finance / Accounts
+      'account': ['Accountant', 'Accounts Executive', 'Senior Accountant', 'Accounts Manager', 'Accounts Payable Executive'],
+      'finance': ['Finance Executive', 'Finance Manager', 'Financial Analyst', 'CFO', 'Finance Controller'],
+      'audit': ['Auditor', 'Internal Auditor', 'Audit Executive', 'Statutory Auditor'],
+      'tax': ['Tax Consultant', 'GST Executive', 'Tax Analyst', 'Taxation Manager'],
+      // HR
+      'hr': ['HR Executive', 'HR Manager', 'HR Generalist', 'HR Business Partner', 'Talent Acquisition Specialist'],
+      'recruit': ['Recruiter', 'Talent Acquisition Executive', 'HR Recruiter', 'Technical Recruiter'],
+      // Civil / Construction
+      'civil': ['Civil Engineer', 'Site Engineer', 'Structural Engineer', 'Civil Supervisor', 'Project Engineer'],
+      'site': ['Site Engineer', 'Site Supervisor', 'Site Manager', 'Site Foreman'],
+      'quantity': ['Quantity Surveyor', 'QS Engineer', 'Estimation Engineer', 'Cost Engineer'],
+      // Mechanical
+      'mechan': ['Mechanical Engineer', 'Production Engineer', 'Maintenance Engineer', 'Design Engineer'],
+      'product': ['Production Engineer', 'Production Manager', 'Product Manager', 'Production Supervisor'],
+      'mainten': ['Maintenance Engineer', 'Maintenance Technician', 'Maintenance Manager', 'Facility Manager'],
+      // Healthcare
+      'nurs': ['Staff Nurse', 'Registered Nurse', 'ICU Nurse', 'OT Nurse', 'Head Nurse'],
+      'doctor': ['General Physician', 'MBBS Doctor', 'Medical Officer', 'Consultant Doctor'],
+      'pharma': ['Pharmacist', 'Clinical Pharmacist', 'Medical Representative', 'Pharma Sales Executive'],
+      'lab': ['Lab Technician', 'Medical Lab Technician', 'Lab Assistant', 'Pathology Technician'],
+      // Logistics / Supply Chain
+      'logis': ['Logistics Executive', 'Logistics Manager', 'Supply Chain Executive', 'Warehouse Manager'],
+      'supply': ['Supply Chain Manager', 'Supply Chain Executive', 'Procurement Executive', 'Vendor Manager'],
+      'warehouse': ['Warehouse Manager', 'Warehouse Executive', 'Warehouse Supervisor', 'Inventory Manager'],
+      // Hospitality
+      'hotel': ['Hotel Manager', 'Front Office Executive', 'Housekeeping Supervisor', 'F&B Manager'],
+      'chef': ['Head Chef', 'Sous Chef', 'Pastry Chef', 'Kitchen Manager', 'Cook'],
+      // Education
+      'teach': ['Teacher', 'Primary Teacher', 'Secondary Teacher', 'Subject Teacher', 'School Teacher'],
+      'faculty': ['Faculty', 'Assistant Professor', 'Associate Professor', 'Lecturer', 'Professor'],
+      'train': ['Trainer', 'Corporate Trainer', 'Technical Trainer', 'L&D Executive'],
+      // Customer Service
+      'customer': ['Customer Service Executive', 'Customer Support Executive', 'Customer Success Manager', 'Client Servicing Executive'],
+      // Operations
+      'operat': ['Operations Executive', 'Operations Manager', 'Operations Analyst', 'Business Operations Manager'],
     };
-    
-    // First check for exact prefix matches
+    const q = input.toLowerCase();
     for (const [key, suggestions] of Object.entries(titlePatterns)) {
-      if (key.startsWith(input.toLowerCase())) {
+      if (q.startsWith(key) || key.startsWith(q) || q.includes(key) || key.includes(q)) {
         return suggestions;
       }
     }
-    
-    // Then check for contains matches
-    for (const [key, suggestions] of Object.entries(titlePatterns)) {
-      if (input.toLowerCase().includes(key) || key.includes(input.toLowerCase())) {
-        return suggestions;
-      }
-    }
-    
     return [];
   };
 
@@ -755,8 +809,15 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     // Add common locations as fallback
     const commonLocations = [
       'Remote', 'Work from Home', 'Hybrid',
-      'Chennai', 'Bangalore', 'Hyderabad', 'Mumbai', 'Delhi', 'Pune',
-      'New York', 'California', 'Texas', 'London', 'Singapore'
+      // India
+      'Chennai', 'Bangalore', 'Hyderabad', 'Mumbai', 'Delhi', 'Pune', 'Kolkata',
+      'Ahmedabad', 'Coimbatore', 'Kochi', 'Noida', 'Gurgaon', 'Jaipur', 'Chandigarh',
+      // Gulf / Middle East
+      'Dubai', 'Abu Dhabi', 'Sharjah', 'Riyadh', 'Jeddah', 'Dammam',
+      'Doha', 'Kuwait City', 'Muscat', 'Bahrain', 'Oman',
+      // International
+      'Singapore', 'Kuala Lumpur', 'London', 'New York', 'Toronto',
+      'Sydney', 'Melbourne', 'Frankfurt', 'Amsterdam', 'Dublin'
     ];
     allLocations.push(...commonLocations);
     
@@ -1342,9 +1403,13 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {[
                     'Information Technology', 'Software Development', 'Data Science & Analytics',
-                    'Sales & Marketing', 'Finance & Accounting', 'Human Resources',
-                    'Operations', 'Customer Service', 'Healthcare', 'Engineering',
-                    'Education', 'Legal', 'Manufacturing', 'Retail', 'Other'
+                    'Sales & Business Development', 'Marketing & Digital Marketing',
+                    'Finance & Accounting', 'Banking & Insurance', 'Human Resources',
+                    'Operations & Supply Chain', 'Logistics & Warehouse', 'Customer Service',
+                    'Civil & Construction', 'Mechanical & Manufacturing', 'Electrical & Electronics',
+                    'Healthcare & Medical', 'Pharmacy & Life Sciences',
+                    'Education & Teaching', 'Hospitality & Travel', 'Media & Creative',
+                    'Legal & Compliance', 'Real Estate', 'Retail', 'Gulf & Overseas', 'Other'
                   ].map(cat => {
                     const count = jobs.filter(j => (j.jobCategory || j.category) === cat).length;
                     return (

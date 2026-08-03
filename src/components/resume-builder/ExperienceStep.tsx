@@ -21,21 +21,45 @@ export default function ExperienceStep() {
   const prevTitles = useRef<Record<string, string>>({});
   const MAX_AUTO_BULLETS = 6;
 
+  const isDuplicate = (candidate: string, existing: string[]): boolean => {
+    const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim();
+    const c = norm(candidate);
+    return existing.some(e => {
+      const n = norm(e);
+      if (!n || !c) return false;
+      if (n === c) return true;
+      // Check first 6 words overlap
+      const cWords = c.split(/\s+/).slice(0, 6).join(' ');
+      const nWords = n.split(/\s+/).slice(0, 6).join(' ');
+      if (cWords === nWords) return true;
+      // Length-ratio similarity
+      const ratio = Math.min(c.length, n.length) / Math.max(c.length, n.length);
+      return ratio > 0.85;
+    });
+  };
+
   const fetchRoleSummary = async (expId: string, title: string, company: string) => {
     setRoleSummaryLoading(expId);
     try {
+      const exp = data.experience.find(e => e.id === expId);
+      const existingBullets = (exp?.bullets || []).filter(b => b.trim());
       const count = generatedCount[expId] || 0;
+      const existingContext = existingBullets.length
+        ? `\nAlready added (do NOT repeat or paraphrase these):\n${existingBullets.map(b => `- ${b}`).join('\n')}`
+        : '';
       const prompt = count === 0
-        ? `Write 1 brief sentence describing the core responsibilities of a ${title} at ${company || 'a company'}. Keep it under 20 words. No markdown. No quotes.`
-        : `Write another achievement bullet point for a ${title} at ${company || 'a company'}. Start with a strong action verb. Keep it under 20 words. No markdown. No quotes. Don't repeat previous points.`;
+        ? `Write 1 brief sentence describing the core responsibilities of a ${title} at ${company || 'a company'}. Keep it under 20 words. No markdown. No quotes.${existingContext}`
+        : `Write a NEW unique achievement bullet point for a ${title} at ${company || 'a company'}. Start with a strong action verb. Under 20 words. No markdown. No quotes.${existingContext}`;
       const res = await executeResumeAI({
         section: 'experience', action: 'generate',
         content: prompt,
         experienceId: expId,
       });
       if (res.result) {
-        const clean = res.result.replace(/^["'"]|["'"]$/g, '').trim();
-        setRoleSummary(prev => ({ ...prev, [expId]: clean }));
+        const clean = res.result.replace(/^["'`]|["'`]$/g, '').trim();
+        if (!isDuplicate(clean, existingBullets)) {
+          setRoleSummary(prev => ({ ...prev, [expId]: clean }));
+        }
       }
     } catch {} finally { setRoleSummaryLoading(null); }
   };
@@ -107,25 +131,19 @@ export default function ExperienceStep() {
     setAiLoading(expId);
     setAiError('');
     try {
-      const context = `Job Title: ${exp.title}\nCompany: ${exp.company}${exp.location ? `\nLocation: ${exp.location}` : ''}\n\nGenerate 4 achievement-focused bullet points for this role. Each bullet must start with a strong action verb and include measurable impact where possible. Return as a simple numbered list, one per line.`;
+      const existingBullets = exp.bullets.filter(b => b.trim());
+      const existingContext = existingBullets.length
+        ? `\nAlready added (do NOT repeat or paraphrase):\n${existingBullets.map(b => `- ${b}`).join('\n')}`
+        : '';
+      const context = `Job Title: ${exp.title}\nCompany: ${exp.company}${exp.location ? `\nLocation: ${exp.location}` : ''}${existingContext}\n\nGenerate 4 unique achievement-focused bullet points not already listed above. Each must start with a strong action verb and include measurable impact. Return as a plain list, one per line, no numbering.`;
       const res = await executeResumeAI({ section: 'experience', action: 'generate', content: context, experienceId: expId });
       if (res.result) {
         const bullets = res.result.split('\n').map(l => l.replace(/^[\d.▪•\-*\s]+/, '').trim()).filter(Boolean).slice(0, 4);
-        
-        // Filter out bullets that are too similar to existing ones
-        const existingBullets = exp.bullets.map(b => b.toLowerCase());
-        const newBullets = bullets.filter(newBullet => {
-          const normalized = newBullet.toLowerCase();
-          return !existingBullets.some(existing => {
-            const similarity = Math.min(normalized.length, existing.length) / Math.max(normalized.length, existing.length);
-            return similarity > 0.8 || normalized.includes(existing.substring(0, 15)) || existing.includes(normalized.substring(0, 15));
-          });
-        });
-        
+        const newBullets = bullets.filter(b => !isDuplicate(b, existingBullets));
         if (newBullets.length > 0) {
           updateExperience(expId, 'bullets', [...exp.bullets, ...newBullets]);
-        } else if (bullets.length > 0 && newBullets.length === 0) {
-          setAiError('Generated bullets were too similar to existing ones. Try adding different achievements.');
+        } else {
+          setAiError('All generated bullets were too similar to existing ones.');
         }
       }
     } catch {
@@ -219,7 +237,7 @@ export default function ExperienceStep() {
 
               {/* Fields */}
               <div className="p-5 space-y-4">
-                <p className="text-[10px] text-gray-400 flex items-center gap-1 -mt-1"><span className="text-amber-400">💡</span> Start each bullet with a strong action verb: <span className="text-amber-500 font-medium">Led</span>, <span className="text-amber-500 font-medium">Built</span>, <span className="text-amber-500 font-medium">Optimized</span>, <span className="text-amber-500 font-medium">Designed</span></p>
+                <p className="text-[10px] text-gray-400 flex items-center gap-1 -mt-1"><svg className="w-3 h-3 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Start each bullet with a strong action verb: <span className="text-amber-500 font-medium">Led</span>, <span className="text-amber-500 font-medium">Built</span>, <span className="text-amber-500 font-medium">Optimized</span>, <span className="text-amber-500 font-medium">Designed</span></p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Job Title <span className="text-red-500">*</span></label>
@@ -236,13 +254,13 @@ export default function ExperienceStep() {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Location</label>
                     <input type="text" value={exp.location ?? ''} onChange={(e) => updateExperience(exp.id, 'location', e.target.value)}
-                      placeholder="City, State"
+                      placeholder="Enter your city and country"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1.5">Duration <span className="text-red-500">*</span></label>
                     <input type="text" value={exp.duration} onChange={(e) => updateExperience(exp.id, 'duration', e.target.value)}
-                      placeholder="Start Date - End Date"
+                      placeholder="Enter start and end date"
                       className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white hover:border-gray-300 transition-colors" />
                   </div>
                   <div className="flex items-center gap-2">
@@ -318,7 +336,10 @@ export default function ExperienceStep() {
                           <div className="flex items-center gap-2 mt-4 flex-wrap">
                             <button onClick={() => {
                               const bullet = roleSummary[exp.id];
-                              updateExperience(exp.id, 'bullets', [...exp.bullets.filter(b => b.trim()), bullet]);
+                              const existing = exp.bullets.filter(b => b.trim());
+                              if (!isDuplicate(bullet, existing)) {
+                                updateExperience(exp.id, 'bullets', [...existing, bullet]);
+                              }
                               setRoleSummary(prev => { const n = { ...prev }; delete n[exp.id]; return n; });
                               setGeneratedCount(prev => ({ ...prev, [exp.id]: (prev[exp.id] || 0) + 1 }));
                               if ((generatedCount[exp.id] || 0) + 1 < MAX_AUTO_BULLETS) {
@@ -362,7 +383,7 @@ export default function ExperienceStep() {
                 {/* Bullets */}
                 <div>
                   <label className="block text-xs font-medium text-gray-600 mb-2">Key Achievements</label>
-                  <p className="text-[10px] text-gray-400 mb-2 flex items-center gap-1"><span className="text-blue-400">💡</span> Use numbers — recruiters love measurable impact (<span className="text-blue-500 font-medium">40%</span>, <span className="text-blue-500 font-medium">$50K</span>, <span className="text-blue-500 font-medium">200+ users</span>)</p>
+                  <p className="text-[10px] text-gray-400 mb-2 flex items-center gap-1"><svg className="w-3 h-3 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> Use numbers — recruiters love measurable impact (<span className="text-blue-500 font-medium">40%</span>, <span className="text-blue-500 font-medium">$50K</span>, <span className="text-blue-500 font-medium">200+ users</span>)</p>
                   <div className="space-y-2">
                     {exp.bullets.map((bullet, bIdx) => (
                       <div key={bIdx} className="flex gap-2">

@@ -11,7 +11,6 @@ import {
 import BackButton from '../components/BackButton';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { sendAIMessageStream, buildUserContext } from '../services/aiChatService';
-import { executeResumeAI } from '../services/resumeAIClient';
 
 interface Props {
   onNavigate?: (page: string, data?: any) => void;
@@ -151,7 +150,7 @@ function buildWelcomeMessage(ctx: Record<string, unknown>, firstName: string): s
   return lines.join('\n');
 }
 
-const SYSTEM_PROMPT = `You are ZyncJobs AI Career Mentor — a personalized, expert career advisor for the ZyncJobs platform. You ALREADY know the candidate's profile (skills, role, ATS score, goals). Give specific, data-driven advice using ONLY ZyncJobs features and jobs. NEVER mention other job sites (LinkedIn, Indeed, Glassdoor, Naukri, Monster, etc.). Direct users to ZyncJobs tools: Resume Builder, Skill Gap Analysis, Career Roadmap, Interview Tips, Job Recommendations, and the jobs posted on ZyncJobs. Be direct, encouraging, and mentor-like. Use bullet points. Max 3-4 short paragraphs.`;
+const SYSTEM_PROMPT = `You are ZyncJobs AI Career Mentor — a personalized expert career advisor. The candidate's full profile (name, current role, target role, skills, ATS score, missing skills, experience) is included in every message. You MUST use this profile data to give specific, personalized answers. NEVER respond with generic feature descriptions. NEVER say "use Skill Gap Analysis" or "visit Career Roadmap" as the answer — instead, PERFORM the analysis yourself and give the actual answer. For skill gaps: list the candidate's current skills vs missing skills. For career paths: generate actual step-by-step roadmap with timelines. For salary: give specific advice based on their role and skills. For resume: analyze their actual ATS score and give specific improvements. NEVER mention other job sites. Be direct, data-driven, and mentor-like. Use bullet points. Max 3-4 paragraphs.`;
 
 function groupSessionsByDate(sessions: Session[]): { label: string; items: Session[] }[] {
   const now = new Date();
@@ -211,6 +210,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
   const recognitionRef = useRef<any>(null);
   // track current session id so we can update it in place
   const activeIdRef = useRef<string>(sessions[0]?.id || '');
+  const pendingCtxRef = useRef<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
@@ -294,7 +294,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     window.speechSynthesis.speak(utt);
   };
 
-  const sendMessage = useCallback(async (text: string) => {
+  const sendMessage = useCallback(async (text: string, ctxOverride?: Record<string, unknown>) => {
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     abortRef.current?.abort();
@@ -305,7 +305,9 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     setInput('');
     setUploadedFile(null);
     setLoading(true);
-    const key = cacheKey('career-mentor', trimmed, JSON.stringify(userCtx).slice(0, 100));
+    const activeCtx = ctxOverride || pendingCtxRef.current || userCtx;
+    pendingCtxRef.current = null;
+    const key = cacheKey('career-mentor', trimmed, JSON.stringify(activeCtx).slice(0, 100));
     const cached = getCached<string>(key);
     if (cached) {
       setMessages(prev => [...prev, { role: 'assistant', content: cached }]);
@@ -326,11 +328,11 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
           }
           return [...prev, { role: 'assistant', content: full }];
         });
-      }, abortRef.current.signal, userCtx);
+      }, abortRef.current.signal, activeCtx);
       if (full) { setCached(key, full); speakText(full); }
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
-      const fallback = getFallback(trimmed, userCtx);
+      const fallback = getFallback(trimmed, activeCtx);
       setMessages(prev => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant' && !last.content) {
@@ -357,15 +359,21 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
     const isImage = file.type.startsWith('image/');
     const isText = file.type === 'text/plain';
     const isPDF = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+    const isDocx = file.name.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     setUploadedFile({ name: file.name, type: file.type });
-    if (isImage) {
-      sendMessage(`I've uploaded a screenshot (${file.name}). Please analyze it and give me career guidance based on what you see.`);
-      return;
-    }
-    // Parse resume files — extract text, call AI, update localStorage + right panel
+    // Parse resume files — extract text, update localStorage + right panel
+    let freshCtx: Record<string, unknown> | undefined;
     try {
       let content = '';
-      if (isText) {
+      if (isImage) {
+        // OCR the image using tesseract.js
+        const imageUrl = URL.createObjectURL(file);
+        try {
+          const Tesseract = await import('tesseract.js');
+          const { data } = await Tesseract.recognize(imageUrl, 'eng');
+          content = data.text.slice(0, 5000);
+        } finally { URL.revokeObjectURL(imageUrl); }
+      } else if (isText) {
         content = await new Promise<string>((resolve) => {
           const reader = new FileReader();
           reader.onload = (ev) => resolve((ev.target?.result as string || '').slice(0, 5000));
@@ -378,28 +386,104 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
           const textItems = await readPdf(url);
           content = textItems.map(t => t.text).join('\n').slice(0, 5000);
         } finally { URL.revokeObjectURL(url); }
+      } else if (isDocx) {
+        const arrayBuffer = await file.arrayBuffer();
+        const mammoth = await import('mammoth');
+        const { value } = await mammoth.extractRawText({ arrayBuffer });
+        content = value.slice(0, 5000);
       } else {
         content = `Resume file: ${file.name}`;
       }
-      // Parse with AI
-      const parsed = await executeResumeAI({ section: 'resume', action: 'parse', content });
-      const result = (parsed.result || parsed) as any;
-      // Update localStorage user key
+      // Parse resume text directly (no AI call needed — content is already extracted text)
+      // Extract structured data from raw resume text
+      const extractSkills = (text: string): string[] => {
+        // Try multiple section header variants
+        const sectionPattern = /(?:technical skills?|skills?|core competencies?|key skills?|technologies|tech stack)[:\s]*([\s\S]*?)(?=\n[A-Z][A-Z\s]{2,}\n|\n\n[A-Z]|$)/i;
+        const skillSection = text.match(sectionPattern)?.[1] || '';
+        const skills: string[] = [];
+        skillSection.split('\n').forEach(line => {
+          // Handle "Category: skill1, skill2" format
+          const afterColon = line.includes(':') ? line.split(':').slice(1).join(':') : line;
+          afterColon.split(/[,|•]/).map(s => s.replace(/^[•\-*\s]+/, '').trim())
+            .filter(s => s.length > 1 && s.length < 40 && !/^(and|the|with|for|in|of|to|a|an)$/i.test(s))
+            .forEach(s => skills.push(s));
+        });
+        return [...new Set(skills)].filter(Boolean).slice(0, 20);
+      };
+      const extractName = (text: string): string => {
+        const firstLine = text.split('\n').find(l => l.trim().length > 2 && l.trim().length < 50);
+        return firstLine?.trim() || '';
+      };
+      const extractEmail = (text: string): string =>
+        text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)?.[0] || '';
+      const extractSummary = (text: string): string =>
+        text.match(/(?:professional summary|summary|objective)[:\s]*([\s\S]{50,500}?)(?:\n(?:WORK|EDUCATION|SKILLS|INTERNSHIP|PUBLICATION|PROJECT|COMPETITION|CERTIFICATION|SOFT|TOOLS)|$)/i)?.[1]?.trim().replace(/\s+/g, ' ') || '';
+      const extractExperience = (text: string): Array<{title: string; company: string}> => {
+        const expSection = text.match(/work experience[\s\S]*?(?=\n(?:INTERNSHIP|EDUCATION|SKILLS|PUBLICATION|PROJECT|COMPETITION|CERTIFICATION|SOFT|TOOLS)|$)/i)?.[0] || '';
+        const results: Array<{title: string; company: string}> = [];
+        // Match "Title\nCompany | Location" or "Title\nCompany\n"
+        const matches = [...expSection.matchAll(/^([A-Z][A-Za-z\s]+?)\n([A-Za-z][\w\s,&]+?)(?:\s*\|)/gm)];
+        matches.slice(0, 3).forEach(m => results.push({ title: m[1].trim(), company: m[2].trim() }));
+        // Fallback: look for known patterns
+        if (results.length === 0) {
+          const fallback = [...expSection.matchAll(/(?:^|\n)(Backend Developer|Frontend Developer|Full Stack|Software Engineer|Developer|Engineer|Intern|Lead|Manager)[^\n]*/gi)];
+          fallback.slice(0, 2).forEach(m => results.push({ title: m[1].trim(), company: '' }));
+        }
+        return results;
+      };
+      const skills = extractSkills(content);
+      const name = extractName(content);
+      const email = extractEmail(content);
+      const summary = extractSummary(content);
+      const experience = extractExperience(content);
+      const hasContact = !!email;
+      const hasSummary = !!summary;
+      const hasExperience = experience.length > 0;
+      const hasEducation = /education|b\.tech|bachelor|master|degree|cgpa/i.test(content);
+      const hasPublications = /publication|conference|springer|journal/i.test(content);
+      const hasCertifications = /certification|certified|udemy|coursera|nptel|ibm/i.test(content);
+      // Realistic ATS score
+      let score = 30;
+      if (skills.length >= 8) score += 20;
+      else if (skills.length >= 4) score += 12;
+      else if (skills.length > 0) score += 6;
+      if (hasContact) score += 10;
+      if (hasSummary) score += 12;
+      if (hasExperience) score += 12;
+      if (hasEducation) score += 8;
+      if (hasPublications) score += 5;
+      if (hasCertifications) score += 3;
+      const atsScore = Math.min(score, 100);
+      // Update localStorage — replace stale data with freshly parsed resume data
       try {
         const u = JSON.parse(localStorage.getItem('user') || '{}');
-        if (result.skills) u.skills = result.skills;
-        if (result.summary) u.profileSummary = result.summary;
-        if (result.personalInfo?.name) u.name = result.personalInfo.name;
-        if (result.personalInfo?.email) u.email = result.personalInfo.email;
-        if (Array.isArray(result.experience) && result.experience.length > 0) {
-          u.jobTitle = result.experience[0].title || u.jobTitle;
-        }
+        // Always overwrite these fields from resume — don't keep stale old data
+        u.skills = skills.length > 0 ? skills : u.skills;
+        u.profileSummary = summary || u.profileSummary;
+        u.name = name || u.name;
+        u.email = email || u.email;
+        u.jobTitle = experience.length > 0 ? experience[0].title : u.jobTitle;
+        // Clear stale fields that conflict with resume data
+        if (skills.length > 0) delete u.missingSkills;
+        u.atsScore = atsScore;
         localStorage.setItem('user', JSON.stringify(u));
-        setUserCtx(buildUserContext());
+        freshCtx = buildUserContext();
+        setUserCtx(freshCtx);
       } catch { /* silent */ }
-      sendMessage(`I've uploaded my resume (${file.name}) and parsed it. Please review my profile and give me career guidance.`);
+      // Pass raw resume text + parsed summary — LLM reads actual content directly
+      const resumeSummary = [
+        name ? `Name: ${name}` : '',
+        experience.length > 0 ? `Current Role: ${experience[0].title}${experience[0].company ? ` at ${experience[0].company}` : ''}` : '',
+        skills.length > 0 ? `Extracted Skills: ${skills.join(', ')}` : '',
+        `ATS Score: ${atsScore}%`,
+        `\n--- FULL RESUME TEXT ---\n${content.slice(0, 3000)}`,
+      ].filter(Boolean).join('\n');
+      const ctxWithResume = { ...(freshCtx || userCtx), resume_text: resumeSummary, current_role: experience[0]?.title || (freshCtx || userCtx).current_role };
+      pendingCtxRef.current = ctxWithResume;
+      setInput(`I've uploaded my resume (${file.name}) and parsed it. Please review my profile and give me career guidance.`);
     } catch {
-      sendMessage(`I've uploaded my resume (${file.name}). Please review it and give me detailed feedback.`);
+      pendingCtxRef.current = freshCtx || userCtx;
+      setInput(`I've uploaded my resume (${file.name}). Please review it and give me detailed feedback.`);
     }
   };
 
@@ -630,7 +714,7 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                     </div>
                   )}
                   <div className="flex items-end gap-1.5 px-3 py-2.5">
-                    <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,image/*" className="hidden" onChange={handleFileUpload} />
+                    <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.webp,image/*" className="hidden" onChange={handleFileUpload} />
                     <button onClick={() => fileInputRef.current?.click()} title="Upload resume or image" className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all flex-shrink-0"><Paperclip className="w-4 h-4" /></button>
                     <button onClick={toggleVoice} title={isListening ? 'Stop listening' : 'Voice input'} className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all flex-shrink-0 ${isListening ? 'text-red-500 bg-red-50 animate-pulse' : 'text-gray-400 hover:text-violet-600 hover:bg-violet-50'}`}>{isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}</button>
                     <button onClick={() => { if (isSpeaking) { window.speechSynthesis?.cancel(); setIsSpeaking(false); } setSpeakerEnabled(p => !p); }}
@@ -696,20 +780,23 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
                 )}
               </div>
               <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
-                <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide mb-2">Career Readiness</p>
-                <div className="flex items-center gap-3">
-                  <div className="relative w-14 h-14 flex-shrink-0">
-                    <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                      <circle cx="28" cy="28" r="22" fill="none" stroke="#f3f4f6" strokeWidth="5" />
-                      {atsScore && <circle cx="28" cy="28" r="22" fill="none" stroke="#8b5cf6" strokeWidth="5" strokeDasharray={`${2 * Math.PI * 22}`} strokeDashoffset={`${2 * Math.PI * 22 * (1 - Math.min(atsScore, 100) / 100)}`} strokeLinecap="round" />}
-                    </svg>
-                    <span className={`absolute inset-0 flex items-center justify-center text-[13px] font-bold ${atsScore ? 'text-violet-700' : 'text-gray-300'}`}>{atsScore ? `${Math.round(atsScore * 0.9)}%` : '—'}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{targetRole || 'No target role'}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{currentRole || 'Complete your profile'}</p>
-                    {skills.length > 0 && <p className="text-[11px] text-emerald-600 mt-1 font-medium">{skills.length} skills on profile</p>}
-                  </div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">Career Readiness</p>
+                  {(() => { const done = [!!currentRole,!!targetRole,skills.length>0,!!atsScore].filter(Boolean).length; const pct = Math.round(done/4*100); return <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${pct===100?'text-emerald-600 bg-emerald-50':pct>=50?'text-violet-600 bg-violet-50':'text-amber-600 bg-amber-50'}`}>{pct}% complete</span>; })()}
+                </div>
+                <div className="space-y-1.5">
+                  {[
+                    {label:'Current role set',done:!!currentRole,detail:currentRole},
+                    {label:'Target role set',done:!!targetRole,detail:targetRole},
+                    {label:'Skills on profile',done:skills.length>0,detail:skills.length>0?`${skills.length} skills`:null},
+                    {label:'Resume analyzed',done:!!atsScore,detail:atsScore?`ATS ${atsScore}%`:null},
+                  ].map((item,i)=>(
+                    <div key={i} className="flex items-center gap-2">
+                      {item.done?<CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"/>:<Circle className="w-3.5 h-3.5 text-gray-300 flex-shrink-0"/>}
+                      <span className={`text-[12px] flex-1 truncate ${item.done?'text-gray-700':'text-gray-400'}`}>{item.label}</span>
+                      {item.detail&&<span className="text-[10px] text-gray-400 truncate max-w-[80px]">{item.detail}</span>}
+                    </div>
+                  ))}
                 </div>
               </div>
               {skills.length > 0 ? (
@@ -753,23 +840,54 @@ export default function CareerCoachPage({ onNavigate, user, onLogout }: Props) {
 
 function getFallback(q: string, ctx: Record<string, unknown>): string {
   const t = q.toLowerCase();
-  const role = ctx.current_role as string || 'your role';
+  const role = ctx.current_role as string || 'your current role';
   const target = ctx.target_role as string || 'your target role';
   const skills = (ctx.skills as string[]) || [];
   const missing = (ctx.missing_skills as string[]) || [];
-  if (t.includes('salary') || t.includes('pay') || t.includes('lpa'))
-    return `Based on your profile as a **${role}**:\n\n• Check salary insights on ZyncJobs for ${role} roles\n• Your current skills (${skills.slice(0, 3).join(', ')}) are in demand on ZyncJobs\n• To increase salary, focus on: AWS, Docker, System Design\n• Build 2-3 production projects to justify a higher package\n\nBrowse jobs on ZyncJobs to see real salary ranges.`;
-  if (t.includes('skill') || t.includes('learn') || t.includes('missing')) {
-    const gaps = missing.length > 0 ? missing.slice(0, 4).join(', ') : 'Docker, AWS, System Design';
-    return `Based on your profile targeting **${target}**:\n\n• Missing skills: **${gaps}**\n• You already have: ${skills.slice(0, 3).join(', ')}\n• Priority: Learn the top 2-3 missing skills first\n• Use ZyncJobs Skill Gap Analysis for a detailed breakdown and learning resources\n\nCheck ZyncJobs for ${target} roles to see skill requirements.`;
+  const ats = ctx.ats_score as number | null;
+  const exp = ctx.experience_years as string || '';
+
+  if (t.includes('salary') || t.includes('pay') || t.includes('lpa') || t.includes('compensation')) {
+    const salaryTips = skills.length > 0
+      ? `Your skills in **${skills.slice(0, 3).join(', ')}** are in demand — leverage them in negotiations.`
+      : 'Build in-demand skills to strengthen your salary negotiation position.';
+    return `**Salary Growth Strategy for ${role}:**\n\n• ${salaryTips}\n• Get certified in your top 1-2 skills to justify a 20-30% raise\n• Switch companies every 2-3 years — external hires typically earn 15-20% more than internal promotions\n• Target companies hiring for **${target}** roles — they pay a premium for your exact skill set\n• Quantify your impact in interviews: "Reduced deployment time by 40%", "Increased revenue by ₹X"\n• Negotiate total compensation: base + bonus + equity + benefits`;
   }
+
+  if (t.includes('skill') || t.includes('learn') || t.includes('missing') || t.includes('gap')) {
+    const hasSkills = skills.length > 0;
+    const hasMissing = missing.length > 0;
+    let reply = `**Skill Gap Analysis — ${role} → ${target}:**\n\n`;
+    if (hasSkills) reply += `✓ Skills you already have: **${skills.slice(0, 5).join(', ')}**\n\n`;
+    if (hasMissing) {
+      reply += `○ Skills to acquire for **${target}**:\n${missing.slice(0, 5).map(s => `- ${s}`).join('\n')}\n\n`;
+      reply += `**Priority order:** Start with ${missing[0]}${missing[1] ? ` then ${missing[1]}` : ''} — these appear most in ${target} job descriptions.\n\n`;
+    } else {
+      reply += `○ Common skills needed for **${target}**: System Design, Cloud (AWS/GCP), Docker, CI/CD, TypeScript\n\n`;
+    }
+    reply += `**Learning path:** Dedicate 1-2 hours/day. Most skills take 4-8 weeks to reach job-ready level.`;
+    return reply;
+  }
+
   if (t.includes('resume') || t.includes('cv') || t.includes('ats')) {
-    const ats = ctx.ats_score as number;
-    return `${ats ? `Your ATS score is **${ats}%**.` : 'Resume tips for you:'}\n\n• Add quantified achievements: "Reduced load time by 40%"\n• Include keywords from job descriptions\n• Use action verbs: Built, Led, Designed, Optimized\n• Keep it to 1 page if under 5 years experience\n\nUse Resume Builder to optimize your resume for ZyncJobs applications.`;
+    const scoreMsg = ats ? `Your current ATS score is **${ats}%** — ` : '';
+    const improvement = ats && ats < 60 ? 'needs significant improvement' : ats && ats < 80 ? 'good but can be optimized' : 'well optimized';
+    return `**Resume Analysis${ats ? ` (ATS: ${ats}%)` : ''}:**\n\n${scoreMsg}${ats ? improvement + '.\n\n' : ''}• Add quantified achievements: "Reduced load time by 40%", "Led team of 5 engineers"\n• Include keywords from **${target}** job descriptions: ${skills.slice(0, 3).join(', ')}${missing.length > 0 ? ', ' + missing.slice(0, 2).join(', ') : ''}\n• Use strong action verbs: Built, Architected, Led, Optimized, Delivered\n• Keep to 1 page if under 5 years experience${exp ? ` (you have ${exp} years)` : ''}\n• Add a skills section with your top 8-10 technical skills prominently`;
   }
-  if (t.includes('interview'))
-    return `Interview prep for **${target}**:\n\n• Research the company — products, culture, recent news\n• Use STAR method for behavioral questions\n• Prepare 3-5 stories from your experience with ${skills.slice(0, 2).join(' and ')}\n• Practice system design if targeting senior roles\n\nUse ZyncJobs Interview Tips for role-specific practice questions.`;
-  if (t.includes('career') || t.includes('path') || t.includes('roadmap') || t.includes('create') && t.includes('path'))
-    return `Here's your career path from **${role}** to **${target}**:\n\n**Step 1: Strengthen Core Skills (0-3 months)**\n• You already have: ${skills.slice(0, 3).join(', ') || 'foundational skills'}\n• Focus on: ${missing.slice(0, 2).join(', ') || 'advanced skills for your target role'}\n\n**Step 2: Build Real Projects (3-6 months)**\n• Build 2-3 portfolio projects using your target skills\n• Contribute to open source or write technical blogs\n• Get 1 relevant certification\n\n**Step 3: Apply & Interview (6-12 months)**\n• Apply to ${target} roles on ZyncJobs\n• Tailor your resume using ZyncJobs Resume Builder\n• Practice with ZyncJobs Interview Tips\n\n💡 Use ZyncJobs Career Roadmap for a detailed step-by-step plan with timelines.`;
-  return `I'm your personal career mentor on ZyncJobs. Based on your profile (${role} → ${target}), I can help with:\n\n• Career planning and roadmaps\n• Skill gap analysis\n• Resume and ATS optimization\n• Interview preparation\n• Salary negotiation\n\nWhat specific area would you like to focus on?`;
+
+  if (t.includes('interview') || t.includes('prepare') || t.includes('preparation')) {
+    const skillContext = skills.length > 0 ? skills.slice(0, 2).join(' and ') : 'your core skills';
+    return `**Interview Preparation for ${target}:**\n\n• **Technical round:** Expect questions on ${skillContext}${missing.length > 0 ? ` and possibly ${missing[0]}` : ''}\n• **System design:** Practice designing scalable systems — common for ${target} roles\n• **Behavioral (STAR method):** Prepare 3-5 stories from your ${role} experience\n  - Situation → Task → Action → Result\n• **Questions to ask them:** "What does success look like in 90 days?", "What's the tech stack?"\n• **Salary negotiation:** Research market rates for ${target} in ${ctx.location || 'your city'} before the final round`;
+  }
+
+  if (t.includes('career') || t.includes('path') || t.includes('roadmap') || t.includes('plan') || t.includes('switch')) {
+    const step1Skills = missing.slice(0, 2).join(', ') || 'advanced skills for your target role';
+    return `**Career Roadmap: ${role} → ${target}**\n\n**Phase 1: Skill Building (0-3 months)**\n• You already have: ${skills.slice(0, 3).join(', ') || 'foundational skills'}\n• Add: ${step1Skills}\n• Complete 1 certification relevant to ${target}\n\n**Phase 2: Portfolio & Visibility (3-6 months)**\n• Build 2-3 projects showcasing ${target} skills\n• Contribute to open source or write 2-3 technical articles\n• Update your resume and LinkedIn with new skills\n\n**Phase 3: Active Job Search (6-9 months)**\n• Apply to ${target} roles — target 5-10 applications/week\n• Prepare for technical + system design interviews\n• Negotiate salary based on your new skill set\n\n💡 Estimated timeline: 6-9 months with consistent effort.`;
+  }
+
+  if (t.includes('job') || t.includes('match') || t.includes('recommend') || t.includes('find')) {
+    return `**Job Matching for your profile:**\n\n• Your skills (${skills.slice(0, 4).join(', ') || 'on your profile'}) match **${target}** roles\n• Focus on companies that list these exact skills in their JDs\n• Apply to roles where you match 70%+ of requirements — don't wait for 100%\n• Tailor your resume for each application: mirror the job description keywords\n• Best time to apply: Tuesday-Thursday mornings get the most recruiter attention\n\nSearch for **${target}** roles on ZyncJobs filtered by your location${ctx.location ? ` (${ctx.location})` : ''}.`;
+  }
+
+  return `**Career Guidance for ${role} → ${target}:**\n\n${skills.length > 0 ? `Your current skills: ${skills.slice(0, 4).join(', ')}\n\n` : ''}I can help you with:\n• Skill gap analysis — what to learn next\n• Career roadmap — step-by-step plan with timelines\n• Resume optimization — improve your ATS score${ats ? ` (currently ${ats}%)` : ''}\n• Interview preparation — role-specific questions\n• Salary negotiation — how to get paid what you're worth\n\nWhat would you like to focus on?`;
 }
