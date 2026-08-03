@@ -100,6 +100,9 @@ export const API_ENDPOINTS = {
   // Candidate Credentialing
   CREDENTIALING: `${config.API_URL}/credentialing`,
 
+  // Career Roadmap
+  ROADMAPS: `${config.API_URL}/roadmaps`,
+
   // Salary Insights
   SALARY_INSIGHTS: `${config.API_URL}/salary-insights`,
 

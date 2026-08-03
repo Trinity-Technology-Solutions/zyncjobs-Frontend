@@ -11,8 +11,10 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
   const [activeTab, setActiveTab] = useState<'resume' | 'linkedin'>('resume');
 
   const handleFileUpload = (file: File) => {
-    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'];
-    if (file && (allowedTypes.includes(file.type) || file.name.endsWith('.pdf'))) {
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'];
+    const allowedExts = /\.(pdf|jpg|jpeg|png|webp|bmp|tiff|tif|docx|doc)$/i;
+    if (file && (allowedTypes.includes(file.type) || allowedExts.test(file.name))) {
       const url = URL.createObjectURL(file);
       onFileUrlChange(url, file);
     }
@@ -77,10 +79,10 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
           <p className="text-lg font-medium text-gray-900 mb-2">
             Drop your resume here or click to browse
           </p>
-          <p className="text-sm text-gray-500 mb-4">PDF, JPG, PNG, WEBP files supported</p>
+          <p className="text-sm text-gray-500 mb-4">PDF, DOCX, JPG, PNG, WEBP files supported</p>
           <input
             type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.webp"
+            accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp"
             onChange={handleFileInput}
             className="hidden"
             id="resume-file-input"
@@ -153,7 +155,7 @@ export const ResumeDropzone: React.FC<ResumeDropzoneProps> = ({ onFileUrlChange,
             <p className="text-sm text-blue-800 font-medium mb-3">Upload your LinkedIn PDF here</p>
             <input
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,.docx,.doc,.jpg,.jpeg,.png,.webp"
               onChange={handleFileInput}
               className="hidden"
               id="linkedin-file-input"

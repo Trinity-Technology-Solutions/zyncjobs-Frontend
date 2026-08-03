@@ -14,18 +14,22 @@ const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
 
-async function getToken(): Promise<string> {
+async function getToken(): Promise<string | null> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
-  const res = await fetch(`${AI_BASE}/auth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
-  });
-  if (!res.ok) throw new Error(`AI auth failed: ${res.status}`);
-  const data = await res.json();
-  cachedToken = data.access_token;
-  tokenExpiry = Date.now() + 55 * 60 * 1000;
-  return cachedToken!;
+  try {
+    const res = await fetch(`${AI_BASE}/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    cachedToken = data.access_token;
+    tokenExpiry = Date.now() + 55 * 60 * 1000;
+    return cachedToken!;
+  } catch {
+    return null;
+  }
 }
 
 export interface ResumeAIExecuteRequest {
@@ -71,7 +75,19 @@ function buildQuery(section: string, action: string, content: string): string {
   const fullContent = resumeContext ? `${resumeContext}\n\nSection content:\n${content}` : content;
   const sectionLabel = section.charAt(0).toUpperCase() + section.slice(1);
   if (section === 'summary' && action === 'generate') {
-    return `Write a concise 2-3 sentence professional summary based on this candidate's profile. No placeholders like [X] or [Y]. No sections. Return ONLY the summary.\n\nCandidate Profile:\n${resumeContext || content}`;
+    return `You are a professional resume writer. Write exactly 3 different professional summary options for the candidate profile below.
+
+RULES:
+- Each option must be 2-3 sentences
+- Use the EXACT job role specified in the profile — do NOT substitute or invent a different role
+- Reference the candidate's actual skills, experience, and achievements
+- Start each with a strong action-oriented opening
+- No placeholders like [X] or [Y], no labels, no markdown
+- Separate each option with "---" on its own line
+- Return ONLY the 3 options, nothing else
+
+Candidate Profile:
+${content}`;
   }
   const actionMap: Record<string, string> = {
     improve: `improve this resume ${section} section based on the full candidate profile below`,
@@ -115,7 +131,7 @@ function extractSuggestionData(result: Record<string, any> | null | undefined): 
   return [];
 }
 
-const AI_TIMEOUT = 15000;
+const AI_TIMEOUT = 60000; // 60s — Ollama needs time for large resumes
 
 export async function executeResumeAI(
   request: ResumeAIExecuteRequest
@@ -128,13 +144,13 @@ export async function executeResumeAI(
   const timer = setTimeout(() => controller.abort(), AI_TIMEOUT);
 
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
     const res = await fetch(`${AI_BASE}/ai/execute`, {
       method: 'POST',
       signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
+      headers,
       body: JSON.stringify({
         query,
         session_id: request.experienceId || undefined,

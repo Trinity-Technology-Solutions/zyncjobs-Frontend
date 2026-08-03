@@ -22,7 +22,9 @@ export interface ExperienceItem {
 
 export interface EducationItem {
   id: string;
-  degree: string;
+  degree: string;       // legacy fallback
+  ugDegree: string;
+  pgDegree: string;
   institution: string;
   location: string;
   duration: string;
@@ -134,8 +136,8 @@ interface ResumeStore {
   // Undo/Redo
   undo: () => void;
   redo: () => void;
-  canUndo: () => boolean;
-  canRedo: () => boolean;
+  canUndo: boolean;
+  canRedo: boolean;
   pushHistory: () => void;
 }
 
@@ -166,9 +168,11 @@ export const useResumeStore = create<ResumeStore>()(
       data: defaultData,
       history: [],
       historyIndex: 0,
+      canUndo: false,
+      canRedo: false,
 
       update: (field, value) =>
-        set((s: ResumeStore) => ({ data: { ...s.data, [field]: typeof value === 'string' ? value.trim() : value } })),
+        set((s: ResumeStore) => ({ data: { ...s.data, [field]: value } })),
 
       updatePersonalInfo: (field, value) =>
         set((s: ResumeStore) => ({
@@ -205,7 +209,7 @@ export const useResumeStore = create<ResumeStore>()(
             ...s.data,
             education: [
               ...s.data.education,
-              { id: Date.now().toString(), degree: '', institution: '', location: '', duration: '', grade: '' },
+              { id: Date.now().toString(), degree: '', ugDegree: '', pgDegree: '', institution: '', location: '', duration: '', grade: '' },
             ],
           },
         })),
@@ -348,9 +352,9 @@ export const useResumeStore = create<ResumeStore>()(
         set((s: ResumeStore) => {
           const newHistory = s.history.slice(0, s.historyIndex + 1);
           newHistory.push({ data: JSON.parse(JSON.stringify(s.data)), timestamp: Date.now() });
-          // Keep last 50 history entries
           if (newHistory.length > 50) newHistory.shift();
-          return { history: newHistory, historyIndex: newHistory.length - 1 };
+          const newIndex = newHistory.length - 1;
+          return { history: newHistory, historyIndex: newIndex, canUndo: newIndex > 0, canRedo: false };
         }),
 
       undo: () =>
@@ -360,6 +364,8 @@ export const useResumeStore = create<ResumeStore>()(
             return {
               data: JSON.parse(JSON.stringify(s.history[newIndex].data)),
               historyIndex: newIndex,
+              canUndo: newIndex > 0,
+              canRedo: true,
             };
           }
           return s;
@@ -372,20 +378,15 @@ export const useResumeStore = create<ResumeStore>()(
             return {
               data: JSON.parse(JSON.stringify(s.history[newIndex].data)),
               historyIndex: newIndex,
+              canUndo: true,
+              canRedo: newIndex < s.history.length - 1,
             };
           }
           return s;
         }),
 
-      canUndo: () => {
-        const { historyIndex } = useResumeStore.getState();
-        return historyIndex > 0;
-      },
-
-      canRedo: () => {
-        const { history, historyIndex } = useResumeStore.getState();
-        return historyIndex < history.length - 1;
-      },
+      canUndo: false,
+      canRedo: false,
     }),
     {
       name: 'zyncjobs-resume-builder',

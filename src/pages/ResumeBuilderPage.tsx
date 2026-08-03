@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Save, Undo2, Redo2, Download, FileText, Briefcase, GraduationCap,
   User, Sparkles, Award, FolderOpen, Wrench, ChevronLeft, ChevronRight,
@@ -118,7 +118,13 @@ const GOAL_PRESETS: Record<string, { summaryPrefix: string; skills: string[] }> 
 };
 
 export default function ResumeBuilderPage({ onNavigate, user }: Props) {
-  const [activeId, setActiveId] = useState('personal');
+  const [activeId, setActiveId] = useState(() => sessionStorage.getItem('rb_activeId') || 'personal');
+
+  // Persist active step across refresh
+  const setActiveIdPersisted = React.useCallback((id: string) => {
+    sessionStorage.setItem('rb_activeId', id);
+    setActiveId(id);
+  }, []);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
@@ -149,6 +155,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { data, update, updatePersonalInfo, touchSave, toggleSection, undo, redo, canUndo, canRedo, pushHistory } = useResumeStore();
   const completeness = [!!data.summary, data.experience.length > 0, data.skills.length > 0, data.education.length > 0].filter(Boolean).length;
+
+  const { lastSaved: _ls, ...dataWithoutLastSaved } = data;
+  const dataHash = JSON.stringify(dataWithoutLastSaved);
+  const prevDataHash = useRef(dataHash);
   
   const profilePrefilledRef = useRef(false);
   const processResumeFileRef = useRef<(file: File) => Promise<void>>();
@@ -159,7 +169,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     return () => window.removeEventListener('zync:import-resume', handler);
   }, []);
 
-  // Push history only on section change, not every keystroke
+  // Push history on section change
   const prevActiveId = useRef(activeId);
   useEffect(() => {
     if (prevActiveId.current !== activeId) {
@@ -167,6 +177,18 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       prevActiveId.current = activeId;
     }
   }, [activeId]);
+
+  // Push history on data changes (debounced)
+  const historyDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevDataForHistory = useRef<string | null>(null);
+  useEffect(() => {
+    if (prevDataForHistory.current === null) { prevDataForHistory.current = dataHash; return; }
+    if (dataHash === prevDataForHistory.current) return;
+    prevDataForHistory.current = dataHash;
+    if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current);
+    historyDebounceRef.current = setTimeout(() => { pushHistory(); }, 1500);
+    return () => { if (historyDebounceRef.current) clearTimeout(historyDebounceRef.current); };
+  }, [dataHash]);
   useEffect(() => {
     if (selectedJob && qaStep === 0) {
       const t = setTimeout(() => setQaStep(1), 350);
@@ -226,8 +248,11 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   }, []);
 
   React.useEffect(() => {
-    setSaveStatus('saving');
+    if (dataHash === prevDataHash.current) return;
+    prevDataHash.current = dataHash;
+    const savingTimer = setTimeout(() => setSaveStatus('saving'), 300);
     const saveTimer = setTimeout(() => {
+      clearTimeout(savingTimer);
       try {
         touchSave();
         persistCurrentVersion(activeVersion);
@@ -237,10 +262,10 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       }
     }, 800);
     return () => {
+      clearTimeout(savingTimer);
       clearTimeout(saveTimer);
-      setSaveStatus('saved');
     };
-  }, [data]);
+  }, [dataHash]);
 
   
 
@@ -497,15 +522,6 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     } finally { setApplying(false); }
   };
 
-  const sections = [...new Set(orderedNav.map(n => n.section))];
-  const sectionIcons: Record<string, any> = {
-    Profile: UserCircle,
-    Content: BookOpen,
-    Enhance: WrenchIcon,
-    Analyze: BarChart3,
-    Design: Palette,
-  };
-
   const GOAL_HIDDEN_SECTIONS: Record<string, string[]> = {
     'first-job': ['certs', 'languages', 'custom'],
     'internship': ['certs', 'languages', 'custom'],
@@ -531,6 +547,15 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const active = orderedNav.find((n) => n.id === activeId) ?? orderedNav[0];
   const activeIdx = orderedNav.findIndex((n) => n.id === activeId);
   const ActiveComponent = active?.component ?? (() => null);
+
+  const sections = [...new Set(orderedNav.map(n => n.section))];
+  const sectionIcons: Record<string, any> = {
+    Profile: UserCircle,
+    Content: BookOpen,
+    Enhance: WrenchIcon,
+    Analyze: BarChart3,
+    Design: Palette,
+  };
 
   const processResumeFile = async (file: File) => {
     if (file.size < 100) {
@@ -559,30 +584,37 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
       });
-      if (!tokenRes.ok) throw new Error('AI auth failed');
-      const { access_token } = await tokenRes.json();
+      let access_token: string | null = null;
+      if (tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        access_token = tokenData.access_token;
+      }
 
       // Use parse-upload endpoint — backend handles OCR + LLM parsing, always fresh (no cache)
       const formData = new FormData();
       formData.append('file', file);
+      const headers: Record<string, string> = {};
+      if (access_token) headers['Authorization'] = `Bearer ${access_token}`;
       const resumeRes = await fetch(`${AI_BASE}/ai/resume/parse-upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${access_token}` },
+        headers,
         body: formData,
       });
-      if (!resumeRes.ok) throw new Error(`AI parse failed: ${resumeRes.status}`);
+      if (!resumeRes.ok) {
+        const errText = await resumeRes.text().catch(() => '');
+        let errMsg = `Parse failed (${resumeRes.status})`;
+        try { const j = JSON.parse(errText); errMsg = j.detail || j.error || errMsg; } catch {}
+        throw new Error(errMsg);
+      }
       const resumeData = await resumeRes.json();
       if (!resumeData.success) throw new Error(resumeData.error || 'Parse failed');
       const parsed = resumeData.parsed || {};
 
-      if (parsed.name || parsed.email || parsed.phone || parsed.location) {
-        if (parsed.name) updatePersonalInfo('name', parsed.name);
-        if (parsed.email) updatePersonalInfo('email', parsed.email);
-        if (parsed.phone) updatePersonalInfo('phone', parsed.phone);
-        if (parsed.location) updatePersonalInfo('location', parsed.location);
-        if (parsed.name) update('resumeName', `${parsed.name}'s Resume`);
-      }
-      if (parsed.title && !data.personalInfo.title) updatePersonalInfo('title' as any, parsed.title);
+      if (parsed.name) { updatePersonalInfo('name', parsed.name); update('resumeName', `${parsed.name}'s Resume`); }
+      if (parsed.email) updatePersonalInfo('email', parsed.email);
+      if (parsed.phone) updatePersonalInfo('phone', parsed.phone);
+      if (parsed.location) updatePersonalInfo('location', parsed.location);
+      if (parsed.linkedin) updatePersonalInfo('linkedin', parsed.linkedin);
       if (parsed.summary) update('summary', parsed.summary);
 
       const allSkills = [
@@ -595,46 +627,51 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       if (Array.isArray(parsed.certifications) && parsed.certifications.length > 0) {
         update('certifications', parsed.certifications.map((c: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          name: c.name || '',
-          issuer: c.provider || c.issuer || '',
+          name: c.name || c.title || '',
+          issuer: c.provider || c.issuer || c.organization || '',
           year: c.date || c.year || '',
         })));
       }
       if (Array.isArray(parsed.educations) && parsed.educations.length > 0) {
         update('education', parsed.educations.map((e: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          degree: e.degree || '',
-          institution: e.school || e.institution || '',
+          degree: e.degree || e.qualification || '',
+          institution: e.school || e.institution || e.college || e.university || '',
           location: e.location || '',
-          duration: e.date || e.duration || '',
-          grade: e.grade || '',
+          duration: e.date || e.duration || `${e.startYear || ''} – ${e.endYear || e.passingYear || ''}`.trim(),
+          grade: e.grade || e.percentage || e.cgpa || '',
         })));
       }
       if (Array.isArray(parsed.projects) && parsed.projects.length > 0) {
         update('projects', parsed.projects.map((p: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          name: p.name || '',
+          name: p.name || p.title || '',
           role: p.role || '',
           duration: p.date || p.duration || '',
           url: p.url || '',
-          bullets: Array.isArray(p.descriptions) ? p.descriptions : (p.description ? [p.description] : []),
+          bullets: Array.isArray(p.descriptions) ? p.descriptions
+            : Array.isArray(p.bullets) ? p.bullets
+            : p.description ? [p.description] : [],
         })));
       }
       if (Array.isArray(parsed.workExperiences) && parsed.workExperiences.length > 0) {
         update('experience', parsed.workExperiences.map((w: any) => ({
           id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
-          title: w.jobTitle || w.title || '',
-          company: w.company || '',
+          title: w.jobTitle || w.title || w.role || '',
+          company: w.company || w.organization || '',
           location: w.location || '',
-          duration: w.date || w.duration || '',
-          current: false,
-          bullets: Array.isArray(w.descriptions) ? w.descriptions : (Array.isArray(w.bulletPoints) ? w.bulletPoints : []),
+          duration: w.date || w.duration || `${w.startDate || ''} – ${w.endDate || 'Present'}`.trim(),
+          current: !!(w.current || w.currentlyWorking || w.endDate === 'Present'),
+          bullets: Array.isArray(w.descriptions) ? w.descriptions
+            : Array.isArray(w.bulletPoints) ? w.bulletPoints
+            : Array.isArray(w.bullets) ? w.bullets
+            : w.description ? [w.description] : [],
         })));
       }
 
       touchSave();
       pushHistory();
-      setActiveId('personal');
+      setActiveIdPersisted('personal');
     } catch (e: any) {
       console.error('Import error:', e);
       if (e?.message?.includes('Failed to fetch') || e?.name === 'TypeError') {
@@ -676,13 +713,6 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
     e.target.value = '';
   };
 
-  /** Extract a section from resume text by heading keywords — kept for potential future use */
-  function extractSection(_text: string, _headings: string[]): string | null { return null; }
-  function parseEducationRegex(_text: string): Array<{ degree: string; institution: string; duration: string }> { return []; }
-
-  const lastSavedLabel = data.lastSaved
-    ? `Saved locally at ${new Date(data.lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-    : 'Not saved yet';
   const saveNote = 'Auto-saved to your browser. Resume data stays on this device.';
 
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -690,301 +720,124 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
   const downloadPDF = async () => {
     setPdfLoading(true);
     try {
-      const { default: jsPDF } = await import('jspdf');
       const name = (data.personalInfo?.name || '').trim() || 'Resume';
-      
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 20;
-      const contentWidth = pageWidth - 2 * margin;
-      let y = margin;
-
-      // Helper function to add text with wrapping
-      const addText = (text: string, fontSize: number = 11, isBold: boolean = false, color: [number, number, number] = [0, 0, 0]) => {
-        pdf.setFontSize(fontSize);
-        pdf.setFont('', isBold ? 'bold' : 'normal');
-        pdf.setTextColor(...color);
-        const lines = pdf.splitTextToSize(text, contentWidth);
-        for (const line of lines) {
-          if (y + fontSize * 0.5 > pageHeight - margin) {
-            pdf.addPage();
-            y = margin;
-          }
-          pdf.text(line, margin, y);
-          y += fontSize * 0.6;
-        }
-        y += 2; // Small gap after text block
-      };
-
-      const addSectionHeader = (text: string) => {
-        if (y + 8 > pageHeight - margin) { pdf.addPage(); y = margin; }
-        pdf.setFontSize(12);
-        pdf.setFont('', 'bold');
-        pdf.setTextColor(30, 64, 175); // Blue
-        pdf.text(text.toUpperCase(), margin, y);
-        y += 3;
-        pdf.setDrawColor(30, 64, 175);
-        pdf.setLineWidth(0.5);
-        pdf.line(margin, y, pageWidth - margin, y);
-        y += 6;
-      };
-
-      // Personal Info
-      const p = data.personalInfo;
-      if (p.name) addText(p.name, 18, true, [0, 0, 0]);
-      const contactParts = [p.email, p.phone, p.location, p.linkedin, p.portfolio].filter(Boolean);
-      if (contactParts.length) addText(contactParts.join('  |  '), 10, false, [100, 100, 100]);
-      y += 4;
-
-      // Summary
-      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary;
-      if (summaryVal) {
-        addSectionHeader('Professional Summary');
-        addText(summaryVal);
-      }
-
-      // Skills
-      if (data.skills.length) {
-        addSectionHeader('Core Competencies');
-        addText(data.skills.join('  ·  '), 10);
-      }
-
-      // Experience
-      if (data.experience.length) {
-        addSectionHeader('Experience');
-        data.experience.forEach(exp => {
-          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
-          const titleLine = `${exp.title}${exp.company ? `, ${exp.company}` : ''}`;
-          addText(titleLine, 11, true);
-          if (exp.duration) addText(exp.duration, 9, false, [100, 100, 100]);
-          exp.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`, 10);
-          });
-          y += 3;
-        });
-      }
-
-      // Education
-      if (data.education.length) {
-        addSectionHeader('Education');
-        data.education.forEach(edu => {
-          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
-          let eduLine = edu.degree;
-          if (edu.institution) eduLine += ` — ${edu.institution}`;
-          if (edu.grade) eduLine += ` | ${edu.grade}`;
-          addText(eduLine, 11, true);
-          if (edu.duration) addText(edu.duration, 9, false, [100, 100, 100]);
-          y += 2;
-        });
-      }
-
-      // Certifications
-      if (data.certifications?.length) {
-        addSectionHeader('Certifications');
-        data.certifications.forEach(cert => {
-          let certLine = cert.name;
-          if (cert.issuer) certLine += ` — ${cert.issuer}`;
-          if (cert.year) certLine += ` (${cert.year})`;
-          addText(certLine, 10);
-        });
-      }
-
-      // Awards
-      if (data.awards?.length) {
-        addSectionHeader('Awards & Achievements');
-        data.awards.forEach(award => {
-          let awardLine = award.title;
-          if (award.issuer) awardLine += ` — ${award.issuer}`;
-          if (award.year) awardLine += ` (${award.year})`;
-          addText(awardLine, 10, true);
-          if (award.description) addText(award.description, 9);
-        });
-      }
-
-      // Projects
-      if (data.projects?.length) {
-        addSectionHeader('Projects');
-        data.projects.forEach(proj => {
-          if (y + 10 > pageHeight - margin) { pdf.addPage(); y = margin; }
-          const titleLine = `${proj.name}${proj.role ? ` — ${proj.role}` : ''}`;
-          addText(titleLine, 11, true);
-          if (proj.duration) addText(proj.duration, 9, false, [100, 100, 100]);
-          if (proj.url) addText(proj.url, 9, false, [37, 99, 235]);
-          proj.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`, 10);
-          });
-          y += 3;
-        });
-      }
-
-      // Languages
-      if (data.languages?.length) {
-        addSectionHeader('Languages');
-        addText(data.languages.map(l => `${l.language} (${l.proficiency})`).join(', '), 10);
-      }
-
-      // Achievements
-      if (data.achievements?.length) {
-        addSectionHeader('Achievements');
-        data.achievements.forEach(a => {
-          addText(a.title, 10, true);
-          if (a.description) addText(a.description, 9);
-        });
-      }
-
-      pdf.save(`${name}.pdf`);
+      const { pdf, Document } = await import('@react-pdf/renderer');
+      const { createElement } = await import('react');
+      const { default: ResumePDFDocument } = await import('../components/resume-builder/ResumePDFDocument');
+      const element = createElement(ResumePDFDocument, { data }) as unknown as React.ReactElement<React.ComponentProps<typeof Document>>;
+      const blob = await pdf(element).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${name}.pdf`; a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
       console.error('PDF generation failed:', e);
+      // Fallback: print-based PDF (still text-layer)
+      try {
+        const html = buildResumeHTML(data);
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:1123px;border:none';
+        document.body.appendChild(iframe);
+        const iDoc = iframe.contentDocument!;
+        iDoc.open(); iDoc.write(html); iDoc.close();
+        await new Promise(r => setTimeout(r, 400));
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+        setTimeout(() => document.body.removeChild(iframe), 2000);
+      } catch { /* silent */ }
     } finally {
       setPdfLoading(false);
     }
   };
 
   const downloadDOCX = async () => {
-    const name = (data.personalInfo?.name || '').trim() || 'Resume';
-    
-    // Generate a proper DOCX using docx library
+    setPdfLoading(true);
     try {
-      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle } = await import('docx');
-      
-      const children: any[] = [];
-      
-      // Personal Info
-      const p = data.personalInfo;
-      if (p.name) {
-        children.push(new Paragraph({ children: [new TextRun({ text: p.name, bold: true, size: 32 })] }));
+      const name = (data.personalInfo?.name || '').trim() || 'Resume';
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+      const n = data.personalInfo;
+
+      const mkPara = (text: string, opts: any = {}) =>
+        new Paragraph({ children: [new TextRun({ text, ...opts })], spacing: { after: 60 } });
+      const mkHeading = (text: string) =>
+        new Paragraph({ text, heading: HeadingLevel.HEADING_2, spacing: { before: 160, after: 60 }, border: { bottom: { style: 'single', size: 6, color: '333333', space: 2 } } });
+      const mkBullet = (text: string) =>
+        new Paragraph({ children: [new TextRun({ text })], bullet: { level: 0 }, spacing: { after: 40 } });
+
+      const children: any[] = [
+        // Header
+        new Paragraph({ children: [new TextRun({ text: n.name || '', bold: true, size: 36 })], alignment: AlignmentType.CENTER, spacing: { after: 60 } }),
+        new Paragraph({
+          children: [new TextRun({ text: [n.email, n.phone, n.location, n.linkedin, n.portfolio].filter(Boolean).join('  |  '), size: 20, color: '555555' })],
+          alignment: AlignmentType.CENTER, spacing: { after: 120 },
+        }),
+      ];
+
+      if (data.summary) {
+        children.push(mkHeading('Professional Summary'));
+        children.push(mkPara(Array.isArray(data.summary) ? data.summary.join(' ') : data.summary));
       }
-      const contactParts = [p.email, p.phone, p.location, p.linkedin, p.portfolio].filter(Boolean);
-      if (contactParts.length) {
-        children.push(new Paragraph({
-          children: [new TextRun({ text: contactParts.join('  |  '), size: 20, color: '666666' })],
-          spacing: { after: 200 }
-        }));
+      if (data.skills.length > 0) {
+        children.push(mkHeading('Skills'));
+        children.push(mkPara(data.skills.join('  ·  ')));
       }
-
-      const addSection = (title: string) => {
-        children.push(new Paragraph({ 
-          children: [new TextRun({ text: title.toUpperCase(), bold: true, size: 24, color: '1E40AF' })],
-          border: { bottom: { color: '1E40AF', size: 12, style: BorderStyle.SINGLE } },
-          spacing: { after: 200 }
-        }));
-      };
-
-      const addText = (text: string, bold = false, size = 22, color = '000000', spacingAfter = 100) => {
-        children.push(new Paragraph({ 
-          children: [new TextRun({ text, bold, size, color })],
-          spacing: { after: spacingAfter }
-        }));
-      };
-
-      // Summary
-      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary;
-      if (summaryVal) {
-        addSection('Professional Summary');
-        addText(summaryVal);
-      }
-
-      // Skills
-      if (data.skills.length) {
-        addSection('Core Competencies');
-        addText(data.skills.join('  ·  '));
-      }
-
-      // Experience
-      if (data.experience.length) {
-        addSection('Experience');
+      if (data.experience.length > 0) {
+        children.push(mkHeading('Experience'));
         data.experience.forEach(exp => {
-          addText(`${exp.title}${exp.company ? `, ${exp.company}` : ''}`, true, 24);
-          if (exp.duration) addText(exp.duration, false, 20, '666666', 50);
-          exp.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`, false, 22, '000000', 80);
-          });
-          addText('', false, 10, '000000', 100);
+          children.push(new Paragraph({ children: [new TextRun({ text: `${exp.title}${exp.company ? ` — ${exp.company}` : ''}`, bold: true }), new TextRun({ text: exp.duration ? `  |  ${exp.duration}` : '', color: '777777' })], spacing: { after: 40 } }));
+          exp.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
         });
       }
-
-      // Education
-      if (data.education.length) {
-        addSection('Education');
+      if (data.education.length > 0) {
+        children.push(mkHeading('Education'));
         data.education.forEach(edu => {
-          let eduLine = edu.degree;
-          if (edu.institution) eduLine += ` — ${edu.institution}`;
-          if (edu.grade) eduLine += ` | ${edu.grade}`;
-          addText(eduLine, true, 24);
-          if (edu.duration) addText(edu.duration, false, 20, '666666', 50);
-          addText('', false, 10, '000000', 100);
+          const deg = edu.ugDegree || edu.pgDegree || edu.degree || '';
+          children.push(mkPara(`${deg}${edu.institution ? ` — ${edu.institution}` : ''}${edu.duration ? `  |  ${edu.duration}` : ''}${edu.grade ? `  |  ${edu.grade}` : ''}`));
+        });
+      }
+      if (data.certifications.length > 0) {
+        children.push(mkHeading('Certifications'));
+        data.certifications.forEach(c => children.push(mkPara(`${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.year ? `  (${c.year})` : ''}`)));
+      }
+      if (data.projects.length > 0) {
+        children.push(mkHeading('Projects'));
+        data.projects.forEach(p => {
+          children.push(new Paragraph({ children: [new TextRun({ text: `${p.name}${p.role ? ` — ${p.role}` : ''}`, bold: true })], spacing: { after: 40 } }));
+          if (p.url) children.push(mkPara(p.url, { color: '2563eb' }));
+          p.bullets.filter(b => b.trim()).forEach(b => children.push(mkBullet(b)));
+        });
+      }
+      if (data.languages.length > 0) {
+        children.push(mkHeading('Languages'));
+        children.push(mkPara(data.languages.map(l => `${l.language} (${l.proficiency})`).join('  ·  ')));
+      }
+      if (data.achievements?.length > 0) {
+        children.push(mkHeading('Achievements'));
+        data.achievements.forEach((a: any) => {
+          if (a.title) children.push(new Paragraph({ children: [new TextRun({ text: a.title, bold: true })], spacing: { after: 30 } }));
+          if (a.description) children.push(mkPara(a.description));
         });
       }
 
-      // Certifications
-      if (data.certifications?.length) {
-        addSection('Certifications');
-        data.certifications.forEach(cert => {
-          let certLine = cert.name;
-          if (cert.issuer) certLine += ` — ${cert.issuer}`;
-          if (cert.year) certLine += ` (${cert.year})`;
-          addText(certLine);
-        });
-      }
-
-      // Awards
-      if (data.awards?.length) {
-        addSection('Awards & Achievements');
-        data.awards.forEach(award => {
-          let awardLine = award.title;
-          if (award.issuer) awardLine += ` — ${award.issuer}`;
-          if (award.year) awardLine += ` (${award.year})`;
-          addText(awardLine, true);
-          if (award.description) addText(award.description);
-        });
-      }
-
-      // Projects
-      if (data.projects?.length) {
-        addSection('Projects');
-        data.projects.forEach(proj => {
-          addText(`${proj.name}${proj.role ? ` — ${proj.role}` : ''}`, true, 24);
-          if (proj.duration) addText(proj.duration, false, 20, '666666', 50);
-          if (proj.url) addText(proj.url, false, 20, '2563EB', 50);
-          proj.bullets.filter(b => b.trim()).forEach(bullet => {
-            addText(`• ${bullet}`);
-          });
-          addText('', false, 10, '000000', 100);
-        });
-      }
-
-      // Languages
-      if (data.languages?.length) {
-        addSection('Languages');
-        addText(data.languages.map(l => `${l.language} (${l.proficiency})`).join(', '));
-      }
-
-      // Achievements
-      if (data.achievements?.length) {
-        addSection('Achievements');
-        data.achievements.forEach(a => {
-          addText(a.title, true);
-          if (a.description) addText(a.description);
-        });
-      }
-
-      const doc = new Document({ sections: [{ properties: {}, children }] });
+      const doc = new Document({
+        sections: [{ properties: { page: { margin: { top: 720, right: 720, bottom: 720, left: 720 } } }, children }],
+      });
       const blob = await Packer.toBlob(doc);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${name}.docx`;
-      a.click();
+      a.href = url; a.download = `${name}.docx`; a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
-      console.error('DOCX generation failed, falling back to HTML:', e);
-      // Fallback to HTML method
+      console.error('DOCX generation failed:', e);
+      // Fallback: HTML as .doc (still text-parseable)
       const html = buildResumeHTML(data);
       const blob = new Blob([html], { type: 'application/msword' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `${name}.doc`; a.click();
+      const a = document.createElement('a');
+      a.href = url; a.download = `${(data.personalInfo?.name || 'Resume').trim()}.doc`; a.click();
       URL.revokeObjectURL(url);
+    } finally {
+      setPdfLoading(false);
     }
   };
 
@@ -1229,7 +1082,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       {/* ── AI Suggestions Panel (Grammarly-like) ────────────────────── */}
       {showSuggestions && (
         <div className="fixed right-4 top-20 z-40 max-w-full sm:right-6 sm:top-24 md:right-8 md:top-28 lg:right-12 lg:top-32">
-          <AISuggestionsPanel onClose={() => setShowSuggestions(false)} onNavigate={(section) => { setActiveId(section); setShowSuggestions(false); }} />
+          <AISuggestionsPanel onClose={() => setShowSuggestions(false)} onNavigate={(section) => { setActiveIdPersisted(section); setShowSuggestions(false); }} />
         </div>
       )}
 
@@ -1346,11 +1199,23 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={undo} disabled={!canUndo()} title="Undo (Ctrl+Z)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed" style={{ color: canUndo() ? 'inherit' : 'inherit' }}>
+          <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
+              canUndo
+                ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
+                : 'border-gray-200 text-gray-300 cursor-not-allowed'
+            }`}>
             <Undo2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Undo</span>
           </button>
-          <button onClick={redo} disabled={!canRedo()} title="Redo (Ctrl+Y)" className="p-1 rounded hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+          <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"
+            className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-colors border ${
+              canRedo
+                ? 'border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer'
+                : 'border-gray-200 text-gray-300 cursor-not-allowed'
+            }`}>
             <Redo2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Redo</span>
           </button>
           <div className="w-px h-4 bg-gray-200 mx-1" />
           <button onClick={() => setShowSuggestions(!showSuggestions)}
@@ -1361,11 +1226,19 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
         </div>
         <div className="hidden sm:block w-px h-4 bg-gray-200" />
         <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
-          <button onClick={() => { setMode('editor'); setQaStep(0); setAiMode(false); }}
-            className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'editor' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+          <button onClick={() => {
+              setMode('editor');
+              setQaStep(0);
+              setAiMode(false);
+              setShowSuggestions(false);
+              // Restore last active editor step or default to personal
+              const lastId = sessionStorage.getItem('rb_activeId') || 'personal';
+              setActiveIdPersisted(lastId);
+            }}
+            className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'editor' && !aiMode ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <PenLine className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Editor</span>
           </button>
-          <button onClick={() => { setMode('quick-apply'); setQaStep(0); setAiMode(false); }}
+          <button onClick={() => { setMode('quick-apply'); setQaStep(0); setAiMode(false); setShowSuggestions(false); }}
             className={`px-2 py-1 text-[10px] sm:text-[11px] font-medium rounded-md transition-colors ${mode === 'quick-apply' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             <Send className="w-3 h-3 inline sm:mr-1" /><span className="hidden sm:inline">Quick Apply</span>
           </button>
@@ -1485,7 +1358,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                     return (
                       <div key={item.id} className="flex items-center group">
                       <button
-                        onClick={() => setActiveId(item.id)}
+                        onClick={() => setActiveIdPersisted(item.id)}
                         title={item.label}
                         className={`flex-1 flex items-center gap-3 px-4 py-2.5 text-left transition-colors
                           ${isActive
@@ -1602,14 +1475,14 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           {mode === 'editor' && sidebarOpen && (
             <div className="border-t border-gray-100 p-2 flex gap-1.5">
               <button
-                onClick={() => setActiveId(orderedNav[Math.max(0, activeIdx - 1)].id)}
+                onClick={() => setActiveIdPersisted(orderedNav[Math.max(0, activeIdx - 1)].id)}
                 disabled={activeIdx === 0}
                 className="flex-1 flex items-center justify-center gap-1 py-1 text-[11px] border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors text-gray-600"
               >
                 <ChevronLeft className="w-3 h-3" />
               </button>
               <button
-                onClick={() => setActiveId(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)}
+                onClick={() => setActiveIdPersisted(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)}
                 disabled={activeIdx === orderedNav.length - 1}
                 className="flex-1 flex items-center justify-center gap-1 py-1 text-[11px] bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
@@ -1621,7 +1494,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
 
         {/* COL 2: Resume editor / Quick Apply */}
         <main className="flex-1 overflow-y-auto bg-white flex justify-center" style={{ minWidth: 0 }}>
-          <div className="w-full max-w-[950px] px-3 sm:px-6 md:px-10 py-4 sm:py-8">
+          <div className="w-full max-w-[950px] px-3 sm:px-6 md:px-10 py-4 sm:py-8 pb-20">
             {mode === 'quick-apply' ? (
               <div className="space-y-6">
                 {/* Step indicator */}
@@ -1654,28 +1527,25 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
               </div>
             ) : (
               <div className="flex flex-col">
-                {/* Desktop Next/Prev buttons at top */}
-                <div className="hidden sm:flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                  <button onClick={() => setActiveId(orderedNav[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    <ChevronLeft className="w-4 h-4" />
-                    Prev
+                {/* Step navigation bar — above the form */}
+                <div className="flex items-center justify-between px-4 py-3 mb-4 bg-white border border-gray-200 rounded-xl shadow-sm sticky top-0 z-10">
+                  <button
+                    onClick={() => setActiveIdPersisted(orderedNav[Math.max(0, activeIdx - 1)].id)}
+                    disabled={activeIdx === 0}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Prev
                   </button>
-                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {orderedNav.length} · {active.label}</span>
-                  <button onClick={() => setActiveId(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)} disabled={activeIdx === orderedNav.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    Next
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-                {/* Mobile Next/Prev buttons */}
-                <div className="sm:hidden flex items-center justify-between px-2 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                  <button onClick={() => setActiveId(orderedNav[Math.max(0, activeIdx - 1)].id)} disabled={activeIdx === 0} title="Previous Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium border border-gray-200 rounded hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                    <ChevronLeft className="w-4 h-4" />
-                    Prev
-                  </button>
-                  <span className="text-xs text-gray-500 px-2">{activeIdx + 1} / {orderedNav.length}</span>
-                  <button onClick={() => setActiveId(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)} disabled={activeIdx === orderedNav.length - 1} title="Next Section" className="flex items-center gap-1 px-3 py-2 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-                    Next
-                    <ChevronRight className="w-4 h-4" />
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span className="text-sm font-semibold text-gray-800">{active.label}</span>
+                    <span className="text-[10px] text-gray-400">{activeIdx + 1} of {orderedNav.length}</span>
+                  </div>
+                  <button
+                    onClick={() => setActiveIdPersisted(orderedNav[Math.min(orderedNav.length - 1, activeIdx + 1)].id)}
+                    disabled={activeIdx === orderedNav.length - 1}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Next <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
                 <ActiveComponent />
@@ -1750,7 +1620,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
                 className="w-full py-2.5 text-sm font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                 Find Matching Jobs
               </button>
-              <button onClick={() => { setShowCompletion(false); setActiveId('score'); }}
+              <button onClick={() => { setShowCompletion(false); setActiveIdPersisted('score'); }}
                 className="w-full py-2.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                 View Full ATS Score
               </button>

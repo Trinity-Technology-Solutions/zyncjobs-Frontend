@@ -151,8 +151,9 @@ export function useJobAlertStore(userEmail: string | undefined) {
     const interval = setInterval(fetchNotifications, POLL_MS);
     let socket: Socket | null = null;
     try {
-      socket = io(config.SOCKET_URL, { transports: ['websocket', 'polling'], reconnection: true, reconnectionAttempts: 3 });
+      socket = io(config.SOCKET_URL, { transports: ['websocket', 'polling'], reconnection: false, timeout: 3000 });
       socketRef.current = socket;
+      socket.on('connect_error', () => { socket?.disconnect(); });
       socket.on(`job_alert_notification:${userEmail}`, fetchNotifications);
     } catch { /* socket optional */ }
     return () => {

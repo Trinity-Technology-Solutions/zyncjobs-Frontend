@@ -82,7 +82,13 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         // Strip markdown, metadata prefixes from jobTitle
         const rawTitle = (d.jobTitle || '').replace(/\*+/g, '').trim();
         const metaTitlePat = /^(experience|exp|salary|location|skills?|department|employment|job type|work type|notice|joining|ctc|lpa|\d)/i;
-        const cleanTitle = metaTitlePat.test(rawTitle) ? '' : rawTitle;
+        const titleWords = rawTitle.split(/\s+/).filter(Boolean).length;
+        // Reject sentence/responsibility-like titles ("Design, develop, test and maintain...")
+        const titleLooksLikeSentence =
+          titleWords > 6 || rawTitle.length > 60 || /,/.test(rawTitle)
+          || /\b(and|the|for|with|using|that|this|which|to|of)\b/i.test(rawTitle)
+          || (titleWords >= 3 && /\b(design|develop|test|maintain|build|lead|manage|create|implement|write|support|monitor|ensure|analyze|collaborate|deliver|prepare|responsible)\w*\b/i.test(rawTitle));
+        const cleanTitle = metaTitlePat.test(rawTitle) || titleLooksLikeSentence ? '' : rawTitle;
         ai = {
           jobTitle:         cleanTitle,
           jobLocation:      d.location        || '',
@@ -249,7 +255,15 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   // Extract salary from JD text only if actual numbers found â€” no defaults
   const extractSalaryIfNumeric = (text: string) => {
     const empty = { min: '', max: '', currency: 'INR', payRate: 'per year' };
-    const currency = /â‚¹|INR|lakh/i.test(text) ? 'INR' : /â‚¬|EUR/i.test(text) ? 'EUR' : /Â£|GBP/i.test(text) ? 'GBP' : 'USD';
+    const currency = /â‚¹|INR|lakh|LPA/i.test(text) ? 'INR'
+      : /AED|dirham|Dhs?\.?\s/i.test(text) ? 'AED'
+      : /OMR|rial\s+oman|Omani/i.test(text) ? 'OMR'
+      : /QAR|Qatari/i.test(text) ? 'QAR'
+      : /SAR|Saudi|SR\s/i.test(text) ? 'SAR'
+      : /KWD|Kuwaiti/i.test(text) ? 'KWD'
+      : /â‚¬|EUR/i.test(text) ? 'EUR'
+      : /Â£|GBP/i.test(text) ? 'GBP'
+      : /\$|USD/i.test(text) ? 'USD' : 'USD';
     const payRate = /per\s+month|monthly/i.test(text) ? 'per month' : /per\s+hour|hourly/i.test(text) ? 'per hour' : 'per year';
 
     // Range patterns (25-35 lakhs, 25 to 35 LPA, 25-35 lks, etc.)
@@ -539,7 +553,31 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       // HR & Recruitment
       'Human Resources', 'Talent Acquisition', 'Recruitment', 'Employee Relations', 'Performance Management', 'Training and Development', 'Compensation and Benefits', 'HR Analytics', 'HRIS', 'Workday', 'BambooHR',
       // Operations
-      'Operations Management', 'Supply Chain Management', 'Logistics', 'Inventory Management', 'Quality Assurance', 'Process Improvement', 'Lean Manufacturing', 'Six Sigma', 'ERP', 'SAP', 'Oracle ERP'
+      'Operations Management', 'Supply Chain Management', 'Logistics', 'Inventory Management', 'Quality Assurance', 'Process Improvement', 'Lean Manufacturing', 'Six Sigma', 'ERP', 'SAP', 'Oracle ERP',
+      // HSE & Oil & Gas
+      'NEBOSH', 'OSHA', 'HSE', 'Fire Safety', 'Risk Assessment', 'Hazard Analysis', 'First Aid', 'Confined Space', 'Permit to Work', 'ISO 45001', 'ISO 14001', 'Process Safety', 'Drilling', 'Offshore', 'Pipeline', 'Petrochemical', 'Safety Management', 'Incident Investigation',
+      // Construction & Engineering
+      'AutoCAD', 'Revit', 'Civil Engineering', 'Structural Engineering', 'Mechanical Engineering', 'Electrical Engineering', 'HVAC', 'Plumbing', 'Primavera', 'Quantity Surveying', 'Estimation', 'Site Supervision', 'QA/QC', 'Quality Control', 'Blueprint Reading', 'Construction Management',
+      // Healthcare
+      'Nursing', 'Patient Care', 'Pharmacology', 'Medical Records', 'Physiotherapy', 'Home Care', 'Emergency Care', 'Infection Control', 'First Aid Certification', 'CPR', 'Clinical Research', 'Radiology', 'Laboratory Testing', 'Blood Collection', 'Wound Care',
+      // Education & Training
+      'Teaching', 'Curriculum Development', 'Lesson Planning', 'IELTS', 'Classroom Management', 'Student Assessment', 'Training and Development', 'Instructional Design', 'Educational Technology', 'Special Education',
+      // Hospitality & Tourism
+      'Housekeeping', 'Food and Beverage', 'Catering', 'Front Office', 'Chef', 'Hotel Management', 'Guest Relations', 'Event Planning', 'Reservation Management', 'Menu Planning', 'Barista', 'Restaurant Management',
+      // Logistics & Transportation
+      'Warehouse Management', 'Forklift Operation', 'Driving License', 'Freight', 'Shipping', 'Customs Clearance', 'Procurement', 'Purchasing', 'Vendor Management', 'Route Planning', 'Cargo Handling', 'Dispatch',
+      // Legal & Compliance
+      'Contract Law', 'Legal Research', 'Compliance', 'Regulatory Compliance', 'Drafting', 'Litigation', 'Legal Documentation', 'Due Diligence', 'Intellectual Property', 'Labor Law',
+      // Banking & Insurance
+      'Banking', 'Insurance', 'Underwriting', 'Credit Analysis', 'Loan Processing', 'Financial Planning', 'Wealth Management', 'KYC', 'AML', 'Risk Management', 'Claims Processing',
+      // Retail & Sales Support
+      'Retail Management', 'Cash Handling', 'Merchandising', 'Point of Sale', 'Sales Funnel', 'Telemarketing', 'Key Account Management', 'Cold Calling', 'Channel Sales', 'B2B Sales',
+      // Media & Communications
+      'Content Writing', 'Copywriting', 'Video Editing', 'Photography', 'Journalism', 'Public Relations', 'Social Media Management', 'Advertising', 'Broadcast', 'Scriptwriting',
+      // Customer Service
+      'Customer Service', 'Call Center', 'Help Desk', 'Complaint Handling', 'Customer Retention', 'Live Chat Support', 'Technical Support', 'Conflict Resolution', 'Service Recovery',
+      // Soft skills common to global roles
+      'Communication', 'Team Leadership', 'Problem Solving', 'Time Management', 'Multitasking', 'Customer Relations', 'Negotiation', 'Presentation Skills', 'Report Writing', 'Data Entry', 'MS Office', 'Microsoft Excel', 'Microsoft Word', 'Outlook', 'Typing Speed'
     ];
 
     const foundSkills = new Set<string>();
@@ -718,38 +756,70 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
   };
 
   const extractJobCategory = (text: string): string => {
-    
-    if (/software|developer|engineer|programming|coding|frontend|backend|fullstack/i.test(text)) {
-      return 'Software Development';
-    }
-    if (/data\s*scientist|data\s*analyst|machine\s*learning|ai|analytics/i.test(text)) {
-      return 'Data Science & Analytics';
-    }
-    if (/sales|marketing|business\s*development|account\s*manager/i.test(text)) {
-      return 'Sales & Marketing';
-    }
-    if (/finance|accounting|financial|accountant/i.test(text)) {
-      return 'Finance & Accounting';
-    }
-    if (/hr|human\s*resources|recruiter|talent/i.test(text)) {
-      return 'Human Resources';
-    }
-    if (/healthcare|medical|nurse|doctor|clinical/i.test(text)) {
+    // Domain-specific checks FIRST — "engineer" alone must not imply software
+    if (/nurse|nursing|medical|healthcare|clinical|physio|dentist|pharma|hospital\b|patient/i.test(text)) {
       return 'Healthcare';
     }
-    if (/customer\s*service|support|help\s*desk/i.test(text)) {
+    if (/nebosh|osha\b|hse\b|fire\s*safety|hazmat|drilling|offshore|onshore|petroleum|petrochemical|pipeline|oil\s*and\s*gas/i.test(text)) {
+      return 'Oil & Gas';
+    }
+    if (/civil\s*engineer|structural|construction|site\s*engineer|quantity\s*survey|architect|plumbing|mep\b/i.test(text)) {
+      return 'Construction';
+    }
+    if (/mechanical\s*engineer|electrical\s*engineer|electronics\s*engineer|maintenance\s*engineer|production\s*engineer|hvac|automotive|manufacturing|assembly|machin(?:ist|ing|ery)|cnc\b|lathe|welder|fabrication/i.test(text)) {
+      return 'Manufacturing';
+    }
+    if (/housekeeping|chef\b|cook\b|waiter|restaurant|hotel\b|catering|food\s*and\s*beverage|front\s*office|guest\s*relations|hospitality/i.test(text)) {
+      return 'Hospitality & Tourism';
+    }
+    if (/warehouse|forklift|truck\s*driver|delivery|shipping|freight|customs|seaport|harbou?r|logistics|supply\s*chain|inventory\s*manager/i.test(text)) {
+      return 'Logistics & Supply Chain';
+    }
+    if (/retail|cashier|store\s*manager|merchandis|sales\s*associate|showroom/i.test(text)) {
+      return 'Retail';
+    }
+    if (/real\s*estate|property|broker|leasing/i.test(text)) {
+      return 'Real Estate';
+    }
+    if (/bank|loan\s*officer|insurance|underwriting|financial\s*advisor|credit\s*analyst|teller/i.test(text)) {
+      return 'Banking & Insurance';
+    }
+    if (/telecom|telecommunication|network\s*engineer|rf\s*engineer|fiber|5g\b/i.test(text)) {
+      return 'Telecommunications';
+    }
+    if (/media|journalist|content\s*writer|video\s*editor|photographer|graphic\s*designer|advertising|public\s*relations/i.test(text)) {
+      return 'Media & Communications';
+    }
+    if (/data\s*scientist|data\s*analyst|machine\s*learning|artificial\s*intelligence|\bai\b|analytics/i.test(text)) {
+      return 'Data Science & Analytics';
+    }
+    if (/sales|marketing|business\s*development|account\s*manager|telecaller/i.test(text)) {
+      return 'Sales & Marketing';
+    }
+    if (/finance|accounting|financial|accountant|audit|tax\b/i.test(text)) {
+      return 'Finance & Accounting';
+    }
+    if (/hr\b|human\s*resources|recruiter|talent\s*acquisition|payroll/i.test(text)) {
+      return 'Human Resources';
+    }
+    if (/customer\s*service|customer\s*support|call\s*center|support\s*executive/i.test(text)) {
       return 'Customer Service';
     }
-    if (/operations|logistics|supply\s*chain/i.test(text)) {
-      return 'Operations';
-    }
-    if (/legal|lawyer|attorney|compliance/i.test(text)) {
+    if (/legal|lawyer|attorney|compliance\s*officer|paralegal/i.test(text)) {
       return 'Legal';
     }
-    if (/education|teacher|instructor|training/i.test(text)) {
+    if (/education|teacher|instructor|lecturer|trainer|curriculum/i.test(text)) {
       return 'Education';
     }
-    
+    if (/operations|project\s*manager|business\s*analyst|coordinator/i.test(text)) {
+      return 'Operations';
+    }
+    if (/software|developer|programming|coding|frontend|backend|fullstack|full\s*stack|qa\s*engineer|test\s*engineer|devops|it\s*support|help\s*desk|technical\s*support|software\s*engineer|web\s*(?:app|developer)|react|node\s*\.?js|javascript|typescript|angular|vue\s*\.?js|\.net\b|java\b|python\b|c#/i.test(text)) {
+      return 'Software Development';
+    }
+    if (/engineer|engineering/i.test(text)) {
+      return 'Engineering';
+    }
     return 'Information Technology';
   };
 

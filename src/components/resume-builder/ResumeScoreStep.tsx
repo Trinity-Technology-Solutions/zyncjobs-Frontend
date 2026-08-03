@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Sparkles, Loader2, AlertTriangle, Target, FileText, FolderOpen, Crown, Paintbrush, BookOpen, TrendingUp, Star } from 'lucide-react';
-import { useResumeStore } from '../../store/useResumeStore';
+import { useResumeStore, type ResumeData, type ExperienceItem, type ProjectItem } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
 const GOAL_LABELS: Record<string, string> = {
@@ -20,132 +20,139 @@ interface ScoreDimension {
   icon: React.ReactNode;
 }
 
-function calcScores(data: ReturnType<typeof useResumeStore>['data']): ScoreDimension[] {
+function calcScores(data: ResumeData): ScoreDimension[] {
   const goal = data.goal || '';
-  const summaryVal = Array.isArray(data.summary)
-    ? (data.summary as string[]).filter(Boolean).join(' ')
-    : data.summary || '';
-  const bullets = data.experience.flatMap((e) => e.bullets.filter((b) => b.trim()));
-  const hasNumbers = bullets.some((b) => /\d/.test(b));
-  const hasActionVerbs = bullets.some((b) =>
-    /^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered)/i.test(b.trim())
+  const summaryVal = typeof data.summary === 'string' ? data.summary : '';
+  const bullets = data.experience.flatMap((experience: ExperienceItem) => experience.bullets.filter((bullet: string) => bullet.trim()));
+  const hasNumbers = bullets.some((bullet: string) => /\d/.test(bullet));
+  const hasActionVerbs = bullets.some((bullet: string) =>
+    /^(led|built|designed|developed|improved|reduced|increased|managed|delivered|implemented|optimized|spearheaded|engineered|created|launched|drove|achieved|established|streamlined|automated|coordinated|executed)/i.test(bullet.trim())
   );
-  const avgBulletLen = bullets.length ? bullets.reduce((s, b) => s + b.length, 0) / bullets.length : 0;
+  const avgBulletLen = bullets.length ? bullets.reduce((total: number, bullet: string) => total + bullet.length, 0) / bullets.length : 0;
   const name = (data.personalInfo?.name || '').trim();
   const email = (data.personalInfo?.email || '').trim();
   const phone = (data.personalInfo?.phone || '').trim();
-  const hasBasicInfo = !!(name && email);
 
-  const skillCategories: Record<string, string[]> = {
-    frontend: ['react', 'angular', 'vue', 'svelte', 'html', 'css', 'javascript', 'typescript', 'tailwind', 'bootstrap'],
-    backend: ['python', 'java', 'go', 'rust', 'c#', 'ruby', 'php', 'node', 'nodejs', 'spring', 'django', 'flask', 'fastapi', '.net'],
-    database: ['sql', 'postgresql', 'mongodb', 'redis', 'mysql', 'oracle', 'dynamodb', 'cassandra', 'elasticsearch'],
-    cloud: ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'ansible', 'jenkins'],
-    mobile: ['swift', 'kotlin', 'flutter', 'react native', 'dart', 'ionic'],
-    data: ['machine learning', 'deep learning', 'tensorflow', 'pytorch', 'pandas', 'numpy', 'spark', 'hadoop'],
-  };
-  const genericSkills = ['team player', 'hard working', 'communication', 'leadership', 'problem solving', 'fast learner', 'creative', 'organized', 'detail oriented', 'self motivated', 'reliable', 'dedicated', 'flexible', 'adaptable'];
-  const skillsLower = data.skills.map(s => s.toLowerCase());
-  const specificCount = skillsLower.filter(s => !genericSkills.includes(s)).length;
-  const categoriesCovered = new Set(Object.entries(skillCategories)
-    .filter(([, cats]) => skillsLower.some(s => cats.some(c => s.includes(c))))
-    .map(([cat]) => cat));
-  const skillDiversity = Math.min(10, categoriesCovered.size * 3);
-  const targetRole = (data.targetRole || '').toLowerCase();
-  const roleKeywords = targetRole ? targetRole.split(/\s+/).filter(w => w.length > 2) : [];
-  const roleSkillMatch = targetRole && roleKeywords.length > 0
-    ? skillsLower.filter(s => roleKeywords.some(k => s.includes(k))).length
-    : 0;
+  // Completely empty resume — all zeros
+  const isEmpty = !name && !email && data.experience.length === 0 && data.skills.length === 0 && !summaryVal;
+  if (isEmpty) {
+    const zero = (label: string, color: string, icon: React.ReactNode, tip: string): ScoreDimension =>
+      ({ label, score: 0, max: 100, tip, color, icon });
+    return [
+      zero('ATS', 'bg-blue-500', <Target className="w-4 h-4 text-blue-500" />, 'Fill in your profile to get an ATS score.'),
+      zero('Grammar', 'bg-purple-500', <FileText className="w-4 h-4 text-purple-500" />, 'Add experience bullets to evaluate grammar.'),
+      zero('Projects', 'bg-green-500', <FolderOpen className="w-4 h-4 text-green-500" />, 'Add projects to score this dimension.'),
+      zero('Leadership', 'bg-amber-500', <Crown className="w-4 h-4 text-amber-500" />, 'Add achievements and leadership roles.'),
+      zero('Formatting', 'bg-teal-500', <Paintbrush className="w-4 h-4 text-teal-500" />, 'Add your details to evaluate formatting.'),
+      zero('Readability', 'bg-cyan-500', <BookOpen className="w-4 h-4 text-cyan-500" />, 'Add experience bullets to evaluate readability.'),
+      zero('Impact', 'bg-orange-500', <TrendingUp className="w-4 h-4 text-orange-500" />, 'Add quantified achievements to score impact.'),
+      zero('Confidence', 'bg-rose-500', <Star className="w-4 h-4 text-rose-500" />, 'Add LinkedIn, certifications, and experience.'),
+    ];
+  }
 
   const isEntry = goal === 'first-job' || goal === 'internship';
-  const isSenior = goal === 'experienced';
   const isExecutive = goal === 'executive';
   const isSwitch = goal === 'career-switch';
 
-  const atsMin = (!name && !email && data.experience.length === 0 && data.skills.length === 0) ? 0 : undefined;
+  const skillsLower = data.skills.map((skill: string) => skill.toLowerCase());
+  const genericSkills = ['team player', 'hard working', 'communication', 'leadership', 'problem solving', 'fast learner', 'creative', 'organized', 'detail oriented', 'self motivated', 'reliable', 'dedicated', 'flexible', 'adaptable'];
+  const specificSkills = skillsLower.filter((skill: string) => !genericSkills.includes(skill));
+  const targetRole = (data.targetRole || '').toLowerCase();
+  const roleKeywords = targetRole ? targetRole.split(/\s+/).filter((word: string) => word.length > 2) : [];
+  const roleSkillMatch = roleKeywords.length > 0
+    ? specificSkills.filter((skill: string) => roleKeywords.some((keyword: string) => skill.includes(keyword))).length
+    : 0;
 
-  const atsExpScore = isEntry
-    ? Math.min(15, (data.experience.length ? 10 : 0) + bullets.length * 1.5)
-    : isSenior || isExecutive
-    ? Math.min(25, data.experience.length * 7 + bullets.length * 1.5)
-    : data.experience.length ? 20 : 0;
+  // ── ATS ──────────────────────────────────────────────────────────────
+  // Strict: penalise missing critical fields heavily
+  const atsContact = (name ? 10 : 0) + (email ? 10 : 0) + (phone ? 5 : 0);
+  const atsSummary = summaryVal.length >= 80 ? 15 : summaryVal.length >= 30 ? 8 : 0;
+  const atsSkills = specificSkills.length >= 10 ? 20 : specificSkills.length >= 6 ? 14 : specificSkills.length >= 3 ? 8 : specificSkills.length > 0 ? 3 : 0;
+  const atsRoleMatch = roleSkillMatch >= 2 ? 10 : roleSkillMatch === 1 ? 5 : 0;
+  const atsExp = isEntry
+    ? Math.min(20, data.experience.length * 6 + bullets.length * 1.5)
+    : Math.min(30, data.experience.length * 7 + bullets.length * 1.5);
+  const atsBulletQuality = bullets.length === 0 ? 0
+    : hasActionVerbs && hasNumbers ? 10
+    : hasActionVerbs || hasNumbers ? 5 : 2;
+  // Penalty: no education, no summary, very few bullets
+  const atsPenalty = (data.education.length === 0 ? -5 : 0) + (bullets.length < 2 && data.experience.length > 0 ? -5 : 0);
+  const atsScore = Math.max(0, Math.min(100, atsContact + atsSummary + atsSkills + atsRoleMatch + atsExp + atsBulletQuality + atsPenalty));
+
+  // ── Grammar ──────────────────────────────────────────────────────────
+  // No bullets = 0. Base 0, earn points strictly.
+  const grammarActionVerb = bullets.length > 0 && hasActionVerbs ? 40 : 0;
+  const grammarBulletLen = bullets.length > 0 && avgBulletLen >= 30 && avgBulletLen <= 150 ? 30 : bullets.length > 0 && avgBulletLen > 0 ? 10 : 0;
+  const grammarConsistency = bullets.length >= 3 ? 20 : bullets.length > 0 ? 10 : 0;
+  const grammarNoPlaceholder = bullets.some((bullet: string) => /^(enter|add|describe|write|type|your)/i.test(bullet.trim())) ? -20 : 10;
+  const grammarScore = bullets.length === 0 ? 0 : Math.max(0, Math.min(100, grammarActionVerb + grammarBulletLen + grammarConsistency + grammarNoPlaceholder));
+
+  // ── Projects ─────────────────────────────────────────────────────────
+  const projCount = data.projects?.length || 0;
+  const projBullets = (data.projects || []).flatMap((project: ProjectItem) => (project.bullets || []).filter((bullet: string) => bullet.trim()));
+  const projScore = Math.min(100,
+    (projCount >= 3 ? 50 : projCount === 2 ? 40 : projCount === 1 ? 20 : 0) +
+    Math.min(30, projBullets.length * 8) +
+    (projBullets.some((bullet: string) => /\d/.test(bullet)) ? 20 : 0)
+  );
+
+  // ── Leadership ───────────────────────────────────────────────────────
+  const leadershipTitles = data.experience.filter((experience: ExperienceItem) =>
+    /(lead|manager|director|head|chief|vp|president|supervisor|senior)/i.test(experience.title || '')
+  ).length;
+  const leadershipBullets = bullets.filter((bullet: string) => /(led|managed|mentor|team|directed|supervised|oversaw|coached)/i.test(bullet)).length;
+  const leadershipScore = Math.min(100,
+    (leadershipTitles > 0 ? 30 : 0) +
+    Math.min(25, leadershipBullets * 10) +
+    ((data.achievements?.length || 0) > 0 ? 25 : 0) +
+    ((data.awards?.length || 0) > 0 ? 20 : 0)
+  );
+
+  // ── Formatting ───────────────────────────────────────────────────────
+  // Strict: each section must actually have content, not just exist
+  let fmtScore = 0;
+  if (name && email) fmtScore += 20;
+  else if (name || email) fmtScore += 8;
+  if (summaryVal.length >= 80) fmtScore += 20;
+  else if (summaryVal.length > 0) fmtScore += 8;
+  if (bullets.length >= 3 && bullets.every((bullet: string) => bullet.length < 200)) fmtScore += 20;
+  else if (bullets.length > 0) fmtScore += 8;
+  if (specificSkills.length >= 5) fmtScore += 20;
+  else if (specificSkills.length > 0) fmtScore += 8;
+  if (data.education.length > 0) fmtScore += 10;
+  if (phone) fmtScore += 10;
+  const formattingScore = Math.min(100, fmtScore);
+
+  // ── Readability ──────────────────────────────────────────────────────
+  const readBulletLen = bullets.length > 0 && avgBulletLen >= 20 && avgBulletLen <= 120 ? 40 : bullets.length > 0 ? 15 : 0;
+  const readBulletCount = bullets.length >= 5 ? 30 : bullets.length >= 3 ? 20 : bullets.length > 0 ? 10 : 0;
+  const readSkills = specificSkills.length >= 5 ? 20 : specificSkills.length > 0 ? 10 : 0;
+  const readSummary = summaryVal.length >= 50 ? 10 : 0;
+  const readabilityScore = bullets.length === 0 ? 0 : Math.min(100, readBulletLen + readBulletCount + readSkills + readSummary);
+
+  // ── Impact ───────────────────────────────────────────────────────────
+  const impactNumbers = hasNumbers ? Math.min(40, bullets.filter((bullet: string) => /\d/.test(bullet)).length * 10) : 0;
+  const impactVerbs = hasActionVerbs ? 30 : 0;
+  const impactAchievements = Math.min(30, (data.achievements?.length || 0) * 15);
+  const impactScore = bullets.length === 0 ? 0 : Math.min(100, impactNumbers + impactVerbs + impactAchievements);
+
+  // ── Confidence ───────────────────────────────────────────────────────
+  const confLinkedin = (data.personalInfo?.linkedin || '').trim() ? 20 : 0;
+  const confPortfolio = (data.personalInfo?.portfolio || '').trim() ? 20 : 0;
+  const confCerts = Math.min(20, (data.certifications?.length || 0) * 10);
+  const confAwards = Math.min(20, (data.awards?.length || 0) * 10);
+  const confExp = data.experience.length >= 3 ? 20 : data.experience.length >= 2 ? 15 : data.experience.length === 1 ? 8 : 0;
+  const confidenceScore = Math.min(100, confLinkedin + confPortfolio + confCerts + confAwards + confExp);
 
   return [
-    {
-      label: 'ATS', score: Math.min(100,
-        atsMin ?? (
-          (name ? 8 : 0) + (email ? 8 : 0) +
-          (phone ? 4 : 0) + (summaryVal ? 15 : 0) +
-          Math.min(15, data.skills.length * 2) +
-          (specificCount >= 3 ? 10 : specificCount >= 1 ? 5 : 0) +
-          skillDiversity +
-          (roleSkillMatch > 0 ? 5 : 0) +
-          atsExpScore +
-          Math.min(10, bullets.length * 2)
-        )
-      ), max: 100, tip: isEntry ? 'Focus on projects, education, and relevant skills to offset limited experience.'
-           : isSwitch ? 'Highlight transferable skills and relevant projects from previous roles.'
-           : isExecutive ? 'Emphasize strategic impact, board-level results, and organizational leadership.'
-           : 'Add 8-15 specific, diverse skills. Align skills with target role.', color: 'bg-blue-500', icon: <Target className="w-4 h-4 text-blue-500" />,
-    },
-    {
-      label: 'Grammar', score: bullets.length === 0 ? 0 : Math.min(100,
-        40 + (hasActionVerbs ? 30 : 0) + (avgBulletLen > 30 && avgBulletLen < 150 ? 30 : 0)
-      ), max: 100, tip: 'Start bullets with action verbs. Keep 30–150 chars.', color: 'bg-purple-500', icon: <FileText className="w-4 h-4 text-purple-500" />,
-    },
-    {
-      label: 'Projects', score: Math.min(100,
-        ((data.projects?.length || 0) >= 2 ? 60 : (data.projects?.length || 0) * 25) +
-        Math.min(40, bullets.length * 5)
-      ), max: 100, tip: isEntry ? 'Projects are critical — add 2+ with detailed bullet points and tech stack.'
-           : isSwitch ? 'Showcase projects that demonstrate your new target skills.'
-           : isExecutive ? 'Focus on strategic initiatives and organizational impact rather than technical projects.'
-           : 'Add 2+ projects with detailed bullet points.', color: 'bg-green-500', icon: <FolderOpen className="w-4 h-4 text-green-500" />,
-    },
-    {
-      label: 'Leadership', score: Math.min(100,
-        ((data.achievements?.length || 0) > 0 ? 30 : 0) +
-        ((data.awards?.length || 0) > 0 ? 25 : 0) +
-        (data.experience.filter(e => e.title?.toLowerCase().includes('lead') || e.title?.toLowerCase().includes('manager')).length > 0 ? 25 : 0) +
-        (bullets.some(b => /(led|managed|mentor|team|directed|supervised)/i.test(b)) ? 20 : 0)
-      ), max: 100, tip: isExecutive ? 'Board-level results, organizational strategy, and C-suite impact are essential.'
-           : isEntry ? 'Mention team projects, volunteer leadership, or student org roles.'
-           : 'Add leadership roles, awards, and mentoring experience.', color: 'bg-amber-500', icon: <Crown className="w-4 h-4 text-amber-500" />,
-    },
-    {
-      label: 'Formatting', score: (() => {
-        if (!hasBasicInfo && data.experience.length === 0 && data.skills.length === 0) return 0;
-        let f = 0;
-        if (hasBasicInfo) f += 20;
-        if (bullets.length > 0 && bullets.every(b => b.length < 200)) f += 30;
-        if (data.skills.length > 0) f += 25;
-        if (summaryVal.length > 0) f += 25;
-        return Math.min(100, f);
-      })(), max: 100, tip: 'Keep bullets under 200 chars, add skills + summary.', color: 'bg-teal-500', icon: <Paintbrush className="w-4 h-4 text-teal-500" />,
-    },
-    {
-      label: 'Readability', score: bullets.length === 0 ? 0 : Math.min(100,
-        (avgBulletLen > 20 && avgBulletLen < 120 ? 50 : 20) +
-        (bullets.length >= 3 ? 30 : bullets.length * 10) +
-        (data.skills.length > 0 ? 20 : 0)
-      ), max: 100, tip: 'Keep bullets 20–120 chars. Use 3–5 per role.', color: 'bg-cyan-500', icon: <BookOpen className="w-4 h-4 text-cyan-500" />,
-    },
-    {
-      label: 'Impact', score: bullets.length === 0 ? 0 : Math.min(100,
-        (hasNumbers ? 50 : 0) + (hasActionVerbs ? 30 : 0) +
-        ((data.achievements?.length || 0) > 0 ? 20 : 0)
-      ), max: 100, tip: isExecutive ? 'Revenue impact, cost savings, team growth, and market share metrics are key.'
-           : 'Add numbers (%, $) and measurable achievements.', color: 'bg-orange-500', icon: <TrendingUp className="w-4 h-4 text-orange-500" />,
-    },
-    {
-      label: 'Confidence', score: Math.min(100,
-        ((data.personalInfo?.linkedin || '').trim() ? 20 : 0) + ((data.personalInfo?.portfolio || '').trim() ? 20 : 0) +
-        ((data.certifications?.length || 0) > 0 ? 20 : 0) + ((data.awards?.length || 0) > 0 ? 20 : 0) +
-        (data.experience.length >= 2 ? 20 : data.experience.length * 10)
-      ), max: 100, tip: isEntry ? 'Add LinkedIn, certifications, and portfolio to boost credibility.'
-           : isExecutive ? 'Board memberships, speaking engagements, and executive presence signals help.'
-           : 'Add LinkedIn, portfolio, certs, and 2+ experiences.', color: 'bg-rose-500', icon: <Star className="w-4 h-4 text-rose-500" />,
-    },
+    { label: 'ATS', score: atsScore, max: 100, tip: isEntry ? 'Focus on projects, education, and relevant skills.' : isSwitch ? 'Highlight transferable skills and relevant projects.' : isExecutive ? 'Emphasize strategic impact and organizational leadership.' : 'Add 8–15 specific skills aligned with your target role.', color: 'bg-blue-500', icon: <Target className="w-4 h-4 text-blue-500" /> },
+    { label: 'Grammar', score: grammarScore, max: 100, tip: 'Start every bullet with a past-tense action verb. Keep 30–150 chars.', color: 'bg-purple-500', icon: <FileText className="w-4 h-4 text-purple-500" /> },
+    { label: 'Projects', score: projScore, max: 100, tip: isEntry ? 'Projects are critical — add 2+ with bullet points and tech stack.' : 'Add 2–3 projects with quantified outcomes.', color: 'bg-green-500', icon: <FolderOpen className="w-4 h-4 text-green-500" /> },
+    { label: 'Leadership', score: leadershipScore, max: 100, tip: isExecutive ? 'Board-level results, org strategy, and C-suite impact are essential.' : isEntry ? 'Mention team projects, volunteer leadership, or student org roles.' : 'Add leadership titles, awards, and mentoring bullets.', color: 'bg-amber-500', icon: <Crown className="w-4 h-4 text-amber-500" /> },
+    { label: 'Formatting', score: formattingScore, max: 100, tip: 'Complete all sections: contact, summary, experience, skills, education.', color: 'bg-teal-500', icon: <Paintbrush className="w-4 h-4 text-teal-500" /> },
+    { label: 'Readability', score: readabilityScore, max: 100, tip: 'Keep bullets 20–120 chars. Use 3–5 bullets per role.', color: 'bg-cyan-500', icon: <BookOpen className="w-4 h-4 text-cyan-500" /> },
+    { label: 'Impact', score: impactScore, max: 100, tip: isExecutive ? 'Revenue impact, cost savings, team growth, and market share metrics.' : 'Add numbers (%, $, x) and measurable achievements to bullets.', color: 'bg-orange-500', icon: <TrendingUp className="w-4 h-4 text-orange-500" /> },
+    { label: 'Confidence', score: confidenceScore, max: 100, tip: isEntry ? 'Add LinkedIn, certifications, and portfolio to boost credibility.' : isExecutive ? 'Board memberships, speaking engagements, and executive presence.' : 'Add LinkedIn, portfolio, certifications, and 2+ experiences.', color: 'bg-rose-500', icon: <Star className="w-4 h-4 text-rose-500" /> },
   ];
 }
 
@@ -155,22 +162,48 @@ export default function ResumeScoreStep() {
   const [loading, setLoading] = useState(false);
 
   const scores = calcScores(data);
-  const overall = Math.round(scores.reduce((s, d) => s + d.score, 0) / scores.length);
+
+  // Weighted overall — ATS, Formatting, Grammar, Impact carry more weight
+  const WEIGHTS: Record<string, number> = {
+    ATS: 2, Grammar: 1.5, Formatting: 1.5, Impact: 1.5,
+    Readability: 1, Projects: 0.75, Leadership: 0.75, Confidence: 1,
+  };
+  const totalWeight = scores.reduce((s, d) => s + (WEIGHTS[d.label] ?? 1), 0);
+  const overall = Math.round(
+    scores.reduce((s, d) => s + d.score * (WEIGHTS[d.label] ?? 1), 0) / totalWeight
+  );
 
   const getAIExplanation = async () => {
     setLoading(true);
     try {
-      const weakest = scores.filter((s) => s.score < 60).map((s) => s.label).join(', ');
+      // Send actual resume content so AI gives specific tips, not generic ones
+      const summaryVal = Array.isArray(data.summary) ? data.summary.filter(Boolean).join(' ') : data.summary || '';
+      const bullets = data.experience.flatMap(e => e.bullets.filter(b => b.trim()));
+      const resumeSnapshot = [
+        `Target Role: ${data.targetRole || 'Not specified'}`,
+        `Name: ${data.personalInfo?.name || '(missing)'}`,
+        `Email: ${data.personalInfo?.email || '(missing)'}`,
+        `Phone: ${data.personalInfo?.phone || '(missing)'}`,
+        `Summary: ${summaryVal || '(missing)'}`,
+        `Skills (${data.skills.length}): ${data.skills.slice(0, 15).join(', ') || '(none)'}`,
+        `Experience entries: ${data.experience.length}`,
+        `Bullets: ${bullets.slice(0, 6).join(' | ') || '(none)'}`,
+        `Projects: ${data.projects?.length || 0}`,
+        `Certifications: ${data.certifications?.length || 0}`,
+        `LinkedIn: ${data.personalInfo?.linkedin ? 'yes' : 'no'}`,
+        `Scores: ${scores.map(s => `${s.label} ${s.score}%`).join(', ')}`,
+        `Overall: ${overall}%`,
+      ].join('\n');
       const res = await executeResumeAI({
         section: 'resume', action: 'score_advice',
-        content: `Resume score: overall ${overall}%. Weak areas: ${weakest || 'none'}.`,
+        content: resumeSnapshot,
       });
-      setAiTips((res.result || '').split(/\n|•|\d\./).map((t) => t.trim()).filter((t) => t.length > 10).slice(0, 4));
+      setAiTips((res.result || '').split(/\n/).map(t => t.replace(/^[-•*\d.]+\s*/, '').trim()).filter(t => t.length > 15).slice(0, 4));
     } catch {
       setAiTips([
-        'Add quantified achievements with numbers to boost Impact.',
-        'Include LinkedIn and portfolio to increase Confidence.',
-        'Paste a job description in AI Optimize to improve ATS.',
+        'Add quantified achievements with numbers and percentages to boost Impact.',
+        'Include LinkedIn and portfolio links to increase Confidence score.',
+        'Start every experience bullet with a strong past-tense action verb.',
       ]);
     } finally {
       setLoading(false);
@@ -179,7 +212,6 @@ export default function ResumeScoreStep() {
 
   const overallColor = overall >= 80 ? 'text-green-600' : overall >= 60 ? 'text-yellow-600' : 'text-red-500';
   const ringColor = overall >= 80 ? '#22c55e' : overall >= 60 ? '#eab308' : '#ef4444';
-  const barColor = overall >= 80 ? 'bg-green-500' : overall >= 60 ? 'bg-yellow-500' : 'bg-red-400';
 
   return (
     <div className="space-y-6">

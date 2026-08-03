@@ -1,4 +1,5 @@
 ﻿import React, { useState, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Upload, X, CheckCircle, AlertCircle, Edit2, Trash2, ChevronDown, ChevronUp, Loader, Zap, Download, Users, Copy, Sparkles, MapPin, Clock, Briefcase } from 'lucide-react';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
@@ -110,12 +111,24 @@ function extractExperience(text: string): string {
   return '';
 }
 
-function extractJobType(text: string): string {
-  if (/full[- ]?time/i.test(text)) return 'Full-time';
-  if (/part[- ]?time/i.test(text)) return 'Part-time';
-  if (/contract|freelance/i.test(text)) return 'Contract';
-  if (/intern/i.test(text)) return 'Internship';
+// Maps any input (CSV cell, AI output, text) to one of the 6 valid DB enum values
+function normalizeJobType(value: unknown): string {
+  let raw = Array.isArray(value) ? value[0] : value;
+  if (typeof raw !== 'string') return '';
+  const v = raw.trim().toLowerCase().replace(/[-\s_]/g, '');
+  if (!v) return '';
+  if (/^(fulltime|ft)$/.test(v) || /permanent|regular/.test(v)) return 'Full-time';
+  if (/^(parttime|pt)$/.test(v)) return 'Part-time';
+  if (/contract/.test(v)) return 'Contract';
+  if (/freelanc/.test(v)) return 'Freelance';
+  if (/intern/.test(v)) return 'Internship';
+  if (/temp/.test(v) || /seasonal/.test(v)) return 'Temporary';
   return 'Full-time';
+}
+
+function extractJobType(text: string): string {
+  const m = text.match(/(full[- ]?time|part[- ]?time|freelanc\w*|contractual|contract\b|internship|intern\b|temporary|temp\b|permanent|seasonal)/i);
+  return m ? normalizeJobType(m[1]) || 'Full-time' : 'Full-time';
 }
 
 function extractCategory(title: string): string {
@@ -232,7 +245,7 @@ function parseCSV(text: string): ParsedJob[] {
       jobLocation: get('location') || get('job location') || '',
       experienceRange: get('experience') || '',
       skills: skillsRaw.split(/[;|,]/).map(s => s.trim()).filter(Boolean).slice(0, 12),
-      jobType: get('employment type') || get('job type') || extractJobType(rawText),
+      jobType: normalizeJobType(get('employment type')) || normalizeJobType(get('job type')) || extractJobType(rawText),
       jobDescription: get('description') || rawText,
       minSalary: get('min salary') || get('salary min') || '',
       maxSalary: get('max salary') || get('salary max') || get('salary') || '',
@@ -253,8 +266,44 @@ function parseCSV(text: string): ParsedJob[] {
 
 // ── Split pasted multi-JD text ─────────────────────────────────────────
 function splitPastedJDs(text: string): string[] {
-  const sep = /\n---+\n|\n={3,}\n|\n\*{3,}\n/g;
-  const parts = text.split(sep).map(p => p.trim()).filter(p => p.length > 50);
+  // 1. Split on explicit separators (---, ===, ***, ~~~, ...)
+  const sepParts = text
+    .split(/\n\s*(?:-{3,}|={3,}|\*{3,}|~{3,}|…{3,})\s*\n/g)
+    .map(p => p.trim())
+    .filter(Boolean);
+
+  const TITLE_RE = /^(?:senior|junior|sr\.?|jr\.?|lead|principal|chief|head|staff|assistant|associate|graduate|experienced|entry[- ]level|mid[- ]level)?\s*[A-Z][\w'\-& ,.]{2,50}?\s+(?:developer|engineer|manager|designer|analyst|accountant|nurse|technician|consultant|specialist|executive|representative|coordinator|supervisor|director|architect|officer|operator|clerk|mechanic|electrician|plumber|welder|driver|chef|cook|waiter|barista|security|housekeeper|cleaner|carpenter|worker|helper|attendant|agent|advisor|trainer|coach|editor|writer|reporter|photographer|librarian|pharmacist|therapist|counselor|doctor|physician|dentist|surgeon|researcher|scientist|technologist|administrator|trainee|intern|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data|qa|quality|ui|ux|graphic|content|hr|finance|account|business|operations|logistics|procurement|purchase|warehouse|safety|hse|sales|marketing)$/i;
+  const SENTENCE_RE = /(we\s+(?:are|'re)|looking\s+for|is\s+(?:seeking|hiring)|are\s+(?:seeking|hiring)|join\s+our|our\s+team|currently\s+(?:hiring|seeking))/i;
+  const MARKER_RE = /^(?:job|position|role|opening|vacancy|jd|posting|requirement)[\s#\-.:]*\d+/i;
+  const HEADER_RE = /^(?:job title|position title|title|company|organization|employer)\s*:/i;
+  const NUMBERED_RE = /^\d+\s*[.)\-:]\s+[A-Z]/;
+
+  const groups: string[] = [];
+  for (const part of sepParts) {
+    // 2. Within each separator part, split into blocks on blank lines
+    const blocks = part.split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+    let current = '';
+    for (const block of blocks) {
+      // 3. A block starts a NEW JD if it looks like a title line or explicit marker
+      const firstLine = block.split('\n')[0].trim();
+      const titleLike =
+        firstLine.length <= 140 &&
+        firstLine.split(/\s+/).length <= 10 &&
+        !SENTENCE_RE.test(firstLine) &&
+        TITLE_RE.test(firstLine);
+      const isStart =
+        MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block) || titleLike;
+      if (isStart && current) {
+        groups.push(current.trim());
+        current = block;
+      } else {
+        current += (current ? '\n\n' : '') + block;
+      }
+    }
+    if (current) groups.push(current.trim());
+  }
+
+  const parts = groups.filter(p => p.length > 50);
   return parts.length > 1 ? parts : [text];
 }
 
@@ -484,7 +533,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
         jobLocation: ai.jobLocation || job.jobLocation,
         experienceRange: ai.experienceRange || job.experienceRange,
         skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills : job.skills,
-        jobType: ai.jobType || job.jobType,
+        jobType: normalizeJobType(ai.jobType) || job.jobType,
         jobCategory: ai.jobCategory || job.jobCategory,
       });
       job.errors = validateJob(job);
@@ -513,8 +562,9 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     if (!editingJob) return;
     setJobs(prev => prev.map(j => {
       if (j.id !== editingJob.id) return j;
-      const errs = validateJob(editingJob);
-      return { ...editingJob, errors: errs, status: errs.length > 0 ? 'error' : 'ready' };
+      const normalized = { ...editingJob, jobType: normalizeJobType(editingJob.jobType) || 'Full-time' };
+      const errs = validateJob(normalized);
+      return { ...normalized, errors: errs, status: errs.length > 0 ? 'error' : 'ready' };
     }));
     setEditingJob(null);
   };
@@ -631,7 +681,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
         companyName,
         location: job.jobLocation || 'Remote',
         jobLocation: job.jobLocation || 'Remote',
-        jobType: [job.jobType],
+        jobType: [normalizeJobType(job.jobType) || 'Full-time'],
         description: buildFullDescription(job, companyName),
         jobDescription: buildFullDescription(job, companyName),
         skills: job.skills,
@@ -679,7 +729,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
             const payload = {
               jobTitle: job.jobTitle, company: companyName, companyName,
               location: job.jobLocation || 'Remote', jobLocation: job.jobLocation || 'Remote',
-              jobType: [job.jobType], type: job.jobType,
+              jobType: [normalizeJobType(job.jobType) || 'Full-time'], type: normalizeJobType(job.jobType) || 'Full-time',
               description: buildFullDescription(job, companyName),
               jobDescription: buildFullDescription(job, companyName),
               skills: job.skills, experienceRange: job.experienceRange,
@@ -720,15 +770,16 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
   // ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-20 right-4 z-50 px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 ${
+      {/* Toast — rendered in a portal so it's never clipped by page/header layout */}
+      {toast && createPortal(
+        <div className={`fixed top-4 right-4 z-[9999] px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2 max-w-[calc(100vw-2rem)] sm:max-w-md break-words ${
           toast.type === 'success' ? 'bg-green-600 text-white' :
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'
         }`}>
-          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : toast.type === 'error' ? <X className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
-          {toast.msg}
-        </div>
+          {toast.type === 'success' ? <CheckCircle className="w-4 h-4 flex-shrink-0" /> : toast.type === 'error' ? <X className="w-4 h-4 flex-shrink-0" /> : <Zap className="w-4 h-4 flex-shrink-0" />}
+          <span>{toast.msg}</span>
+        </div>,
+        document.body
       )}
 
       {/* Site Header */}
@@ -875,38 +926,38 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
         {step === 'preview' && (
           <div className="space-y-5">
             {/* Summary bar */}
-            <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-lg font-bold text-gray-900">{jobs.length} Jobs Found</span>
-                <span className="flex items-center gap-1 text-sm text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
+            <div className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-base font-bold text-gray-900">{jobs.length} Jobs Found</span>
+                <span className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-full font-medium">
                   <CheckCircle className="w-3.5 h-3.5" /> {readyCount} Ready
                 </span>
                 {errorCount > 0 && (
-                  <span className="flex items-center gap-1 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
+                  <span className="flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-medium">
                     <AlertCircle className="w-3.5 h-3.5" /> {errorCount} Need Review
                   </span>
                 )}
                 {jobs.filter(j => j.isDuplicate).length > 0 && (
-                  <span className="flex items-center gap-1 text-sm text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full font-medium">
+                  <span className="flex items-center gap-1 text-xs text-red-700 bg-red-50 border border-red-200 px-2.5 py-1 rounded-full font-medium">
                     <Copy className="w-3.5 h-3.5" /> {jobs.filter(j => j.isDuplicate).length} Duplicates
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <label className="flex items-center gap-1.5 text-sm text-gray-600 cursor-pointer select-none">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none border border-gray-200 rounded-lg px-3 h-9 hover:bg-gray-50 transition-colors">
                   <input type="checkbox" checked={jobs.every(j => j.selected)} onChange={e => setJobs(prev => prev.map(j => ({ ...j, selected: e.target.checked })))} className="rounded" />
                   Select all
                 </label>
                 <button
                   onClick={() => setStep('upload')}
-                  className="text-sm text-gray-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="h-9 text-xs font-medium text-gray-600 border border-gray-200 px-3 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
                 >
                   + Add More
                 </button>
                 <button
                   onClick={checkDuplicates}
                   disabled={checkingDupes}
-                  className="text-sm text-orange-700 border border-orange-200 bg-orange-50 px-3 py-1.5 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  className="h-9 text-xs font-medium text-orange-700 border border-orange-200 bg-orange-50 px-3 rounded-lg hover:bg-orange-100 transition-colors flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
                   title="Check against already posted jobs"
                 >
                   {checkingDupes ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
@@ -914,7 +965,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 </button>
                 <button
                   onClick={loadCandidateCounts}
-                  className="text-sm text-purple-700 border border-purple-200 bg-purple-50 px-3 py-1.5 rounded-lg hover:bg-purple-100 transition-colors flex items-center gap-1.5"
+                  className="h-9 text-xs font-medium text-purple-700 border border-purple-200 bg-purple-50 px-3 rounded-lg hover:bg-purple-100 transition-colors flex items-center gap-1.5 whitespace-nowrap"
                   title="Show matching candidate count per job"
                 >
                   <Users className="w-3.5 h-3.5" /> Match Counts
@@ -922,18 +973,19 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 <button
                   onClick={bulkEnhance}
                   disabled={enhancing || selectedCount === 0}
-                  className="text-sm text-blue-700 border border-blue-200 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5 disabled:opacity-50"
+                  className="h-9 text-xs font-medium text-blue-700 border border-blue-200 bg-blue-50 px-3 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1.5 disabled:opacity-50 whitespace-nowrap"
                   title="AI-rewrite all selected job descriptions"
                 >
                   {enhancing ? <Loader className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {enhancing ? (enhancingLabel || 'Enhancing…') : 'AI Enhance All'}
+                  {enhancing ? (enhancingLabel || 'Enhancing…') : 'AI Enhance'}
                 </button>
+                <div className="w-px h-6 bg-gray-200 mx-1" />
                 <button
                   onClick={publishJobs}
                   disabled={selectedCount === 0}
-                  className="bg-blue-600 text-white text-sm font-semibold px-5 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  className="h-9 bg-blue-600 text-white text-xs font-semibold px-4 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 whitespace-nowrap"
                 >
-                  <Upload className="w-4 h-4" />
+                  <Upload className="w-3.5 h-3.5" />
                   Publish {selectedCount > 0 ? `${selectedCount} Jobs` : 'Selected'}
                 </button>
               </div>
@@ -1090,16 +1142,19 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
             </div>
 
             {/* Bottom action bar */}
-            <div className="sticky bottom-4 bg-white border border-gray-200 rounded-2xl shadow-lg px-5 py-4 flex items-center justify-between">
-              <span className="text-sm text-gray-600 font-medium">{selectedCount} of {jobs.length} selected</span>
-              <button
-                onClick={publishJobs}
-                disabled={selectedCount === 0}
-                className="bg-blue-600 text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
-              >
-                <Upload className="w-4 h-4" />
-                Publish {selectedCount > 0 ? `${selectedCount} Jobs` : 'Selected'}
-              </button>
+            <div className="sticky bottom-4 flex justify-center pointer-events-none">
+              <div className="pointer-events-auto bg-white border border-gray-200 rounded-full shadow-lg px-4 py-2.5 flex items-center gap-3">
+                <span className="text-xs text-gray-600 font-medium whitespace-nowrap">{selectedCount} of {jobs.length} selected</span>
+                <div className="w-px h-4 bg-gray-200" />
+                <button
+                  onClick={publishJobs}
+                  disabled={selectedCount === 0}
+                  className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  Publish {selectedCount > 0 ? `${selectedCount} Jobs` : ''}
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1199,7 +1254,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                   onChange={e => setEditingJob(prev => prev ? { ...prev, jobType: e.target.value } : null)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  {['Full-time', 'Part-time', 'Contract', 'Internship', 'Temporary'].map(t => (
+                  {['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship', 'Temporary'].map(t => (
                     <option key={t} value={t}>{t}</option>
                   ))}
                 </select>
@@ -1211,7 +1266,7 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                   onChange={e => setEditingJob(prev => prev ? { ...prev, jobCategory: e.target.value } : null)}
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                 >
-                  {['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Other'].map(c => (
+                  {['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Legal','Manufacturing','Retail','Construction','Hospitality & Tourism','Media & Communications','Logistics & Supply Chain','Real Estate','Oil & Gas','Telecom','Banking & Insurance','Other'].map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
                 </select>

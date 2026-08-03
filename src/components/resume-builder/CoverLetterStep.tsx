@@ -9,10 +9,18 @@ interface Props {
 
 export default function CoverLetterStep({ selectedJob }: Props) {
   const { data } = useResumeStore();
-  const [company, setCompany] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [tone, setTone] = useState<'professional' | 'enthusiastic' | 'concise'>('professional');
-  const [letter, setLetter] = useState('');
+  const CL_KEY = 'rb_cover_letter';
+  const [company, setCompany] = useState(() => { try { return JSON.parse(localStorage.getItem(CL_KEY) || '{}').company || ''; } catch { return ''; } });
+  const [jobTitle, setJobTitle] = useState(() => { try { return JSON.parse(localStorage.getItem(CL_KEY) || '{}').jobTitle || ''; } catch { return ''; } });
+  const [tone, setTone] = useState<'professional' | 'enthusiastic' | 'concise'>(() => { try { return JSON.parse(localStorage.getItem(CL_KEY) || '{}').tone || 'professional'; } catch { return 'professional'; } });
+  const [letter, setLetter] = useState(() => { try { return JSON.parse(localStorage.getItem(CL_KEY) || '{}').letter || ''; } catch { return ''; } });
+
+  const persist = (patch: Record<string, string>) => {
+    try {
+      const prev = JSON.parse(localStorage.getItem(CL_KEY) || '{}');
+      localStorage.setItem(CL_KEY, JSON.stringify({ ...prev, ...patch }));
+    } catch { /* silent */ }
+  };
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -21,8 +29,8 @@ export default function CoverLetterStep({ selectedJob }: Props) {
     if (!selectedJob) return;
     const c = selectedJob.company || selectedJob.companyName || '';
     const jt = selectedJob.title || selectedJob.jobTitle || '';
-    if (c && !company) setCompany(c);
-    if (jt && !jobTitle) setJobTitle(jt);
+    if (c && !company) { setCompany(c); persist({ company: c }); }
+    if (jt && !jobTitle) { setJobTitle(jt); persist({ jobTitle: jt }); }
   }, [selectedJob?.id || selectedJob?._id]);
   const [error, setError] = useState('');
 
@@ -47,16 +55,18 @@ export default function CoverLetterStep({ selectedJob }: Props) {
 
       const text = result.result || '';
 
-      if (text && text.length > 100) {
-        setLetter(text);
-      } else {
-        setLetter(buildFallback(data.personalInfo.name, jobTitle, company, summaryVal, expText, data.skills, tone));
-      }
+      const finalLetter = (text && text.length > 100)
+        ? text
+        : buildFallback(data.personalInfo.name, jobTitle, company, summaryVal, expText, data.skills, tone);
+      setLetter(finalLetter);
+      persist({ letter: finalLetter, company, jobTitle, tone });
     } catch {
-      setLetter(buildFallback(data.personalInfo.name, jobTitle, company,
+      const fb = buildFallback(data.personalInfo.name, jobTitle, company,
         Array.isArray(data.summary) ? (data.summary as string[]).join(' ') : data.summary || '',
         data.experience.slice(0, 2).map((e) => `${e.title} at ${e.company}`).join(', '),
-        data.skills, tone));
+        data.skills, tone);
+      setLetter(fb);
+      persist({ letter: fb, company, jobTitle, tone });
     } finally {
       setLoading(false);
     }
@@ -82,7 +92,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
           <input
             type="text"
             value={company}
-            onChange={(e) => setCompany(e.target.value)}
+            onChange={(e) => { setCompany(e.target.value); persist({ company: e.target.value }); }}
             placeholder="e.g. Google, TCS, Infosys"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
@@ -92,7 +102,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
           <input
             type="text"
             value={jobTitle}
-            onChange={(e) => setJobTitle(e.target.value)}
+            onChange={(e) => { setJobTitle(e.target.value); persist({ jobTitle: e.target.value }); }}
             placeholder="e.g. Senior Backend Engineer"
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
@@ -101,7 +111,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
           <label className="block text-xs font-medium text-gray-600 mb-1">Tone</label>
           <select
             value={tone}
-            onChange={(e) => setTone(e.target.value as any)}
+            onChange={(e) => { setTone(e.target.value as any); persist({ tone: e.target.value }); }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="professional">Professional</option>
@@ -131,7 +141,7 @@ export default function CoverLetterStep({ selectedJob }: Props) {
           </div>
           <textarea
             value={letter}
-            onChange={(e) => setLetter(e.target.value)}
+            onChange={(e) => { setLetter(e.target.value); persist({ letter: e.target.value }); }}
             rows={16}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none font-mono leading-relaxed"
           />

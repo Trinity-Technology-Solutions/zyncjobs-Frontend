@@ -35,6 +35,8 @@ interface Job {
   jobTitle: string;
   title?: string;
   skills: string[];
+  jobCode?: string;
+  positionId?: string;
 }
 
 
@@ -52,6 +54,7 @@ interface RankedCandidate {
   rank: number;
   score: number;
   jobTitle: string;
+  jobCode: string;
   jobId: string;
   skills: string[];
   experience: string;
@@ -292,6 +295,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
           rank: 0,
           score,
           jobTitle: app.jobTitle || jobData?.jobTitle || jobData?.title || 'Position',
+          jobCode: jobData?.jobCode || jobData?.positionId || '',
           jobId: String(jobData?._id || jobData?.id || rawJobId || ''),
           skills,
           experience: app.candidateExperience || 'Not specified',
@@ -440,7 +444,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                     <Avatar name={c.name} photo={c.profilePicture} size="md" />
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-gray-900 text-sm truncate">{c.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{c.jobTitle}</p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <p className="text-xs text-gray-500 truncate">{c.jobTitle}</p>
+                        {c.jobCode && <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded flex-shrink-0">{c.jobCode}</span>}
+                      </div>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mb-2">
@@ -465,7 +472,7 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
             <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
               <option value="all">All Jobs</option>
               {/* FIX: `j.jobTitle || j.title` is now valid — `title?` is declared on Job */}
-              {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{j.jobTitle || j.title}</option>)}
+              {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{(j.jobTitle || j.title)}{j.jobCode || j.positionId ? ` — ${j.jobCode || j.positionId}` : ''}</option>)}
             </select>
             <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
               <option value="all">All Status</option>
@@ -519,9 +526,10 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
                         <div className="min-w-0">
                           <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{c.name}</h3>
                           <p className="text-xs sm:text-sm text-gray-400 truncate">{c.email}</p>
-                          <div className="flex items-center gap-1.5 mt-1">
+                          <div className="flex items-center gap-1.5 mt-1 min-w-0">
                             <Briefcase className="w-3 sm:w-3.5 h-3 sm:h-3.5 text-blue-400 flex-shrink-0" />
                             <span className="text-xs text-blue-600 font-medium truncate">{c.jobTitle}</span>
+                            {c.jobCode && <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded flex-shrink-0">{c.jobCode}</span>}
                           </div>
                         </div>
                         <div className="hidden sm:flex items-center gap-3 flex-shrink-0">

@@ -2,6 +2,13 @@ import React from 'react';
 import { ResumeData } from '../../store/useResumeStore';
 
 // summary can be a string (legacy) or string[] (new multi-point)
+
+function eduDegrees(edu: any): string {
+  if (edu.ugDegree && edu.pgDegree) return `${edu.ugDegree}, ${edu.pgDegree}`;
+  if (edu.ugDegree) return edu.ugDegree;
+  if (edu.pgDegree) return edu.pgDegree;
+  return edu.degree || '';
+}
 function SummaryContent({ summary, style }: { summary: any; style?: React.CSSProperties }) {
   const points: string[] = Array.isArray(summary)
     ? summary.filter(Boolean)
@@ -61,7 +68,7 @@ const ClassicTemplate = ({ data }: { data: ResumeData }) => (
           <>{data.education.map(edu => (
             <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
               <div>
-                <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{edu.degree}</span>
+                <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{eduDegrees(edu)}</span>
                 {edu.institution && <span style={{ fontSize: 12, color: '#555' }}> — {edu.institution}</span>}
                 {edu.grade && <span style={{ fontSize: 11, color: '#777' }}> | {edu.grade}</span>}
               </div>
@@ -175,7 +182,7 @@ const ModernTemplate = ({ data }: { data: ResumeData }) => (
         {data.education.map(edu => (
           <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
             <div>
-              <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{edu.degree}</span>
+              <span style={{ fontWeight: 600, fontSize: 12, color: '#1a1a1a' }}>{eduDegrees(edu)}</span>
               {edu.institution && <span style={{ fontSize: 12, color: '#555' }}> · {edu.institution}</span>}
               {edu.grade && <span style={{ fontSize: 11, color: '#777' }}> · {edu.grade}</span>}
             </div>
@@ -266,7 +273,7 @@ const MinimalTemplate = ({ data }: { data: ResumeData }) => (
         label: 'Education', body: (
           <>{data.education.map(edu => (
             <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
-              <span style={{ fontSize: 12, color: '#333' }}>{edu.degree}{edu.institution ? `, ${edu.institution}` : ''}</span>
+              <span style={{ fontSize: 12, color: '#333' }}>{eduDegrees(edu)}{edu.institution ? `, ${edu.institution}` : ''}</span>
               <span style={{ fontSize: 12, color: '#999' }}>{edu.duration}</span>
             </div>
           ))}</>
@@ -387,7 +394,7 @@ const ExecutiveTemplate = ({ data }: { data: ResumeData }) => (
         {data.education.map(edu => (
           <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 }}>
             <div>
-              <span style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{edu.degree}</span>
+              <span style={{ fontWeight: 700, fontSize: 12, color: '#1a1a1a' }}>{eduDegrees(edu)}</span>
               {edu.institution && <span style={{ fontSize: 12, color: '#555' }}> · {edu.institution}</span>}
               {edu.grade && <span style={{ fontSize: 11, color: '#777' }}> · {edu.grade}</span>}
             </div>
@@ -483,7 +490,7 @@ const CompactTemplate = ({ data }: { data: ResumeData }) => (
       <CompactSection label="Education">
         {data.education.map(edu => (
           <div key={edu.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 3 }}>
-            <span style={{ fontWeight: 600, color: '#333' }}>{edu.degree}{edu.institution ? ` | ${edu.institution}` : ''}{edu.grade ? ` | ${edu.grade}` : ''}</span>
+            <span style={{ fontWeight: 600, color: '#333' }}>{eduDegrees(edu)}{edu.institution ? ` | ${edu.institution}` : ''}{edu.grade ? ` | ${edu.grade}` : ''}</span>
             <span style={{ color: '#777' }}>{edu.duration}</span>
           </div>
         ))}
@@ -558,7 +565,7 @@ const ProfessionalTemplate = ({ data }: { data: ResumeData }) => (
         <SideSection label="Education" color="#94a3b8" borderColor="#334155">
           {data.education.map(edu => (
             <div key={edu.id} style={{ marginBottom: 8 }}>
-              <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{edu.degree}</div>
+              <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{eduDegrees(edu)}</div>
               {edu.institution && <div style={{ color: '#94a3b8' }}>{edu.institution}</div>}
               {edu.duration && <div style={{ color: '#64748b' }}>{edu.duration}</div>}
               {edu.grade && <div style={{ color: '#64748b' }}>{edu.grade}</div>}

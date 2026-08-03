@@ -197,23 +197,21 @@ class ResumeIntelligenceEngine {
   }
 
   private scoreSkillsSection(content: ResumeContent): number {
+    // Use dedicated skills section if found, otherwise scan full text
     const skills = content.sections.skills || '';
-    if (!skills) return 0;
-    
-    let score = 20; // Base score for having skills section
-    
-    // Count technical skills
-    const techSkills = this.ATS_KEYWORDS.filter(keyword => 
-      skills.toLowerCase().includes(keyword.toLowerCase())
+    const scanText = skills || content.text;
+    if (!scanText.trim()) return 0;
+
+    let score = skills ? 20 : 10; // lower base when falling back to full text
+
+    const techSkills = this.ATS_KEYWORDS.filter(keyword =>
+      scanText.toLowerCase().includes(keyword.toLowerCase())
     ).length;
     score += Math.min(50, techSkills * 5);
-    
-    // Check for skill categorization
-    if (/technical|programming|languages|frameworks|tools/i.test(skills)) score += 15;
-    
-    // Check for proficiency levels
-    if (/expert|advanced|intermediate|proficient|years/i.test(skills)) score += 15;
-    
+
+    if (/technical|programming|languages|frameworks|tools/i.test(scanText)) score += 15;
+    if (/expert|advanced|intermediate|proficient|years/i.test(scanText)) score += 15;
+
     return Math.min(100, score);
   }
 
@@ -445,30 +443,43 @@ class ResumeIntelligenceEngine {
 
   private extractSections(text: string): ResumeContent['sections'] {
     const sections: ResumeContent['sections'] = {};
-    
-    // Simple section extraction based on common patterns
-    const experienceMatch = text.match(/(?:experience|work history)(.*?)(?:education|skills|$)/is);
+
+    // All heading variants — order matters (most specific first)
+    const SKILL_HEADINGS = 'tools|programming languages|technical skills|frameworks and database|frameworks|languages|skills|technologies|competencies|tech stack';
+    const SUMMARY_HEADINGS = 'professional summary|summary|objective|profile|about';
+    const EXP_HEADINGS = 'experience|work history|employment|work experience|professional experience';
+    const EDU_HEADINGS = 'education|academic|academics|qualification';
+    const SECTION_ANY = `${SKILL_HEADINGS}|${SUMMARY_HEADINGS}|${EXP_HEADINGS}|${EDU_HEADINGS}|projects|certifications|awards|languages`;
+
+    const experienceMatch = text.match(new RegExp(`(?:${EXP_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'i'));
     if (experienceMatch) sections.experience = experienceMatch[1].trim();
-    
-    const educationMatch = text.match(/(?:education|academic)(.*?)(?:experience|skills|$)/is);
+
+    const educationMatch = text.match(new RegExp(`(?:${EDU_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'i'));
     if (educationMatch) sections.education = educationMatch[1].trim();
-    
-    const skillsMatch = text.match(/(?:skills|technical)(.*?)(?:experience|education|$)/is);
-    if (skillsMatch) sections.skills = skillsMatch[1].trim();
-    
-    const summaryMatch = text.match(/(?:summary|objective|profile)(.*?)(?:experience|education|skills)/is);
+
+    // Collect ALL skill-like sections and merge them
+    const skillParts: string[] = [];
+    const skillRegex = new RegExp(`(?:${SKILL_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'gi');
+    let skillMatch;
+    while ((skillMatch = skillRegex.exec(text)) !== null) {
+      const part = skillMatch[1].trim();
+      if (part) skillParts.push(part);
+    }
+    if (skillParts.length > 0) sections.skills = skillParts.join(' ');
+
+    const summaryMatch = text.match(new RegExp(`(?:${SUMMARY_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'i'));
     if (summaryMatch) sections.summary = summaryMatch[1].trim();
-    
+
     return sections;
   }
 
   private extractMetadata(text: string): ResumeContent['metadata'] {
     return {
       wordCount: text.split(/\s+/).length,
-      pageCount: Math.ceil(text.length / 3000), // Rough estimate
+      pageCount: Math.ceil(text.length / 3000),
       hasEmail: /@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text),
-      hasPhone: /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/.test(text),
-      hasLinkedIn: /linkedin\.com|linkedin/i.test(text)
+      hasPhone: /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?)?\d{3,5}[\s.-]?\d{4,5}/.test(text),
+      hasLinkedIn: /linkedin\.com|linkedin/i.test(text),
     };
   }
 }

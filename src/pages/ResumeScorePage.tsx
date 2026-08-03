@@ -300,7 +300,7 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                   <ul className="space-y-2">
                     {result.strengths.map((s, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-gray-700">
-                        <span className="text-green-500 mt-0.5">✓</span> {s}
+                        <CheckCircle className="w-3.5 h-3.5 text-green-500 mt-0.5 shrink-0" /> {s}
                       </li>
                     ))}
                   </ul>
@@ -336,7 +336,8 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
                   <ul className="space-y-2">
                     {result.recommendations.map((rec, i) => (
                       <li key={i} className="flex items-start gap-2 text-sm text-blue-800">
-                        <span className="text-blue-500 mt-0.5">💡</span> {rec}
+                        <TrendingUp className="w-3.5 h-3.5 text-blue-500 mt-0.5 shrink-0" />
+                        {rec}
                       </li>
                     ))}
                   </ul>
@@ -358,13 +359,13 @@ export default function ResumeScorePage({ onNavigate, user, onLogout }: { onNavi
               )}
 
               {/* Matched Keywords */}
-              {aiResult?.matched_keywords?.length > 0 && (
+              {aiResult && (aiResult.matched_keywords?.length ?? 0) > 0 && (
                 <div className="bg-white rounded-xl border border-green-200 p-5">
                   <h2 className="text-base font-bold text-green-600 mb-3 flex items-center gap-2">
                     <CheckCircle className="w-4 h-4" /> Matched Keywords
                   </h2>
                   <div className="flex flex-wrap gap-2">
-                    {aiResult.matched_keywords.map(k => (
+                    {aiResult.matched_keywords!.map(k => (
                       <span key={k} className="bg-green-50 border border-green-200 text-green-700 px-3 py-1 rounded-full text-sm font-medium">{k}</span>
                     ))}
                   </div>

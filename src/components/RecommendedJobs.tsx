@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/env';
+import { computeMatchBreakdown } from '../utils/matchScore';
 import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame, CheckCircle } from 'lucide-react';
 import { formatSalary } from '../utils/textUtils';
 import CompanyLogo from './CompanyLogo';
@@ -168,11 +169,21 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
         if (res.ok) {
           const data = await res.json();
           const matched = Array.isArray(data.jobs) ? data.jobs : [];
-          if (matched.length > 0) {
-            setJobs(matched.map((j: any) => ({ ...j, matchPercentage: j.matchScore })));
-            setLoading(false);
-            return;
-          }
+            if (matched.length > 0) {
+              setJobs(matched.map((j: any) => {
+                // Use backend-calculated match score if available, otherwise fallback
+                const backendScore = j.matchPercentage || j.overall || j.score || j.matchedScore || null;
+                if (backendScore !== null && !isNaN(backendScore)) {
+                  return { ...j, matchPercentage: backendScore };
+                }
+                // Fallback: if backend didn't calculate, use our computation
+                const jobData = { ...j, title: j.title || j.jobTitle || '', skills: Array.isArray(j.skills) ? j.skills : [] };
+                const { overall } = computeMatchBreakdown(jobData);
+                return { ...j, matchPercentage: overall };
+              }));
+              setLoading(false);
+              return;
+            }
         }
       }
 
@@ -191,7 +202,11 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           const data = await res.json();
           const matches = Array.isArray(data.matches) ? data.matches : [];
           if (matches.length > 0) {
-            setJobs(matches.map((j: any) => ({ ...j, matchPercentage: j.matchScore })));
+            setJobs(matches.map((j: any) => {
+              const jobData = { ...j, title: j.title || j.jobTitle || '', skills: Array.isArray(j.skills) ? j.skills : [] };
+              const { overall } = computeMatchBreakdown(jobData);
+              return { ...j, matchPercentage: overall };
+            }));
             setLoading(false);
             return;
           }

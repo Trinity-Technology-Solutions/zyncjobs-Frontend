@@ -28,6 +28,16 @@ const DIFFICULTY = [
 
 interface SimMessage { role: 'ai' | 'user'; content: string; score?: number; feedback?: string; }
 
+const stripMarkdown = (text: string): string =>
+  text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold**
+    .replace(/\*(.+?)\*/g, '$1')        // *italic*
+    .replace(/#{1,6}\s+/g, '')          // ## headings
+    .replace(/`(.+?)`/g, '$1')          // `code`
+    .replace(/^[-*]\s+/gm, '')          // bullet points
+    .replace(/\n{3,}/g, '\n\n')         // excess newlines
+    .trim();
+
 function SimulationTab({ user }: { user?: any }) {
   const [step, setStep] = useState<'setup' | 'interview' | 'report'>('setup');
   const [role, setRole] = useState('');
@@ -48,17 +58,25 @@ function SimulationTab({ user }: { user?: any }) {
 
   const selectedRole = role === 'custom' ? customRole : role;
 
-  const systemPrompt = `You are a professional interviewer conducting a ${difficulty === 'easy' ? 'fresher-level' : difficulty === 'medium' ? 'mid-level' : 'senior-level'} interview for a ${selectedRole} position.
+  const systemPrompt = `You are a strict professional interviewer conducting a ${difficulty === 'easy' ? 'fresher-level' : difficulty === 'medium' ? 'mid-level' : 'senior-level'} interview for a ${selectedRole} position.
 
-Rules:
-1. Ask ONE interview question at a time. No multiple questions.
-2. After the candidate answers, give a score out of 10 and brief feedback in this exact format:
+SCORING RULES (strictly enforce):
+- 9-10: Exceptional, detailed, structured answer with real examples
+- 7-8: Good answer with relevant content and some detail
+- 5-6: Partial answer, vague or missing key points
+- 3-4: Poor answer, mostly irrelevant or very incomplete
+- 1-2: Gibberish, random text, single words, or completely off-topic
+- NEVER give above 4 for answers that are random characters, keyboard mash, or unrelated to the question
+
+Format rules:
+1. Ask ONE interview question at a time.
+2. After each answer, respond in this EXACT format:
    SCORE: X/10
-   FEEDBACK: [2-3 sentence feedback]
+   FEEDBACK: [2-3 sentence honest feedback — call out weak answers directly]
    NEXT_QUESTION: [your next question]
-3. After ${MAX_QUESTIONS} questions, instead of NEXT_QUESTION write:
+3. After ${MAX_QUESTIONS} questions, replace NEXT_QUESTION with:
    INTERVIEW_COMPLETE
-   FINAL_FEEDBACK: [overall assessment in 3-4 sentences]
+   FINAL_FEEDBACK: [overall honest assessment]
 4. Keep questions relevant to ${selectedRole} role.
 5. Start with "Tell me about yourself" as the first question.`;
 
@@ -74,10 +92,14 @@ Rules:
 
     try {
       const data = await executeAI(
-        `You are now the interviewer. Begin by asking the first question to the candidate applying for ${selectedRole}.`,
-        { systemPrompt }
+        `interview: Begin the interview for ${selectedRole} role. Ask the first question.`,
+        { systemPrompt, user_preferences: { systemPrompt } }
       );
-      const reply = (data as any).result?.reply || (data as any).result?.advice || `Tell me about yourself and what draws you to the ${selectedRole} role.`;
+      const raw = (data as any).result?.reply || (data as any).result?.advice || '';
+      const nextMatch = raw.match(/NEXT_QUESTION:\s*([\s\S]+)/);
+      const reply = nextMatch
+        ? stripMarkdown(nextMatch[1].trim())
+        : (raw.includes('SCORE:') ? `Tell me about yourself and what draws you to the ${selectedRole} role.` : stripMarkdown(raw) || `Tell me about yourself and what draws you to the ${selectedRole} role.`);
       setMessages([{ role: 'ai', content: reply }]);
       setQuestionCount(1);
     } catch {
@@ -86,6 +108,23 @@ Rules:
     } finally {
       setLoading(false);
     }
+  };
+
+  const isGarbageAnswer = (text: string): boolean => {
+    const t = text.trim();
+    if (t.length < 10) return true;
+    // High ratio of non-alphabetic characters (keyboard mash)
+    const alphaRatio = (t.match(/[a-zA-Z]/g) || []).length / t.length;
+    if (alphaRatio < 0.5) return true;
+    // Very few unique words (repetition or single word repeated)
+    const words = t.toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length < 3) return true;
+    const uniqueWords = new Set(words);
+    if (uniqueWords.size === 1) return true;
+    // Detect random character sequences (no real words — avg word length > 10)
+    const avgWordLen = words.reduce((s, w) => s + w.length, 0) / words.length;
+    if (avgWordLen > 10) return true;
+    return false;
   };
 
   const sendAnswer = async () => {
@@ -98,36 +137,86 @@ Rules:
     setMessages(updated);
     setLoading(true);
 
+    // Frontend guard: detect garbage before calling AI
+    if (isGarbageAnswer(answer)) {
+      const garbageScore = 1;
+      const garbageFeedback = 'This response does not appear to be a valid answer. Please provide a thoughtful, relevant response to the question.';
+      const newScores = [...scores, garbageScore];
+      const newFeedbacks = [...feedbacks, garbageFeedback];
+      setScores(newScores);
+      setFeedbacks(newFeedbacks);
+      const isComplete = newScores.length >= MAX_QUESTIONS;
+      if (isComplete) {
+        setMessages(prev => [...prev, { role: 'ai', content: `✅ Interview Complete!\n\nYour responses need significant improvement. Please prepare properly and try again.`, score: garbageScore, feedback: garbageFeedback }]);
+        setStep('report');
+      } else {
+        setMessages(prev => [...prev, { role: 'ai', content: `Score: 1/10 — That doesn't seem like a valid answer. Please try to respond properly.\n\nLet's continue. ${messages.filter(m => m.role === 'ai').slice(-1)[0]?.content || 'Please answer the question.'}`, score: garbageScore, feedback: garbageFeedback }]);
+        setQuestionCount(q => q + 1);
+      }
+      setLoading(false);
+      return;
+    }
+
     try {
       const history = updated.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }));
-      const data = await executeAI(answer, { systemPrompt, history });
+      const data = await executeAI(`interview: ${answer}`, { systemPrompt, history, user_preferences: { systemPrompt, history } });
       const reply: string = (data as any).result?.reply || (data as any).result?.advice || '';
 
       // Parse score and feedback
       const scoreMatch = reply.match(/SCORE:\s*(\d+)\/10/);
       const feedbackMatch = reply.match(/FEEDBACK:\s*([^\n]+(?:\n(?!NEXT_QUESTION|INTERVIEW_COMPLETE)[^\n]+)*)/);
       const score = scoreMatch ? parseInt(scoreMatch[1]) : 7;
-      const feedback = feedbackMatch ? feedbackMatch[1].trim() : '';
+      const feedback = feedbackMatch ? stripMarkdown(feedbackMatch[1].trim()) : '';
 
-      if (feedback) feedbacks.push(feedback);
-      if (scoreMatch) scores.push(score);
-      setScores([...scores]);
-      setFeedbacks([...feedbacks]);
+      const newScores = [...scores, ...(scoreMatch ? [score] : [])];
+      const newFeedbacks = [...feedbacks, ...(feedback ? [feedback] : [])];
+      setScores(newScores);
+      setFeedbacks(newFeedbacks);
 
-      if (reply.includes('INTERVIEW_COMPLETE')) {
+      const isComplete = reply.includes('INTERVIEW_COMPLETE') || newScores.length >= MAX_QUESTIONS
+        || reply.includes('overallScore') || reply.includes('recommendation') || reply.includes('Candidate Evaluation');
+
+      if (isComplete) {
         const finalFeedbackMatch = reply.match(/FINAL_FEEDBACK:\s*([\s\S]+)/);
-        const finalFeedback = finalFeedbackMatch ? finalFeedbackMatch[1].trim() : 'Great effort! Review your answers above.';
+        const finalFeedback = finalFeedbackMatch
+          ? stripMarkdown(finalFeedbackMatch[1].trim())
+          : (reply.includes('SCORE:') || reply.includes('overallScore') || reply.includes('recommendation'))
+            ? 'Interview complete. Please review your performance above.'
+            : 'Great effort! Review your answers above.';
         setMessages(prev => [...prev, { role: 'ai', content: `✅ Interview Complete!\n\n${finalFeedback}`, score, feedback }]);
         setStep('report');
       } else {
         const nextMatch = reply.match(/NEXT_QUESTION:\s*([\s\S]+)/);
-        const nextQ = nextMatch ? nextMatch[1].trim() : reply;
-        setMessages(prev => [...prev, { role: 'ai', content: nextQ, score, feedback }]);
+        const isWrongIntent = !nextMatch && (reply.includes('search_strategy') || reply.includes('screening_questions') || reply.includes('evaluation_criteria'));
+        const nextQ = isWrongIntent
+          ? `Let's continue. ${messages.filter(m => m.role === 'ai').slice(-1)[0]?.content || 'Please answer the previous question.'}`
+          : nextMatch ? stripMarkdown(nextMatch[1].trim()) : stripMarkdown(reply);
+        // Score/feedback on evaluation message, next question as clean separate message
+        setMessages(prev => [
+          ...prev,
+          { role: 'ai', content: '', score, feedback },
+          { role: 'ai', content: nextQ },
+        ]);
         setQuestionCount(q => q + 1);
       }
     } catch {
-      setMessages(prev => [...prev, { role: 'ai', content: 'Good answer! Let me ask you the next question. What are your key technical skills?' }]);
-      setQuestionCount(q => q + 1);
+      if (scores.length >= MAX_QUESTIONS) {
+        setStep('report');
+      } else {
+        const fallbackQuestions: Record<string, string[]> = {
+          default: [
+            'Can you describe a challenging project you worked on and how you handled it?',
+            'What are your key technical skills and how have you applied them?',
+            'Where do you see yourself in the next 3 years?',
+            'How do you handle tight deadlines or pressure at work?',
+            'Tell me about a time you worked in a team and faced a conflict.',
+          ],
+        };
+        const pool = fallbackQuestions.default;
+        const nextFallback = pool[Math.min(scores.length, pool.length - 1)];
+        setMessages(prev => [...prev, { role: 'ai', content: nextFallback }]);
+        setQuestionCount(q => q + 1);
+      }
     } finally {
       setLoading(false);
     }
@@ -337,13 +426,15 @@ Rules:
               {msg.role === 'ai' ? <Bot className="w-4 h-4 text-white" /> : <User className="w-4 h-4 text-white" />}
             </div>
             <div className={`max-w-[75%] space-y-2`}>
-              <div className={`px-5 py-3.5 rounded-2xl text-sm leading-relaxed ${
-                msg.role === 'ai'
-                  ? 'bg-slate-800 border border-slate-700/50 text-slate-100 rounded-tl-sm shadow-sm'
-                  : 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-tr-sm shadow-lg shadow-indigo-500/10'
-              }`}>
-                {msg.content}
-              </div>
+              {msg.content.length > 0 && (
+                <div className={`px-5 py-3.5 rounded-2xl text-sm leading-relaxed ${
+                  msg.role === 'ai'
+                    ? 'bg-slate-800 border border-slate-700/50 text-slate-100 rounded-tl-sm shadow-sm'
+                    : 'bg-gradient-to-br from-indigo-600 to-purple-600 text-white rounded-tr-sm shadow-lg shadow-indigo-500/10'
+                }`}>
+                  {msg.content}
+                </div>
+              )}
               {msg.role === 'ai' && msg.score !== undefined && (
                 <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
                   msg.score >= 8 ? 'bg-emerald-900/30 border-emerald-700/30 text-emerald-300' :

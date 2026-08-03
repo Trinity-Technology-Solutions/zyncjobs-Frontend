@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Loader2, CheckCircle, BookOpen, TrendingUp, ExternalLink } from 'lucide-react';
+import { Sparkles, Loader2, CheckCircle, BookOpen, ExternalLink } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
 
@@ -37,7 +37,24 @@ const COMMON_SKILLS_BY_ROLE: Record<string, string[]> = {
   'AI Engineer': ['Python', 'Machine Learning', 'Deep Learning', 'TensorFlow', 'PyTorch', 'NLP', 'Computer Vision', 'Docker', 'AWS', 'MLOps'],
   'Product Manager': ['Agile', 'SQL', 'Analytics', 'User Research', 'Roadmapping', 'A/B Testing', 'JIRA', 'Stakeholder Management', 'Strategy', 'Wireframing'],
   'UI/UX Designer': ['Figma', 'User Research', 'Wireframing', 'Prototyping', 'Design Systems', 'Accessibility', 'Usability Testing', 'Responsive Design', 'HTML/CSS', 'Motion Design'],
+  'QA Engineer': ['Selenium', 'Jest', 'Cypress', 'API Testing', 'SQL', 'CI/CD', 'Test Automation', 'JIRA', 'Agile', 'Performance Testing'],
+  'Mobile Developer': ['React Native', 'Flutter', 'Swift', 'Kotlin', 'iOS', 'Android', 'REST APIs', 'Firebase', 'Git', 'CI/CD'],
+  'Cloud Engineer': ['AWS', 'Azure', 'GCP', 'Terraform', 'Kubernetes', 'Docker', 'CI/CD', 'Python', 'Networking', 'Security'],
+  'Security Engineer': ['Penetration Testing', 'SIEM', 'Firewalls', 'Python', 'Cryptography', 'Compliance', 'Incident Response', 'AWS Security', 'Linux', 'Vulnerability Assessment'],
+  'Machine Learning Engineer': ['Python', 'TensorFlow', 'PyTorch', 'MLOps', 'Docker', 'AWS', 'SQL', 'Feature Engineering', 'Model Deployment', 'Kubernetes'],
 };
+
+// Fuzzy-match a typed role to the closest key in COMMON_SKILLS_BY_ROLE
+function matchRole(role: string): string | null {
+  const r = role.toLowerCase();
+  const keys = Object.keys(COMMON_SKILLS_BY_ROLE);
+  return keys.find(k => r.includes(k.toLowerCase()) || k.toLowerCase().includes(r)) || null;
+}
+
+// Build a Google search URL for learning a skill
+function buildLearnUrl(skill: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(skill + ' tutorial free course')}`;
+}
 
 export default function SkillGapLearning() {
   const { data, update } = useResumeStore();
@@ -45,6 +62,9 @@ export default function SkillGapLearning() {
   const [missingSkills, setMissingSkills] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [learning, setLearning] = useState<Record<string, boolean>>({});
+  const [inProgress, setInProgress] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('skill_learning_inprogress') || '[]'); } catch { return []; }
+  });
   const [completed, setCompleted] = useState<string[]>(() => {
     try { return JSON.parse(localStorage.getItem('skill_learning_completed') || '[]'); } catch { return []; }
   });
@@ -52,26 +72,50 @@ export default function SkillGapLearning() {
   const analyzeGap = async () => {
     const role = targetRole.trim() || data.targetRole || 'Software Engineer';
     setLoading(true);
-
-    const common = COMMON_SKILLS_BY_ROLE[role] || COMMON_SKILLS_BY_ROLE['Software Engineer'];
     const existing = new Set(data.skills.map(s => s.toLowerCase()));
-    const missing = common.filter(s => !existing.has(s.toLowerCase()));
+    const missing: string[] = [];
 
-    // Also try AI for role-specific suggestions
-    if (missing.length < 3) {
-      try {
-        const res = await executeResumeAI({
-          section: 'skills', action: 'find_missing',
-          content: `Current skills: ${data.skills.join(', ')}. Target role: ${role}. List 5-8 missing but important skills for this role, comma-separated.`,
-        });
-        if (res.result) {
-          const aiSkills = res.result.split(',').map(s => s.trim().replace(/^[-•*\d.]+\s*/g, '')).filter(Boolean);
-          aiSkills.forEach(s => { if (!existing.has(s.toLowerCase())) missing.push(s); });
-        }
-      } catch { /* silent */ }
+    // 1. Static lookup — exact then fuzzy match
+    const matchedKey = COMMON_SKILLS_BY_ROLE[role] ? role : matchRole(role);
+    if (matchedKey) {
+      COMMON_SKILLS_BY_ROLE[matchedKey]
+        .filter(s => !existing.has(s.toLowerCase()))
+        .forEach(s => missing.push(s));
     }
 
-    setMissingSkills([...new Set(missing)].slice(0, 8));
+    // 2. Always call AI — pass skills and role separately so backend uses them correctly
+    try {
+      const res = await executeResumeAI({
+        section: 'skills',
+        action: 'find_missing',
+        content: data.skills.join(', ') || 'none',
+        experienceId: role, // carries role to backend via context.experienceId
+      });
+      if (res.result) {
+        const aiSkills = res.result
+          .split(',')
+          .map((s: string) => s.trim()
+            .replace(/^[-•*\d.]+\s*/g, '')  // strip bullets/numbers
+            .replace(/^(target role|current skills|missing skills|role|skills)[:\s]*/gi, '') // strip labels
+          )
+          .filter((s: string) =>
+            s.length > 1 &&
+            s.length <= 40 &&           // reject long sentences
+            !s.includes(' - ') &&        // reject descriptive phrases
+            !s.toLowerCase().includes('familiarity') &&
+            !s.toLowerCase().includes('experience with') &&
+            !s.toLowerCase().includes('knowledge of') &&
+            !s.toLowerCase().includes('proficiency') &&
+            !s.toLowerCase().includes('understanding of') &&
+            !existing.has(s.toLowerCase())
+          );
+        aiSkills.forEach((s: string) => {
+          if (!missing.map(m => m.toLowerCase()).includes(s.toLowerCase())) missing.push(s);
+        });
+      }
+    } catch { /* use static results */ }
+
+    setMissingSkills([...new Set(missing)].slice(0, 10));
     setLoading(false);
   };
 
@@ -79,24 +123,28 @@ export default function SkillGapLearning() {
     if (targetRole || data.targetRole) analyzeGap();
   }, []);
 
-  const markLearning = (skill: string) => {
-    const newCompleted = [...completed, skill];
-    setCompleted(newCompleted);
-    localStorage.setItem('skill_learning_completed', JSON.stringify(newCompleted));
-
-    // Add skill to resume
-    if (!data.skills.includes(skill)) {
-      update('skills', [...data.skills, skill]);
+  const openCourse = (skill: string) => {
+    const course = SKILL_COURSES[skill];
+    const url = course?.url || buildLearnUrl(skill);
+    window.open(url, '_blank', 'noopener,noreferrer');
+    // Mark as in-progress (started learning) but NOT completed
+    if (!inProgress.includes(skill)) {
+      const updated = [...inProgress, skill];
+      setInProgress(updated);
+      localStorage.setItem('skill_learning_inprogress', JSON.stringify(updated));
     }
-
     setLearning(prev => ({ ...prev, [skill]: true }));
     setTimeout(() => setLearning(prev => ({ ...prev, [skill]: false })), 2000);
   };
 
-  const openLearningResource = (skill: string) => {
-    const course = SKILL_COURSES[skill];
-    if (course?.url) {
-      window.open(course.url, '_blank', 'noopener,noreferrer');
+  const markDone = (skill: string) => {
+    if (completed.includes(skill)) return;
+    const newCompleted = [...completed, skill];
+    setCompleted(newCompleted);
+    localStorage.setItem('skill_learning_completed', JSON.stringify(newCompleted));
+    // Add to resume skills
+    if (!data.skills.includes(skill)) {
+      update('skills', [...data.skills, skill]);
     }
   };
 
@@ -125,7 +173,7 @@ export default function SkillGapLearning() {
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold text-gray-700">Missing Skills for <span className="text-purple-600">{targetRole || data.targetRole || 'Software Engineer'}</span></p>
-            <p className="text-xs text-gray-500">{completed.length}/{missingSkills.length + completed.length} completed</p>
+            <p className="text-xs text-gray-500">{missingSkills.filter(s => completed.includes(s)).length}/{missingSkills.length} completed</p>
           </div>
 
           <div className="space-y-2">
@@ -152,16 +200,18 @@ export default function SkillGapLearning() {
                     </div>
                     {!isDone && (
                       <div className="flex items-center gap-2">
-                        <button onClick={() => markLearning(skill)} disabled={learning[skill]}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
-                          {learning[skill] ? <Loader2 className="w-3 h-3 animate-spin" /> : <TrendingUp className="w-3 h-3" />}
-                          {learning[skill] ? 'Adding...' : `Learn ${course.hours}`}
+                        <button onClick={() => openCourse(skill)} disabled={learning[skill]}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors">
+                          {learning[skill] ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
+                          {learning[skill] ? 'Opening...' : 'Learn'}
                         </button>
-                        <button onClick={() => openLearningResource(skill)}
-                          className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                          <ExternalLink className="w-3 h-3" />
-                          Course
-                        </button>
+                        {inProgress.includes(skill) && (
+                          <button onClick={() => markDone(skill)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                            <CheckCircle className="w-3 h-3" />
+                            Done
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
