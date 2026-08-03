@@ -2705,7 +2705,13 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
           if (res2.ok) setMembers(await res2.json());
           else setMembers([{ id: '1', memberEmail: employerEmail, memberName: 'You (Owner)', role: 'Owner', status: 'active', createdAt: new Date().toISOString() }]);
         } else {
-          setMembers(data);
+          setMembers(
+  [...data].sort((a, b) => {
+    if (a.role === 'Owner') return -1;
+    if (b.role === 'Owner') return 1;
+    return a.memberName.localeCompare(b.memberName);
+  })
+);
         }
       } else {
         console.error('Team API error:', res.status, res.statusText);
