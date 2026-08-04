@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield, Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, ChevronUp, Mail, Lock, User, Trash2, LogOut, Shield, Eye, EyeOff, Info } from 'lucide-react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import { accountAPI } from '../api/account';
@@ -10,9 +10,10 @@ interface SettingsPageProps {
   onNavigate: (page: string) => void;
   user?: any;
   onLogout?: () => void;
+  onUserUpdate?: (user: any) => void;
 }
 
-const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser, onLogout }) => {
+const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser, onLogout, onUserUpdate }) => {
   const [user, setUser] = useState<any>(propUser || null);
   const [activeTab, setActiveTab] = useState('Account Information');
   const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({});
@@ -24,9 +25,15 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
 
   // Form states
   const [emailForm, setEmailForm] = useState({ newEmail: '', confirmEmail: '' });
+  const [otpForm, setOtpForm] = useState({ otp: '' });
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
   const [passwordStrength, setPasswordStrength] = useState({ score: 0, feedback: [] as string[] });
+  const [otpStep, setOtpStep] = useState<'idle' | 'sent' | 'verified'>('idle');
+  const [otpMessage, setOtpMessage] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendCount, setResendCount] = useState(0);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -42,7 +49,8 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
     }));
   };
 
-  const handleEmailUpdate = async (e: React.FormEvent) => {
+  // Step 1 — Send OTP to new email
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     if (emailForm.newEmail !== emailForm.confirmEmail) {
       setNotification({ type: 'error', message: 'Email addresses do not match', isVisible: true });
@@ -53,12 +61,78 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
       setNotification({ type: 'error', message: 'Could not identify user. Please log in again.', isVisible: true });
       return;
     }
-    const result = await accountAPI.changeEmail(userId, emailForm.newEmail);
+    setOtpLoading(true);
+    setOtpError('');
+    setOtpMessage('');
+    const result = await accountAPI.sendEmailOTP(emailForm.newEmail, emailForm.confirmEmail);
+    setOtpLoading(false);
     if (result.success) {
-      const updatedUser = { ...user, email: emailForm.newEmail };
+      setOtpStep('sent');
+      setOtpMessage(result.message);
+      setResendCount(0);
+    } else {
+      setOtpError(result.message);
+    }
+    setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
+  };
+
+  // Step 2 — Verify OTP and update email
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const userId = accountAPI.getUserIdFromStorage();
+    if (!userId) {
+      setNotification({ type: 'error', message: 'Could not identify user. Please log in again.', isVisible: true });
+      return;
+    }
+    setOtpLoading(true);
+    setOtpError('');
+    const result = await accountAPI.verifyEmailOTP(emailForm.newEmail, otpForm.otp);
+    setOtpLoading(false);
+    if (result.success) {
+      // Apply the verified email immediately so the Settings page, global auth
+      // state, and storage all update without a refresh or re-login.
+      const newEmail = emailForm.newEmail;
+      const updatedUser = { ...user, email: newEmail };
       setUser(updatedUser);
       updateUserInStorage(updatedUser);
+      onUserUpdate?.(updatedUser);
+      setOtpStep('verified');
+      setOtpMessage('Your email address has been updated successfully.');
       setEmailForm({ newEmail: '', confirmEmail: '' });
+      setOtpForm({ otp: '' });
+
+      // Reconcile against the source of truth by reusing the existing GET /me
+      // flow. This refreshes the authenticated profile and any cached data.
+      accountAPI.getMe().then((freshUser) => {
+        if (freshUser?.email) {
+          const reconciled = { ...updatedUser, ...freshUser, email: freshUser.email };
+          setUser(reconciled);
+          updateUserInStorage(reconciled);
+          onUserUpdate?.(reconciled);
+        }
+      }).catch(() => { /* optimistic update is already applied */ });
+    } else {
+      setOtpError(result.message);
+      if (result.message.includes('expired') || result.message.includes('Too many')) {
+        setOtpStep('idle');
+      }
+    }
+    setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
+  };
+
+  // Resend OTP
+  const handleResendOTP = async () => {
+    setOtpError('');
+    setOtpMessage('');
+    setOtpLoading(true);
+    const result = await accountAPI.resendEmailOTP(emailForm.newEmail);
+    setOtpLoading(false);
+    if (result.success) {
+      setResendCount(prev => prev + 1);
+      setOtpMessage(result.message);
+      setOtpForm({ otp: '' });
+    } else {
+      setOtpError(result.message);
     }
     setNotification({ type: result.success ? 'success' : 'error', message: result.message, isVisible: true });
   };
@@ -86,7 +160,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
       return;
     }
     const userId = user?.id || user?._id || accountAPI.getUserIdFromStorage();
-    console.log('🔐 Password update - userId:', userId, 'user:', user);
     if (!userId) {
       setNotification({ type: 'error', message: 'Could not identify user. Please log in again.', isVisible: true });
       return;
@@ -101,72 +174,28 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
   };
 
   const handleDeleteAccount = async () => {
-    console.log('🗑️ Delete account clicked');
-    
     const confirmed = await (window as any).confirmAsync('Are you sure you want to delete your account? This action cannot be undone.');
     if (confirmed) {
-      console.log('✅ User confirmed deletion');
-      
       try {
-        // Get user ID using the utility function
         const userId = accountAPI.getUserIdFromStorage();
-        
         if (!userId) {
-          setNotification({
-            type: 'error',
-            message: 'Could not identify user for deletion. Account will be cleared locally.',
-            isVisible: true
-          });
+          setNotification({ type: 'error', message: 'Could not identify user for deletion. Account will be cleared locally.', isVisible: true });
         } else {
-          console.log('🌐 Attempting to delete account from server...');
-          
-          // Call delete API using the utility function
           const result = await accountAPI.deleteAccount(userId);
-          
           if (result.success) {
-            console.log('✅ Account deleted from server successfully');
-            setNotification({
-              type: 'success',
-              message: result.message,
-              isVisible: true
-            });
+            setNotification({ type: 'success', message: result.message, isVisible: true });
           } else {
-            console.error('❌ Failed to delete from server:', result.error);
-            setNotification({
-              type: 'error',
-              message: `${result.message}. Account cleared locally.`,
-              isVisible: true
-            });
+            setNotification({ type: 'error', message: `${result.message}. Account cleared locally.`, isVisible: true });
           }
         }
-        
       } catch (error) {
-        console.error('❌ Unexpected error during account deletion:', error);
-        setNotification({
-          type: 'error',
-          message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}. Account cleared locally.`,
-          isVisible: true
-        });
+        setNotification({ type: 'error', message: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}. Account cleared locally.`, isVisible: true });
       } finally {
-        // Always clear localStorage and logout regardless of API call result
-        console.log('🧹 Clearing user data and logging out...');
         accountAPI.clearUserData();
-        
-        console.log('👤 Setting user to null...');
         setUser(null);
-        
-        if (onLogout) {
-          console.log('🚪 Calling onLogout...');
-          onLogout();
-        }
-        
-        console.log('🏠 Navigating to home in 2 seconds...');
-        setTimeout(() => {
-          onNavigate('home');
-        }, 2000);
+        if (onLogout) onLogout();
+        setTimeout(() => { onNavigate('home'); }, 2000);
       }
-    } else {
-      console.log('❌ User cancelled deletion');
     }
   };
 
@@ -183,7 +212,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div className="flex flex-col space-y-4">
-              <BackButton 
+              <BackButton
                 onClick={() => onNavigate('dashboard')}
                 text="Back to Dashboard"
                 className="inline-flex items-center text-sm text-gray-600 hover:text-gray-800 transition-colors self-start"
@@ -197,11 +226,11 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
         <div className="bg-white/90 backdrop-blur-md border-b shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex overflow-x-auto">
-              <button 
+              <button
                 onClick={() => setActiveTab('Account Information')}
                 className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === 'Account Information' 
-                    ? 'border-red-500 text-gray-900' 
+                  activeTab === 'Account Information'
+                    ? 'border-red-500 text-gray-900'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -221,7 +250,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                   <p className="text-gray-600 mt-1">Manage your account settings and preferences</p>
                 </div>
 
-                {/* Email Section */}
+                {/* ── Email Section ── */}
                 <div className="border-b">
                   <button
                     onClick={() => toggleSection('email')}
@@ -236,52 +265,189 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                     </div>
                     {expandedSections.email ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
-                  
+
                   {expandedSections.email && (
                     <div className="px-6 pb-6 bg-gray-50">
-                      <form onSubmit={handleEmailUpdate} className="space-y-4 max-w-md">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            New Email Address
-                          </label>
-                          <input
-                            type="email"
-                            value={emailForm.newEmail}
-                            onChange={(e) => setEmailForm({...emailForm, newEmail: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            placeholder="Enter new email address"
-                            aria-label="New email address"
-                            required
-                          />
+                      {!(user?.role === 'candidate' || user?.userType === 'candidate') ? (
+                        /* Non-candidates (employers, admins) — read-only */
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 max-w-md">
+                          <div className="flex items-start gap-3">
+                            <Info className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                            <div>
+                              <p className="text-sm text-blue-800 font-medium mb-1">Email Address</p>
+                              <p className="text-sm text-blue-700 leading-relaxed">
+                                Your email address cannot be changed from your account settings.
+                              </p>
+                              <p className="text-sm text-blue-600 leading-relaxed mt-2">
+                                If you need to update your registered email address, please contact the administrator for assistance.
+                              </p>
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Confirm New Email Address
-                          </label>
-                          <input
-                            type="email"
-                            value={emailForm.confirmEmail}
-                            onChange={(e) => setEmailForm({...emailForm, confirmEmail: e.target.value})}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                            placeholder="Confirm new email address"
-                            aria-label="Confirm new email address"
-                            required
-                          />
+                      ) : otpStep === 'verified' ? (
+                        /* ✅ Success state */
+                        <div className="bg-green-50 border border-green-200 rounded-lg p-5 max-w-md">
+                          <div className="flex items-start gap-3">
+                            <svg className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                            <div>
+                              <p className="text-sm text-green-800 font-semibold mb-1">Email Updated</p>
+                              <p className="text-sm text-green-700">Your email address has been updated successfully.</p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOtpStep('idle');
+                                  setEmailForm({ newEmail: '', confirmEmail: '' });
+                                  setOtpForm({ otp: '' });
+                                  setOtpMessage('');
+                                  setOtpError('');
+                                }}
+                                className="mt-3 text-sm text-green-700 underline hover:text-green-900 transition-colors"
+                              >
+                                Change email again
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <div className="pt-2">
-                          <button
-                            type="submit"
-                            className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-6 py-2 rounded-md font-medium transition-all duration-300 btn-glow"
-                          >
-                            Update Email
-                          </button>
+                      ) : otpStep === 'idle' ? (
+                        /* Step 1 — Enter new email + send OTP */
+                        <form onSubmit={handleSendOTP} className="space-y-4 max-w-md">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              New Email Address
+                            </label>
+                            <input
+                              type="email"
+                              value={emailForm.newEmail}
+                              onChange={(e) => setEmailForm({...emailForm, newEmail: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Enter new email address"
+                              aria-label="New email address"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Confirm New Email Address
+                            </label>
+                            <input
+                              type="email"
+                              value={emailForm.confirmEmail}
+                              onChange={(e) => setEmailForm({...emailForm, confirmEmail: e.target.value})}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                              placeholder="Confirm new email address"
+                              aria-label="Confirm new email address"
+                              required
+                            />
+                          </div>
+                          {otpError && (
+                            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{otpError}</p>
+                          )}
+                          <div className="pt-2">
+                            <button
+                              type="submit"
+                              disabled={otpLoading}
+                              className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-6 py-2 rounded-md font-medium transition-all duration-300 btn-glow disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                              {otpLoading ? 'Sending…' : 'Send Verification Code'}
+                            </button>
+                          </div>
+                        </form>
+                      ) : (
+                        /* Step 2 — Enter OTP */
+                        <div className="space-y-4 max-w-md">
+                          {otpMessage && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+                              <Mail className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
+                              <p className="text-sm text-blue-800">{otpMessage}</p>
+                            </div>
+                          )}
+                          <form onSubmit={handleVerifyOTP} className="space-y-4">
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-3">
+                                Verification Code
+                              </label>
+                              {/* 6-digit OTP boxes */}
+                              <div className="flex gap-2 mb-1">
+                                {Array.from({ length: 6 }).map((_, idx) => (
+                                  <input
+                                    key={idx}
+                                    id={`otp-digit-${idx}`}
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength={1}
+                                    value={otpForm.otp[idx] || ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/\D/g, '');
+                                      const digits = otpForm.otp.split('');
+                                      digits[idx] = val;
+                                      const newOtp = digits.join('').slice(0, 6);
+                                      setOtpForm({ otp: newOtp });
+                                      if (val && idx < 5) {
+                                        const next = document.getElementById(`otp-digit-${idx + 1}`);
+                                        next?.focus();
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Backspace' && !otpForm.otp[idx] && idx > 0) {
+                                        const digits = otpForm.otp.split('');
+                                        digits[idx - 1] = '';
+                                        setOtpForm({ otp: digits.join('') });
+                                        const prev = document.getElementById(`otp-digit-${idx - 1}`);
+                                        prev?.focus();
+                                      }
+                                    }}
+                                    onPaste={(e) => {
+                                      e.preventDefault();
+                                      const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+                                      setOtpForm({ otp: pasted });
+                                    }}
+                                    className="w-11 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors bg-white"
+                                    aria-label={`OTP digit ${idx + 1}`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            {otpError && (
+                              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">{otpError}</p>
+                            )}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                              <button
+                                type="submit"
+                                disabled={otpLoading || otpForm.otp.length < 6}
+                                className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:shadow-glow text-white px-6 py-2 rounded-md font-medium transition-all duration-300 btn-glow disabled:opacity-60 disabled:cursor-not-allowed"
+                              >
+                                {otpLoading ? 'Verifying…' : 'Verify & Update Email'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleResendOTP}
+                                disabled={otpLoading || resendCount >= 3}
+                                className="text-sm text-blue-600 hover:text-blue-800 underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed px-2 py-2"
+                              >
+                                {resendCount >= 3
+                                  ? 'Resend limit reached'
+                                  : otpLoading
+                                  ? 'Sending…'
+                                  : `Resend Code${resendCount > 0 ? ` (${3 - resendCount} left)` : ''}`}
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => { setOtpStep('idle'); setOtpError(''); setOtpMessage(''); setOtpForm({ otp: '' }); }}
+                              className="text-xs text-gray-500 hover:text-gray-700 underline transition-colors"
+                            >
+                              ← Change email address
+                            </button>
+                          </form>
                         </div>
-                      </form>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Password Section */}
+                {/* ── Password Section ── */}
                 <div className="border-b">
                   <button
                     onClick={() => toggleSection('password')}
@@ -296,7 +462,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                     </div>
                     {expandedSections.password ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
-                  
+
                   {expandedSections.password && (
                     <div className="px-6 pb-6 bg-gray-50">
                       <form onSubmit={handlePasswordUpdate} className="space-y-4 max-w-md">
@@ -404,27 +570,27 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                   )}
                 </div>
 
-              {/* Privacy Settings Link */}
-              <div className="border-b">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
-                  <div className="flex items-start gap-3">
-                    <Shield className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="font-medium text-gray-900">Privacy &amp; Data</h3>
-                      <p className="text-sm text-gray-500">Manage consent, download or delete your data</p>
+                {/* ── Privacy Settings Link ── */}
+                <div className="border-b">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
+                    <div className="flex items-start gap-3">
+                      <Shield className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-gray-900">Privacy &amp; Data</h3>
+                        <p className="text-sm text-gray-500">Manage consent, download or delete your data</p>
+                      </div>
                     </div>
+                    <button
+                      onClick={() => onNavigate('privacy-settings')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium transition-colors text-sm self-start sm:self-auto flex-shrink-0 min-h-[44px] flex items-center gap-2"
+                    >
+                      <Shield className="w-4 h-4" />
+                      Manage
+                    </button>
                   </div>
-                  <button
-                    onClick={() => onNavigate('privacy-settings')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-md font-medium transition-colors text-sm self-start sm:self-auto flex-shrink-0 min-h-[44px] flex items-center gap-2"
-                  >
-                    <Shield className="w-4 h-4" />
-                    Manage
-                  </button>
                 </div>
-              </div>
 
-              {/* Manage Account Section */}
+                {/* ── Account Management ── */}
                 <div className="border-b">
                   <button
                     onClick={() => toggleSection('manage')}
@@ -439,7 +605,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                     </div>
                     {expandedSections.manage ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
                   </button>
-                  
+
                   {expandedSections.manage && (
                     <div className="px-6 pb-6 bg-gray-50">
                       <div className="bg-gradient-to-br from-red-50 to-pink-50 border border-red-200 rounded-lg p-6 card-hover max-w-md">
@@ -463,7 +629,7 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
                   )}
                 </div>
 
-                {/* Logout Section */}
+                {/* ── Logout ── */}
                 <div>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-6">
                     <div className="flex items-start gap-3">
@@ -488,8 +654,6 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onNavigate, user: propUser,
               </div>
             </div>
           )}
-
-
         </div>
       </div>
     </>

@@ -400,7 +400,7 @@ const canonicalize = (skill: string): string => {
 };
 
 // Skill match — exact, alias, or phrase containment (e.g. "manual testing" inside "basic knowledge of manual testing")
-const skillsMatch = (userSkill: string, jobSkill: string): boolean => {
+export const skillsMatch = (userSkill: string, jobSkill: string): boolean => {
   const u = canonicalize(userSkill);
   const j = canonicalize(jobSkill);
   if (u === j) return true;

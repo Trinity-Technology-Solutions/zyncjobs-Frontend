@@ -151,15 +151,45 @@ export const accountAPI = {
     }
   },
 
-  async changeEmail(userId: string, newEmail: string): Promise<AccountAPIResponse> {
+  async sendEmailOTP(newEmail: string, confirmEmail: string): Promise<AccountAPIResponse> {
     try {
-      const res = await apiFetch(`${API}/users/${userId}`, {
-        method: 'PUT',
+      const res = await apiFetch(`${API}/candidate/email/send-otp`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newEmail }),
+        body: JSON.stringify({ newEmail, confirmEmail }),
       });
-      if (res.ok) return { success: true, message: 'Email updated successfully!' };
       const data = await res.json().catch(() => ({}));
+      if (res.ok) return { success: true, message: data.message || 'A verification code has been sent to your new email address.' };
+      return { success: false, message: data.error || `Server error: ${res.status}` };
+    } catch (error) {
+      return { success: false, message: 'Network error occurred', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async resendEmailOTP(newEmail: string): Promise<AccountAPIResponse> {
+    try {
+      const res = await apiFetch(`${API}/candidate/email/resend-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) return { success: true, message: data.message || 'A new verification code has been sent to your new email address.' };
+      return { success: false, message: data.error || `Server error: ${res.status}` };
+    } catch (error) {
+      return { success: false, message: 'Network error occurred', error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+  },
+
+  async verifyEmailOTP(newEmail: string, otp: string): Promise<AccountAPIResponse> {
+    try {
+      const res = await apiFetch(`${API}/candidate/email/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newEmail, otp }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) return { success: true, message: data.message || 'Your email address has been updated successfully.' };
       return { success: false, message: data.error || `Server error: ${res.status}` };
     } catch (error) {
       return { success: false, message: 'Network error occurred', error: error instanceof Error ? error.message : 'Unknown error' };
