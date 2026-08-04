@@ -1953,6 +1953,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               </div>
                               <span className={`flex-shrink-0 self-start px-2 sm:px-3 py-1 rounded-full text-xs font-medium ${
                                 interview.status === 'scheduled' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                interview.status === 'accepted' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                interview.status === 'rejected' ? 'bg-red-50 text-red-700 border border-red-200' :
                                 interview.status === 'completed' ? 'bg-green-50 text-green-700 border border-green-200' :
                                 interview.status === 'cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
                                 'bg-gray-50 text-gray-600 border border-gray-200'
@@ -2033,6 +2035,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             }}
                             options={[
                               { value: 'scheduled', label: 'Scheduled' },
+                              { value: 'accepted', label: 'Accepted' },
+                              { value: 'rejected', label: 'Declined' },
                               { value: 'completed', label: 'Completed' },
                               { value: 'cancelled', label: 'Cancelled' }
                             ]}

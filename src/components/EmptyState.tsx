@@ -3,8 +3,8 @@ import React from 'react';
 interface EmptyStateProps {
   title: string;
   description: string;
-  buttonText: string;
-  onButtonClick: () => void;
+  buttonText?: string;
+  onButtonClick?: () => void;
   icon?: 'jobs' | 'applications' | 'interviews' | 'postings';
 }
 
@@ -77,12 +77,14 @@ const EmptyState: React.FC<EmptyStateProps> = ({
         <p className="text-gray-500 text-center mb-8 max-w-md text-lg">
           {description}
         </p>
-        <button
-          onClick={onButtonClick}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-full font-semibold transition-colors text-lg"
-        >
-          {buttonText}
-        </button>
+        {buttonText && onButtonClick && (
+          <button
+            onClick={onButtonClick}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-10 py-3 rounded-full font-semibold transition-colors text-lg"
+          >
+            {buttonText}
+          </button>
+        )}
       </div>
     </div>
   );
