@@ -4,6 +4,7 @@ import { Briefcase, Users, Eye, Edit, Trash2, Plus, Search, Filter, RefreshCw, M
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import RefreshStatusIndicator from '../components/RefreshStatusIndicator';
@@ -359,15 +360,17 @@ const JobManagementPage: React.FC<JobManagementPageProps> = ({ onNavigate, user,
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
                 />
               </div>
-              <select
+              <AutocompleteCombobox
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm sm:text-base"
-              >
-                <option value="posted">Sort by: Posted/sent date</option>
-                <option value="responses">Sort by: Response count</option>
-                <option value="title">Sort by: Job title</option>
-              </select>
+                onChange={(val) => setSortBy(val)}
+                options={[
+                  { value: 'posted', label: 'Sort by: Posted/sent date' },
+                  { value: 'responses', label: 'Sort by: Response count' },
+                  { value: 'title', label: 'Sort by: Job title' },
+                ]}
+                placeholder="Sort by"
+                className="w-56"
+              />
             </div>
           </div>
           

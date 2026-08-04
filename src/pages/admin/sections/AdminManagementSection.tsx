@@ -7,6 +7,7 @@ import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
 import { isSuperAdmin, getRoleDisplayName } from '../../../utils/rolePermissions';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 import { debugAdminFlow, debugInviteEmail } from '../../../utils/adminDebug';
 
 function authHeaders() {
@@ -420,14 +421,15 @@ export default function AdminManagementSection({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">Role</label>
-              <select
+              <AutocompleteCombobox
                 value={addForm.role}
-                onChange={(e) => setAddForm(prev => ({ ...prev, role: e.target.value as 'admin' | 'super_admin' }))}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="admin">Administrator</option>
-                <option value="super_admin">Super Administrator</option>
-              </select>
+                onChange={(val) => setAddForm(prev => ({ ...prev, role: val as 'admin' | 'super_admin' }))}
+                options={[
+                  { value: 'admin', label: 'Administrator' },
+                  { value: 'super_admin', label: 'Super Administrator' },
+                ]}
+                placeholder="Select role..."
+              />
             </div>
             <p className="text-xs text-gray-400">An invitation email will be sent. They'll set their own password via the link.</p>
             <div className="flex gap-3">
@@ -526,15 +528,17 @@ export default function AdminManagementSection({
                             {getRoleDisplayName(admin.role)}
                           </span>
                         ) : (
-                          <select
+                          <AutocompleteCombobox
                             value={admin.role}
-                            onChange={(e) => updateAdminRole(adminId!, e.target.value as 'admin' | 'super_admin')}
+                            onChange={(val) => updateAdminRole(adminId!, val as 'admin' | 'super_admin')}
                             disabled={!!actionLoading}
-                            className="bg-gray-800 border border-gray-700 text-gray-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value="admin">Administrator</option>
-                            <option value="super_admin">Super Administrator</option>
-                          </select>
+                            options={[
+                              { value: 'admin', label: 'Administrator' },
+                              { value: 'super_admin', label: 'Super Administrator' },
+                            ]}
+                            placeholder="Select role..."
+                            className="text-xs"
+                          />
                         )}
                       </td>
                       <td className="px-6 py-4">

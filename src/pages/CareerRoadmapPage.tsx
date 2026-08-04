@@ -7,6 +7,7 @@ import Footer from '../components/Footer';
 import { generateCareerRoadmap } from '../services/aiChatService';
 import { getCached, setCached, cacheKey } from '../services/aiCache';
 import { saveRoadmapToDB, fetchRoadmapFromDB } from '../api/roadmap';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Props {
   onNavigate: (page: string, data?: any) => void;
@@ -321,57 +322,37 @@ export default function CareerRoadmapPage({ onNavigate, user, onLogout }: Props)
           <div className="grid md:grid-cols-3 gap-4 mb-4">
             {/* Current Role */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Current Role</label>
-              <select
+              <AutocompleteCombobox
+                label="Current Role"
                 value={currentRole}
-                onChange={e => setCurrentRole(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select role...</option>
-                {JOB_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                <option value="custom">+ Custom Role</option>
-              </select>
-              {currentRole === 'custom' && (
-                <input
-                  type="text" placeholder="Enter your current role"
-                  value={customCurrent} onChange={e => setCustomCurrent(e.target.value)}
-                  className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              )}
+                onChange={(val) => setCurrentRole(val)}
+                options={JOB_ROLES.map(r => ({ value: r, label: r }))}
+                placeholder="Select role..."
+                allowCustom
+              />
             </div>
 
             {/* Target Role */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Target Role</label>
-              <select
+              <AutocompleteCombobox
+                label="Target Role"
                 value={targetRole}
-                onChange={e => setTargetRole(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select target...</option>
-                {JOB_ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                <option value="custom">+ Custom Role</option>
-              </select>
-              {targetRole === 'custom' && (
-                <input
-                  type="text" placeholder="Enter your target role"
-                  value={customTarget} onChange={e => setCustomTarget(e.target.value)}
-                  className="w-full mt-2 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              )}
+                onChange={(val) => setTargetRole(val)}
+                options={JOB_ROLES.map(r => ({ value: r, label: r }))}
+                placeholder="Select target..."
+                allowCustom
+              />
             </div>
 
             {/* Experience */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Current Experience</label>
-              <select
+              <AutocompleteCombobox
+                label="Current Experience"
                 value={experience}
-                onChange={e => setExperience(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Select experience...</option>
-                {EXP_LEVELS.map(e => <option key={e} value={e}>{e}</option>)}
-              </select>
+                onChange={(val) => setExperience(val)}
+                options={EXP_LEVELS.map(e => ({ value: e, label: e }))}
+                placeholder="Select experience..."
+              />
             </div>
           </div>
 

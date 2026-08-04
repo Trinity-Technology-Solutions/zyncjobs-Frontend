@@ -20,6 +20,7 @@ import NotificationComponent from '../components/Notification';
 import JobRefreshButton from '../components/JobRefreshButton';
 import BulkJobRefresh from '../components/BulkJobRefresh';
 import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
@@ -1648,32 +1649,34 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                   />
                 </div>
                 <div className="flex flex-row gap-2">
-                  <select
+                  <AutocompleteCombobox
                     value={appFilterJob}
-                    onChange={e => setAppFilterJob(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
-                  >
-                    <option value="all">All Jobs</option>
-                    {jobs.map(job => {
-                      const jobTitle = job.jobTitle || job.title;
-                      const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
-                      return (
-                        <option key={job._id || job.id} value={jobTitle}>{jobTitle} ({count})</option>
-                      );
-                    })}
-                  </select>
-                  <select
+                    onChange={(val) => setAppFilterJob(val)}
+                    options={[
+                      { value: 'all', label: 'All Jobs' },
+                      ...jobs.map(job => {
+                        const jobTitle = job.jobTitle || job.title;
+                        const count = applications.filter(a => a.jobTitle === jobTitle || (a.jobId?._id || a.jobId) === (job._id || job.id)).length;
+                        return { value: jobTitle, label: `${jobTitle} (${count})` };
+                      })
+                    ]}
+                    placeholder="All Jobs"
+                    className="text-sm flex-1 min-w-0"
+                  />
+                  <AutocompleteCombobox
                     value={appFilterStatus}
-                    onChange={e => setAppFilterStatus(e.target.value)}
-                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white flex-1 min-w-0"
-                  >
-                    <option value="all">All Status</option>
-                    <option value="pending">Pending</option>
-                    <option value="reviewed">Reviewed</option>
-                    <option value="shortlisted">Shortlisted</option>
-                    <option value="rejected">Rejected</option>
-                    <option value="hired">Hired</option>
-                  </select>
+                    onChange={(val) => setAppFilterStatus(val)}
+                    options={[
+                      { value: 'all', label: 'All Status' },
+                      { value: 'pending', label: 'Pending' },
+                      { value: 'reviewed', label: 'Reviewed' },
+                      { value: 'shortlisted', label: 'Shortlisted' },
+                      { value: 'rejected', label: 'Rejected' },
+                      { value: 'hired', label: 'Hired' }
+                    ]}
+                    placeholder="All Status"
+                    className="text-sm flex-1 min-w-0"
+                  />
                   {(appFilterJob !== 'all' || appFilterStatus !== 'all' || appSearch) && (
                     <button
                       onClick={() => { setAppFilterJob('all'); setAppFilterStatus('all'); setAppSearch(''); }}
@@ -1762,10 +1765,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         {/* Action buttons: on mobile - status full width on its own row, then 3 buttons in a row; on desktop - vertical column */}
                         <div className="flex flex-col gap-2 sm:flex-shrink-0 sm:items-stretch sm:min-w-[140px]">
                           {canManageApplications ? (
-                            <select
+                            <AutocompleteCombobox
                               value={application.status}
-                              onChange={async (e) => {
-                                const newStatus = e.target.value;
+                              onChange={async (newStatus) => {
                                 const appId = application._id || application.id;
                                 try {
                                   const response = await apiFetch(`${API_ENDPOINTS.APPLICATIONS}/${appId}/status`, {
@@ -1780,17 +1782,18 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   } else { throw new Error(); }
                                 } catch {
                                   showToast('Failed to update status. Please try again.', 'error');
-                                  e.target.value = application.status;
                                 }
                               }}
-                              className="w-full px-2 py-1.5 sm:px-3 sm:py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white cursor-pointer"
-                            >
-                              <option value="pending">Pending</option>
-                              <option value="reviewed">Reviewed</option>
-                              <option value="shortlisted">Shortlisted</option>
-                              <option value="rejected">Rejected</option>
-                              <option value="hired">Hired</option>
-                            </select>
+                              options={[
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'reviewed', label: 'Reviewed' },
+                                { value: 'shortlisted', label: 'Shortlisted' },
+                                { value: 'rejected', label: 'Rejected' },
+                                { value: 'hired', label: 'Hired' }
+                              ]}
+                              placeholder="Select status"
+                              className="w-full"
+                            />
                           ) : (
                             <span className="w-full px-2 py-1.5 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 text-center capitalize">{application.status}</span>
                           )}
@@ -1976,10 +1979,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         </div>
 
                         <div className="flex flex-col gap-2 w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px]">
-                          {canManageApplications ? (<select
+                          {canManageApplications ? (<AutocompleteCombobox
                             value={interview.status || 'scheduled'}
-                            onChange={async (e) => {
-                              const newStatus = e.target.value;
+                            onChange={async (newStatus) => {
                               try {
                                 const response = await apiFetch(`${API_ENDPOINTS.BASE_URL}/interviews/${interview._id}/status`, {
                                   method: 'PUT',
@@ -2000,16 +2002,16 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               } catch (error) {
                                 console.error('Error updating interview status:', error);
                                 showToast('Failed to update interview status. Please try again.', 'error');
-                                e.target.value = interview.status || 'scheduled';
                               }
                             }}
-                            className="px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg text-xs sm:text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
-                            title="Update interview status"
-                          >
-                            <option value="scheduled">Scheduled</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
+                            options={[
+                              { value: 'scheduled', label: 'Scheduled' },
+                              { value: 'completed', label: 'Completed' },
+                              { value: 'cancelled', label: 'Cancelled' }
+                            ]}
+                            placeholder="Select status"
+                            className="px-3 sm:px-4 py-2"
+                          />) : (<span className="px-3 py-2 border-2 border-gray-100 rounded-lg text-xs font-semibold bg-gray-50 text-gray-400 capitalize text-center">{interview.status || 'scheduled'}</span>)}
                           {canDeleteRecords && (<button 
                             onClick={(e) => {
                               e.preventDefault();
@@ -2891,12 +2893,15 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                 </span>
                 {member.memberEmail !== (currentUserEmail || employerEmail) ? (
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <select value={member.role} onChange={e => handleRoleChange(member.id, e.target.value as TeamRole)}
-                      className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white min-w-[100px]">
-                      <option value="Recruiter">Recruiter</option>
-                      <option value="Viewer">Viewer</option>
-                      <option value="Owner">Owner</option>
-                    </select>
+                    <AutocompleteCombobox value={member.role} onChange={(val) => handleRoleChange(member.id, val as TeamRole)}
+                      options={[
+                        { value: 'Recruiter', label: 'Recruiter' },
+                        { value: 'Viewer', label: 'Viewer' },
+                        { value: 'Owner', label: 'Owner' }
+                      ]}
+                      placeholder="Select role"
+                      className="text-xs min-w-[100px]"
+                    />
                     <button onClick={async (e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -3007,12 +3012,15 @@ const TeamSection: React.FC<{ employerEmail: string; currentUserEmail?: string; 
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value as TeamRole)}
-                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                      <option value="Recruiter">Recruiter — Can post jobs & manage applications</option>
-                      <option value="Viewer">Viewer — View only access</option>
-                      <option value="Owner">Owner — Full access</option>
-                    </select>
+                    <AutocompleteCombobox value={inviteRole} onChange={(val) => setInviteRole(val as TeamRole)}
+                      options={[
+                        { value: 'Recruiter', label: 'Recruiter — Can post jobs & manage applications' },
+                        { value: 'Viewer', label: 'Viewer — View only access' },
+                        { value: 'Owner', label: 'Owner — Full access' }
+                      ]}
+                      placeholder="Select role"
+                      className="w-full"
+                    />
                   </div>
                   <div>
                     <div className="flex items-center justify-between mb-1">

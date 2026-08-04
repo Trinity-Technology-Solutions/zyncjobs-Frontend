@@ -13,6 +13,8 @@ import mistralAIService from '../services/mistralAIService';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import { useJobTitles } from '../utils/jobTitlesData';
 
 
 interface JobPostingPageProps {
@@ -180,6 +182,7 @@ const sanitizeParsedCompany = (company?: string): string => {
 
 const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLogout, mode = 'manual', parsedData }) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const { jobTitles: jobTitleOptions } = useJobTitles();
 
   // Check for edit mode data from sessionStorage
   const editJobRaw = sessionStorage.getItem('editJobData');
@@ -1852,50 +1855,34 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       
       <div className="space-y-8">
         <div className="relative">
-          <label className="block text-gray-700 font-medium mb-3">Job title *</label>
-          <div className="relative">
-            <input
-              type="text"
-              value={jobData.jobTitle}
-              onChange={handleJobTitleChange}
-              onBlur={() => { if (jobData.jobTitle.length >= 3) { fetchAISkillsForTitle(jobData.jobTitle); } }}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 pr-10 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="e.g. Software Engineer"
-            />
-            {isLoadingJobTitles && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <div className="animate-spin w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-              </div>
-            )}
-          </div>
-          {showJobTitleSuggestions && jobTitleSuggestions.length > 0 && (
-            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {jobTitleSuggestions.map((title, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => selectJobTitle(title)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 text-sm border-b last:border-b-0 transition-colors flex items-center justify-between group"
-                >
-                  <span>{title}</span>
-                  <span className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">✨ AI</span>
-                </button>
-              ))}
-            </div>
-          )}
+          <AutocompleteCombobox
+            label="Job title *"
+            value={jobData.jobTitle}
+            onChange={(val) => {
+              updateJobData('jobTitle', val);
+              if (val.length >= 3) fetchAISkillsForTitle(val);
+            }}
+            options={jobTitleOptions}
+            allowCustom
+            customLabel="Use custom title"
+            placeholder="e.g. Software Engineer"
+            required
+            autoFocus
+          />
         </div>
         
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Job location type *</label>
-          <select
+          <AutocompleteCombobox
+            label="Job location type *"
             value={jobData.locationType}
-            onChange={(e) => updateJobData('locationType', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="In person">In person</option>
-            <option value="Remote">Remote</option>
-            <option value="Hybrid">Hybrid</option>
-          </select>
+            onChange={(val) => updateJobData('locationType', val)}
+            options={[
+              { value: 'In person', label: 'In person' },
+              { value: 'Remote', label: 'Remote' },
+              { value: 'Hybrid', label: 'Hybrid' },
+            ]}
+            placeholder="Select location type"
+          />
         </div>
         
         <div>
@@ -2090,17 +2077,18 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
         </div>
 
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Priority Level *</label>
-          <select
+          <AutocompleteCombobox
+            label="Priority Level *"
             value={jobData.priority || 'Medium'}
-            onChange={(e) => updateJobData('priority', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="Low">Low Priority</option>
-            <option value="Medium">Medium Priority</option>
-            <option value="High">High Priority</option>
-            <option value="Urgent">Urgent</option>
-          </select>
+            onChange={(val) => updateJobData('priority', val)}
+            options={[
+              { value: 'Low', label: 'Low Priority' },
+              { value: 'Medium', label: 'Medium Priority' },
+              { value: 'High', label: 'High Priority' },
+              { value: 'Urgent', label: 'Urgent' },
+            ]}
+            placeholder="Select priority"
+          />
         </div>
         
         <div className="relative">
@@ -2216,33 +2204,35 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           )}
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block text-gray-500 text-sm mb-1">Min Experience</label>
-              <select
+              <AutocompleteCombobox
+                label="Min Experience"
                 value={jobData.experienceRange.split(' - ')[0]?.trim() || ''}
-                onChange={(e) => {
+                onChange={(val) => {
                   const max = jobData.experienceRange.split(' - ')[1]?.trim() || '';
-                  updateJobData('experienceRange', e.target.value ? (max ? `${e.target.value} - ${max}` : e.target.value) : max);
+                  updateJobData('experienceRange', val ? (max ? `${val} - ${max}` : val) : max);
                 }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">Select</option>
-                {[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(y => (
-                  <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
-                ))}
-              </select>
+                options={[0,1,2,3,4,5,6,7,8,9,10,12,15,20].map(y => ({
+                  value: `${y} year${y !== 1 ? 's' : ''}`,
+                  label: `${y} year${y !== 1 ? 's' : ''}`,
+                }))}
+                placeholder="Select"
+              />
             </div>
             <div className="flex-1">
-              <label className="block text-gray-500 text-sm mb-1">Max Experience</label>
-              <select
+              <AutocompleteCombobox
+                label="Max Experience"
                 value={jobData.experienceRange.split(' - ')[1]?.trim() || ''}
-                onChange={(e) => {
+                onChange={(val) => {
                   const min = jobData.experienceRange.split(' - ')[0]?.trim() || '';
-                  updateJobData('experienceRange', e.target.value ? (min ? `${min} - ${e.target.value}` : e.target.value) : min);
+                  updateJobData('experienceRange', val ? (min ? `${min} - ${val}` : val) : min);
                 }}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
-              >
-                <option value="">Select</option>
-                {[1,2,3,4,5,6,7,8,9,10,12,15,20,25].map(y => (
+                options={[1,2,3,4,5,6,7,8,9,10,12,15,20,25].map(y => ({
+                  value: `${y} year${y !== 1 ? 's' : ''}`,
+                  label: `${y} year${y !== 1 ? 's' : ''}`,
+                }))}
+                placeholder="Select"
+              />
+            </div>
                   <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
                 ))}
               </select>
@@ -2270,19 +2260,19 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       
       <div className="space-y-8">
         <div>
-          <label className="block text-gray-700 font-medium mb-3">Hiring timeline for this job *</label>
-          <select
+          <AutocompleteCombobox
+            label="Hiring timeline for this job *"
             value={jobData.hiringTimeline}
-            onChange={(e) => updateJobData('hiringTimeline', e.target.value)}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          >
-            <option value="">Select an option</option>
-            <option value="1 to 3 days">1 to 3 days</option>
-            <option value="3 to 7 days">3 to 7 days</option>
-            <option value="1 to 2 weeks">1 to 2 weeks</option>
-            <option value="2 to 4 weeks">2 to 4 weeks</option>
-            <option value="More than 4 weeks">More than 4 weeks</option>
-          </select>
+            onChange={(val) => updateJobData('hiringTimeline', val)}
+            options={[
+              { value: '1 to 3 days', label: '1 to 3 days' },
+              { value: '3 to 7 days', label: '3 to 7 days' },
+              { value: '1 to 2 weeks', label: '1 to 2 weeks' },
+              { value: '2 to 4 weeks', label: '2 to 4 weeks' },
+              { value: 'More than 4 weeks', label: 'More than 4 weeks' },
+            ]}
+            placeholder="Select an option"
+          />
         </div>
         
         <div>
@@ -2445,22 +2435,23 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           
           <div className="flex flex-wrap gap-3 items-end">
             <div style={{minWidth: '180px'}} className="flex-shrink-0">
-              <label className="block text-gray-600 text-sm mb-2">Show pay by</label>
-              <select
+              <AutocompleteCombobox
+                label="Show pay by"
                 value={jobData.payType}
-                onChange={(e) => {
-                  updateJobData('payType', e.target.value);
-                  if (e.target.value === 'Maximum amount') updateJobData('minSalary', '');
-                  if (e.target.value === 'Starting amount') updateJobData('maxSalary', '');
-                  if (e.target.value === 'Exact amount') { updateJobData('minSalary', ''); updateJobData('maxSalary', ''); }
+                onChange={(val) => {
+                  updateJobData('payType', val);
+                  if (val === 'Maximum amount') updateJobData('minSalary', '');
+                  if (val === 'Starting amount') updateJobData('maxSalary', '');
+                  if (val === 'Exact amount') { updateJobData('minSalary', ''); updateJobData('maxSalary', ''); }
                 }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="Range">Range</option>
-                <option value="Starting amount">Starting amount</option>
-                <option value="Maximum amount">Maximum amount (Upto)</option>
-                <option value="Exact amount">Exact amount</option>
-              </select>
+                options={[
+                  { value: 'Range', label: 'Range' },
+                  { value: 'Starting amount', label: 'Starting amount' },
+                  { value: 'Maximum amount', label: 'Maximum amount (Upto)' },
+                  { value: 'Exact amount', label: 'Exact amount' },
+                ]}
+                placeholder="Select pay type"
+              />
             </div>
             
             <div className="w-28">
@@ -2527,16 +2518,17 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
           )}
           
           <div className="mt-4">
-            <label className="block text-gray-600 text-sm mb-2">Rate</label>
-            <select
+            <AutocompleteCombobox
+              label="Rate"
               value={jobData.payRate}
-              onChange={(e) => updateJobData('payRate', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="per year">per year</option>
-              <option value="per month">per month</option>
-              <option value="per hour">per hour</option>
-            </select>
+              onChange={(val) => updateJobData('payRate', val)}
+              options={[
+                { value: 'per year', label: 'per year' },
+                { value: 'per month', label: 'per month' },
+                { value: 'per hour', label: 'per hour' },
+              ]}
+              placeholder="Select rate"
+            />
           </div>
           
           {/* Salary Status Indicator */}

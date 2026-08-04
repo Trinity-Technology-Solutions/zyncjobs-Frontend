@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 function getEffectiveEmployerEmail(): string {
   try {
@@ -469,24 +470,38 @@ const CandidateRankingPage: React.FC<CandidateRankingPageProps> = ({ onNavigate,
             <input type="text" placeholder="Search by name, email or job..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="bg-transparent text-sm outline-none w-full text-gray-700 placeholder-gray-400" />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="all">All Jobs</option>
-              {/* FIX: `j.jobTitle || j.title` is now valid — `title?` is declared on Job */}
-              {jobs.map(j => <option key={j._id || j.id} value={String(j._id || j.id)}>{(j.jobTitle || j.title)}{j.jobCode || j.positionId ? ` — ${j.jobCode || j.positionId}` : ''}</option>)}
-            </select>
-            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="all">All Status</option>
-              <option value="not_scheduled">Pending</option>
-              <option value="scheduled">Scheduled</option>
-              <option value="completed">Interviewed</option>
-              <option value="hired">Hired</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} className="text-sm border border-gray-200 rounded-lg sm:rounded-xl px-3 py-2 focus:ring-2 focus:ring-blue-500 bg-white">
-              <option value="score">Sort by Score</option>
-              <option value="rank">Sort by Rank</option>
-              <option value="name">Sort by Name</option>
-            </select>
+            <AutocompleteCombobox
+              label="Job"
+              value={selectedJob}
+              onChange={(val) => setSelectedJob(val)}
+              options={[{ value: 'all', label: 'All Jobs' }, ...jobs.map(j => ({ value: String(j._id || j.id), label: `${j.jobTitle || j.title}${j.jobCode || j.positionId ? ` — ${j.jobCode || j.positionId}` : ''}` }))]}
+              placeholder="Select job..."
+            />
+            <AutocompleteCombobox
+              label="Status"
+              value={filterStatus}
+              onChange={(val) => setFilterStatus(val)}
+              options={[
+                { value: 'all', label: 'All Status' },
+                { value: 'not_scheduled', label: 'Pending' },
+                { value: 'scheduled', label: 'Scheduled' },
+                { value: 'completed', label: 'Interviewed' },
+                { value: 'hired', label: 'Hired' },
+                { value: 'rejected', label: 'Rejected' }
+              ]}
+              placeholder="Select status..."
+            />
+            <AutocompleteCombobox
+              label="Sort by"
+              value={sortBy}
+              onChange={(val) => setSortBy(val as 'rank' | 'score' | 'name')}
+              options={[
+                { value: 'score', label: 'Sort by Score' },
+                { value: 'rank', label: 'Sort by Rank' },
+                { value: 'name', label: 'Sort by Name' }
+              ]}
+              placeholder="Sort by..."
+            />
             <div className="flex items-center justify-center sm:justify-end">
               <span className="text-xs text-gray-400">{filtered.length} candidate{filtered.length !== 1 ? 's' : ''}</span>
             </div>

@@ -170,7 +170,7 @@ const AIRecruiterAssistant: React.FC<AIRecruiterAssistantProps> = ({ onNavigate,
           const skills = Array.isArray(j.skills) ? j.skills.slice(0, 3).join(', ') : '';
           const location = j.location || '';
           return `${title} (skills: ${skills}, location: ${location})`;
-        }).join('; ')} : ''),
+        }).join('; ')}` : ''),
         (chunk) => {
           full += chunk;
           setMessages(prev => { const u = [...prev]; u[u.length - 1] = { role: 'assistant', content: full, timestamp: new Date() }; return u; });

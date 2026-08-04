@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 import { useResumeStore, LanguageItem } from '../../store/useResumeStore';
+import AutocompleteCombobox from '../AutocompleteCombobox';
 
 const LEVELS: LanguageItem['proficiency'][] = ['Native', 'Fluent', 'Advanced', 'Intermediate', 'Basic'];
 const COMMON_LANGUAGES = ['English', 'Tamil', 'Hindi', 'Malayalam', 'Telugu', 'Kannada', 'French', 'German', 'Spanish', 'Arabic', 'Japanese', 'Mandarin'];
@@ -64,10 +65,14 @@ export default function LanguagesStep() {
               <input type="text" value={lang.language} onChange={e => updateLanguage(lang.id, 'language', e.target.value)}
                 placeholder="Enter a language"
                 className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white hover:border-gray-300 transition-colors" />
-              <select value={lang.proficiency} onChange={e => updateLanguage(lang.id, 'proficiency', e.target.value)}
-                className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 bg-white">
-                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-              </select>
+              <AutocompleteCombobox
+                label="Proficiency"
+                value={lang.proficiency}
+                onChange={(val) => updateLanguage(lang.id, 'proficiency', val)}
+                options={LEVELS.map(l => ({ value: l, label: l }))}
+                placeholder="Select level"
+                className="w-40"
+              />
               <button onClick={() => removeLanguage(lang.id)} className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition-colors">
                 <Trash2 className="w-4 h-4" />
               </button>

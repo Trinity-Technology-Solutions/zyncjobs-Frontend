@@ -3,6 +3,7 @@ import { Send, RefreshCw, AlertCircle, Bell, Trash2, Users, User } from 'lucide-
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
 import { apiFetch } from '../../../api/apiFetch';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 
 function authHeaders() {
   // Try admin token first, then access token
@@ -153,13 +154,17 @@ export default function NotificationsSection({ onUnauthorized }: { onUnauthorize
             </div>
             <div>
               <label className="block text-xs text-gray-400 mb-1">Target</label>
-              <select value={form.target} onChange={e => setForm(f => ({ ...f, target: e.target.value }))}
-                className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
-                <option value="all">All Users</option>
-                <option value="candidates">Candidates Only</option>
-                <option value="employers">Employers Only</option>
-                <option value="user">Specific User</option>
-              </select>
+              <AutocompleteCombobox
+                value={form.target}
+                onChange={(val) => setForm(f => ({ ...f, target: val }))}
+                options={[
+                  { value: 'all', label: 'All Users' },
+                  { value: 'candidates', label: 'Candidates Only' },
+                  { value: 'employers', label: 'Employers Only' },
+                  { value: 'user', label: 'Specific User' },
+                ]}
+                placeholder="Select target..."
+              />
             </div>
           </div>
 

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { API_BASE_URL } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 import { Video, Phone, Calendar, Clock } from 'lucide-react';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 const MeetingTest = () => {
   const [loading, setLoading] = useState(false);
@@ -50,15 +51,16 @@ const MeetingTest = () => {
       
       <div className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-2">Platform</label>
-          <select
+          <AutocompleteCombobox
+            label="Platform"
             value={formData.platform}
-            onChange={(e) => setFormData({ ...formData, platform: e.target.value })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="zoom">Zoom</option>
-            <option value="googlemeet">Google Meet</option>
-          </select>
+            onChange={(val) => setFormData({ ...formData, platform: val })}
+            options={[
+              { value: 'zoom', label: 'Zoom' },
+              { value: 'googlemeet', label: 'Google Meet' },
+            ]}
+            placeholder="Select platform"
+          />
         </div>
 
         <div>
@@ -83,17 +85,18 @@ const MeetingTest = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-2">Duration (minutes)</label>
-          <select
-            value={formData.duration}
-            onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            <option value={30}>30 minutes</option>
-            <option value={60}>60 minutes</option>
-            <option value={90}>90 minutes</option>
-            <option value={120}>120 minutes</option>
-          </select>
+          <AutocompleteCombobox
+            label="Duration"
+            value={String(formData.duration)}
+            onChange={(val) => setFormData({ ...formData, duration: parseInt(val) })}
+            options={[
+              { value: '30', label: '30 minutes' },
+              { value: '60', label: '60 minutes' },
+              { value: '90', label: '90 minutes' },
+              { value: '120', label: '120 minutes' },
+            ]}
+            placeholder="Select duration"
+          />
         </div>
 
         <div>

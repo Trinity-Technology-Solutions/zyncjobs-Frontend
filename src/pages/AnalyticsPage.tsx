@@ -4,6 +4,7 @@ import { TrendingUp, Users, Briefcase, Calendar, Download, Filter, Eye, UserChec
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/constants';
 
 interface AnalyticsPageProps {
@@ -192,16 +193,18 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user, onLogou
               <p className="text-gray-600 mt-1">Track your hiring performance and metrics</p>
             </div>
             <div className="flex items-center gap-3">
-              <select
+              <AutocompleteCombobox
                 value={timeRange}
-                onChange={(e) => setTimeRange(e.target.value as any)}
-                className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="7d">Last 7 days</option>
-                <option value="30d">Last 30 days</option>
-                <option value="90d">Last 90 days</option>
-                <option value="1y">Last year</option>
-              </select>
+                onChange={(val) => setTimeRange(val as any)}
+                options={[
+                  { value: '7d', label: 'Last 7 days' },
+                  { value: '30d', label: 'Last 30 days' },
+                  { value: '90d', label: 'Last 90 days' },
+                  { value: '1y', label: 'Last year' },
+                ]}
+                placeholder="Select time range"
+                className="w-40"
+              />
               <button
                 onClick={exportData}
                 className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
@@ -290,15 +293,17 @@ const AnalyticsPage: React.FC<AnalyticsPageProps> = ({ onNavigate, user, onLogou
               <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold text-gray-900">Trends Over Time</h3>
-                  <select
+                  <AutocompleteCombobox
                     value={selectedMetric}
-                    onChange={(e) => setSelectedMetric(e.target.value as any)}
-                    className="border border-gray-300 rounded-lg px-3 py-1 text-sm"
-                  >
-                    <option value="applications">Applications</option>
-                    <option value="views">Views</option>
-                    <option value="interviews">Interviews</option>
-                  </select>
+                    onChange={(val) => setSelectedMetric(val as any)}
+                    options={[
+                      { value: 'applications', label: 'Applications' },
+                      { value: 'views', label: 'Views' },
+                      { value: 'interviews', label: 'Interviews' },
+                    ]}
+                    placeholder="Select metric"
+                    className="w-40"
+                  />
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={chartData}>

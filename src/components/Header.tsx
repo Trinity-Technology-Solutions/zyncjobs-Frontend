@@ -669,13 +669,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigate, user, onLogout }) => {
                             type="button"
                             onClick={() => {
                               setIsDropdownOpen(false);
-                              // Ensure logout always triggers, even if parent components/overlays intercept events.
-                              // Fallback: trigger the global logout event App.tsx listens for.
-                              try {
-                                onLogout?.();
-                              } finally {
-                                window.dispatchEvent(new CustomEvent('zync:logout'));
-                              }
+                              onLogout?.();
                             }} 
                             className="flex items-center w-full text-left px-3 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           >

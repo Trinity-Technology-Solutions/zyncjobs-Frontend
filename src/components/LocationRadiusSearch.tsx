@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, Search } from 'lucide-react';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface LocationRadiusSearchProps {
   onSearch: (params: { latitude: number; longitude: number; radius: number; query?: string }) => void;
@@ -85,17 +86,19 @@ const LocationRadiusSearch: React.FC<LocationRadiusSearchProps> = ({ onSearch })
         </div>
         
         <div>
-          <select
-            value={radius}
-            onChange={(e) => setRadius(Number(e.target.value))}
-            className="w-full px-3 py-2 border rounded-lg"
-          >
-            <option value={5}>5 miles</option>
-            <option value={10}>10 miles</option>
-            <option value={25}>25 miles</option>
-            <option value={50}>50 miles</option>
-            <option value={100}>100 miles</option>
-          </select>
+          <AutocompleteCombobox
+            label="Radius"
+            value={String(radius)}
+            onChange={(val) => setRadius(Number(val))}
+            options={[
+              { value: '5', label: '5 miles' },
+              { value: '10', label: '10 miles' },
+              { value: '25', label: '25 miles' },
+              { value: '50', label: '50 miles' },
+              { value: '100', label: '100 miles' },
+            ]}
+            placeholder="Select radius"
+          />
         </div>
         
         <div className="flex gap-2">

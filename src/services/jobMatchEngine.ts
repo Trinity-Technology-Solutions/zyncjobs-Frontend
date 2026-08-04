@@ -68,33 +68,6 @@ const SKILL_GRAPH: Record<string, string[]> = {
   // ── Project Management / Soft Skills ──
   agile: ['scrum', 'kanban', 'jira', 'sprint', 'agile methodology', 'agile scrum'],
   'project management': ['pmp', 'project planning', 'project coordination', 'project delivery'],
-  communication: ['verbal communication', 'written communication', 'interpersonal skills', 'presentation skills'],
-  leadership: ['team lead', 'team leadership', 'people management', 'mentoring'],
-  // ── Finance / Accounting ──
-  accounting: ['bookkeeping', 'accounts payable', 'accounts receivable', 'financial accounting', 'tally', 'tally erp', 'general ledger', 'ledger'],
-  tally: ['tally erp', 'tally prime', 'tally accounting', 'tally software'],
-  'financial analysis': ['financial modeling', 'financial reporting', 'budgeting', 'forecasting', 'mis reporting', 'mis', 'variance analysis'],
-  taxation: ['gst', 'income tax', 'tax filing', 'indirect tax', 'direct tax', 'tds', 'vat', 'tax compliance'],
-  auditing: ['internal audit', 'external audit', 'statutory audit', 'audit report', 'audit compliance'],
-  banking: ['retail banking', 'corporate banking', 'investment banking', 'trade finance', 'treasury', 'loans', 'credit analysis'],
-  insurance: ['life insurance', 'general insurance', 'underwriting', 'claims', 'actuarial'],
-  finance: ['financial management', 'corporate finance', 'working capital', 'cash flow', 'fund management'],
-  // ── Marketing / Sales ──
-  'digital marketing': ['seo', 'sem', 'social media marketing', 'content marketing', 'email marketing', 'online marketing', 'performance marketing'],
-  seo: ['search engine optimization', 'on-page seo', 'off-page seo', 'technical seo', 'keyword research', 'link building'],
-  'social media': ['social media management', 'instagram', 'facebook marketing', 'linkedin marketing', 'youtube marketing'],
-  'content writing': ['copywriting', 'blog writing', 'technical writing', 'content creation', 'article writing'],
-  sales: ['business development', 'lead generation', 'crm', 'b2b sales', 'b2c sales', 'inside sales', 'field sales', 'direct sales', 'retail sales', 'telesales', 'cold calling'],
-  marketing: ['brand management', 'product marketing', 'market research', 'campaign management', 'btl', 'atl'],
-  'customer service': ['customer support', 'client servicing', 'customer care', 'customer success', 'after sales service', 'helpdesk'],
-  retail: ['store management', 'merchandising', 'visual merchandising', 'inventory management', 'pos'],
-  // ── HR / Operations ──
-  'human resources': ['hr', 'recruitment', 'talent acquisition', 'payroll', 'hrms', 'hris', 'hr operations', 'hr generalist'],
-  recruitment: ['talent acquisition', 'sourcing', 'hiring', 'staffing', 'headhunting', 'campus recruitment'],
-  payroll: ['payroll processing', 'salary processing', 'payroll management', 'pf', 'esi', 'statutory compliance'],
-  operations: ['operations management', 'process improvement', 'supply chain', 'logistics', 'warehouse management', 'inventory control'],
-  'supply chain': ['logistics', 'procurement', 'vendor management', 'sourcing', 'import export', 'freight', 'shipping'],
-  logistics: ['freight forwarding', 'warehouse', 'dispatch', 'delivery management', 'fleet management', 'transportation'],
   // ── SAP / ERP ──
   sap: ['sap ewm', 'sap fico', 'sap mm', 'sap sd', 'sap hana', 'abap', 'sap erp', 'sap s/4hana'],
   salesforce: ['sfdc', 'apex', 'visualforce', 'lightning'],

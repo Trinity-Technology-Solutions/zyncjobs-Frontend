@@ -4,6 +4,7 @@ import Header from '../components/Header';
 import { apiFetch } from '../api/apiFetch';
 import { updateUserInStorage } from '../utils/userStorage';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Props {
   onNavigate: (page: string) => void;
@@ -894,39 +895,39 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                   {/* Industry + Size */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
                     <div>
-                      <label className={labelCls}>Industry *</label>
-                      <div className="relative">
-                        <select value={formData.industry} onChange={e => setFormData(p => ({ ...p, industry: e.target.value }))} className={selectCls} required>
-                          <option value="">Select Industry</option>
-                          <option>Information Technology</option>
-                          <option>Healthcare</option>
-                          <option>Finance & Banking</option>
-                          <option>Education</option>
-                          <option>Manufacturing</option>
-                          <option>Retail</option>
-                          <option>Media & Entertainment</option>
-                          <option>Other</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
+                      <AutocompleteCombobox
+                        label="Industry *"
+                        value={formData.industry}
+                        onChange={(val) => setFormData(p => ({ ...p, industry: val }))}
+                        options={[
+                          { value: 'Information Technology', label: 'Information Technology' },
+                          { value: 'Healthcare', label: 'Healthcare' },
+                          { value: 'Finance & Banking', label: 'Finance & Banking' },
+                          { value: 'Education', label: 'Education' },
+                          { value: 'Manufacturing', label: 'Manufacturing' },
+                          { value: 'Retail', label: 'Retail' },
+                          { value: 'Media & Entertainment', label: 'Media & Entertainment' },
+                          { value: 'Other', label: 'Other' },
+                        ]}
+                        placeholder="Select Industry"
+                        required
+                      />
                     </div>
                     <div>
-                      <label className={labelCls}>Company Size *</label>
-                      <div className="relative">
-                        <select value={formData.companySize} onChange={e => setFormData(p => ({ ...p, companySize: e.target.value }))} className={selectCls} required>
-                          <option value="">Select Size</option>
-                          <option>1-10 employees</option>
-                          <option>11-50 employees</option>
-                          <option>51-200 employees</option>
-                          <option>201-500 employees</option>
-                          <option>500+ employees</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
+                      <AutocompleteCombobox
+                        label="Company Size *"
+                        value={formData.companySize}
+                        onChange={(val) => setFormData(p => ({ ...p, companySize: val }))}
+                        options={[
+                          { value: '1-10 employees', label: '1-10 employees' },
+                          { value: '11-50 employees', label: '11-50 employees' },
+                          { value: '51-200 employees', label: '51-200 employees' },
+                          { value: '201-500 employees', label: '201-500 employees' },
+                          { value: '500+ employees', label: '500+ employees' },
+                        ]}
+                        placeholder="Select Size"
+                        required
+                      />
                     </div>
                   </div>
 
@@ -946,19 +947,20 @@ const EmployerCompleteProfilePage: React.FC<Props> = ({ onNavigate, user, onLogo
                       />
                     </div>
                     <div>
-                      <label className={labelCls}>Company Type *</label>
-                      <div className="relative">
-                        <select value={formData.companyType} onChange={e => setFormData(p => ({ ...p, companyType: e.target.value }))} className={selectCls} required>
-                          <option>Private</option>
-                          <option>Public</option>
-                          <option>Startup</option>
-                          <option>Non-Profit</option>
-                          <option>Government</option>
-                        </select>
-                        <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                        </div>
-                      </div>
+                      <AutocompleteCombobox
+                        label="Company Type *"
+                        value={formData.companyType}
+                        onChange={(val) => setFormData(p => ({ ...p, companyType: val }))}
+                        options={[
+                          { value: 'Private', label: 'Private' },
+                          { value: 'Public', label: 'Public' },
+                          { value: 'Startup', label: 'Startup' },
+                          { value: 'Non-Profit', label: 'Non-Profit' },
+                          { value: 'Government', label: 'Government' },
+                        ]}
+                        placeholder="Select Type"
+                        required
+                      />
                     </div>
                   </div>
 
