@@ -46,6 +46,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [employerName, setEmployerName] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [companyLogo, setCompanyLogo] = useState('');
+  // Authoritative company record from backend (same source Edit Profile uses) so profile
+  // completion reflects saved data immediately after login, not stale registration fields.
+  const [companyProfile, setCompanyProfile] = useState<any>(null);
   // Role-based access: Owner = full, Recruiter = post+manage, Viewer = read-only
   const [teamRole, setTeamRole] = useState<'Owner' | 'Recruiter' | 'Viewer' | null>(null);
   // null = original owner (no teamRole set) = full access
@@ -353,6 +356,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
       
       setUser(sourceData);
       setEmployerName(sourceData.name || 'Employer');
+      fetchCompanyProfileData(sourceData);
       // Live fetch team role from backend on every load
       const _ue = sourceData.email;
       if (_ue) {
@@ -372,11 +376,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
               localStorage.setItem('user', JSON.stringify(_s));
               // Pass ownerEmail so fetchDashboardData uses owner's data
               fetchDashboardData({ ...sourceData, employerOwnerId: resolvedOwner, ownerEmail: resolvedOwner, teamRole: liveRole });
+              fetchCompanyProfileData({ ...sourceData, ownerEmail: resolvedOwner });
             } else {
               setTeamRole('Owner');
               setOwnerEmailState(_ue);
               // Owner — fetch with own email
               fetchDashboardData({ ...sourceData, employerOwnerId: null, ownerEmail: _ue });
+              fetchCompanyProfileData({ ...sourceData, ownerEmail: _ue });
             }
           })
           .catch(() => {
@@ -447,6 +453,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
         const actualCompanyName = parsed.companyName || parsed.ownerCompanyName || parsed.company || parsed.organizationName || 'Company';
         setCompanyName(actualCompanyName);
         setCompanyLogo(parsed.companyLogo || '');
+        fetchCompanyProfileData(parsed);
       } catch { /* ignore */ }
     };
 
@@ -458,10 +465,30 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     };
   }, []);
 
+  // Fetch the authoritative company record from the backend (same endpoint Edit Profile
+  // uses) so the dashboard shows the same up-to-date completion percentage immediately
+  // after login, without requiring a manual Save. Non-critical: falls back to user fields.
+  const fetchCompanyProfileData = async (userData: any) => {
+    try {
+      const ownerEmail = userData?.ownerEmail || userData?.employerOwnerId || userData?.employerEmail || userData?.email;
+      if (!ownerEmail) return;
+      const domain = ownerEmail.split('@')[1]?.toLowerCase();
+      if (!domain) return;
+      const res = await apiFetch(`${API_ENDPOINTS.COMPANIES}/by-domain/${encodeURIComponent(domain)}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && (data.name || data.companyName)) {
+        setCompanyProfile(data);
+      }
+    } catch {
+      // non-critical: keep existing completion source
+    }
+  };
+
   const profileCompletion = useMemo(() => {
     if (!user) return 0;
-    return calculateEmployerProfileCompletion(user);
-  }, [user]);
+    return calculateEmployerProfileCompletion({ ...user, ...companyProfile });
+  }, [user, companyProfile]);
 
   // Add effect to refresh data when component becomes visible
   useEffect(() => {
