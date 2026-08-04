@@ -29,3 +29,15 @@ export const APP_CONFIG = {
     AI: import.meta.env.VITE_ENABLE_AI_FEATURES === 'true'
   }
 };
+
+// Single shared source of truth for Job Notice Period options.
+// Used by the Bulk Job Import edit modal (and any future job-posting field).
+export const NOTICE_PERIOD_OPTIONS = [
+  'Immediate',
+  '15 Days',
+  '30 Days',
+  '45 Days',
+  '60 Days',
+  '90 Days',
+  'Negotiable'
+];

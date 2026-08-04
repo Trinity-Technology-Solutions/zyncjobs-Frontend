@@ -182,6 +182,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
                 const { overall } = computeMatchBreakdown(jobData);
                 return { ...j, matchPercentage: overall };
               }));
+              fetchCompanyLogos(matched);
               setLoading(false);
               return;
             }
@@ -208,6 +209,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
               const { overall } = computeMatchBreakdown(jobData);
               return { ...j, matchPercentage: overall };
             }));
+            fetchCompanyLogos(matches);
             setLoading(false);
             return;
           }
@@ -247,7 +249,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
   // Exact same logic as JobListingsPage
   const fetchCompanyLogos = async (jobList: any[]) => {
     try {
-      const res = await fetch(API_ENDPOINTS.COMPANIES);
+      const res = await fetch(`${API_ENDPOINTS.COMPANIES}?limit=1000`);
       if (!res.ok) return;
       const data = await res.json();
       const companies: any[] = Array.isArray(data) ? data : (data.companies || data.data || []);
@@ -269,6 +271,7 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
       setCompanyWebsites(websiteMap);
     } catch {}
   };
+
   if (loading) {
     return (
       <div className="space-y-4">

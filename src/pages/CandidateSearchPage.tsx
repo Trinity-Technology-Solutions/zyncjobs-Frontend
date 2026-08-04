@@ -16,6 +16,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { tokenStorage } from '../utils/tokenStorage';
 import { apiFetch } from '../api/apiFetch';
 import { searchAccuracy } from '../utils/searchAccuracy';
+import { skillsMatch, normalizeSkill } from '../utils/matchScore';
 
 import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
@@ -238,19 +239,33 @@ interface ScoreResult {
   bestJob: Job | null;
 }
 
+/** Deduplicate skills by normalized key, preserving first-seen original casing and ignoring empties. */
+function dedupeSkills(list: any): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  (Array.isArray(list) ? list : []).forEach(s => {
+    const key = normalizeSkill(String(s || ''));
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    out.push(String(s).trim());
+  });
+  return out;
+}
+
 function scoreAgainstJob(candSkills: string[], job: Job): { score: number; matched: string[]; missing: string[] } {
-  const jobSkills: string[] = Array.isArray(job.skills) ? job.skills : [];
+  // Normalize both sides (trim, lowercase, de-dupe, drop empty values) before comparing.
+  const jobSkills = dedupeSkills(job.skills);
+  const candSkillSet = dedupeSkills(candSkills);
   const matched: string[] = [];
   const missing: string[] = [];
 
   for (const js of jobSkills) {
-    const lower = js.toLowerCase().trim();
-    if (!lower) continue;
-    const hit = candSkills.some(cs => cs.includes(lower) || lower.includes(cs));
+    // Shared boundary-safe matcher (no substring false positives like "java"→"javascript")
+    const hit = candSkillSet.some(cs => skillsMatch(cs, js));
     (hit ? matched : missing).push(js);
   }
 
-  const skillPct = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 70 : 0;
+  const skillPct = jobSkills.length > 0 ? (matched.length / jobSkills.length) * 100 : 0;
   return { score: Math.round(skillPct), matched, missing };
 }
 
@@ -261,22 +276,14 @@ function fitLabelFor(score: number): Candidate['fitLabel'] {
 function computeAIScore(candidate: Candidate, selectedJob: Job | null, allJobs: Job[]): ScoreResult {
   const candSkills = (candidate.skills ?? []).map(s => s.toLowerCase().trim()).filter(Boolean);
 
-  // Profile completeness bonus (up to 30 pts)
-  const profileFields = ['experience', 'location', 'profileSummary', 'education'] as const;
-  const completeness = profileFields.filter(f => {
-    const v = candidate[f];
-    return v && (Array.isArray(v) ? v.length > 0 : String(v).trim().length > 0);
-  }).length / profileFields.length * 30;
-
   // Score against a specific job
   if (selectedJob) {
     const { score, matched, missing } = scoreAgainstJob(candSkills, selectedJob);
-    const total = Math.round(score + completeness);
     return {
-      aiScore: total,
+      aiScore: score,
       matchedSkills: matched,
       missingSkills: missing,
-      fitLabel: fitLabelFor(total),
+      fitLabel: fitLabelFor(score),
       bestJob: selectedJob,
     };
   }
@@ -288,13 +295,11 @@ function computeAIScore(candidate: Candidate, selectedJob: Job | null, allJobs: 
       const { score, matched, missing } = scoreAgainstJob(candSkills, j);
       if (score > best.score) best = { score, matched, missing, job: j };
     }
-    const total = Math.round(best.score + completeness);
-    return { aiScore: total, matchedSkills: best.matched, missingSkills: best.missing, fitLabel: fitLabelFor(total), bestJob: best.job };
+    return { aiScore: best.score, matchedSkills: best.matched, missingSkills: best.missing, fitLabel: fitLabelFor(best.score), bestJob: best.job };
   }
 
-  // Absolute fallback: profile completeness only
-  const total = Math.round(completeness * (100 / 30)); // rescale to 0-100
-  return { aiScore: total, matchedSkills: [], missingSkills: [], fitLabel: fitLabelFor(total), bestJob: null };
+  // No jobs to match against — no skill overlap to measure
+  return { aiScore: 0, matchedSkills: [], missingSkills: [], fitLabel: 'Low', bestJob: null };
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -550,7 +555,7 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
             const mapped: Candidate[] = arr
               .filter((c: any) => !['employer', 'admin', 'super_admin'].includes(c.userType || c.type || c.role || ''))
               .map((c: any) => {
-                const rawPhoto = c.profilePhoto || c.photo || c.avatar || c.image || '';
+                const rawPhoto = c.profilePhoto || c.profilePicture || c.photo || c.avatar || c.image || '';
                 const profilePhoto = rawPhoto
                   ? (rawPhoto.startsWith('http') || rawPhoto.startsWith('data:') ? rawPhoto : `${BASE}${rawPhoto.startsWith('/') ? rawPhoto : '/' + rawPhoto}`)
                   : '';

@@ -4,7 +4,7 @@ import { Upload, X, CheckCircle, AlertCircle, Edit2, Trash2, ChevronDown, Chevro
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
-import { API_ENDPOINTS } from '../config/constants';
+import { API_ENDPOINTS, NOTICE_PERIOD_OPTIONS } from '../config/constants';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
   import { generatePositionId } from '../utils/jobMigrationUtils';
@@ -424,9 +424,10 @@ function splitPastedJDs(text: string): string[] {
 }
 
 // ── CSV template content ───────────────────────────────────────────────
-const CSV_TEMPLATE = `Job Title,Company,Location,Experience,Skills,Employment Type,Min Salary,Max Salary,Description
-Java Developer,Acme Corp,Chennai,3-5 years,"Java,Spring Boot,Microservices",Full-time,600000,900000,We are hiring a Java Developer...
-React Developer,Acme Corp,Bangalore,2-4 years,"React,TypeScript,Node.js",Full-time,500000,800000,Looking for a React Developer...`;
+// Notice Period is optional — older templates without this column still import fine.
+const CSV_TEMPLATE = `Job Title,Company,Location,Experience,Skills,Employment Type,Min Salary,Max Salary,Notice Period,Description
+Java Developer,Acme Corp,Chennai,3-5 years,"Java,Spring Boot,Microservices",Full-time,600000,900000,Immediate,We are hiring a Java Developer...
+React Developer,Acme Corp,Bangalore,2-4 years,"React,TypeScript,Node.js",Full-time,500000,800000,30 Days,Looking for a React Developer...`;
 
 // ── Duplicate detection ───────────────────────────────────────────────
 async function fetchExistingJobTitles(): Promise<string[]> {
@@ -654,6 +655,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
         skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills : job.skills,
         jobType: normalizeJobType(ai.jobType) || job.jobType,
         jobCategory: ai.jobCategory || job.jobCategory,
+        noticePeriod: (ai.noticePeriod as string) || job.noticePeriod,
       });
       job.errors = validateJob(job);
       job.status = job.errors.length > 0 ? 'error' : 'ready';
@@ -1418,6 +1420,19 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
                   options={['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Legal','Manufacturing','Retail','Construction','Hospitality & Tourism','Media & Communications','Logistics & Supply Chain','Real Estate','Oil & Gas','Telecom','Banking & Insurance','Other'].map(c => ({ value: c, label: c }))}
                   placeholder="Select category"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Notice Period</label>
+                <select
+                  value={editingJob.noticePeriod}
+                  onChange={e => setEditingJob(prev => prev ? { ...prev, noticePeriod: e.target.value } : null)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="" disabled hidden>Select Notice Period</option>
+                  {NOTICE_PERIOD_OPTIONS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Skills (comma separated)</label>

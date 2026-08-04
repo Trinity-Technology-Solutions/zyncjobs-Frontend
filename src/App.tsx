@@ -786,7 +786,7 @@ function App() {
 
             <Route path="/settings" element={
               <AuthGuard user={user} userLoading={userLoading}>
-                <WithLayout {...nav}><SettingsPage {...nav} /></WithLayout>
+                <WithLayout {...nav}><SettingsPage {...nav} onUserUpdate={setUser} /></WithLayout>
               </AuthGuard>
             } />
 
