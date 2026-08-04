@@ -18,6 +18,7 @@ import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import localStorageMigration from '../services/localStorageMigration';
 import SalaryRangeSlider from '../components/SalaryRangeSlider';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import ResumeStatusIndicator from '../components/ResumeStatusIndicator';
 import { getId } from '../utils/getId';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
@@ -1159,21 +1160,21 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               </div>
             <div className="flex gap-2">
               <label htmlFor="radius-select" className="sr-only">Search radius in kilometres</label>
-              <select
-                id="radius-select"
-                value={radius}
-                onChange={(e) => {
-                  setRadius(Number(e.target.value));
-                }}
+              <AutocompleteCombobox
+                label="Radius"
+                value={String(radius)}
+                onChange={(val) => setRadius(Number(val))}
+                options={[
+                  { value: '5', label: '5 km' },
+                  { value: '10', label: '10 km' },
+                  { value: '25', label: '25 km' },
+                  { value: '50', label: '50 km' },
+                  { value: '100', label: '100 km' },
+                  { value: '200', label: '200 km' },
+                ]}
+                placeholder="Select radius..."
                 className="bg-white text-gray-700 px-3 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium"
-              >
-                <option value={5}>5 km</option>
-                <option value={10}>10 km</option>
-                <option value={25}>25 km</option>
-                <option value={50}>50 km</option>
-                <option value={100}>100 km</option>
-                <option value={200}>200 km</option>
-              </select>
+              />
               <button 
                 onClick={handleSearch}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex-shrink-0" 
@@ -1335,13 +1336,20 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Job Type</label>
-                  <select value={filters.jobType} onChange={(e) => handleFilterChange('jobType', e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="">All Types</option>
-                    <option value="Full-time">Full-time</option>
-                    <option value="Part-time">Part-time</option>
-                    <option value="Contract">Contract</option>
-                    <option value="Remote">Remote</option>
-                  </select>
+                  <AutocompleteCombobox
+                    label="Job Type"
+                    value={filters.jobType}
+                    onChange={(val) => handleFilterChange('jobType', val)}
+                    options={[
+                      { value: '', label: 'All Types' },
+                      { value: 'Full-time', label: 'Full-time' },
+                      { value: 'Part-time', label: 'Part-time' },
+                      { value: 'Contract', label: 'Contract' },
+                      { value: 'Remote', label: 'Remote' },
+                    ]}
+                    placeholder="Select job type..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Work Mode</label>
@@ -1630,43 +1638,52 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
-                <select 
+                <AutocompleteCombobox
+                  label="Job Type"
                   value={filters.jobType}
-                  onChange={(e) => handleFilterChange('jobType', e.target.value)}
+                  onChange={(val) => handleFilterChange('jobType', val)}
+                  options={[
+                    { value: '', label: 'All Types' },
+                    { value: 'Full-time', label: 'Full-time' },
+                    { value: 'Part-time', label: 'Part-time' },
+                    { value: 'Contract', label: 'Contract' },
+                    { value: 'Remote', label: 'Remote' },
+                  ]}
+                  placeholder="Select job type..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  <option value="">All Types</option>
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Contract">Contract</option>
-                  <option value="Remote">Remote</option>
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Experience</label>
-                <select 
+                <AutocompleteCombobox
+                  label="Experience"
                   value={filters.experience}
-                  onChange={(e) => handleFilterChange('experience', e.target.value)}
+                  onChange={(val) => handleFilterChange('experience', val)}
+                  options={[
+                    { value: '', label: 'All Levels' },
+                    { value: 'Entry', label: 'Entry Level' },
+                    { value: 'Mid', label: 'Mid Level' },
+                    { value: 'Senior', label: 'Senior Level' },
+                  ]}
+                  placeholder="Select experience level..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  <option value="">All Levels</option>
-                  <option value="Entry">Entry Level</option>
-                  <option value="Mid">Mid Level</option>
-                  <option value="Senior">Senior Level</option>
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
-                <select 
+                <AutocompleteCombobox
+                  label="Salary Range"
                   value={filters.salaryRange}
-                  onChange={(e) => handleFilterChange('salaryRange', e.target.value)}
+                  onChange={(val) => handleFilterChange('salaryRange', val)}
+                  options={[
+                    { value: '', label: 'All Ranges' },
+                    { value: '50k-100k', label: '₹50k - ₹100k' },
+                    { value: '100k-150k', label: '₹100k - ₹150k' },
+                    { value: '150k+', label: '₹150k+' },
+                  ]}
+                  placeholder="Select salary range..."
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
-                >
-                  <option value="">All Ranges</option>
-                  <option value="50k-100k">₹50k - ₹100k</option>
-                  <option value="100k-150k">₹100k - ₹150k</option>
-                  <option value="150k+">₹150k+</option>
-                </select>
+                />
               </div>
             </div>
           </div>

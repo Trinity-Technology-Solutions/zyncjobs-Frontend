@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, AlertCircle, Activity, Search, Filter } from 'lucide-react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { tokenStorage } from '../../../utils/tokenStorage';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 
 function authHeaders() {
   const token = tokenStorage.getAdmin() || tokenStorage.getAccess();
@@ -71,16 +72,21 @@ export default function ActivityLogsSection({ onUnauthorized }: { onUnauthorized
               placeholder="Search by user, action..."
               className="w-full bg-gray-800 border border-gray-700 rounded-lg pl-9 pr-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500" />
           </div>
-          <select value={actionFilter} onChange={e => setActionFilter(e.target.value)}
-            className="bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-purple-500">
-            <option value="all">All Actions</option>
-            <option value="login">Login</option>
-            <option value="ban">Ban/Unban</option>
-            <option value="delete">Delete</option>
-            <option value="approve">Approve</option>
-            <option value="reject">Reject</option>
-            <option value="create">Create</option>
-          </select>
+          <AutocompleteCombobox
+            value={actionFilter}
+            onChange={(val) => setActionFilter(val)}
+            options={[
+              { value: 'all', label: 'All Actions' },
+              { value: 'login', label: 'Login' },
+              { value: 'ban', label: 'Ban/Unban' },
+              { value: 'delete', label: 'Delete' },
+              { value: 'approve', label: 'Approve' },
+              { value: 'reject', label: 'Reject' },
+              { value: 'create', label: 'Create' },
+            ]}
+            placeholder="Select action..."
+            className="text-sm"
+          />
         </div>
       </div>
 

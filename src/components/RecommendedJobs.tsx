@@ -4,6 +4,7 @@ import { computeMatchBreakdown } from '../utils/matchScore';
 import { Bookmark, BookmarkCheck, MapPin, Briefcase, Lightbulb, BarChart3, Flame, CheckCircle } from 'lucide-react';
 import { formatSalary } from '../utils/textUtils';
 import CompanyLogo from './CompanyLogo';
+import AutocompleteCombobox from './AutocompleteCombobox';
 import { formatJobDescription } from '../utils/htmlUtils';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
 
@@ -364,34 +365,38 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Salary Range</label>
-            <select
+            <AutocompleteCombobox
+              label="Salary Range"
               value={filters.salaryRange}
-              onChange={(e) => setFilters(prev => ({ ...prev, salaryRange: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              <option value="">All Salaries</option>
-              <option value="0-5">Under 5 LPA</option>
-              <option value="5-15">5 – 15 LPA</option>
-              <option value="15-30">15 – 30 LPA</option>
-              <option value="30+">30+ LPA</option>
-            </select>
+              onChange={(val) => setFilters(prev => ({ ...prev, salaryRange: val }))}
+              options={[
+                { value: '', label: 'All Salaries' },
+                { value: '0-5', label: 'Under 5 LPA' },
+                { value: '5-15', label: '5 – 15 LPA' },
+                { value: '15-30', label: '15 – 30 LPA' },
+                { value: '30+', label: '30+ LPA' },
+              ]}
+              placeholder="Select salary range"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Job Type</label>
-            <select
+            <AutocompleteCombobox
+              label="Job Type"
               value={filters.jobType}
-              onChange={(e) => setFilters(prev => ({ ...prev, jobType: e.target.value }))}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-            >
-              <option value="">All Types</option>
-              <option value="full">Full-time</option>
-              <option value="part">Part-time</option>
-              <option value="contract">Contract</option>
-              <option value="intern">Internship</option>
-              <option value="remote">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="onsite">On-site</option>
-            </select>
+              onChange={(val) => setFilters(prev => ({ ...prev, jobType: val }))}
+              options={[
+                { value: '', label: 'All Types' },
+                { value: 'full', label: 'Full-time' },
+                { value: 'part', label: 'Part-time' },
+                { value: 'contract', label: 'Contract' },
+                { value: 'intern', label: 'Internship' },
+                { value: 'remote', label: 'Remote' },
+                { value: 'hybrid', label: 'Hybrid' },
+                { value: 'onsite', label: 'On-site' },
+              ]}
+              placeholder="Select job type"
+            />
           </div>
           <div className="flex items-end">
             <div className="w-full">

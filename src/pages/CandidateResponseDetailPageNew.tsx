@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/env';
 
 interface CandidateResponseDetailPageProps {
@@ -295,27 +296,31 @@ ${candidate.company}`;
               <span>Showing {filteredApplications.length} responses</span>
               <div className="flex items-center space-x-2">
                 <span>Sort by:</span>
-                <select 
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
-                  title="Sort options"
-                  aria-label="Sort by"
-                >
-                  <option>Relevance</option>
-                  <option>Date</option>
-                  <option>Experience</option>
-                </select>
+                <AutocompleteCombobox
+                  value=""
+                  onChange={() => {}}
+                  options={[
+                    { value: 'Relevance', label: 'Relevance' },
+                    { value: 'Date', label: 'Date' },
+                    { value: 'Experience', label: 'Experience' },
+                  ]}
+                  placeholder="Sort by"
+                  className="w-36"
+                />
               </div>
               <div className="flex items-center space-x-2">
                 <span>Show:</span>
-                <select 
-                  className="border border-gray-300 rounded px-2 py-1 text-sm"
-                  title="Items per page"
-                  aria-label="Items per page"
-                >
-                  <option>40</option>
-                  <option>20</option>
-                  <option>60</option>
-                </select>
+                <AutocompleteCombobox
+                  value=""
+                  onChange={() => {}}
+                  options={[
+                    { value: '40', label: '40' },
+                    { value: '20', label: '20' },
+                    { value: '60', label: '60' },
+                  ]}
+                  placeholder="Show"
+                  className="w-24"
+                />
               </div>
               <span>Page 1 of 1</span>
             </div>
@@ -528,29 +533,27 @@ ${candidate.company}`;
                         >
                           📧 Send Email
                         </button>
-                        <select
+                        <AutocompleteCombobox
                           value={currentCandidate.status}
-                          onChange={(e) => {
-                            const newStatus = e.target.value;
-                            handleStatusUpdate(newStatus);
-                            // Update the current candidate status locally
+                          onChange={(val) => {
+                            handleStatusUpdate(val);
                             setApplications(prev => 
                               prev.map(app => 
                                 app._id === currentCandidate._id 
-                                  ? { ...app, status: newStatus } 
+                                  ? { ...app, status: val } 
                                   : app
                               )
                             );
                           }}
-                          className="border border-gray-300 rounded px-2 py-2 text-sm focus:ring-2 focus:ring-blue-500"
-                          title="Application status"
-                          aria-label="Change application status"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="shortlisted">Shortlisted</option>
-                          <option value="reviewed">Maybe</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
+                          options={[
+                            { value: 'pending', label: 'Pending' },
+                            { value: 'shortlisted', label: 'Shortlisted' },
+                            { value: 'reviewed', label: 'Maybe' },
+                            { value: 'rejected', label: 'Rejected' },
+                          ]}
+                          placeholder="Application status"
+                          className="w-44"
+                        />
                       </div>
                       
                       <button 

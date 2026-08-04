@@ -3,6 +3,7 @@ import { Star, MapPin, X } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import CompanyLogo from '../components/CompanyLogo';
 import { API_ENDPOINTS } from '../config/env';
 import { EnhancedCompanyData, CompanyBenefit, CompanyDepartment, EmployeeSalary } from '../api/companyDataService';
@@ -1248,26 +1249,26 @@ const CompanyDetailsPage = ({ onNavigate, user, onLogout }: {
                   <p className="text-gray-600 mt-1">{filteredJobs.length} positions available</p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-                  <select
+                  <AutocompleteCombobox
                     value={selectedLocation}
-                    onChange={e => setSelectedLocation(e.target.value)}
-                    className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                  >
-                    <option value="">All Locations</option>
-                    {jobLocations.map(location => (
-                      <option key={location} value={location}>{location}</option>
-                    ))}
-                  </select>
-                  <select
+                    onChange={(val) => setSelectedLocation(val)}
+                    options={[
+                      { value: '', label: 'All Locations' },
+                      ...jobLocations.map(location => ({ value: location, label: location })),
+                    ]}
+                    placeholder="Select location"
+                    className="w-full sm:w-auto"
+                  />
+                  <AutocompleteCombobox
                     value={selectedDepartment}
-                    onChange={e => setSelectedDepartment(e.target.value)}
-                    className="w-full sm:w-auto px-3 sm:px-4 py-2 border border-gray-300 rounded-lg text-sm bg-white"
-                  >
-                    <option value="">All Departments</option>
-                    {jobCategories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => setSelectedDepartment(val)}
+                    options={[
+                      { value: '', label: 'All Departments' },
+                      ...jobCategories.map(cat => ({ value: cat, label: cat })),
+                    ]}
+                    placeholder="Select department"
+                    className="w-full sm:w-auto"
+                  />
                   {(selectedLocation || selectedDepartment) && (
                     <button
                       onClick={() => { setSelectedLocation(''); setSelectedDepartment(''); }}

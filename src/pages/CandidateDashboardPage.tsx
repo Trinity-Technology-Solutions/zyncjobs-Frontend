@@ -51,6 +51,7 @@ import CoverPhotoCropModal from "../components/CoverPhotoCropModal";
 import { AIFeatureLoader } from "../components/AIProgressLoader";
 import ConfirmDialog from "../components/ConfirmDialog";
 import { readPdf } from "../lib/parse-resume-from-pdf/read-pdf";
+import AutocompleteCombobox from "../components/AutocompleteCombobox";
 
 interface CandidateDashboardPageProps {
   user?: any;
@@ -5017,10 +5018,12 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               </div>
               <div className="mb-6">
                 <label className="block font-medium mb-3">Language</label>
-                <select
-                  className="w-full p-3 border rounded-lg mb-4"
-                  onChange={(e) => {
-                    if (e.target.value) {
+                <AutocompleteCombobox
+                  className="w-full mb-4"
+                  placeholder="Select Language"
+                  value=""
+                  onChange={(val) => {
+                    if (val) {
                       const current =
                         typeof modalData === "string"
                           ? modalData
@@ -5028,20 +5031,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                               .map((s: string) => s.trim())
                               .filter(Boolean)
                           : [];
-                      if (!current.includes(e.target.value)) {
-                        setModalData([...current, e.target.value].join(", "));
+                      if (!current.includes(val)) {
+                        setModalData([...current, val].join(", "));
                       }
                     }
                   }}
-                >
-                  <option>Select Language</option>
-                  <option>English</option>
-                  <option>Hindi</option>
-                  <option>Tamil</option>
-                  <option>Telugu</option>
-                  <option>Kannada</option>
-                  <option>Malayalam</option>
-                </select>
+                  options={[
+                    { value: "English", label: "English" },
+                    { value: "Hindi", label: "Hindi" },
+                    { value: "Tamil", label: "Tamil" },
+                    { value: "Telugu", label: "Telugu" },
+                    { value: "Kannada", label: "Kannada" },
+                    { value: "Malayalam", label: "Malayalam" },
+                  ]}
+                />
                 <div className="flex gap-2 flex-wrap">
                   {(typeof modalData === "string"
                     ? modalData
@@ -5366,91 +5369,81 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     Working since
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Select Month"
                       value={modalData.startMonth || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startMonth: e.target.value,
+                          startMonth: val,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                    >
-                      <option value=""></option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
+                    <AutocompleteCombobox
+                      placeholder="Year"
                       value={modalData.startYear || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startYear: e.target.value,
+                          startYear: val,
                         })
                       }
-                      className="p-3 border rounded-lg w-full"
-                    >
-                      <option value="">Year</option>
-                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                      options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                        value: String(y),
+                        label: String(y),
+                      }))}
+                    />
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Select Month"
                       value={modalData.endMonth || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endMonth: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endMonth: val })
                       }
-                      className="p-3 border rounded-lg"
                       disabled={modalData.currentlyWorking}
-                    >
-                      <option value=""></option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
+                    <AutocompleteCombobox
+                      placeholder="Year"
                       value={modalData.endYear || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endYear: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endYear: val })
                       }
-                      className="p-3 border rounded-lg w-full"
                       disabled={modalData.currentlyWorking}
-                    >
-                      <option value="">Year</option>
-                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                      options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                        value: String(y),
+                        label: String(y),
+                      }))}
+                    />
                   </div>
                   <label className="flex items-center mt-3">
                     <input
@@ -5755,89 +5748,79 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     Internship duration
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Select Month"
                       value={modalData.startMonth || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startMonth: e.target.value,
+                          startMonth: val,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                    >
-                      <option value=""></option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
+                    <AutocompleteCombobox
+                      placeholder="Year"
                       value={modalData.startYear || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startYear: e.target.value,
+                          startYear: val,
                         })
                       }
-                      className="p-3 border rounded-lg w-full"
-                    >
-                      <option value="">Year</option>
-                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                      options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                        value: String(y),
+                        label: String(y),
+                      }))}
+                    />
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Select Month"
                       value={modalData.endMonth || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endMonth: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endMonth: val })
                       }
-                      className="p-3 border rounded-lg"
-                    >
-                      <option value=""></option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
+                    <AutocompleteCombobox
+                      placeholder="Year"
                       value={modalData.endYear || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endYear: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endYear: val })
                       }
-                      className="p-3 border rounded-lg w-full"
-                    >
-                      <option value="">Year</option>
-                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                      options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                        value: String(y),
+                        label: String(y),
+                      }))}
+                    />
                   </div>
                 </div>
                 <div>
@@ -6022,91 +6005,81 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                     Certification validity
                   </label>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Month"
                       value={modalData.startMonth || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startMonth: e.target.value,
+                          startMonth: val,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                    >
-                      <option value="">Month</option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
+                    <AutocompleteCombobox
+                      placeholder="Year"
                       value={modalData.startYear || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startYear: e.target.value,
+                          startYear: val,
                         })
                       }
-                      className="p-3 border rounded-lg w-full"
-                    >
-                      <option value="">Year</option>
-                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                      options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                        value: String(y),
+                        label: String(y),
+                      }))}
+                    />
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Month"
                       value={modalData.endMonth || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endMonth: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endMonth: val })
                       }
-                      className="p-3 border rounded-lg"
                       disabled={modalData.noExpiry}
-                    >
-                      <option value="">Month</option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
+                    <AutocompleteCombobox
+                      placeholder="Year"
                       value={modalData.endYear || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endYear: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endYear: val })
                       }
-                      className="p-3 border rounded-lg w-full"
                       disabled={modalData.noExpiry}
-                    >
-                      <option value="">Year</option>
-                      {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
+                      options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                        value: String(y),
+                        label: String(y),
+                      }))}
+                    />
                   </div>
                   <label className="flex items-center mt-3">
                     <input
@@ -6306,53 +6279,49 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <label className="block font-medium mb-2">
                     Associate with education (optional)
                   </label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select an option"
                     value={modalData.associatedEducation || ""}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setModalData({
                         ...modalData,
-                        associatedEducation: e.target.value,
+                        associatedEducation: val,
                       })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select an option</option>
-                    <option>College</option>
-                    <option>School</option>
-                    <option>University</option>
-                  </select>
+                    options={[
+                      { value: "College", label: "College" },
+                      { value: "School", label: "School" },
+                      { value: "University", label: "University" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Duration</label>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Select Month"
                       value={modalData.startMonth || ""}
-                      onChange={(e) =>
+                      onChange={(val) =>
                         setModalData({
                           ...modalData,
-                          startMonth: e.target.value,
+                          startMonth: val,
                         })
                       }
-                      className="p-3 border rounded-lg"
-                    >
-                      <option value=""></option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
                     <input
                       type="text"
                       value={modalData.startYear || ""}
@@ -6368,32 +6337,28 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   </div>
                   <p className="text-center text-gray-500 text-sm my-2">to</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <select
+                    <AutocompleteCombobox
+                      placeholder="Select Month"
                       value={modalData.endMonth || ""}
-                      onChange={(e) =>
-                        setModalData({ ...modalData, endMonth: e.target.value })
+                      onChange={(val) =>
+                        setModalData({ ...modalData, endMonth: val })
                       }
-                      className="p-3 border rounded-lg"
                       disabled={modalData.currentlyWorking}
-                    >
-                      <option value=""></option>
-                      {[
-                        "January",
-                        "February",
-                        "March",
-                        "April",
-                        "May",
-                        "June",
-                        "July",
-                        "August",
-                        "September",
-                        "October",
-                        "November",
-                        "December",
-                      ].map((m) => (
-                        <option key={m}>{m}</option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: "January", label: "January" },
+                        { value: "February", label: "February" },
+                        { value: "March", label: "March" },
+                        { value: "April", label: "April" },
+                        { value: "May", label: "May" },
+                        { value: "June", label: "June" },
+                        { value: "July", label: "July" },
+                        { value: "August", label: "August" },
+                        { value: "September", label: "September" },
+                        { value: "October", label: "October" },
+                        { value: "November", label: "November" },
+                        { value: "December", label: "December" },
+                      ]}
+                    />
                     <input
                       type="text"
                       value={modalData.endYear || ""}
@@ -6569,27 +6534,27 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
               <div className="space-y-4">
                 <div>
                   <label className="block font-medium mb-2">Exam name</label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Exam"
                     value={modalData.examName || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, examName: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, examName: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Exam</option>
-                    <option>TOEFL</option>
-                    <option>GMAT</option>
-                    <option>GRE</option>
-                    <option>SAT</option>
-                    <option>IELTS</option>
-                    <option>CAT</option>
-                    <option>GATE</option>
-                    <option>JEE</option>
-                    <option>NEET</option>
-                    <option>UPSC</option>
-                    <option>SSC</option>
-                    <option>Other</option>
-                  </select>
+                    options={[
+                      { value: "TOEFL", label: "TOEFL" },
+                      { value: "GMAT", label: "GMAT" },
+                      { value: "GRE", label: "GRE" },
+                      { value: "SAT", label: "SAT" },
+                      { value: "IELTS", label: "IELTS" },
+                      { value: "CAT", label: "CAT" },
+                      { value: "GATE", label: "GATE" },
+                      { value: "JEE", label: "JEE" },
+                      { value: "NEET", label: "NEET" },
+                      { value: "UPSC", label: "UPSC" },
+                      { value: "SSC", label: "SSC" },
+                      { value: "Other", label: "Other" },
+                    ]}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -6911,42 +6876,42 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Degree</label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Degree"
                     value={modalData.degree || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, degree: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, degree: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Degree</option>
-                    <option>High School Diploma</option>
-                    <option>Associate's Degree</option>
-                    <option>Bachelor's Degree</option>
-                    <option>Bachelor</option>
-                    <option>Master's Degree</option>
-                    <option>Post Graduate</option>
-                    <option>PhD</option>
-                    <option>Doctorate</option>
-                    <option>Professional Certification</option>
-                    <option>Diploma</option>
-                    <option>Certificate</option>
-                    <option>Vocational Training</option>
-                  </select>
+                    options={[
+                      { value: "High School Diploma", label: "High School Diploma" },
+                      { value: "Associate's Degree", label: "Associate's Degree" },
+                      { value: "Bachelor's Degree", label: "Bachelor's Degree" },
+                      { value: "Bachelor", label: "Bachelor" },
+                      { value: "Master's Degree", label: "Master's Degree" },
+                      { value: "Post Graduate", label: "Post Graduate" },
+                      { value: "PhD", label: "PhD" },
+                      { value: "Doctorate", label: "Doctorate" },
+                      { value: "Professional Certification", label: "Professional Certification" },
+                      { value: "Diploma", label: "Diploma" },
+                      { value: "Certificate", label: "Certificate" },
+                      { value: "Vocational Training", label: "Vocational Training" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Course Type</label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Course Type"
                     value={modalData.courseType || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, courseType: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, courseType: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Course Type</option>
-                    <option>Full Time</option>
-                    <option>Part Time</option>
-                    <option>Distance Learning</option>
-                  </select>
+                    options={[
+                      { value: "Full Time", label: "Full Time" },
+                      { value: "Part Time", label: "Part Time" },
+                      { value: "Distance Learning", label: "Distance Learning" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">
@@ -6965,21 +6930,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Passing Year</label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Year"
                     value={modalData.passingYear || ""}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setModalData({
                         ...modalData,
-                        passingYear: e.target.value,
+                        passingYear: val,
                       })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Year</option>
-                    {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </select>
+                    options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                      value: String(y),
+                      label: String(y),
+                    }))}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
@@ -7047,37 +7011,37 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <label className="block font-medium mb-2">
                     Examination board
                   </label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Board Name"
                     value={modalData.board || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, board: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, board: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Board Name</option>
-                    <option>CBSE</option>
-                    <option>ICSE</option>
-                    <option>State Board</option>
-                    <option>IB</option>
-                  </select>
+                    options={[
+                      { value: "CBSE", label: "CBSE" },
+                      { value: "ICSE", label: "ICSE" },
+                      { value: "State Board", label: "State Board" },
+                      { value: "IB", label: "IB" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">
                     Medium of study
                   </label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Medium"
                     value={modalData.medium || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, medium: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, medium: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Medium</option>
-                    <option>English</option>
-                    <option>Hindi</option>
-                    <option>Tamil</option>
-                    <option>Telugu</option>
-                  </select>
+                    options={[
+                      { value: "English", label: "English" },
+                      { value: "Hindi", label: "Hindi" },
+                      { value: "Tamil", label: "Tamil" },
+                      { value: "Telugu", label: "Telugu" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Percentage</label>
@@ -7096,21 +7060,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Passing year</label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Year"
                     value={modalData.passingYear || ""}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setModalData({
                         ...modalData,
-                        passingYear: e.target.value,
+                        passingYear: val,
                       })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Year</option>
-                    {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </select>
+                    options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                      value: String(y),
+                      label: String(y),
+                    }))}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">
@@ -7178,37 +7141,37 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                   <label className="block font-medium mb-2">
                     Examination board
                   </label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Board Name"
                     value={modalData.board || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, board: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, board: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Board Name</option>
-                    <option>CBSE</option>
-                    <option>ICSE</option>
-                    <option>State Board</option>
-                    <option>IB</option>
-                  </select>
+                    options={[
+                      { value: "CBSE", label: "CBSE" },
+                      { value: "ICSE", label: "ICSE" },
+                      { value: "State Board", label: "State Board" },
+                      { value: "IB", label: "IB" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">
                     Medium of study
                   </label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Medium"
                     value={modalData.medium || ""}
-                    onChange={(e) =>
-                      setModalData({ ...modalData, medium: e.target.value })
+                    onChange={(val) =>
+                      setModalData({ ...modalData, medium: val })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Medium</option>
-                    <option>English</option>
-                    <option>Hindi</option>
-                    <option>Tamil</option>
-                    <option>Telugu</option>
-                  </select>
+                    options={[
+                      { value: "English", label: "English" },
+                      { value: "Hindi", label: "Hindi" },
+                      { value: "Tamil", label: "Tamil" },
+                      { value: "Telugu", label: "Telugu" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Percentage</label>
@@ -7227,21 +7190,20 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                 </div>
                 <div>
                   <label className="block font-medium mb-2">Passing year</label>
-                  <select
+                  <AutocompleteCombobox
+                    placeholder="Select Year"
                     value={modalData.passingYear || ""}
-                    onChange={(e) =>
+                    onChange={(val) =>
                       setModalData({
                         ...modalData,
-                        passingYear: e.target.value,
+                        passingYear: val,
                       })
                     }
-                    className="w-full p-3 border rounded-lg"
-                  >
-                    <option value="">Select Year</option>
-                    {Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </select>
+                    options={Array.from({length: 51}, (_, i) => new Date().getFullYear() + 5 - i).map((y) => ({
+                      value: String(y),
+                      label: String(y),
+                    }))}
+                  />
                 </div>
               </div>
               <div className="flex justify-end gap-3 mt-6">

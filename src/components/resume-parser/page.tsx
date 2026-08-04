@@ -8,6 +8,7 @@ import CandidateComparison from "../CandidateComparison";
 import { parseResumeFromText, type AIParseStatus } from "./parseLogic";
 import { tokenStorage } from '../../utils/tokenStorage';
 import type { ParsedResume } from "./parseLogic";
+import AutocompleteCombobox from '../AutocompleteCombobox';
 import { AIProgressLoader } from "../AIProgressLoader";
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 import { updateUserInStorage } from '../../utils/userStorage';
@@ -536,28 +537,23 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
           {/* Job Selection for Employers */}
           {user?.type === 'employer' && (
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Select Job Position for Screening
-              </label>
-              <select
+              <AutocompleteCombobox
+                label="Select Job Position for Screening"
                 value={selectedJob?._id || ''}
-                onChange={(e) => {
-                  const job = availableJobs.find(j => j._id === e.target.value);
+                onChange={(val) => {
+                  const job = availableJobs.find(j => j._id === val);
                   setSelectedJob(job);
                   if (job && resume.profile.name) {
                     const score = calculateMatchingScore(resume, job);
                     setMatchingScore(score);
                   }
                 }}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Choose a job position...</option>
-                {availableJobs.map((job) => (
-                  <option key={job._id} value={job._id}>
-                    {job.jobTitle} - {job.company}
-                  </option>
-                ))}
-              </select>
+                options={availableJobs.map((job) => ({
+                  value: job._id,
+                  label: `${job.jobTitle} - ${job.company}`,
+                }))}
+                placeholder="Choose a job position..."
+              />
             </div>
           )}
           

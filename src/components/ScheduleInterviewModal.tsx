@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Video, X, Calendar, Clock, User, FileText, MapPin, ExternalLink } from 'lucide-react';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface ScheduleInterviewModalProps {
   application: any;
@@ -257,27 +258,35 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({
             <label className="block text-sm font-semibold text-gray-700 mb-2">
               <Clock size={14} className="inline mr-1" />Duration
             </label>
-            <select value={formData.duration}
-              onChange={e => setFormData(prev => ({ ...prev, duration: parseInt(e.target.value) }))}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value={30}>30 minutes</option>
-              <option value={60}>1 hour</option>
-              <option value={90}>1.5 hours</option>
-              <option value={120}>2 hours</option>
-            </select>
+            <AutocompleteCombobox
+              label="Duration"
+              value={String(formData.duration)}
+              onChange={(val) => setFormData(prev => ({ ...prev, duration: parseInt(val) }))}
+              options={[
+                { value: '30', label: '30 minutes' },
+                { value: '60', label: '1 hour' },
+                { value: '90', label: '1.5 hours' },
+                { value: '120', label: '2 hours' },
+              ]}
+              placeholder="Select duration"
+            />
           </div>
 
           {/* Interview Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">Interview Type</label>
-            <select value={formData.type}
-              onChange={e => setFormData(prev => ({ ...prev, type: e.target.value, meetingLink: '' }))}
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="video">Video Call (Zoom)</option>
-              <option value="googlemeet">Google Meet</option>
-              <option value="phone">Phone Call</option>
-              <option value="in-person">In Person</option>
-            </select>
+            <AutocompleteCombobox
+              label="Interview Type"
+              value={formData.type}
+              onChange={(val) => setFormData(prev => ({ ...prev, type: val, meetingLink: '' }))}
+              options={[
+                { value: 'video', label: 'Video Call (Zoom)' },
+                { value: 'googlemeet', label: 'Google Meet' },
+                { value: 'phone', label: 'Phone Call' },
+                { value: 'in-person', label: 'In Person' },
+              ]}
+              placeholder="Select interview type"
+            />
           </div>
 
           {/* Meeting Link */}

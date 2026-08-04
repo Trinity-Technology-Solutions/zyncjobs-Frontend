@@ -18,8 +18,23 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     isVisible: boolean;
   }>({ type: 'success', message: '', isVisible: false });
 
-  const stripHtml = (html: string): string =>
-    html.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ').replace(/\s{2,}/g,' ').trim();
+  // Strip HTML tags + markdown, but PRESERVE line breaks (needed for
+  // line-based extraction). `**bold**`, `# headings` and `---` rules are
+  // formatting inside a JD, not content.
+  const cleanText = (text: string): string =>
+    text
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+      .replace(/&nbsp;/g,' ').replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+      .split('\n')
+      .map(l => l.replace(/\s+/g, ' ').trim())
+      .map(l => (/^\s*(?:-{3,}|={3,}|\*{3,}|~{3,}|_{3,}|…{3,})\s*$/.test(l) ? '' : l))
+      .join('\n')
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/^#+\s*/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
 
   const handleStartParsing = async () => {
     if (!jobDescription.trim()) {
@@ -33,7 +48,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
 
     setIsParsing(true);
     try {
-      const cleanDescription = stripHtml(jobDescription);
+      const cleanDescription = cleanText(jobDescription);
       // Parse job description using AI
       const parsedData = await parseJobDescription(cleanDescription);
       
@@ -80,8 +95,8 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
         const result = await res.json();
         const d = result.data || result;
         // Strip markdown, metadata prefixes from jobTitle
-        const rawTitle = (d.jobTitle || '').replace(/\*+/g, '').trim();
-        const metaTitlePat = /^(experience|exp|salary|location|skills?|department|employment|job type|work type|notice|joining|ctc|lpa|\d)/i;
+        const rawTitle = (d.jobTitle || '').replace(/^#+\s*/, '').replace(/\*+/g, '').split(/[|—–]/)[0].trim();
+        const metaTitlePat = /^(experience|exp|salary|location|skills?|department|employment|job type|work type|notice|joining|ctc|lpa|overview|responsibilit|qualification|requirement|zyncjobs|\d)/i;
         const titleWords = rawTitle.split(/\s+/).filter(Boolean).length;
         // Reject sentence/responsibility-like titles ("Design, develop, test and maintain...")
         const titleLooksLikeSentence =
@@ -133,32 +148,90 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       };
     } catch { /* ignore */ }
 
-    // Step 3: merge â€” AI first, regex fills gaps, helper functions as final fallback
+    // Step 3: merge - AI first, regex fills gaps, helper functions as final fallback
     const salary = extractSalaryIfNumeric(description);
     const jobLocation =
       ai.jobLocation || regex.jobLocation || extractLocation(description);
     const country = await inferCountryFromCity(base, jobLocation);
 
+    // Strict fill: every detail must pass its field's pattern before being
+    // placed, so parsed data can never land in the wrong placeholder.
+    const strictTitle = (v: string): string => {
+      const t = (v || '').trim().replace(/\s+/g, ' ');
+      if (!t || t.length > 60) return '';
+      const words = t.split(/\s+/).length;
+      if (words < 2 || words > 6) return '';
+      if (/[|—–_]/.test(t) || /,(?!\s?\d)/.test(t) || /\.$/.test(t) || /@/.test(t) || /^\d/.test(t)) return '';
+      if (words >= 3 && /\b(design|develop|test|maintain|build|lead|manage|create|implement|write|support|monitor|ensure|analyze|collaborate|deliver|prepare)\w*\b/i.test(t)) return '';
+      if (/^(immediate|urgent|apply|hiring|zyncjobs|connecting|overview|responsibilit|requirement|qualification|experience|location|salary|description|about|summary|benefits)/i.test(t)) return '';
+      return t;
+    };
+    const strictCompany = (v: string): string => {
+      const t = (v || '').trim().replace(/\s+/g, ' ');
+      if (!t || t.length > 40) return '';
+      if (/[|—–,]/.test(t) || /\b(hiring|looking|seeking|invites?|about us|job description)\b/i.test(t)) return '';
+      if (/\b(developer|engineer|analyst|manager|executive|officer|specialist|consultant|tester|designer|role|position)\b/i.test(t)) return '';
+      return t;
+    };
+    const strictLocation = (v: string): string => {
+      const t = (v || '').trim();
+      if (!t || t.length > 40) return '';
+      if (/^(remote|hybrid|on\s*-?\s*site|onsite)$/i.test(t)) return t;
+      if (/^[A-Za-z][A-Za-z\s,'.\-]*$/.test(t)
+        && !/\b(developer|engineer|analyst|manager|executive|officer|specialist|consultant|hiring|apply|salary|experience|full\s*-?\s*time|part\s*-?\s*time|internship|contract|senior|lead|junior|design|develop|test)\b/i.test(t)
+        && !/\d/.test(t)) return t;
+      return '';
+    };
+    const strictExp = (v: string): string => {
+      const s = (v || '').trim();
+      if (!s) return '';
+      if (/^\d+\s*(?:years?|yrs?)?\s*(?:-|–|—|to)\s*\d+\s*(?:years?|yrs?)?\s*$/i.test(s)
+        || /^\d+\+\s*(?:years?|yrs?)/i.test(s)) return normalizeExperienceRange(s) || s;
+      return '';
+    };
+    const strictAmount = (v: any): string => {
+      const s = String(v || '').trim();
+      return /^\d{1,12}$/.test(s) ? s : '';
+    };
+    const strictShort = (v: any, max = 40): string => {
+      const s = String(v || '').trim().replace(/\s+/g, ' ');
+      return s && s.length <= max && !/[|—–]/.test(s) ? s : '';
+    };
+    const strictList = (arr: any, maxLen = 30, maxItems = 15): string[] =>
+      (Array.isArray(arr) ? arr : [])
+        .map((s: any) => String(s).trim().replace(/\s+/g, ' '))
+        .filter((s: string) => s && s.length <= maxLen && !/[|—–]/.test(s) && !/,\s|^(and|the|for|with|to|of)\b/i.test(s))
+        .slice(0, maxItems);
+    const strictEnum = <T,>(v: any, list: readonly T[]): T | '' =>
+      list.includes(v as T) ? (v as T) : '';
+
+    const JOB_TYPES = ['Full-time', 'Part-time', 'Contract', 'Internship'];
+    const CURRENCIES = ['INR', 'USD', 'AED', 'OMR', 'QAR', 'SAR', 'KWD', 'EUR', 'GBP'];
+    const JOB_CATEGORIES = ['Information Technology', 'Software Development', 'Data Science & Analytics', 'Sales & Marketing', 'Finance & Accounting', 'Human Resources', 'Operations', 'Customer Service', 'Healthcare', 'Engineering', 'Education', 'Legal', 'Manufacturing', 'Retail', 'Construction', 'Hospitality & Tourism', 'Media & Communications', 'Logistics & Supply Chain', 'Real Estate', 'Oil & Gas', 'Telecommunications', 'Banking & Insurance', 'Other'];
+
+    const rawJobType = ai.jobType ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description);
+    const jobType = (Array.isArray(rawJobType) ? rawJobType : [rawJobType]).filter(t => JOB_TYPES.includes(t));
+
     return {
-      jobTitle:         ai.jobTitle         || regex.jobTitle         || extractJobTitle(description),
-      companyName:      ai.companyName      || '',
-      jobLocation,
+      jobTitle:         strictTitle(ai.jobTitle       || regex.jobTitle       || extractJobTitle(description)),
+      companyName:      strictCompany(ai.companyName  || extractCompanyName(description)),
+      jobLocation:      strictLocation(jobLocation),
       country,
-      jobType:          ai.jobType          ? (Array.isArray(ai.jobType) ? ai.jobType : [ai.jobType]) : extractJobType(description),
-      experienceRange:  regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description),
-      skills:           (Array.isArray(ai.skills) && ai.skills.length)   ? ai.skills   : (regex.skills?.length ? regex.skills : extractSkills(description)),
-      minSalary:        ai.minSalary        || regex.minSalary        || salary.min,
-      maxSalary:        ai.maxSalary        || regex.maxSalary        || salary.max,
-      currency:         ai.currency         || regex.currency         || salary.currency,
+      jobType,
+      experienceRange:  strictExp(regex.experienceRange || normalizeExperienceRange(ai.experienceRange) || extractExperience(description)),
+      skills:           strictList((Array.isArray(ai.skills) && ai.skills.length) ? ai.skills : (regex.skills?.length ? regex.skills : extractSkills(description))),
+      minSalary:        strictAmount(ai.minSalary    || regex.minSalary    || salary.min),
+      maxSalary:        strictAmount(ai.maxSalary    || regex.maxSalary    || salary.max),
+      currency:         strictEnum(ai.currency       || regex.currency     || salary.currency, CURRENCIES),
       payRate:          salary.payRate,
       payType:          (salary as any).payType,
-      benefits:         (Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description),
-      educationLevel:   ai.educationLevel   || extractEducation(description),
+      benefits:         strictList((Array.isArray(ai.benefits) && ai.benefits.length) ? ai.benefits : extractBenefits(description), 40, 10),
+      educationLevel:   strictShort(ai.educationLevel || extractEducation(description)),
       jobDescription:   description,
       responsibilities: (Array.isArray(ai.responsibilities) && ai.responsibilities.length) ? ai.responsibilities : (regex.responsibilities?.length ? regex.responsibilities : extractResponsibilities(description)),
       requirements:     (Array.isArray(ai.requirements)     && ai.requirements.length)     ? ai.requirements     : extractRequirements(description),
-      goodToHaveSkills: (Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description)),
-      jobCategory:      ai.jobCategory      || extractJobCategory(description),
+      goodToHaveSkills: strictList((Array.isArray(ai.goodToHaveSkills) && ai.goodToHaveSkills.length) ? ai.goodToHaveSkills : (regex.goodToHaveSkills?.length ? regex.goodToHaveSkills : extractGoodToHaveSkills(description))),
+      jobCategory:      strictEnum(ai.jobCategory    || extractJobCategory(description), JOB_CATEGORIES),
       nationality:      ai.nationality      || '',
       priority:         extractPriority(description),
       clientName:       extractClientName(description),
@@ -376,7 +449,7 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
     const metaWords = /^(experience|location|salary|employment|nationality|skills|requirements|responsibilities|about|dear|hi |hello|zyncjobs|connecting)/i;
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     for (let i = 0; i < Math.min(10, lines.length); i++) {
-      const line = lines[i].replace(/^[-*\d+.)\s]+/, '').replace(/[-|].+$/, '').trim();
+      const line = lines[i].replace(/^[-*\d+.)\s]+/, '').replace(/[—–|].+$/, '').trim();
       if (line.length > 3 && line.length < 80 && !metaWords.test(line) && !line.includes('@') && !/^\d+$/.test(line) && !invalidKw.some(k => line.toLowerCase().includes(k))) {
         return line;
       }
@@ -441,7 +514,22 @@ const JobParsingPage: React.FC<JobParsingPageProps> = ({ onNavigate }) => {
       if (withLabel || aloneLine) return city;
     }
 
-    // --- No confident location found â€” return empty string ---
+    // --- No confident location found — return empty string ---
+    return '';
+  };
+
+  const extractCompanyName = (text: string): string => {
+    const label = text.match(/(?:company\s*name|hiring\s+company|company|organization|organisation|employer)\s*[:\-]\s*([^\n\r,]{2,60})/i);
+    if (label?.[1]) {
+      const t = label[1].trim().replace(/[*#_]/g, '');
+      if (t.length > 2 && t.length < 80 && !/http|www|email|apply|preferred|not\s+mandatory/i.test(t)) return t;
+    }
+    const subject = text.match(/^([A-Z][\w&'.\- ]{2,50}?)\s+(?:is|are)\s+(?:hiring|seeking|recruiting|looking\s+for)/im);
+    if (subject?.[1] && !/^(we|our|us|i)\b/i.test(subject[1])) return subject[1].trim();
+    const tagline = text.match(/^([A-Z][\w&'.\- ]{2,40}?)\s*[—–|]\s*[A-Z][^-\n]{2,40}$/m);
+    if (tagline?.[1] && !/developer|engineer|manager|architect|analyst|designer|specialist|consultant|executive|recruiter|agent|officer|accountant|technician/i.test(tagline[1])) return tagline[1].trim();
+    const at = text.match(/(?:at|for)\s+([A-Z][A-Za-z0-9&'.\- ]{2,45}?)(?:[,.;]|\n|$)/);
+    if (at?.[1] && !/^(inc|llc|ltd|pvt|the|a|an)\b/i.test(at[1])) return at[1].trim();
     return '';
   };
 

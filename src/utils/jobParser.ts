@@ -244,15 +244,24 @@ export class JobParser {
       // The subtitle is a project/org description, not a company — skip
     }
 
-    // Priority 3: "Connecting Talent" or org line right after ZYNCJOBS header
-    const orgMatch = cleanText.match(/ZyncJobs.*?\n([A-Z][\w\s&.,]{3,50})(?:\n|$)/i);
-    if (orgMatch) {
-      const candidate = orgMatch[1].trim();
+    // Priority 3: tagline line — "Org — Connecting Talent with Opportunity"
+    const taglineMatch = cleanText.match(/^([A-Z][\w&'.\- ]{2,40}?)\s*[—–]\s*[A-Z][^-\n]{2,40}$/m);
+    if (taglineMatch) {
+      const candidate = taglineMatch[1].trim();
       const isInvalid = this.INVALID_COMPANY_WORDS.some(w => candidate.toLowerCase().includes(w));
       if (!isInvalid && candidate.length > 2 && candidate.length < 50) return candidate;
     }
 
-    // Priority 4: "X is looking/hiring/seeking"
+    // Priority 4: "Connecting Talent" or org line right after ZYNCJOBS header
+    const orgMatch = cleanText.match(/ZyncJobs.*?\n([A-Z][\w\s&.,]{3,50})(?:\n|$)/i);
+    if (orgMatch) {
+      const candidate = orgMatch[1].trim();
+      const looksLikeTitle = /(developer|engineer|manager|designer|analyst|architect|specialist|consultant|executive|recruiter|agent|officer|accountant|technician|nurse|chef|driver|waiter|sales|marketing|lead)\b/i.test(candidate);
+      const isInvalid = this.INVALID_COMPANY_WORDS.some(w => candidate.toLowerCase().includes(w));
+      if (!looksLikeTitle && !isInvalid && candidate.length > 2 && candidate.length < 50) return candidate;
+    }
+
+    // Priority 5: "X is looking/hiring/seeking"
     const seekingMatch = cleanText.match(/([A-Z][a-zA-Z0-9\s&\.\-,']{3,40})\s+(?:is|are)\s+(?:looking|seeking|hiring)/i);
     if (seekingMatch) {
       let company = seekingMatch[1].trim().replace(/[,\.!]+$/, '');
@@ -269,9 +278,16 @@ export class JobParser {
   private static extractJobTitle(text: string, sections: Record<string, string>): string {
     if (sections['job title']) return sections['job title'].split('\n')[0].trim();
 
+    // Section-heading words that must never be treated as a job title
+    const sectionWordRe = /overview|responsibilit|qualification|requirement|skill|benefit|apply|about|experience|location|salary|education|summary|interview|process|duties|eligibilit|job\s+description/i;
+
+    // After cleanText strips ##, the title is a line near the top
+    for (const line of text.split('\n').slice(0, 8)) {
+      const t = line.trim();
+      if (/^[A-Z][A-Za-z\s\/\-&,]{2,60}$/.test(t) && !sectionWordRe.test(t)) return t;
+    }
+
     const patterns = [
-      // After cleanText strips ##, the title becomes the first non-empty uppercase line
-      /^([A-Z][A-Za-z\s\/\-&,]{2,60})$/m,
       /Job Title\s*:?\s*([\s\S]*?)(?=Work Location|Company|Experience|$)/i,
       /(?:job\s+title|position|role)\s*[:\-]\s*([^\n\r]+)/i
     ];

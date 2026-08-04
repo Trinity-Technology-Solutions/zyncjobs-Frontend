@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_ENDPOINTS } from '../config/constants';
 import { Bell, Plus, Edit, Trash2, Mail, Smartphone } from 'lucide-react';
+import AutocompleteCombobox from './AutocompleteCombobox';
 
 interface JobAlert {
   _id: string;
@@ -496,15 +497,17 @@ const JobAlertsManager: React.FC<JobAlertsManagerProps> = ({ user }) => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Frequency
                 </label>
-                <select
+                <AutocompleteCombobox
+                  label="Frequency"
                   value={formData.frequency}
-                  onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value as any }))}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="instant">Instant</option>
-                  <option value="daily">Daily</option>
-                  <option value="weekly">Weekly</option>
-                </select>
+                  onChange={(val) => setFormData(prev => ({ ...prev, frequency: val as any }))}
+                  options={[
+                    { value: 'instant', label: 'Instant' },
+                    { value: 'daily', label: 'Daily' },
+                    { value: 'weekly', label: 'Weekly' },
+                  ]}
+                  placeholder="Select frequency"
+                />
               </div>
             </div>
 

@@ -4,6 +4,7 @@
  * Used by CandidateDashboardPage to render profile data cleanly.
  */
 import React from "react";
+import AutocompleteCombobox from "./AutocompleteCombobox";
 
 // ─── Shared helpers ──────────────────────────────────────────────────────────
 
@@ -161,32 +162,28 @@ export const MonthYearPicker: React.FC<MonthYearProps> = ({
 }) => (
   <div>
     <div className="grid grid-cols-2 gap-3">
-      <select
+      <AutocompleteCombobox
+        label="Month"
         value={monthValue}
-        onChange={(e) => onMonthChange(e.target.value)}
+        onChange={onMonthChange}
+        options={[
+          { value: '', label: 'Month' },
+          ...MONTH_OPTIONS.map((m) => ({ value: m, label: m })),
+        ]}
+        placeholder="Month"
         disabled={disabled}
-        className={`p-3 border rounded-lg text-sm ${error ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 text-gray-400" : ""}`}
-      >
-        <option value="">Month</option>
-        {MONTH_OPTIONS.map((m) => (
-          <option key={m} value={m}>
-            {m}
-          </option>
-        ))}
-      </select>
-      <select
+      />
+      <AutocompleteCombobox
+        label="Year"
         value={yearValue}
-        onChange={(e) => onYearChange(e.target.value)}
+        onChange={onYearChange}
+        options={[
+          { value: '', label: 'Year' },
+          ...YEAR_OPTIONS.map((y) => ({ value: String(y), label: String(y) })),
+        ]}
+        placeholder="Year"
         disabled={disabled}
-        className={`p-3 border rounded-lg text-sm ${error ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 text-gray-400" : ""}`}
-      >
-        <option value="">Year</option>
-        {YEAR_OPTIONS.map((y) => (
-          <option key={y} value={String(y)}>
-            {y}
-          </option>
-        ))}
-      </select>
+      />
     </div>
     {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
   </div>
@@ -206,19 +203,17 @@ export const YearSelect: React.FC<YearSelectProps> = ({
   disabled,
 }) => (
   <div>
-    <select
+    <AutocompleteCombobox
+      label="Year"
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={onChange}
+      options={[
+        { value: '', label: 'Select Year' },
+        ...YEAR_OPTIONS.map((y) => ({ value: String(y), label: String(y) })),
+      ]}
+      placeholder="Select Year"
       disabled={disabled}
-      className={`w-full p-3 border rounded-lg text-sm ${error ? "border-red-400" : "border-gray-300"} ${disabled ? "bg-gray-50 text-gray-400" : ""}`}
-    >
-      <option value="">Select Year</option>
-      {YEAR_OPTIONS.map((y) => (
-        <option key={y} value={String(y)}>
-          {y}
-        </option>
-      ))}
-    </select>
+    />
     {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
   </div>
 );

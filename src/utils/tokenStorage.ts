@@ -16,9 +16,12 @@ export const tokenStorage = {
     sessionStorage.setItem(ACCESS_KEY, token);
   },
 
-  // Refresh token — localStorage (long-lived, 7-30 days)
-  getRefresh: () => localStorage.getItem(REFRESH_KEY),
-  setRefresh: (token: string) => localStorage.setItem(REFRESH_KEY, token),
+  // Refresh token — localStorage (long-lived) + sessionStorage mirror
+  getRefresh: () => localStorage.getItem(REFRESH_KEY) || sessionStorage.getItem(REFRESH_KEY),
+  setRefresh: (token: string) => {
+    localStorage.setItem(REFRESH_KEY, token);
+    sessionStorage.setItem(REFRESH_KEY, token);
+  },
 
   // Admin token — sessionStorage only (admin sessions end on tab close)
   getAdmin: () => sessionStorage.getItem(ADMIN_KEY),

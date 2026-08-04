@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import CompanyLogo from '../components/CompanyLogo';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import EmptyState from '../components/EmptyState';
 import ApplicationTimeline from '../components/ApplicationTimeline';
 import Notification from '../components/Notification';
@@ -745,21 +746,22 @@ const MyApplicationsPage: React.FC<MyApplicationsPageProps> = ({ onNavigate, use
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Reason for withdrawal *
               </label>
-              <select
+              <AutocompleteCombobox
                 value={withdrawalReason}
-                onChange={(e) => setWithdrawalReason(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(val) => setWithdrawalReason(val)}
+                options={[
+                  { value: 'Found another opportunity', label: 'Found another opportunity' },
+                  { value: 'No longer interested', label: 'No longer interested' },
+                  { value: 'Company concerns', label: 'Company concerns' },
+                  { value: 'Salary expectations not met', label: 'Salary expectations not met' },
+                  { value: 'Location issues', label: 'Location issues' },
+                  { value: 'Personal reasons', label: 'Personal reasons' },
+                  { value: 'Other', label: 'Other' },
+                ]}
+                placeholder="Select a reason"
                 required
-              >
-                <option value="">Select a reason</option>
-                <option value="Found another opportunity">Found another opportunity</option>
-                <option value="No longer interested">No longer interested</option>
-                <option value="Company concerns">Company concerns</option>
-                <option value="Salary expectations not met">Salary expectations not met</option>
-                <option value="Location issues">Location issues</option>
-                <option value="Personal reasons">Personal reasons</option>
-                <option value="Other">Other</option>
-              </select>
+                className="w-full"
+              />
             </div>
             
             <div className="flex space-x-3">

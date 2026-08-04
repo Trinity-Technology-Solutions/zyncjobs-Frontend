@@ -384,9 +384,6 @@ export const useResumeStore = create<ResumeStore>()(
           }
           return s;
         }),
-
-      canUndo: false,
-      canRedo: false,
     }),
     {
       name: 'zyncjobs-resume-builder',

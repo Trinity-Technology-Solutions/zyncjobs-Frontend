@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Sparkles, Loader2, Copy, Check } from 'lucide-react';
 import { useResumeStore } from '../../store/useResumeStore';
 import { executeResumeAI } from '../../services/resumeAIClient';
+import AutocompleteCombobox from '../AutocompleteCombobox';
 
 interface Props {
   selectedJob?: any;
@@ -108,16 +109,17 @@ export default function CoverLetterStep({ selectedJob }: Props) {
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">Tone</label>
-          <select
+          <AutocompleteCombobox
+            label="Tone"
             value={tone}
-            onChange={(e) => { setTone(e.target.value as any); persist({ tone: e.target.value }); }}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="professional">Professional</option>
-            <option value="enthusiastic">Enthusiastic</option>
-            <option value="concise">Concise</option>
-          </select>
+            onChange={(val) => { setTone(val as any); persist({ tone: val }); }}
+            options={[
+              { value: 'professional', label: 'Professional' },
+              { value: 'enthusiastic', label: 'Enthusiastic' },
+              { value: 'concise', label: 'Concise' },
+            ]}
+            placeholder="Select tone"
+          />
         </div>
       </div>
 

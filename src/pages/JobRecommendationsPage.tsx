@@ -4,6 +4,7 @@ import { MatchBreakdownModal } from '../components/match/MatchBreakdownModal';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
@@ -257,14 +258,16 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500 whitespace-nowrap">Sort by:</span>
-              <select
+              <AutocompleteCombobox
                 value={sortBy}
-                onChange={e => setSortBy(e.target.value as any)}
-                className="border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="match">Best Match</option>
-                <option value="recent">Most Recent</option>
-              </select>
+                onChange={(val) => setSortBy(val as any)}
+                options={[
+                  { value: 'match', label: 'Best Match' },
+                  { value: 'recent', label: 'Most Recent' },
+                ]}
+                placeholder="Sort by"
+                className="w-40"
+              />
             </div>
             <div className="text-sm text-gray-500 flex items-center whitespace-nowrap">
               <span className="font-semibold text-gray-800">{filtered.length}</span>&nbsp;results

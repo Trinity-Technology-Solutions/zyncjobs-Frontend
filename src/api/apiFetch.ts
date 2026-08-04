@@ -31,6 +31,8 @@ async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = tokenStorage.getRefresh();
   if (!refreshToken) {
     console.warn('No refresh token available for token refresh');
+    tokenStorage.clear();
+    window.dispatchEvent(new CustomEvent('zync:logout'));
     return null;
   }
 
@@ -40,6 +42,7 @@ async function refreshAccessToken(): Promise<string | null> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
+      credentials: 'include',
     });
 
     if (!res.ok) {

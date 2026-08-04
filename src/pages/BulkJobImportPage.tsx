@@ -7,7 +7,9 @@ import Footer from '../components/Footer';
 import { API_ENDPOINTS, NOTICE_PERIOD_OPTIONS } from '../config/constants';
 import { apiFetch } from '../api/apiFetch';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
-import { generatePositionId } from '../utils/jobMigrationUtils';
+  import { generatePositionId } from '../utils/jobMigrationUtils';
+  import { generateJD, generateLocalJD } from '../utils/jdGenerator';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { sendAIMessage } from '../services/aiChatService';
 
 interface Props {
@@ -69,21 +71,69 @@ function extractSkills(text: string): string[] {
   return Array.from(found).slice(0, 12);
 }
 
+const TITLE_RE = /^(?:senior|junior|sr\.?|jr\.?|lead|principal|chief|head|staff|assistant|associate|graduate|experienced|entry[- ]level|mid[- ]level)?\s*[A-Z][\w'\-& ,.]{2,50}?\s+(?:developer|engineer|manager|designer|analyst|accountant|nurse|technician|consultant|specialist|executive|representative|coordinator|supervisor|director|architect|officer|operator|clerk|mechanic|electrician|plumber|welder|driver|chef|cook|waiter|barista|security|housekeeper|cleaner|carpenter|worker|helper|attendant|agent|advisor|trainer|coach|editor|writer|reporter|photographer|librarian|pharmacist|therapist|counselor|doctor|physician|dentist|surgeon|researcher|scientist|technologist|administrator|trainee|intern|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data|qa|quality|ui|ux|graphic|content|hr|finance|account|business|operations|logistics|procurement|purchase|warehouse|safety|hse|sales|marketing)$/i;
+
+const TITLE_FILLER_RE = /^(?:experienced|innovative|passionate|motivated|talented|skilled|highly|strong|dynamic|creative|dedicated|self[- ]motivated|proactive|accomplished|seasoned|results[- ]driven|expert|exceptional|energetic|enthusiastic|ambitious|qualified|reliable|professional|detail[- ]oriented|customer[- ]focused|technical|strategic|hands[- ]on)\s+/i;
+
+const SENTENCE_RE = /(we\s+(?:are|'re)|looking\s+for|is\s+(?:seeking|hiring)|are\s+(?:seeking|hiring)|join\s+our|our\s+team|currently\s+(?:hiring|seeking))/i;
+const MARKER_RE = /^(?:job|position|role|opening|vacancy|jd|posting|requirement)[\s#\-.:]*\d+/i;
+const HEADER_RE = /^(?:job title|position title|title|company|organization|employer)\s*:/i;
+const NUMBERED_RE = /^\d+\s*[.)\-:]\s+[A-Z]/;
+const SEPARATOR_LINE_RE = /^\s*(?:-{3,}|={3,}|\*{3,}|~{3,}|_{3,}|…{3,})\s*$/;
+
+function stripMarkdown(s: string): string {
+  return s
+    .replace(/^\s*#+\s*/, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/^\s*\*\s+/, '')
+    .trim();
+}
+
+function normalizeText(text: string): string {
+  return text
+    .split('\n')
+    .map(l => (SEPARATOR_LINE_RE.test(l) ? '' : l))
+    .join('\n')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/^#+\s*/gm, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function cleanTitle(raw: string): string {
+  let t = raw.trim().replace(/[*#_]/g, '').replace(/\s+/g, ' ');
+  for (let i = 0; i < 5 && TITLE_FILLER_RE.test(t); i++) t = t.replace(TITLE_FILLER_RE, '');
+  return t;
+}
+
 function extractJobTitle(text: string): string {
-  const patterns = [
-    /(?:job\s+title|position|role|vacancy|opening)\s*[:\-]\s*([^\n\r]{3,60})/i,
-    /(?:hiring|seeking|looking\s+for)\s+(?:a|an)?\s*([^\n\r,]{3,60}?)(?:\s+to|\s+for|\.|,|$)/i,
-    /^([^\n\r]{5,60}?)(?:\s+at\s+|\s+[-–]\s+|\s*\|)/im,
-  ];
-  for (const p of patterns) {
-    const m = text.match(p);
-    if (m?.[1]) {
-      const t = m[1].trim().replace(/[*#_]/g, '').replace(/\s+/g, ' ');
-      if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
-    }
+  const norm = normalizeText(text);
+  const lines = norm.split('\n').map(l => l.trim()).filter(l => l.length > 3 && l.length < 80).slice(0, 12);
+  const firstLine = lines[0] || '';
+
+  const labeled = norm.match(/(?:job\s+title|position|role|vacancy|opening)\s*[:\-]\s*([^\n\r]{3,60})/i);
+  if (labeled?.[1]) {
+    const t = cleanTitle(labeled[1]);
+    if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
   }
-  const firstLine = text.split('\n').find(l => l.trim().length > 3 && l.trim().length < 80);
-  return firstLine?.trim() || 'Untitled Position';
+
+  for (const line of lines) {
+    if (TITLE_RE.test(line) && !SENTENCE_RE.test(line)) return line;
+  }
+
+  const seeking = norm.match(/(?:hiring|seeking|looking\s+for)\s+(?:a|an)\s+([^\n\r,]{3,60}?)(?:\s+to|\s+for|\.|,|\n|$)/i);
+  if (seeking?.[1]) {
+    const t = cleanTitle(seeking[1]);
+    if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
+  }
+
+  const at = norm.match(/^([^\n\r]{5,60}?)(?:\s+at\s+|\s+[-–]\s+|\s*\|)/im);
+  if (at?.[1]) {
+    const t = cleanTitle(at[1]);
+    if (t.length > 3 && t.length < 80 && !/http|www|email|apply/i.test(t)) return t;
+  }
+
+  return firstLine || 'Untitled Position';
 }
 
 function extractLocation(text: string): string {
@@ -96,6 +146,21 @@ function extractLocation(text: string): string {
     if (new RegExp(`\\b${c}\\b`, 'i').test(text)) return c;
   }
   if (/remote|wfh|work\s+from\s+home/i.test(text)) return 'Remote';
+  return '';
+}
+
+function extractCompanyName(text: string): string {
+  const label = text.match(/(?:company\s*name|hiring\s+company|company|organization|organisation|employer)\s*[:\-]\s*([^\n\r,]{2,60})/i);
+  if (label?.[1]) {
+    const t = label[1].trim().replace(/[*#_]/g, '');
+    if (t.length > 2 && t.length < 80 && !/http|www|email|apply|preferred|not\s+mandatory/i.test(t)) return t;
+  }
+  const subject = text.match(/^([A-Z][\w&'.\- ]{2,50}?)\s+(?:is|are)\s+(?:hiring|seeking|recruiting|looking\s+for)/im);
+  if (subject?.[1] && !/^(we|our|us|i)\b/i.test(subject[1])) return subject[1].trim();
+  const tagline = text.match(/^([A-Z][\w&'.\- ]{2,40}?)\s*[—–|]\s*[A-Z][^-\n]{2,40}$/m);
+  if (tagline?.[1] && !/developer|engineer|manager|architect|analyst|designer|specialist|consultant|executive|recruiter|agent|officer|analyst|accountant|technician/i.test(tagline[1])) return tagline[1].trim();
+  const at = text.match(/(?:at|for)\s+([A-Z][A-Za-z0-9&'.\- ]{2,45}?)(?:[,.;]|\n|$)/);
+  if (at?.[1] && !/^(inc|llc|ltd|pvt|the|a|an)\b/i.test(at[1])) return at[1].trim();
   return '';
 }
 
@@ -167,16 +232,17 @@ function validateJob(job: ParsedJob): string[] {
 
 // ── Parse plain text into a ParsedJob ─────────────────────────────────
 function parseTextToJob(text: string, fileName: string): ParsedJob {
-  const salary = extractSalary(text);
+  const norm = normalizeText(text);
+  const salary = extractSalary(norm);
   const job: ParsedJob = {
     id: `job-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     fileName,
-    jobTitle: extractJobTitle(text),
-    companyName: '',
-    jobLocation: extractLocation(text),
-    experienceRange: extractExperience(text),
-    skills: extractSkills(text),
-    jobType: extractJobType(text),
+    jobTitle: extractJobTitle(norm),
+    companyName: extractCompanyName(norm),
+    jobLocation: extractLocation(norm),
+    experienceRange: extractExperience(norm),
+    skills: extractSkills(norm),
+    jobType: extractJobType(norm),
     jobDescription: text.slice(0, 2000),
     minSalary: salary.min,
     maxSalary: salary.max,
@@ -197,7 +263,7 @@ function parseTextToJob(text: string, fileName: string): ParsedJob {
 // ── AI enhancement for a single job ───────────────────────────────────
 async function aiEnhanceJob(raw: string): Promise<Partial<ParsedJob>> {
   const prompt = `Extract job details from this job description. Return ONLY valid JSON:
-{"jobTitle":"","jobLocation":"","experienceRange":"","skills":[],"jobType":"Full-time","jobCategory":"","noticePeriod":"","minSalary":"","maxSalary":""}
+{"jobTitle":"","companyName":"","jobLocation":"","experienceRange":"","skills":[],"jobType":"Full-time","jobCategory":"","noticePeriod":"","minSalary":"","maxSalary":""}
 
 Job Description:
 ${raw.slice(0, 1500)}`;
@@ -265,45 +331,95 @@ function parseCSV(text: string): ParsedJob[] {
 }
 
 // ── Split pasted multi-JD text ─────────────────────────────────────────
+function hasRoleLine(text: string): boolean {
+  return text.split('\n').some(l => {
+    const t = l.trim();
+    return (TITLE_RE.test(t) && !SENTENCE_RE.test(t)) || /(?:hiring|looking\s+for|seeking)\s+(?:a|an)\b/i.test(t);
+  });
+}
+
+function isContinuation(block: string, prev: string, afterSeparator: boolean): boolean {
+  const firstLine = stripMarkdown(block.split('\n')[0]).toLowerCase();
+  if (!firstLine) return true;
+  const prevHasTitle = hasRoleLine(prev);
+  const titleLike = TITLE_RE.test(firstLine) && !SENTENCE_RE.test(firstLine);
+  const metaStart = /^(about|overview|responsibilities|requirements|qualifications|skills|benefits|role|summary|what we offer|key responsibilities|must have|nice to have|how to apply|zyncjobs|connecting|description|job description|experience|education|salary|location|company|the role|the company|the ideal candidate)/.test(firstLine);
+  // Explicit markers (Job 2:, JD 3:, "2. Title") always start a new JD
+  if (MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block)) return false;
+  // After an explicit separator (---), the fragment is a NEW JD unless it is
+  // clearly an internal section (About/Responsibilities...) or the JD's own
+  // title block appearing right after a header fragment.
+  if (afterSeparator) {
+    if (metaStart && prevHasTitle) return true;
+    if (titleLike && !prevHasTitle) return true;
+    return false;
+  }
+  // Title-like start after a JD that already has a role line => new JD
+  if (titleLike && prevHasTitle) return false;
+  // Hiring sentence start ("We are looking for a ...") => new JD boundary
+  if (prevHasTitle && SENTENCE_RE.test(firstLine) && /(hiring|looking|seeking|join|opportunity|vacanc|opening|need|require)/i.test(firstLine) && block.length > 150) return false;
+  // Meta/heading sections (About, Responsibilities, ...) => continuation
+  if (prevHasTitle && metaStart) return true;
+  // Short non-title fragments after a titled JD => continuation
+  if (block.length <= 300 && !titleLike && prevHasTitle) return true;
+  return false;
+}
+
 function splitPastedJDs(text: string): string[] {
-  // 1. Split on explicit separators (---, ===, ***, ~~~, ...)
-  const sepParts = text
-    .split(/\n\s*(?:-{3,}|={3,}|\*{3,}|~{3,}|…{3,})\s*\n/g)
-    .map(p => p.trim())
-    .filter(Boolean);
+  // Phase 1 — split at explicit separator lines (---, ===, ***, ~~~, ___ on
+  // their own line): the paste box tells users to separate JDs with ---.
+  const segments: { text: string; afterSep: boolean }[] = [];
+  let cur: string[] = [];
+  let afterSep = false;
+  for (const line of text.split('\n')) {
+    if (SEPARATOR_LINE_RE.test(line)) {
+      if (cur.length) segments.push({ text: normalizeText(cur.join('\n')), afterSep });
+      cur = [];
+      afterSep = true;
+      continue;
+    }
+    cur.push(line);
+  }
+  if (cur.length) segments.push({ text: normalizeText(cur.join('\n')), afterSep });
 
-  const TITLE_RE = /^(?:senior|junior|sr\.?|jr\.?|lead|principal|chief|head|staff|assistant|associate|graduate|experienced|entry[- ]level|mid[- ]level)?\s*[A-Z][\w'\-& ,.]{2,50}?\s+(?:developer|engineer|manager|designer|analyst|accountant|nurse|technician|consultant|specialist|executive|representative|coordinator|supervisor|director|architect|officer|operator|clerk|mechanic|electrician|plumber|welder|driver|chef|cook|waiter|barista|security|housekeeper|cleaner|carpenter|worker|helper|attendant|agent|advisor|trainer|coach|editor|writer|reporter|photographer|librarian|pharmacist|therapist|counselor|doctor|physician|dentist|surgeon|researcher|scientist|technologist|administrator|trainee|intern|fullstack|full-stack|frontend|front-end|backend|back-end|devops|data|qa|quality|ui|ux|graphic|content|hr|finance|account|business|operations|logistics|procurement|purchase|warehouse|safety|hse|sales|marketing)$/i;
-  const SENTENCE_RE = /(we\s+(?:are|'re)|looking\s+for|is\s+(?:seeking|hiring)|are\s+(?:seeking|hiring)|join\s+our|our\s+team|currently\s+(?:hiring|seeking))/i;
-  const MARKER_RE = /^(?:job|position|role|opening|vacancy|jd|posting|requirement)[\s#\-.:]*\d+/i;
-  const HEADER_RE = /^(?:job title|position title|title|company|organization|employer)\s*:/i;
-  const NUMBERED_RE = /^\d+\s*[.)\-:]\s+[A-Z]/;
-
+  // Phase 2 — merge fragments that are continuations of the previous JD
+  // (e.g. --- used as a markdown rule INSIDE a single JD, or About/Requirements sections)
   const groups: string[] = [];
-  for (const part of sepParts) {
-    // 2. Within each separator part, split into blocks on blank lines
-    const blocks = part.split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+  for (const seg of segments) {
+    if (!seg.text) continue;
+    const last = groups[groups.length - 1];
+    if (last && isContinuation(seg.text, last, seg.afterSep)) {
+      groups[groups.length - 1] = last + '\n\n' + seg.text;
+    } else {
+      groups.push(seg.text);
+    }
+  }
+
+  // Phase 3 — drop fragments that are not real JDs; if separators were never
+  // used, split back-to-back JDs inside the single remaining segment.
+  let parts = groups.filter(g => g.length > 50 && hasRoleLine(g));
+  if (parts.length === 1) {
+    const blocks = parts[0].split(/\n\s*\n+/).map(b => b.trim()).filter(Boolean);
+    const inner: string[] = [];
     let current = '';
     for (const block of blocks) {
-      // 3. A block starts a NEW JD if it looks like a title line or explicit marker
-      const firstLine = block.split('\n')[0].trim();
-      const titleLike =
-        firstLine.length <= 140 &&
-        firstLine.split(/\s+/).length <= 10 &&
-        !SENTENCE_RE.test(firstLine) &&
-        TITLE_RE.test(firstLine);
-      const isStart =
-        MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block) || titleLike;
-      if (isStart && current) {
-        groups.push(current.trim());
+      const firstLine = stripMarkdown(block.split('\n')[0].trim());
+      const titleLike = firstLine.length <= 140 && firstLine.split(/\s+/).length <= 10 && !SENTENCE_RE.test(firstLine) && TITLE_RE.test(firstLine);
+      const hiringLike = SENTENCE_RE.test(firstLine) && /(hiring|looking|seeking|join|opportunity|vacanc|opening|need|require)/i.test(firstLine) && block.length > 150;
+      const isStart = MARKER_RE.test(block) || HEADER_RE.test(block) || NUMBERED_RE.test(block) || titleLike || hiringLike;
+      const currentHasTitle = current ? hasRoleLine(current) : false;
+      if (isStart && current && currentHasTitle) {
+        inner.push(current.trim());
         current = block;
       } else {
         current += (current ? '\n\n' : '') + block;
       }
     }
-    if (current) groups.push(current.trim());
+    if (current) inner.push(current.trim());
+    const innerParts = inner.filter(g => g.length > 50);
+    if (innerParts.length > 1) parts = innerParts;
   }
 
-  const parts = groups.filter(p => p.length > 50);
   return parts.length > 1 ? parts : [text];
 }
 
@@ -335,6 +451,8 @@ function titleSimilarity(a: string, b: string): number {
 
 // ── Candidate count estimate ──────────────────────────────────────────
 async function fetchCandidateCount(skills: string[], title: string): Promise<number> {
+  // No skills extracted → 0 matches (never count ALL candidates)
+  if (!Array.isArray(skills) || skills.length === 0) return 0;
   try {
     const base = import.meta.env.VITE_API_URL || '/api';
     const skillParam = skills.slice(0, 5).join(',');
@@ -509,8 +627,8 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     setParsingLabel('Done!');
     setTimeout(() => {
       setJobs(prev => {
-        const existingIds = new Set(prev.map(j => j.fileName + j.jobTitle));
-        const newJobs = parsed.filter(j => !existingIds.has(j.fileName + j.jobTitle));
+        const existingIds = new Set(prev.map(j => j.jobTitle + j.companyName + j.jobLocation));
+        const newJobs = parsed.filter(j => !existingIds.has(j.jobTitle + j.companyName + j.jobLocation));
         return [...prev, ...newJobs];
       });
       setStep('preview');
@@ -531,6 +649,7 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
       const ai = await aiEnhanceJob(job.raw);
       Object.assign(job, {
         jobTitle: ai.jobTitle || job.jobTitle,
+        companyName: ai.companyName || job.companyName,
         jobLocation: ai.jobLocation || job.jobLocation,
         experienceRange: ai.experienceRange || job.experienceRange,
         skills: (ai.skills && (ai.skills as string[]).length > 0) ? ai.skills : job.skills,
@@ -545,8 +664,8 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
     setParsingProgress(100);
     setTimeout(() => {
       setJobs(prev => {
-        const existingIds = new Set(prev.map(j => j.fileName + j.jobTitle));
-        const newJobs = parsed.filter(j => !existingIds.has(j.fileName + j.jobTitle));
+        const existingIds = new Set(prev.map(j => j.jobTitle + j.companyName + j.jobLocation));
+        const newJobs = parsed.filter(j => !existingIds.has(j.jobTitle + j.companyName + j.jobLocation));
         return [...prev, ...newJobs];
       });
       setStep('preview');
@@ -634,32 +753,41 @@ export default function BulkJobImportPage({ onNavigate, user }: Props) {
       ? desc.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
       : '';
     if (cleanDesc && cleanDesc.length > 300) return cleanDesc;
-    // Generate a structured JD from available fields
-    const skills = job.skills.length > 0 ? job.skills.join(', ') : 'relevant technologies';
-    const loc = job.jobLocation ? ` in ${job.jobLocation}` : '';
-    const exp = job.experienceRange ? `${job.experienceRange} of experience` : '2+ years of experience';
-    return `Job Summary
-We are looking for a talented ${job.jobTitle} to join ${companyName}${loc}. This is a ${job.jobType} position.
+    // Same rich JD template as manual posting (AI-first generation happens in ensureJobDescriptions)
+    return generateLocalJD(job.jobTitle, companyName, job.jobLocation || '', {
+      jobType: job.jobType || 'Full-time',
+      skills: job.skills,
+      educationLevel: "Bachelor's degree",
+      benefits: [],
+      salary: (job.minSalary && job.maxSalary) ? `${job.currency || 'INR'} ${job.minSalary} - ${job.maxSalary}` : undefined,
+    });
+  };
 
-Key Responsibilities
-\u2022 Design, develop and maintain high-quality solutions as a ${job.jobTitle}
-\u2022 Collaborate with cross-functional teams to deliver impactful results
-\u2022 Write clean, well-documented code following best practices
-\u2022 Participate in code reviews and contribute to continuous improvement
-
-Requirements
-\u2022 ${exp} in a relevant role
-\u2022 Strong proficiency in: ${skills}
-\u2022 Excellent communication and problem-solving skills
-\u2022 Ability to work independently and as part of a team
-
-What We Offer
-\u2022 Competitive compensation package
-\u2022 Professional growth and learning opportunities
-\u2022 Collaborative and inclusive work culture
-\u2022 Flexible working arrangements
-
-${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
+  // Same JD generation as manual posting: AI first, rich local template only if AI fails
+  const ensureJobDescriptions = async (toPublish: ParsedJob[], defaultCompany: string) => {
+    const updated: Record<string, string> = {};
+    for (const job of toPublish) {
+      const desc = job.jobDescription?.trim() || '';
+      const clean = desc
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+      if (clean.length > 300) continue;
+      try {
+        const companyName = job.companyName || defaultCompany || 'Company';
+        const jd = await generateJD(job.jobTitle, companyName, job.jobLocation || '', {
+          jobType: job.jobType || 'Full-time',
+          skills: job.skills,
+          educationLevel: "Bachelor's degree",
+          benefits: [],
+          salary: (job.minSalary && job.maxSalary) ? `${job.currency || 'INR'} ${job.minSalary} - ${job.maxSalary}` : undefined,
+        });
+        if (jd && jd.length > 100) updated[job.id] = jd;
+      } catch { /* keep existing description */ }
+      await new Promise(r => setTimeout(r, 200));
+    }
+    if (Object.keys(updated).length > 0) {
+      setJobs(prev => prev.map(j => updated[j.id] ? { ...j, jobDescription: updated[j.id] } : j));
+    }
+    return updated;
   };
 
   const publishJobs = async () => {
@@ -674,6 +802,10 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
 
     // Mark all as publishing
     setJobs(prev => prev.map(j => toPublish.find(p => p.id === j.id) ? { ...j, status: 'publishing' } : j));
+
+    // Generate missing/short JDs the same way as manual posting (AI first, local fallback)
+    const generated = await ensureJobDescriptions(toPublish, defaultCompany);
+    toPublish.forEach(job => { if (generated[job.id]) job.jobDescription = generated[job.id]; });
 
     const jobsPayload = toPublish.map(job => {
       const companyName = job.companyName || defaultCompany || 'Company';
@@ -784,6 +916,17 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
         document.body
       )}
 
+      {/* Hidden file input — always mounted so "+ Add More" can open the
+          picker directly from the preview without leaving the list */}
+      <input
+        ref={fileRef}
+        type="file"
+        multiple
+        accept=".csv"
+        className="hidden"
+        onChange={e => e.target.files && processFiles(e.target.files)}
+      />
+
       {/* Site Header */}
       <Header onNavigate={onNavigate} user={user} />
 
@@ -830,6 +973,25 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
               <p className="text-gray-500 mt-1 text-sm">Upload a CSV file — or paste multiple JDs below</p>
             </div>
 
+            {/* Existing parsed jobs notice (visible when coming back via "Add More") */}
+            {jobs.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-blue-200 rounded-2xl px-5 py-4">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                  <span>
+                    <span className="font-semibold text-gray-900">{jobs.length} job{jobs.length !== 1 ? 's' : ''}</span> already parsed
+                    — new uploads will be merged with the existing list
+                  </span>
+                </div>
+                <button
+                  onClick={() => setStep('preview')}
+                  className="text-xs font-medium text-blue-700 border border-blue-200 bg-blue-50 px-3 py-2 rounded-lg hover:bg-blue-100 transition-colors whitespace-nowrap"
+                >
+                  Back to Preview
+                </button>
+              </div>
+            )}
+
             {/* Drop zone */}
             <div
               onDrop={onDrop}
@@ -838,14 +1000,6 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
               onClick={() => fileRef.current?.click()}
               className={`relative border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all ${dragOver ? 'border-blue-500 bg-blue-50 scale-[1.01]' : 'border-gray-300 bg-white hover:border-blue-400 hover:bg-blue-50/30'}`}
             >
-              <input
-                ref={fileRef}
-                type="file"
-                multiple
-                accept=".csv"
-                className="hidden"
-                onChange={e => e.target.files && processFiles(e.target.files)}
-              />
               <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Upload className="w-7 h-7 text-blue-600" />
               </div>
@@ -945,13 +1099,13 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                   </span>
                 )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer select-none border border-gray-200 rounded-lg px-3 h-9 hover:bg-gray-50 transition-colors">
                   <input type="checkbox" checked={jobs.every(j => j.selected)} onChange={e => setJobs(prev => prev.map(j => ({ ...j, selected: e.target.checked })))} className="rounded" />
                   Select all
                 </label>
                 <button
-                  onClick={() => setStep('upload')}
+                  onClick={() => fileRef.current?.click()}
                   className="h-9 text-xs font-medium text-gray-600 border border-gray-200 px-3 rounded-lg hover:bg-gray-50 transition-colors whitespace-nowrap"
                 >
                   + Add More
@@ -1250,28 +1404,22 @@ ${cleanDesc ? `Additional Details\n${cleanDesc}` : ''}`.trim();
                 </div>
               ))}
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Job Type</label>
-                <select
+                <AutocompleteCombobox
+                  label="Job Type"
                   value={editingJob.jobType}
-                  onChange={e => setEditingJob(prev => prev ? { ...prev, jobType: e.target.value } : null)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  {['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship', 'Temporary'].map(t => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setEditingJob(prev => prev ? { ...prev, jobType: val } : null)}
+                  options={['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship', 'Temporary'].map(t => ({ value: t, label: t }))}
+                  placeholder="Select job type"
+                />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Job Category</label>
-                <select
+                <AutocompleteCombobox
+                  label="Job Category"
                   value={editingJob.jobCategory}
-                  onChange={e => setEditingJob(prev => prev ? { ...prev, jobCategory: e.target.value } : null)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  {['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Legal','Manufacturing','Retail','Construction','Hospitality & Tourism','Media & Communications','Logistics & Supply Chain','Real Estate','Oil & Gas','Telecom','Banking & Insurance','Other'].map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
+                  onChange={(val) => setEditingJob(prev => prev ? { ...prev, jobCategory: val } : null)}
+                  options={['Information Technology','Software Development','Data Science & Analytics','Sales & Marketing','Finance & Accounting','Human Resources','Operations','Customer Service','Healthcare','Engineering','Education','Legal','Manufacturing','Retail','Construction','Hospitality & Tourism','Media & Communications','Logistics & Supply Chain','Real Estate','Oil & Gas','Telecom','Banking & Insurance','Other'].map(c => ({ value: c, label: c }))}
+                  placeholder="Select category"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Notice Period</label>
