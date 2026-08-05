@@ -1003,22 +1003,32 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                         </div>
                       )}
                     </>
-                  ) : (
-                    <div className="text-center py-16">
-                      <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Posted Jobs Yet</h3>
-                      <p className="text-gray-500 mb-6">
-                        Start posting jobs to attract top talent to your company.
-                      </p>
-                      <button
-                        onClick={() => onNavigate('job-posting-selection')}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 mx-auto transition-colors"
-                      >
-                        <span>Post Your First Job</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
+                    ) : (
+                      user?.teamRole === 'Viewer' ? (
+                        <div className="text-center py-16">
+                          <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Posted Jobs</h3>
+                          <p className="text-gray-500 mb-6">
+                            You have view-only access. Only recruiters with posting permissions can create and manage jobs.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-center py-16">
+                          <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">No Posted Jobs Yet</h3>
+                          <p className="text-gray-500 mb-6">
+                            Start posting jobs to attract top talent to your company.
+                          </p>
+                          <button
+                            onClick={() => onNavigate('job-posting-selection')}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium flex items-center space-x-2 mx-auto transition-colors"
+                          >
+                            <span>Post Your First Job</span>
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )
+                    )}
                 </>
               )}
 
@@ -1093,13 +1103,23 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
                     )}
                     </>
                   ) : (
-                    <div className="text-center py-16">
-                      <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications Yet</h3>
-                      <p className="text-gray-500 mb-6">
-                        Applications will appear here when candidates apply to your jobs.
-                      </p>
-                    </div>
+                    user?.teamRole === 'Viewer' ? (
+                      <div className="text-center py-16">
+                        <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications</h3>
+                        <p className="text-gray-500 mb-6">
+                          You have view-only access. Applications will appear only for jobs you are authorized to manage.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center py-16">
+                        <Briefcase className="w-24 h-24 text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">No Applications Yet</h3>
+                        <p className="text-gray-500 mb-6">
+                          Applications will appear here when candidates apply to your jobs.
+                        </p>
+                      </div>
+                    )
                   )}
                 </div>
               )}

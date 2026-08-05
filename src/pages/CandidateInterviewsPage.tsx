@@ -20,7 +20,7 @@ interface Interview {
   location?: string;
   interviewerName?: string;
   interviewerEmail?: string;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  status: 'scheduled' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'rescheduled';
   notes?: string;
   createdAt: string;
 }
@@ -55,7 +55,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   const [interviews, setInterviews] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled'>('all');
+  const [filter, setFilter] = useState<'all' | 'upcoming' | 'completed' | 'cancelled' | 'accepted' | 'rejected'>('all');
   const [search, setSearch] = useState('');
   const [, setTick] = useState(0);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
@@ -111,6 +111,8 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
   const statusConfig: Record<string, { label: string; bg: string; text: string; icon: React.ReactNode; pulse?: boolean }> = {
     scheduled:   { label: 'Scheduled',   bg: 'bg-blue-50',   text: 'text-blue-700',  icon: <Clock className="w-3 h-3" />, pulse: true },
+    accepted:    { label: 'Accepted',    bg: 'bg-emerald-50', text: 'text-emerald-700', icon: <CheckCircle className="w-3 h-3" /> },
+    rejected:    { label: 'Declined',    bg: 'bg-red-50',    text: 'text-red-700',   icon: <XCircle className="w-3 h-3" /> },
     completed:   { label: 'Completed',   bg: 'bg-green-50',  text: 'text-green-700', icon: <CheckCircle className="w-3 h-3" /> },
     cancelled:   { label: 'Cancelled',   bg: 'bg-red-50',    text: 'text-red-700',   icon: <XCircle className="w-3 h-3" /> },
     rescheduled: { label: 'Rescheduled', bg: 'bg-yellow-50', text: 'text-yellow-700',icon: <AlertCircle className="w-3 h-3" /> },
@@ -136,12 +138,16 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
   });
 
   const upcomingCount  = interviews.filter(i => i.status === 'scheduled' || i.status === 'rescheduled').length;
+  const acceptedCount  = interviews.filter(i => i.status === 'accepted').length;
+  const rejectedCount  = interviews.filter(i => i.status === 'rejected').length;
   const completedCount = interviews.filter(i => i.status === 'completed').length;
   const cancelledCount = interviews.filter(i => i.status === 'cancelled').length;
 
   const statCards = [
     { label: 'Total',     value: interviews.length, color: 'text-gray-900',  bg: 'bg-white',        border: 'border-gray-200' },
     { label: 'Upcoming',  value: upcomingCount,      color: 'text-blue-600',  bg: 'bg-blue-50',      border: 'border-blue-200' },
+    { label: 'Accepted',  value: acceptedCount,      color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+    { label: 'Declined',  value: rejectedCount,      color: 'text-red-600',   bg: 'bg-red-50',       border: 'border-red-200' },
     { label: 'Completed', value: completedCount,     color: 'text-green-600', bg: 'bg-green-50',     border: 'border-green-200' },
     { label: 'Cancelled', value: cancelledCount,     color: 'text-red-600',   bg: 'bg-red-50',       border: 'border-red-200' },
   ];
@@ -205,7 +211,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
               />
             </div>
             <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-              {(['all', 'upcoming', 'completed', 'cancelled'] as const).map(tab => (
+              {(['all', 'upcoming', 'accepted', 'rejected', 'completed', 'cancelled'] as const).map(tab => (
                 <button
                   key={tab}
                   onClick={() => setFilter(tab)}
