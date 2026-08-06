@@ -64,11 +64,8 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     companySize: [] as string[],
     freshness: [] as string[]
   });
-  const [jobTitleDropdown, setJobTitleDropdown] = useState<string[]>([]);
-  const [jobSuggestions, setJobSuggestions] = useState<{keywords: string[], jobTitles: string[], companies: string[]}>({keywords: [], jobTitles: [], companies: []});
-  const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
-  const [showJobSuggestions, setShowJobSuggestions] = useState(false);
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
+  const [jobTitleOptions, setJobTitleOptions] = useState<{value: string, label: string}[]>([]);
+  const [locationOptions, setLocationOptions] = useState<{value: string, label: string}[]>([]);
   const [savedJobs, setSavedJobs] = useState<string[]>([]); // kept for legacy refs — actual state is in useSavedJobsStore
   const savedJobIds = useSavedJobsStore(s => s.savedJobIds);
   const saveJobGlobal = useSavedJobsStore(s => s.saveJob);
@@ -494,6 +491,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
   useEffect(() => {
     if (jobs.length > 0) {
       fetchCompanyLogos(jobs);
+      const titles = [...new Set(jobs.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean))] as string[];
+      setJobTitleOptions(titles.map(t => ({ value: t, label: t })));
+      const locs = [...new Set(jobs.map((j: any) => (j.location || '').trim()).filter(Boolean))] as string[];
+      setLocationOptions(locs.map(l => ({ value: l, label: l })));
     }
   }, [jobs]);
   
@@ -570,51 +571,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   };
 
-  const getJobSuggestions = async (input: string): Promise<{keywords: string[], jobTitles: string[], companies: string[]}> => {
-    if (input.length < 2) return {keywords: [], jobTitles: [], companies: []};
-    
-    // Get all available data
-    const allJobTitles: string[] = [];
-    const allCompanies: string[] = [];
-    const allSkills: string[] = [];
-    
-    // Extract from backend API
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const res = await apiFetch(`${apiBase}/jobs/titles`);
-      if (res.ok) {
-        const data = await res.json();
-        const backendTitles: string[] = data.job_titles || [];
-        allJobTitles.push(...backendTitles);
-      }
-    } catch (error) {
-      console.log('Backend job titles not available');
-    }
-    
-    // Extract from current jobs data with enhanced accuracy
-    jobs.forEach(job => {
-      if (job.company) allCompanies.push(job.company);
-      if (job.title || job.jobTitle) allJobTitles.push(job.title || job.jobTitle);
-      if (Array.isArray(job.skills)) {
-        allSkills.push(...job.skills);
-      }
-      if (job.jobCategory) allSkills.push(job.jobCategory);
-      if (job.category) allSkills.push(job.category);
-    });
-    
-    // Remove duplicates
-    const uniqueJobTitles = [...new Set(allJobTitles)];
-    const uniqueCompanies = [...new Set(allCompanies)];
-    const uniqueSkills = [...new Set(allSkills)];
-    
-    // Use enhanced search accuracy engine
-    return searchAccuracy.getCategorizedSuggestions(
-      input,
-      uniqueJobTitles,
-      uniqueCompanies,
-      uniqueSkills
-    );
-  };
 
   // Enhanced search function — title + location only
   const performEnhancedSearch = useCallback(async (searchQuery: string, locationQuery: string) => {
@@ -667,199 +623,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     }
   }, [filters, jobs, clientFilter]);
   
-  const generateKeywordSuggestions = (input: string): string[] => {
-    const keywordPatterns: Record<string, string[]> = {
-      // Tech
-      'react': ['React', 'React.js', 'React Native', 'Redux'],
-      'python': ['Python', 'Django', 'Flask', 'FastAPI'],
-      'java': ['Java', 'Spring Boot', 'Hibernate', 'Maven'],
-      'node': ['Node.js', 'Express.js', 'npm', 'JavaScript'],
-      'data': ['Data Analysis', 'Data Science', 'Big Data', 'Analytics'],
-      'ai': ['Artificial Intelligence', 'Machine Learning', 'Deep Learning'],
-      'cloud': ['AWS', 'Azure', 'Google Cloud', 'Cloud Computing'],
-      'mobile': ['iOS', 'Android', 'React Native', 'Flutter'],
-      'web': ['HTML', 'CSS', 'JavaScript', 'Web Development'],
-      'database': ['SQL', 'MongoDB', 'PostgreSQL', 'MySQL'],
-      // Sales / Marketing
-      'sales': ['Sales Executive', 'Business Development', 'Inside Sales', 'Field Sales', 'B2B Sales'],
-      'market': ['Digital Marketing', 'SEO', 'Social Media Marketing', 'Content Marketing'],
-      'customer': ['Customer Service', 'Customer Support', 'Customer Success', 'CRM'],
-      // Finance
-      'account': ['Accounting', 'Tally', 'GST', 'Auditing', 'Financial Analysis'],
-      'finance': ['Financial Analysis', 'Banking', 'Investment', 'Budgeting', 'MIS'],
-      'tax': ['GST', 'Income Tax', 'TDS', 'Tax Filing', 'Indirect Tax'],
-      // HR
-      'hr': ['HR Generalist', 'Recruitment', 'Talent Acquisition', 'Payroll', 'HRMS'],
-      'recruit': ['Recruitment', 'Talent Acquisition', 'Sourcing', 'Hiring', 'Staffing'],
-      // Civil / Construction
-      'civil': ['Civil Engineering', 'Site Engineer', 'Structural Engineering', 'AutoCAD', 'Construction'],
-      'auto': ['AutoCAD', 'Auto CAD', 'Revit', 'STAAD Pro', 'Drafting'],
-      'construct': ['Construction Management', 'Site Supervision', 'Project Execution', 'BOQ'],
-      // Mechanical
-      'mech': ['Mechanical Engineering', 'Production', 'Manufacturing', 'CNC', 'Maintenance'],
-      'produc': ['Production Planning', 'Manufacturing', 'Shop Floor', 'Lean Manufacturing'],
-      // Healthcare
-      'nurs': ['Nursing', 'Staff Nurse', 'ICU Nurse', 'OT Nurse', 'Patient Care'],
-      'doctor': ['MBBS', 'MD', 'Physician', 'General Practitioner', 'Specialist'],
-      'pharma': ['Pharmacist', 'Clinical Pharmacy', 'Pharmaceutical', 'Drug Dispensing'],
-      // Gulf
-      'gulf': ['Gulf Jobs', 'UAE Jobs', 'Saudi Arabia Jobs', 'Qatar Jobs', 'Kuwait Jobs'],
-      'dubai': ['Dubai Jobs', 'UAE Jobs', 'Gulf Jobs'],
-      // Hospitality
-      'hotel': ['Hotel Management', 'Front Office', 'Housekeeping', 'F&B', 'Hospitality'],
-      'chef': ['Chef', 'Kitchen Management', 'Food Service', 'Catering'],
-      // Education
-      'teach': ['Teacher', 'Faculty', 'Lecturer', 'Tutor', 'Trainer'],
-      // Logistics
-      'logis': ['Logistics', 'Supply Chain', 'Warehouse', 'Freight', 'Transportation'],
-      'warehouse': ['Warehouse Management', 'Inventory Control', 'Dispatch', 'Logistics'],
-    };
-    const q = input.toLowerCase();
-    for (const [key, suggestions] of Object.entries(keywordPatterns)) {
-      if (q.startsWith(key) || key.startsWith(q) || q.includes(key) || key.includes(q)) {
-        return suggestions;
-      }
-    }
-    return [];
-  };
-  
-  const generateJobTitleSuggestions = (input: string): string[] => {
-    const titlePatterns: Record<string, string[]> = {
-      // Tech
-      'develop': ['Software Developer', 'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'Web Developer'],
-      'engineer': ['Software Engineer', 'Civil Engineer', 'Mechanical Engineer', 'Electrical Engineer', 'DevOps Engineer'],
-      'analyst': ['Business Analyst', 'Data Analyst', 'Financial Analyst', 'Systems Analyst', 'HR Analyst'],
-      'designer': ['UI/UX Designer', 'Graphic Designer', 'Product Designer', 'Web Designer', 'Interior Designer'],
-      'manager': ['Project Manager', 'Sales Manager', 'HR Manager', 'Operations Manager', 'Product Manager', 'Branch Manager'],
-      'architect': ['Software Architect', 'Solutions Architect', 'Cloud Architect', 'System Architect'],
-      // Sales / Marketing
-      'sales': ['Sales Executive', 'Sales Manager', 'Business Development Executive', 'Inside Sales Executive', 'Field Sales Officer'],
-      'market': ['Digital Marketing Executive', 'Marketing Manager', 'SEO Executive', 'Social Media Manager', 'Content Writer'],
-      'business': ['Business Development Executive', 'Business Analyst', 'Business Development Manager'],
-      // Finance / Accounts
-      'account': ['Accountant', 'Accounts Executive', 'Senior Accountant', 'Accounts Manager', 'Accounts Payable Executive'],
-      'finance': ['Finance Executive', 'Finance Manager', 'Financial Analyst', 'CFO', 'Finance Controller'],
-      'audit': ['Auditor', 'Internal Auditor', 'Audit Executive', 'Statutory Auditor'],
-      'tax': ['Tax Consultant', 'GST Executive', 'Tax Analyst', 'Taxation Manager'],
-      // HR
-      'hr': ['HR Executive', 'HR Manager', 'HR Generalist', 'HR Business Partner', 'Talent Acquisition Specialist'],
-      'recruit': ['Recruiter', 'Talent Acquisition Executive', 'HR Recruiter', 'Technical Recruiter'],
-      // Civil / Construction
-      'civil': ['Civil Engineer', 'Site Engineer', 'Structural Engineer', 'Civil Supervisor', 'Project Engineer'],
-      'site': ['Site Engineer', 'Site Supervisor', 'Site Manager', 'Site Foreman'],
-      'quantity': ['Quantity Surveyor', 'QS Engineer', 'Estimation Engineer', 'Cost Engineer'],
-      // Mechanical
-      'mechan': ['Mechanical Engineer', 'Production Engineer', 'Maintenance Engineer', 'Design Engineer'],
-      'product': ['Production Engineer', 'Production Manager', 'Product Manager', 'Production Supervisor'],
-      'mainten': ['Maintenance Engineer', 'Maintenance Technician', 'Maintenance Manager', 'Facility Manager'],
-      // Healthcare
-      'nurs': ['Staff Nurse', 'Registered Nurse', 'ICU Nurse', 'OT Nurse', 'Head Nurse'],
-      'doctor': ['General Physician', 'MBBS Doctor', 'Medical Officer', 'Consultant Doctor'],
-      'pharma': ['Pharmacist', 'Clinical Pharmacist', 'Medical Representative', 'Pharma Sales Executive'],
-      'lab': ['Lab Technician', 'Medical Lab Technician', 'Lab Assistant', 'Pathology Technician'],
-      // Logistics / Supply Chain
-      'logis': ['Logistics Executive', 'Logistics Manager', 'Supply Chain Executive', 'Warehouse Manager'],
-      'supply': ['Supply Chain Manager', 'Supply Chain Executive', 'Procurement Executive', 'Vendor Manager'],
-      'warehouse': ['Warehouse Manager', 'Warehouse Executive', 'Warehouse Supervisor', 'Inventory Manager'],
-      // Hospitality
-      'hotel': ['Hotel Manager', 'Front Office Executive', 'Housekeeping Supervisor', 'F&B Manager'],
-      'chef': ['Head Chef', 'Sous Chef', 'Pastry Chef', 'Kitchen Manager', 'Cook'],
-      // Education
-      'teach': ['Teacher', 'Primary Teacher', 'Secondary Teacher', 'Subject Teacher', 'School Teacher'],
-      'faculty': ['Faculty', 'Assistant Professor', 'Associate Professor', 'Lecturer', 'Professor'],
-      'train': ['Trainer', 'Corporate Trainer', 'Technical Trainer', 'L&D Executive'],
-      // Customer Service
-      'customer': ['Customer Service Executive', 'Customer Support Executive', 'Customer Success Manager', 'Client Servicing Executive'],
-      // Operations
-      'operat': ['Operations Executive', 'Operations Manager', 'Operations Analyst', 'Business Operations Manager'],
-    };
-    const q = input.toLowerCase();
-    for (const [key, suggestions] of Object.entries(titlePatterns)) {
-      if (q.startsWith(key) || key.startsWith(q) || q.includes(key) || key.includes(q)) {
-        return suggestions;
-      }
-    }
-    return [];
-  };
-
-  const getLocationSuggestions = async (input: string): Promise<string[]> => {
-    if (input.length < 2) return [];
-    
-    // Get all available locations
-    const allLocations: string[] = [];
-    
-    // From backend API
-    try {
-      const apiBase = import.meta.env.VITE_API_URL || '/api';
-      const res = await apiFetch(`${apiBase}/locations`);
-      if (res.ok) {
-        const data = await res.json();
-        const locations: string[] = data.locations || [];
-        allLocations.push(...locations);
-      }
-    } catch (error) {
-      console.log('Backend locations not available');
-    }
-    
-    // From current jobs data
-    jobs.forEach(job => {
-      if (job.location) allLocations.push(job.location);
-      if (job.country) allLocations.push(job.country);
-    });
-    
-    // Add common locations as fallback
-    const commonLocations = [
-      'Remote', 'Work from Home', 'Hybrid',
-      // India
-      'Chennai', 'Bangalore', 'Hyderabad', 'Mumbai', 'Delhi', 'Pune', 'Kolkata',
-      'Ahmedabad', 'Coimbatore', 'Kochi', 'Noida', 'Gurgaon', 'Jaipur', 'Chandigarh',
-      // Gulf / Middle East
-      'Dubai', 'Abu Dhabi', 'Sharjah', 'Riyadh', 'Jeddah', 'Dammam',
-      'Doha', 'Kuwait City', 'Muscat', 'Bahrain', 'Oman',
-      // International
-      'Singapore', 'Kuala Lumpur', 'London', 'New York', 'Toronto',
-      'Sydney', 'Melbourne', 'Frankfurt', 'Amsterdam', 'Dublin'
-    ];
-    allLocations.push(...commonLocations);
-    
-    // Remove duplicates and use enhanced matching
-    const uniqueLocations = [...new Set(allLocations)];
-    return searchAccuracy.getLocationMatches(input, uniqueLocations);
-  };
-
-  const handleJobInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    if (value.length >= 1) {
-      const suggestions = await getJobSuggestions(value);
-      setJobSuggestions(suggestions);
-      setShowJobSuggestions(true);
-    } else {
-      setShowJobSuggestions(false);
-      setJobSuggestions({keywords: [], jobTitles: [], companies: []});
-    }
-  };
-
-  const handleLocationInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setLocation(value);
-    if (value.length >= 1) {
-      const suggestions = await getLocationSuggestions(value);
-      setLocationSuggestions(suggestions);
-      setShowLocationSuggestions(true);
-    } else {
-      setShowLocationSuggestions(false);
-    }
-  };
-
-  const geocodeLocationText = async (locationText: string): Promise<{ lat: number; lng: number } | null> => {
-    try {
-      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/search/geocode?q=${encodeURIComponent(locationText)}`);
-      const data = await res.json();
-      if (data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-    } catch {}
-    return null;
-  };
 
   const handleSearch = async () => {
     setSearchTrigger(n => n + 1);
@@ -884,15 +647,6 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
     filters.industry.length > 0 || filters.jobType || filters.freshness.length > 0 ||
     filters.companySize.length > 0 || expMin > 0 || expMax < 30 || salaryMin > 0 || salaryMax < 50 || activeQuickFilter;
 
-  const selectJobSuggestion = (suggestion: string, type: 'keyword' | 'jobTitle' | 'company') => {
-    setSearchTerm(suggestion);
-    setShowJobSuggestions(false);
-  };
-
-  const selectLocationSuggestion = (suggestion: string) => {
-    setLocation(suggestion);
-    setShowLocationSuggestions(false);
-  };
 
   const handleLocationSearch = async (params: { latitude: number; longitude: number; radius: number; query?: string }) => {
     setLoading(true);
@@ -1073,111 +827,52 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
 
           {/* Search Bar - Only show in search tab */}
           {activeTab === 'search' && (
-            <div className="flex flex-col sm:flex-row gap-3 mb-6">
-              {/* Job Title with backend /jobs/titles dropdown */}
-              <div className="flex-1 relative">
-                <label htmlFor="job-search-input" className="sr-only">Job title</label>
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none z-10" />
-                <input
-                  id="job-search-input"
-                  type="text"
-                  autoComplete="off"
+            <div className="flex flex-col sm:flex-row gap-3 mb-6 sm:items-end sm:flex-nowrap">
+              {/* Job Title */}
+              <div className="flex-1 min-w-0">
+                <AutocompleteCombobox
                   placeholder="Job title"
                   value={searchTerm}
-                  onChange={async e => {
-                    const val = e.target.value;
-                    setSearchTerm(val);
-                    const fromJobs = [...new Set(
-                      jobs.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean)
-                    )] as string[];
-                    if (!val.trim()) { setJobTitleDropdown(fromJobs.slice(0, 8)); return; }
-                    const q = val.toLowerCase();
-                    try {
-                      const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/jobs/titles`);
-                      if (res.ok) {
-                        const d = await res.json();
-                        const backendTitles: string[] = d.job_titles || d.titles || (Array.isArray(d) ? d : []);
-                        const merged = [...new Set([...backendTitles, ...fromJobs])] as string[];
-                        setJobTitleDropdown(merged.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
-                      } else {
-                        setJobTitleDropdown(fromJobs.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
-                      }
-                    } catch {
-                      setJobTitleDropdown(fromJobs.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
-                    }
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { setJobTitleDropdown([]); handleSearch(); }
-                    if (e.key === 'Escape') setJobTitleDropdown([]);
-                  }}
-                  onBlur={() => setTimeout(() => setJobTitleDropdown([]), 150)}
-                  onFocus={() => {
-                    const fromJobs = [...new Set(
-                      jobs.map((j: any) => (j.title || j.jobTitle || '').trim()).filter(Boolean)
-                    )] as string[];
-                    if (!searchTerm.trim()) {
-                      setJobTitleDropdown(fromJobs.slice(0, 8));
-                    } else {
-                      const q = searchTerm.toLowerCase();
-                      setJobTitleDropdown(fromJobs.filter(t => t.toLowerCase().includes(q)).slice(0, 10));
-                    }
-                  }}
-                  className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  onChange={val => { setSearchTerm(val); }}
+                  options={jobTitleOptions}
+                  allowCustom
+                  maxOptions={10}
+                  className="bg-white"
                 />
-                {jobTitleDropdown.length > 0 && (
-                  <ul className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-64 overflow-y-auto">
-                    {jobTitleDropdown.map((title, i) => (
-                      <li key={i}>
-                        <button
-                          type="button"
-                          onMouseDown={() => {
-                            setSearchTerm(title);
-                            setJobTitleDropdown([]);
-                          }}
-                          className="w-full text-left px-4 py-2.5 text-sm text-gray-800 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2 border-b border-gray-100 last:border-b-0"
-                        >
-                          <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                          {title}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
               {/* Location */}
-              <div className="flex-1 relative">
-                <label htmlFor="location-search-input" className="sr-only">Location</label>
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-                <input
-                  id="location-search-input"
-                  type="text"
+              <div className="flex-1 min-w-0">
+                <AutocompleteCombobox
                   placeholder="Location (e.g. Chennai, Remote)"
                   value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                  className="w-full pl-9 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                  onChange={val => { setLocation(val); }}
+                  options={locationOptions}
+                  allowCustom
+                  maxOptions={10}
+                  className="bg-white"
                 />
               </div>
-            <div className="flex gap-2">
-              <label htmlFor="radius-select" className="sr-only">Search radius in kilometres</label>
-              <AutocompleteCombobox
-                label="Radius"
-                value={String(radius)}
-                onChange={(val) => setRadius(Number(val))}
-                options={[
-                  { value: '5', label: '5 km' },
-                  { value: '10', label: '10 km' },
-                  { value: '25', label: '25 km' },
-                  { value: '50', label: '50 km' },
-                  { value: '100', label: '100 km' },
-                  { value: '200', label: '200 km' },
-                ]}
-                placeholder="Select radius..."
-                className="bg-white text-gray-700 px-3 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm font-medium"
-              />
+            <div className="flex gap-2 items-end flex-shrink-0">
+              <div>
+                <label className="block text-xs font-medium text-white mb-1">Radius</label>
+                <AutocompleteCombobox
+                  value={String(radius)}
+                  onChange={(val) => setRadius(Number(val))}
+                  options={[
+                    { value: '5', label: '5 km' },
+                    { value: '10', label: '10 km' },
+                    { value: '25', label: '25 km' },
+                    { value: '50', label: '50 km' },
+                    { value: '100', label: '100 km' },
+                    { value: '200', label: '200 km' },
+                  ]}
+                  placeholder="Radius"
+                  className="w-28 bg-white text-gray-700 rounded-lg text-sm font-medium"
+                />
+              </div>
               <button 
                 onClick={handleSearch}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors flex-shrink-0" 
+                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-3 rounded-lg transition-colors flex-shrink-0" 
                 title="Search jobs"
               >
                 <Search className="w-5 h-5" />
@@ -1185,10 +880,10 @@ const JobListingsPage = ({ onNavigate, user, onLogout, searchParams: initialSear
               {hasActiveFilters && (
                 <button
                   onClick={clearAllFilters}
-                  className="flex items-center gap-1.5 text-sm text-gray-700 bg-white border border-gray-300 px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
+                  className="flex items-center gap-1 text-sm text-gray-700 bg-white border border-gray-300 px-3 py-3 rounded-lg hover:bg-gray-50 transition-colors flex-shrink-0"
                   title="Clear all filters"
                 >
-                  <X className="w-4 h-4" /> Clear
+                  <X className="w-4 h-4" />
                 </button>
               )}
             </div>

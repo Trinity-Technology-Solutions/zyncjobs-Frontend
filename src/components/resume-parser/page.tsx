@@ -463,15 +463,21 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
     return json.text;
   }
 
-  useEffect(() => {
+useEffect(() => {
     if (!fileUrl) return;
-   async function parseResume() {
-     setParsing(true);
-     try {
-       setParseError(null);
-       const file = uploadedFileRef.current;
-       if (!file) throw new Error('No file selected');
-       const isImage = /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(file.name);
+    async function parseResume() {
+      // Clear previous results immediately when new file starts parsing
+      setResume(emptyResume);
+      setIsFileUploaded(false);
+      setMatchingScore(null);
+      setAiStatus(null);
+      setParseError(null);
+      
+      setParsing(true);
+      try {
+        const file = uploadedFileRef.current;
+        if (!file) throw new Error('No file selected');
+        const isImage = /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(file.name);
         const isDocx = /\.(docx|doc)$/i.test(file.name);
         let text = '';
         let textItems: any[] = [];
@@ -491,20 +497,20 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
          setRawText(text);
         const parsed = await parseResumeFromText(text, (status, detail) => setAiStatus({ status, detail }));
         setResume(parsed);
-       setIsFileUploaded(true);
-       if (selectedJob) {
-         setMatchingScore(calculateMatchingScore(parsed, selectedJob));
-       }
-     } catch (e: any) {
-       const isTimeout = e?.name === 'AbortError';
-       setParseError(e?.message || (isTimeout ? 'AI timeout. Using local parser.' : 'Failed to parse resume. Please try a different file.'));
-       setResume(emptyResume);
-       setIsFileUploaded(false);
-       setAiStatus(null);
-       setMatchingScore(null);
-     } finally {
-       setParsing(false);
-     }
+        setIsFileUploaded(true);
+        if (selectedJob) {
+          setMatchingScore(calculateMatchingScore(parsed, selectedJob));
+        }
+      } catch (e: any) {
+        const isTimeout = e?.name === 'AbortError';
+        setParseError(e?.message || (isTimeout ? 'AI timeout. Using local parser.' : 'Failed to parse resume. Please try a different file.'));
+        setResume(emptyResume);
+        setIsFileUploaded(false);
+        setAiStatus(null);
+        setMatchingScore(null);
+      } finally {
+        setParsing(false);
+      }
     }
     parseResume();
   }, [fileUrl]);
@@ -575,14 +581,39 @@ export default function ResumeParser({ onNavigate, user }: ResumeParserProps = {
             </div>
           )}
           
-          {fileUrl && currentFileName && /\.pdf$/i.test(currentFileName) && (
+          {fileUrl && currentFileName && (
             <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
-              <iframe src={`${fileUrl}#navpanes=0&zoom=75`} className="w-full h-[800px]" title="Resume Preview" />
-            </div>
-          )}
-          {fileUrl && currentFileName && /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(currentFileName) && (
-            <div className="border border-gray-200 rounded-lg overflow-hidden mb-6">
-              <img src={fileUrl} alt="Resume Preview" className="w-full h-auto max-h-[800px] object-contain" />
+              <div className="bg-gray-50 border-b border-gray-200 px-4 py-2.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg className="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  <span className="text-sm font-medium text-gray-700 truncate">{currentFileName}</span>
+                </div>
+                <span className="text-xs font-semibold text-gray-500 uppercase flex-shrink-0">{currentFileName.split('.').pop()}</span>
+              </div>
+              {/\.pdf$/i.test(currentFileName) ? (
+                <iframe src={`${fileUrl}#navpanes=0&zoom=75`} className="w-full h-[800px]" title="Resume Preview" />
+              ) : /\.(jpg|jpeg|png|webp|bmp|tiff|tif)$/i.test(currentFileName) ? (
+                <>
+                  <img src={fileUrl} alt="Resume Preview" className="w-full h-auto max-h-[800px] object-contain" />
+                  {rawText && (
+                    <div className="border-t border-gray-200 p-4">
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Extracted Text</p>
+                      <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans max-h-[400px] overflow-y-auto">{rawText}</pre>
+                    </div>
+                  )}
+                </>
+              ) : /\.(docx|doc)$/i.test(currentFileName) ? (
+                <div className="p-4">
+                  {rawText ? (
+                    <>
+                      <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Document Text Preview</p>
+                      <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans max-h-[800px] overflow-y-auto">{rawText}</pre>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500 py-8 text-center">Preview not available for this file type. Parsed details are shown on the right.</p>
+                  )}
+                </div>
+              ) : null}
             </div>
           )}
           

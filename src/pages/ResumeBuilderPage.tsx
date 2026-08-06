@@ -31,6 +31,7 @@ import AskAIWidget from '../components/resume-builder/AskAIWidget';
 import WelcomeWizard from '../components/resume-builder/WelcomeWizard';
 import RightPanel from '../components/resume-builder/RightPanel';
 import { useResumeStore, ResumeData } from '../store/useResumeStore';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Props {
   onNavigate?: (page: string) => void;
@@ -609,6 +610,7 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       const resumeData = await resumeRes.json();
       if (!resumeData.success) throw new Error(resumeData.error || 'Parse failed');
       const parsed = resumeData.parsed || {};
+      if (parsed?.error) throw new Error(parsed.error);
 
       if (parsed.name) { updatePersonalInfo('name', parsed.name); update('resumeName', `${parsed.name}'s Resume`); }
       if (parsed.email) updatePersonalInfo('email', parsed.email);
@@ -866,9 +868,14 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
       ) : (
         <div>
           {jobs.length > 5 && (
-            <input type="text" value={jobSearch} onChange={e => setJobSearch(e.target.value)}
+            <AutocompleteCombobox
+              value={jobSearch}
+              onChange={setJobSearch}
+              options={jobs.map((j: any) => ({ value: j.title || j.jobTitle || '', label: j.title || j.jobTitle || 'Untitled' }))}
+              allowCustom
               placeholder="Search jobs by title..."
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 mb-2" />
+              className="mb-2"
+            />
           )}
           <div className="grid gap-2">
               {filteredJobs.map((job: any) => {
@@ -1097,8 +1104,6 @@ export default function ResumeBuilderPage({ onNavigate, user }: Props) {
           onSetStep={setWizardStep}
           onStart={setWizardStart}
           onUploadNow={() => {
-            sessionStorage.setItem(onboardingKey, '1');
-            setShowOnboarding(false);
             setTimeout(() => fileInputRef.current?.click(), 50);
           }}
           onComplete={() => {

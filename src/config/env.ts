@@ -51,6 +51,7 @@ export const API_ENDPOINTS = {
   JOB_BULK_REFRESH: `${config.API_URL}/jobs/bulk-refresh`,
   JOB_REFRESH_STATUS: `${config.API_URL}/jobs/:id/refresh-status`,
   SEARCH: `${config.API_URL}/search`,
+  SKILLS: `${config.API_URL}/skills`,
 
   // Applications
   APPLICATIONS: `${config.API_URL}/applications`,

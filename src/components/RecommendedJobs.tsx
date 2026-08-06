@@ -172,12 +172,6 @@ const RecommendedJobs: React.FC<RecommendedJobsProps> = ({ resumeSkills, locatio
           const matched = Array.isArray(data.jobs) ? data.jobs : [];
             if (matched.length > 0) {
               setJobs(matched.map((j: any) => {
-                // Use backend-calculated match score if available, otherwise fallback
-                const backendScore = j.matchPercentage || j.overall || j.score || j.matchedScore || null;
-                if (backendScore !== null && !isNaN(backendScore)) {
-                  return { ...j, matchPercentage: backendScore };
-                }
-                // Fallback: if backend didn't calculate, use our computation
                 const jobData = { ...j, title: j.title || j.jobTitle || '', skills: Array.isArray(j.skills) ? j.skills : [] };
                 const { overall } = computeMatchBreakdown(jobData);
                 return { ...j, matchPercentage: overall };

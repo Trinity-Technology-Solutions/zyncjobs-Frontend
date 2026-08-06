@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, Filter, Search, Calendar, Briefcase, MessageSquare } from 'lucide-react';
+import { Bell, Check, Trash2, Filter, Calendar, Briefcase, MessageSquare, Search } from 'lucide-react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { API_ENDPOINTS } from '../config/constants';
 
 interface Notification {
@@ -166,16 +167,13 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search notifications..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              <AutocompleteCombobox
+                value={searchTerm}
+                onChange={setSearchTerm}
+                options={[]}
+                allowCustom
+                placeholder="Search notifications..."
+              />
             </div>
             <div className="flex gap-2 flex-wrap">
               {[

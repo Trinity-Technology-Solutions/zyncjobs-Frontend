@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle } from 'lucide-react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
+import { Briefcase, MessageSquare, FileText, Bookmark, Settings, Trash2, LogOut, Bell, Users, UserPlus, MapPin, Mail, TrendingUp, BarChart2, Search, Calendar, Clock, Video, Sparkles, Shield, RefreshCw, AlertTriangle, Flame, PartyPopper } from 'lucide-react';
 import CandidateProfileView from './CandidateProfileView';
 import {
   AreaChart, Area, PieChart, Pie, Cell,
@@ -22,11 +22,28 @@ import BulkJobRefresh from '../components/BulkJobRefresh';
 import ProfileCompletionPopup from '../components/ProfileCompletionPopup';
 import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { calculateEmployerProfileCompletion } from '../utils/logoUtils';
+import { scoreCandidate, mergeCandidateSkills } from '../utils/candidateScoring';
 
 // Module-level cache: job IDs confirmed missing from the DB — never re-fetch these
 const _missingJobIds = new Set<string>();
 const DISMISSED_NOTIFS_KEY = 'employer_dismissed_notif_ids';
 const CLEARED_ALL_KEY = 'employer_notif_cleared_at';
+
+// ── Match score for application cards — same chain as Candidate Ranking:
+//    stored AI score → backend hybrid-score → local fallback (shared util) ──
+const getApplicantMatchScore = (app: any, matchScores: Record<string, number | null>): number | null => {
+  const cached = matchScores[String(app._id || app.id)];
+  if (cached !== undefined) return cached;
+  const score = app.aiAnalysis?.overallScore || app.aiScore || 0;
+  return score > 0 ? Math.min(100, Math.round(score)) : null;
+};
+
+const matchScoreClasses = (score: number | null) => {
+  if (score === null) return 'bg-gray-100 text-gray-500 border-gray-200';
+  if (score >= 70) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+  if (score >= 40) return 'bg-amber-50 text-amber-700 border-amber-200';
+  return 'bg-red-50 text-red-600 border-red-200';
+};
 
 interface EmployerDashboardPageProps {
   user?: any;
@@ -72,6 +89,53 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
   const [companyDomain, setCompanyDomain] = useState('');
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
+
+  // Enriched applications with candidate skills for consistent scoring
+  const [enrichedApps, setEnrichedApps] = useState<any[]>([]);
+
+  // Match scores for application cards — same chain as Candidate Ranking:
+  const [matchScores, setMatchScores] = useState<Record<string, number | null>>({});
+  const matchScoreCache = React.useRef<Record<string, number | null>>({});
+
+  // Enrich applications with the same structure as Candidate Ranking
+  useEffect(() => {
+    if (!applications.length) return;
+    
+    const enriched = applications.map(app => ({
+      ...app,
+      candidateSkills: mergeCandidateSkills(app),
+      candidateExperience: app.candidateProfile?.experience || app.candidateProfile?.yearsExperience || app.experience || 'Not specified',
+      candidateEducation: app.candidateProfile?.education || 'Not specified',
+      candidateLocation: app.candidateProfile?.location || '',
+      candidateJobTitle: app.candidateProfile?.jobTitle || app.candidateProfile?.title || app.currentJobTitle || '',
+    }));
+    
+    setEnrichedApps(enriched);
+  }, [applications]);
+
+  // Calculate all scores immediately when enriched apps or jobs change
+  useEffect(() => {
+    if (!enrichedApps.length || !jobs.length) return;
+
+    const calculateScores = async () => {
+      const newScores: Record<string, number | null> = {};
+      const promises = enrichedApps.map(async (app) => {
+        const id = String(app._id || app.id);
+        try {
+          const s = await scoreCandidate(app, jobs);
+          newScores[id] = s;
+        } catch {
+          newScores[id] = null;
+        }
+      });
+
+      await Promise.all(promises);
+      matchScoreCache.current = { ...matchScoreCache.current, ...newScores };
+      setMatchScores({ ...matchScoreCache.current });
+    };
+
+    calculateScores();
+  }, [enrichedApps, jobs]);
   const [interviews, setInterviews] = useState<any[]>([]);
   const [dashboardStats, setDashboardStats] = useState<any>(null);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -1339,11 +1403,11 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                 const visibleJobs = tabData[activeTab] || topPerforming;
 
                 const getBarColor = (pct: number, appCount: number, postedDaysAgo: number) => {
-                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', iconPath: '/images/fire-svgrepo-com.svg' };
-                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', iconPath: null };
-                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', iconPath: null };
-                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
-                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', iconPath: '/images/warning-svgrepo-com.svg' };
+                  if (pct >= 80) return { bar: '#10b981', label: 'Hot Job', labelCls: 'text-emerald-600 bg-emerald-50 border-emerald-200', icon: Flame };
+                  if (pct >= 40) return { bar: '#f59e0b', label: 'Growing', labelCls: 'text-amber-600 bg-amber-50 border-amber-200', icon: null };
+                  if (appCount === 0 && postedDaysAgo < 5) return { bar: '#d1d5db', label: null, labelCls: '', icon: null };
+                  if (appCount === 0 && postedDaysAgo >= 5) return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', icon: AlertTriangle };
+                  return { bar: '#ef4444', label: 'Needs Boost', labelCls: 'text-red-500 bg-red-50 border-red-200', icon: AlertTriangle };
                 };
 
                 const tabs = [
@@ -1397,8 +1461,17 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     <div className="px-6 py-4">
                       {visibleJobs.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                          <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
-                          <p className="text-xs">{activeTab === 'attention' ? '🎉 All jobs are getting applications!' : 'No data yet'}</p>
+                          {activeTab === 'attention' ? (
+                            <>
+                              <PartyPopper className="w-8 h-8 mb-2 text-emerald-300" />
+                              <p className="text-xs">All jobs are getting applications!</p>
+                            </>
+                          ) : (
+                            <>
+                              <BarChart2 className="w-8 h-8 mb-2 text-gray-300" />
+                              <p className="text-xs">No data yet</p>
+                            </>
+                          )}
                         </div>
                       ) : activeTab === 'attention' ? (
                         /* Needs Attention: special card layout */
@@ -1430,8 +1503,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                         <div className="space-y-4">
                           {visibleJobs.map((job, idx) => {
                             const status = getBarColor(job.progressPct, job.appCount, job.postedDaysAgo);
-                            const { bar, label, labelCls } = status;
-                            return (
+                            const { bar, label, labelCls } = status;                            return (
                               <div key={job.id} className="border border-gray-100 rounded-xl p-4 hover:shadow-sm transition-shadow">
                                 <div className="flex items-start justify-between gap-3 mb-2">
                                   <div className="min-w-0 flex-1">
@@ -1448,12 +1520,8 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                                     {label && (
                                       <span className={`inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full border ${labelCls}`}>
-                                        {status.iconPath && (
-                                          <img
-                                            src={status.iconPath}
-                                            alt=""
-                                            className="w-3 h-3 mr-1 inline-block object-contain"
-                                          />
+                                        {status.icon && (
+                                          <status.icon className="w-3 h-3 mr-1" />
                                         )}
                                         {label}
                                       </span>
@@ -1603,16 +1671,20 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                     <p className="text-xs text-gray-400 text-center py-8">No applicants yet</p>
                   ) : (
                     <div className="space-y-3">
-                      {applications.slice(0,5).map((app,i) => (
+                      {enrichedApps.slice(0, 5).map((app, i) => (
                         <div key={i} className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-                            style={{background: PIE_COLORS[i % PIE_COLORS.length]}}>
-                            {(app.candidateName||'C').charAt(0).toUpperCase()}
+                            style={{ background: PIE_COLORS[i % PIE_COLORS.length] }}>
+                            {(app.candidateName || 'C').charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName||'Candidate'}</p>
-                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle||'a position').substring(0,24)}</p>
+                            <p className="text-xs font-semibold text-gray-900 truncate">{app.candidateName || 'Candidate'}</p>
+                            <p className="text-xs text-gray-400 truncate">{(app.jobTitle || 'a position').substring(0, 24)}</p>
                           </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border flex-shrink-0 ${matchScoreClasses(getApplicantMatchScore(app, matchScores))}`}
+                            title="AI Match Score">
+                            {getApplicantMatchScore(app, matchScores) === null ? '—' : `${getApplicantMatchScore(app, matchScores)}%`}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1754,7 +1826,13 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                               <span className="text-gray-600 font-bold text-sm">{application.candidateName?.charAt(0).toUpperCase() || 'C'}</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-sm sm:text-base font-bold text-gray-900 leading-tight">{application.candidateName || application.candidateEmail}</h3>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${matchScoreClasses(getApplicantMatchScore(application, matchScores))}`}
+                                  title="AI Match Score">
+                                  {getApplicantMatchScore(application, matchScores) === null ? '—' : `${getApplicantMatchScore(application, matchScores)}%`}
+                                </span>
+                              </div>
                               <p className="text-xs text-blue-700 font-semibold flex items-start gap-1 mt-0.5 leading-snug">
                                 <Briefcase className="w-3 h-3 flex-shrink-0 mt-0.5" />
                                 <span>Applied for: {application.jobTitle || 'Job Position'}</span>
@@ -2606,7 +2684,9 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
-                <span className="text-3xl">🔒</span>
+                <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Access Restricted</h2>
               <p className="text-gray-500 text-sm mb-1">

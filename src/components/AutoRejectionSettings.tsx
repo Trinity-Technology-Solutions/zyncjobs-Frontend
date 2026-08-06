@@ -98,8 +98,9 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
       const processedCandidates = appsWithData.map((app: any) => {
         const skillsMatch = calculateSkillsMatch(app);
         const experienceMatch = calculateExperienceMatch(app);
-        const overallScore = typeof app.aiAnalysis?.overallScore === 'number'
-          ? app.aiAnalysis.overallScore
+        const aiOverall = app.aiAnalysis?.overallScore;
+        const overallScore = typeof aiOverall === 'number' && aiOverall > 0
+          ? Math.min(100, Math.max(0, Math.round(aiOverall)))
           : Math.round(skillsMatch * 0.6 + experienceMatch * 0.4);
 
         const shouldReject = settings.autoReject && (
@@ -151,14 +152,17 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   };
   
   const calculateSkillsMatch = (application: any): number => {
-    // Use backend-computed aiAnalysis if available
-    if (typeof application.aiAnalysis?.skillsScore === 'number') {
-      return application.aiAnalysis.skillsScore;
+    // Use backend-computed aiAnalysis only when it has a real non-zero, in-range score
+    const aiSkills = application.aiAnalysis?.skillsScore;
+    if (typeof aiSkills === 'number' && aiSkills > 0) {
+      return Math.min(100, Math.max(0, Math.round(aiSkills)));
     }
 
     const jobData = application._jobData || {};
     const candidateSkills = (Array.isArray(application.skills) ? application.skills :
-      Array.isArray(application.resumeSkills) ? application.resumeSkills : [])
+      Array.isArray(application.resumeSkills) ? application.resumeSkills :
+      Array.isArray(application.candidateSkills) ? application.candidateSkills :
+      Array.isArray(application.candidateProfile?.skills) ? application.candidateProfile.skills : [])
       .map((s: any) => String(s).toLowerCase().trim()).filter(Boolean);
 
     const rawJobSkills = jobData.skills || jobData.requiredSkills || [];
@@ -175,13 +179,15 @@ const AutoRejectionSettings: React.FC<AutoRejectionSettingsProps> = ({ jobId, on
   };
 
   const calculateExperienceMatch = (application: any): number => {
-    // Use backend-computed aiAnalysis if available
-    if (typeof application.aiAnalysis?.experienceScore === 'number') {
-      return application.aiAnalysis.experienceScore;
+    // Use backend-computed aiAnalysis only when it has a real non-zero, in-range score
+    const aiExp = application.aiAnalysis?.experienceScore;
+    if (typeof aiExp === 'number' && aiExp > 0) {
+      return Math.min(100, Math.max(0, Math.round(aiExp)));
     }
 
     const jobData = application._jobData || {};
-    const rawExp = application.yearsExperience ?? application.experience ?? application.candidateExperience ?? '';
+    const rawExp = application.yearsExperience ?? application.experience ?? application.candidateExperience ??
+      application.candidateProfile?.yearsExperience ?? '';
     const candidateYears = typeof rawExp === 'number' ? rawExp : parseFloat(String(rawExp).match(/(\d+\.?\d*)/)?.[1] || '0');
 
     const expRange: string = jobData.experienceRange || jobData.experience || '';

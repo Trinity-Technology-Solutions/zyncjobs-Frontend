@@ -183,15 +183,47 @@ class ResumeIntelligenceEngine {
     
     let score = 50; // Base score for having education
     
-    // Check for degree
-    if (/bachelor|master|phd|b\.s|m\.s|b\.a|m\.a/i.test(education)) score += 25;
+    // Check for degree - improved regex for better matching
+    const degreePatterns = [
+      'bachelor', 'master', 'phd', 'b.s', 'm.s', 'b.a', 'm.a',
+      'b.tech', 'm.tech', 'b.sc', 'm.sc', 'b.com', 'm.com',
+      'diploma', 'certification', 'degree', 'bachelor of science', 
+      'master of science', 'bachelor of arts', 'master of arts'
+    ];
     
-    // Check for GPA (if mentioned and good)
-    const gpaMatch = education.match(/gpa:?\s*(\d+\.?\d*)/i);
-    if (gpaMatch && parseFloat(gpaMatch[1]) >= 3.5) score += 15;
+    const hasDegree = degreePatterns.some(pattern => 
+      education.toLowerCase().includes(pattern)
+    );
     
-    // Check for relevant coursework or projects
-    if (/coursework|project|thesis|research/i.test(education)) score += 10;
+    if (hasDegree) score += 25;
+    
+    // Check for institution - improved pattern matching for college/university
+    const institutionPatterns = [
+      'university', 'college', 'institute', 'school', 'academy', 'polytechnic',
+      'loya', 'icam', 'engineering', 'technology'
+    ];
+    
+    const hasInstitution = institutionPatterns.some(pattern => 
+      education.toLowerCase().includes(pattern)
+    );
+    
+    if (hasInstitution) score += 15;
+    
+    // Check for year - improved year detection
+    const yearMatches = education.match(/\d{4}/g) || [];
+    if (yearMatches.length >= 2) score += 20; // Multiple years indicates complete education
+    else if (yearMatches.length === 1) score += 10; // Single year indicates partial info
+    
+    // Check for GPA - improved GPA detection
+    const gpaMatch = education.match(/gpa:?\s*(\d+\.?\d*)\s*\/\s*4|grade:?\s*(\d+\.?\d*)\s*\/\s*100|\d+\.?\d*\s*%/i);
+    if (gpaMatch) {
+      const gpaValue = gpaMatch[1] || gpaMatch[2] || gpaMatch[0];
+      const numericGpa = parseFloat(gpaValue);
+      if (!isNaN(numericGpa)) {
+        if (numericGpa >= 3.5) score += 15;
+        else if (numericGpa >= 3.0) score += 10;
+      }
+    }
     
     return Math.min(100, score);
   }
@@ -438,48 +470,6 @@ class ResumeIntelligenceEngine {
       text,
       sections,
       metadata
-    };
-  }
-
-  private extractSections(text: string): ResumeContent['sections'] {
-    const sections: ResumeContent['sections'] = {};
-
-    // All heading variants — order matters (most specific first)
-    const SKILL_HEADINGS = 'tools|programming languages|technical skills|frameworks and database|frameworks|languages|skills|technologies|competencies|tech stack';
-    const SUMMARY_HEADINGS = 'professional summary|summary|objective|profile|about';
-    const EXP_HEADINGS = 'experience|work history|employment|work experience|professional experience';
-    const EDU_HEADINGS = 'education|academic|academics|qualification';
-    const SECTION_ANY = `${SKILL_HEADINGS}|${SUMMARY_HEADINGS}|${EXP_HEADINGS}|${EDU_HEADINGS}|projects|certifications|awards|languages`;
-
-    const experienceMatch = text.match(new RegExp(`(?:${EXP_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'i'));
-    if (experienceMatch) sections.experience = experienceMatch[1].trim();
-
-    const educationMatch = text.match(new RegExp(`(?:${EDU_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'i'));
-    if (educationMatch) sections.education = educationMatch[1].trim();
-
-    // Collect ALL skill-like sections and merge them
-    const skillParts: string[] = [];
-    const skillRegex = new RegExp(`(?:${SKILL_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'gi');
-    let skillMatch;
-    while ((skillMatch = skillRegex.exec(text)) !== null) {
-      const part = skillMatch[1].trim();
-      if (part) skillParts.push(part);
-    }
-    if (skillParts.length > 0) sections.skills = skillParts.join(' ');
-
-    const summaryMatch = text.match(new RegExp(`(?:${SUMMARY_HEADINGS})([\\s\\S]*?)(?:${SECTION_ANY}|$)`, 'i'));
-    if (summaryMatch) sections.summary = summaryMatch[1].trim();
-
-    return sections;
-  }
-
-  private extractMetadata(text: string): ResumeContent['metadata'] {
-    return {
-      wordCount: text.split(/\s+/).length,
-      pageCount: Math.ceil(text.length / 3000),
-      hasEmail: /@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/.test(text),
-      hasPhone: /(?:\+?\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?)?\d{3,5}[\s.-]?\d{4,5}/.test(text),
-      hasLinkedIn: /linkedin\.com|linkedin/i.test(text),
     };
   }
 }

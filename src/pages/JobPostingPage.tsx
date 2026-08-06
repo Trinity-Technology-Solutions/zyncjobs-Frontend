@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import Notification from '../components/Notification';
 import BackButton from '../components/BackButton';
 import EmptyState from '../components/EmptyState';
@@ -434,6 +434,7 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const [isLoadingSkills, setIsLoadingSkills] = useState(false);
   const [skillInput, setSkillInput] = useState('');
   const [aiSuggestedSkills, setAiSuggestedSkills] = useState<string[]>([]);
+  const skillFetchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [catOpen, setCatOpen] = useState(false);
   const [catInput, setCatInput] = useState(jobData?.jobCategory || '');
   const [natOpen, setNatOpen] = useState(false);
@@ -553,6 +554,58 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
     fetchCompanyLogo();
   }, [parsedData]);
 
+  // Prefill the employer's company name from their profile so the JD and the
+  // "Company for this job" field always use the real company (not "Your Company")
+  useEffect(() => {
+    const prefillCompany = async () => {
+      if (isEditMode) return;
+      if (jobData.companyName) return;
+      const email = user?.email || (() => { try { return JSON.parse(localStorage.getItem('user') || '{}').email; } catch { return ''; } })();
+      if (!email) return;
+
+      const applyCompany = (company: string, profile?: any) => {
+        if (!company) return;
+        updateJobData('companyName', company);
+        if (!jobData.companyLogo) {
+          const logo = profile?.companyLogo || profile?.logo || getCompanyLogo(company) || '';
+          if (logo) updateJobData('companyLogo', logo);
+        }
+        if (!jobData.companyTagline) {
+          const tagline = profile?.tagline || profile?.companyTagline || '';
+          if (tagline) updateJobData('companyTagline', tagline);
+        }
+      };
+
+      try {
+        const { apiFetch } = await import('../api/apiFetch');
+
+        // 1. Full user record — the source of truth for the company name
+        //    (set at employer registration, e.g. /api/users/by-email/:email)
+        try {
+          const ures = await apiFetch(`${API_ENDPOINTS.BASE_URL}/users/by-email/${encodeURIComponent(email)}`);
+          if (ures.ok) {
+            const u = await ures.json();
+            const uname = u?.companyName || u?.company || '';
+            if (uname) { applyCompany(uname, u); return; }
+          }
+        } catch (error) {
+          console.warn('User record fetch failed:', error);
+        }
+
+        // 2. Profile record
+        const res = await apiFetch(`${API_ENDPOINTS.BASE_URL}/profile/${encodeURIComponent(email)}`);
+        if (res.ok) {
+          const profile = await res.json();
+          const name = profile?.companyName || profile?.company || profile?.employerCompany || '';
+          if (name) applyCompany(name, profile);
+        }
+      } catch (error) {
+        console.warn('Company prefill failed:', error);
+      }
+    };
+    prefillCompany();
+  }, [isEditMode]);
+
   // Auto-parse skills from job description when parsedData is available
   useEffect(() => {
     if (parsedData?.jobDescription && mode === 'parse') {
@@ -641,7 +694,20 @@ const JobPostingPage: React.FC<JobPostingPageProps> = ({ onNavigate, user, onLog
   const handleJobTitleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     updateJobData('jobTitle', value);
-    
+
+    // Clear stale AI skills from a previously entered title so the next
+    // section always suggests skills for the CURRENT job title
+    if (aiSuggestedSkills.length > 0) setAiSuggestedSkills([]);
+
+    // Debounced AI skill suggestions for the entered title (works even when
+    // the user types without picking a dropdown suggestion)
+    if (skillFetchTimer.current) clearTimeout(skillFetchTimer.current);
+    if (value.trim().length >= 3) {
+      skillFetchTimer.current = setTimeout(() => {
+        fetchAISkillsForTitle(value.trim());
+      }, 500);
+    }
+
     if (value.length >= 1) {
       setIsLoadingJobTitles(true);
       
@@ -1081,7 +1147,7 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
       try {
         const raw = await mistralAIService.generateJobDescription(
           jobTitle,
-          jobData.companyName || '',
+          jobData.companyName || user?.companyName || user?.company || '',
           jobData.jobLocation || '',
           context
         );
@@ -2232,10 +2298,6 @@ If you are passionate about ${jobTitle.toLowerCase()} and meet the above require
                 }))}
                 placeholder="Select"
               />
-            </div>
-                  <option key={y} value={`${y} year${y !== 1 ? 's' : ''}`}>{y} year{y !== 1 ? 's' : ''}</option>
-                ))}
-              </select>
             </div>
           </div>
         </div>
