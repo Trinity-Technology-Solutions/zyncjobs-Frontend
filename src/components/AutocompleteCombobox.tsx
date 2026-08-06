@@ -5,17 +5,18 @@ import React, {
   useCallback,
   useMemo,
   KeyboardEvent,
-  MouseEvent,
   ChangeEvent,
   FocusEvent,
 } from 'react';
-import { ChevronDown, X, Loader2, Plus, Check } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Check } from 'lucide-react';
 
 export interface ComboboxOption {
   value: string;
   label: string;
   disabled?: boolean;
 }
+
+type ComboboxOptionWithMeta = ComboboxOption & { isRecent?: boolean };
 
 export interface AutocompleteComboboxProps {
   label?: string;
@@ -66,14 +67,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        return JSON.parse(localStorage.getItem('combobox_recent') || '[]');
-      } catch { return []; }
-    }
-    return [];
-  });
+  const [chevronOpened, setChevronOpened] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -88,38 +82,29 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   const listboxId = `${comboboxId}-listbox`;
   const inputId = `${comboboxId}-input`;
 
-  const filteredOptions = useMemo(() => {
-    if (!searchQuery && recentSearches.length > 0 && !value) {
-      return recentSearches.map((r, i) => ({ value: r, label: r, isRecent: true }));
-    }
+  const filteredOptions = useMemo<ComboboxOptionWithMeta[]>(() => {
     const opts = allOptions
       .filter(opt => !opt.disabled)
       .filter(opt =>
+        !searchQuery ||
         opt.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
         opt.value.toLowerCase().includes(searchQuery.toLowerCase())
       );
     return opts.slice(0, maxOptions);
-  }, [searchQuery, allOptions, maxOptions, recentSearches, value]);
+  }, [searchQuery, allOptions, maxOptions]);
 
-  const showDropdown = filteredOptions.length > 0 || (allowCustom && searchQuery.length > 0) || isLoading;
+  const showDropdown = searchQuery.length > 0
+    ? (filteredOptions.length > 0 || (allowCustom) || isLoading)
+    : (chevronOpened && filteredOptions.length > 0);
 
-  const addRecentSearch = useCallback((val: string) => {
-    if (!val.trim()) return;
-    setRecentSearches(prev => {
-      const next = [val, ...prev.filter(v => v !== val)].slice(0, 5);
-      try { localStorage.setItem('combobox_recent', JSON.stringify(next)); } catch {}
-      return next;
-    });
-  }, []);
-
-  const selectOption = useCallback((option: ComboboxOption | { value: string; label: string; isRecent?: boolean }) => {
+  const selectOption = useCallback((option: ComboboxOptionWithMeta) => {
     onChange(option.value);
-    addRecentSearch(option.value);
     setSearchQuery('');
     setHighlightedIndex(-1);
     setIsOpen(false);
+    setChevronOpened(false);
     inputRef.current?.focus();
-  }, [onChange, addRecentSearch]);
+  }, [onChange]);
 
   const handleCustomCreate = useCallback(() => {
     if (allowCustom && searchQuery.trim() && !filteredOptions.some(o => o.value.toLowerCase() === searchQuery.trim().toLowerCase())) {
@@ -137,6 +122,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
 
   const closeDropdown = useCallback(() => {
     setIsOpen(false);
+    setChevronOpened(false);
     setHighlightedIndex(-1);
     setSearchQuery('');
   }, []);
@@ -171,6 +157,14 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
           handleCustomCreate();
         } else if (!isOpen) {
           openDropdown();
+        }
+        break;
+      }
+      case 'Backspace':
+      case 'Delete': {
+        if (value && !searchQuery) {
+          e.preventDefault();
+          onChange('');
         }
         break;
       }
@@ -209,13 +203,14 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
 
   const handleInputChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
+    if (value) onChange('');
     setSearchQuery(val);
     if (!isOpen) openDropdown();
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       // debounced search if needed
     }, debounceMs);
-  }, [isOpen, openDropdown, debounceMs]);
+  }, [isOpen, openDropdown, debounceMs, value, onChange]);
 
   const handleInputBlur = useCallback((e: FocusEvent<HTMLInputElement>) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -227,7 +222,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
     }, 100);
   }, [closeDropdown, onBlur]);
 
-  const handleOptionClick = useCallback((option: ComboboxOption | { value: string; label: string; isRecent?: boolean }) => {
+  const handleOptionClick = useCallback((option: ComboboxOptionWithMeta) => {
     selectOption(option);
   }, [selectOption]);
 
@@ -243,6 +238,8 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
 
   useEffect(() => {
     mountedRef.current = true;
+    // Clear any stale recent searches from localStorage
+    try { localStorage.removeItem('combobox_recent'); } catch {}
     return () => { mountedRef.current = false; };
   }, []);
 
@@ -254,9 +251,9 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
   }, [highlightedIndex, isOpen]);
 
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
-          inputRef.current && !inputRef.current.contains(e.target as Node)) {
+    const handleClickOutside = (event: globalThis.MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          inputRef.current && !inputRef.current.contains(event.target as Node)) {
         closeDropdown();
       }
     };
@@ -305,7 +302,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
         aria-selected={idx === highlightedIndex}
         aria-disabled={opt.disabled}
         className={`
-          px-3 py-2.5 cursor-pointer transition-colors duration-100
+          px-3 py-2.5 cursor-pointer transition-colors duration-100 flex items-center justify-between gap-2
           ${opt.disabled ? 'text-gray-400 cursor-not-allowed' : ''}
           ${idx === highlightedIndex
             ? 'bg-blue-50 text-blue-700 outline-none'
@@ -315,16 +312,16 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
         onMouseDown={e => e.preventDefault()}
         onMouseEnter={() => !opt.disabled && setHighlightedIndex(idx)}
       >
-        <span className="truncate block">{opt.label}</span>
-        {idx === highlightedIndex && !opt.disabled && (
-          <Check className="w-4 h-4 text-blue-600 ml-2 flex-shrink-0" />
+        <span className="truncate">{opt.label}</span>
+        {value === opt.value && !opt.disabled && (
+          <Check className="w-4 h-4 text-blue-600 flex-shrink-0" />
         )}
       </li>
     ));
   };
 
   return (
-    <div className={`w-full ${className}`}>
+    <div className="w-full">
       {label && (
         <label htmlFor={inputId} className="block text-sm font-medium text-gray-700 mb-1.5">
           {label} {required && <span className="text-red-500">*</span>}
@@ -332,13 +329,14 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
       )}
       <div className="relative">
         <div
-          className={`
-            relative flex items-center
-            ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
-            ${error ? 'border-red-300 bg-red-50' : isOpen ? 'border-blue-300 bg-white' : 'border-gray-300 bg-white'}
-            rounded-lg border transition-all duration-150
-            hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500/20
-          `}
+          className={[
+            'relative flex items-center rounded-lg border transition-all duration-150',
+            'hover:border-gray-400 focus-within:ring-2 focus-within:ring-blue-500/20',
+            'min-h-[46px]',
+            disabled ? 'opacity-50 cursor-not-allowed' : '',
+            error ? 'border-red-300 bg-red-50' : isOpen ? 'border-blue-300 bg-white' : 'border-gray-300 bg-white',
+            className,
+          ].filter(Boolean).join(' ')}
         >
           <input
             ref={inputRef}
@@ -362,8 +360,8 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             value={value || searchQuery}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            onFocus={(e) => {
-              if (!isComposingRef.current) openDropdown();
+            onFocus={() => {
+              if (!isComposingRef.current && searchQuery.length > 0) openDropdown();
             }}
             onBlur={handleInputBlur}
             onCompositionStart={() => { isComposingRef.current = true; }}
@@ -373,17 +371,16 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             }}
             disabled={disabled}
             required={required}
-            className="
-              flex-1 w-full px-4 py-2.5 pr-10 bg-transparent border-none outline-none
-              text-gray-900 placeholder:text-gray-400
-              disabled:cursor-not-allowed
-            "
+            className="flex-1 w-full px-4 py-3 pr-10 bg-transparent border-none outline-none text-gray-900 placeholder:text-gray-400 disabled:cursor-not-allowed"
             autoFocus={autoFocus}
           />
           <button
             type="button"
             tabIndex={-1}
-            onClick={isOpen ? closeDropdown : openDropdown}
+            onClick={() => {
+              if (isOpen) { closeDropdown(); }
+              else { setChevronOpened(true); openDropdown(); }
+            }}
             onMouseDown={e => e.preventDefault()}
             disabled={disabled}
             aria-label={isOpen ? 'Close dropdown' : 'Open dropdown'}
@@ -403,7 +400,7 @@ export const AutocompleteCombobox: React.FC<AutocompleteComboboxProps> = ({
             id={listboxId}
             aria-label={label || 'Options'}
             className="
-              fixed z-50 mt-1 w-full max-h-60 overflow-auto
+              absolute z-50 mt-1 w-full max-h-60 overflow-auto
               bg-white border border-gray-200 rounded-lg shadow-lg
               animate-dropdown-in
             "

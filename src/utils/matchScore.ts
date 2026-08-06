@@ -449,8 +449,8 @@ export const resolveUserSkills = (profile: any): string[] => {
   return [];
 };
 
-export const computeMatchBreakdown = (job: any) => {
-  const profile = getUserProfile();
+export const computeMatchBreakdown = (job: any, profileOverride?: any) => {
+  const profile = profileOverride || getUserProfile();
 
   // Keep original casing for display, normalize only for comparison
   const jobSkillsRaw: string[] = (Array.isArray(job.skills) ? job.skills : [])

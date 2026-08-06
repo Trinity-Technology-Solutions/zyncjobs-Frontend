@@ -6,6 +6,7 @@ import { API_ENDPOINTS } from '../config/env';
 import { Search, MapPin, Users, Building2, Star, Briefcase } from 'lucide-react';
 import { getCompanyLogo } from '../utils/logoUtils';
 import CompanyLogo from '../components/CompanyLogo';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface Company {
   _id?: string;
@@ -505,13 +506,14 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
             {/* Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search Google, Microsoft, Amazon..."
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+              <AutocompleteCombobox
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-12 pl-9 pr-3 border border-gray-300 rounded-lg text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white"
+                onChange={setSearchTerm}
+                options={[]}
+                allowCustom
+                placeholder="Search Google, Microsoft, Amazon..."
+                className="pl-8"
               />
             </div>
 
@@ -545,75 +547,14 @@ const CompaniesPage: React.FC<CompaniesPageProps> = ({ onNavigate, user, onLogou
 
             {/* Location Filter */}
             <div className="relative" ref={locationDropdownRef}>
-              <input
-                ref={locationInputRef}
-                type="text"
-                value={selectedLocation || locationSearchInput}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setLocationSearchInput(val);
-                  setSelectedLocation('');
-                  setHighlightedIndex(0);
-                  if (!filtersLoading) setLocationDropdownOpen(true);
-                }}
-                onFocus={() => { if (!filtersLoading) setLocationDropdownOpen(true); }}
-                onKeyDown={(e) => {
-                  const suggestions = locationSearchInput ? filteredLocationSuggestions : locations;
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setHighlightedIndex(prev => Math.min(prev + 1, suggestions.length - 1));
-                  } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setHighlightedIndex(prev => Math.max(prev - 1, -1));
-                  } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (suggestions.length > 0 && highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
-                      const selected = suggestions[highlightedIndex];
-                      setSelectedLocation(selected);
-                      setLocationSearchInput('');
-                      setLocationDropdownOpen(false);
-                      setHighlightedIndex(-1);
-                    }
-                  } else if (e.key === 'Escape') {
-                    setLocationDropdownOpen(false);
-                    setHighlightedIndex(-1);
-                  }
-                }}
+              <AutocompleteCombobox
+                value={selectedLocation}
+                onChange={v => { setSelectedLocation(v); setLocationSearchInput(''); }}
+                options={locations.map(l => ({ value: l, label: l }))}
                 placeholder={filtersLoading ? 'Loading...' : 'Search locations...'}
-                className="w-full h-12 px-3 border border-gray-300 rounded-lg bg-white text-base text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors disabled:bg-gray-50 disabled:cursor-not-allowed"
                 disabled={filtersLoading}
+                maxOptions={20}
               />
-              {!selectedLocation && locationSearchInput && (
-                <button
-                  type="button"
-                  onClick={() => { setLocationSearchInput(''); setLocationDropdownOpen(false); setHighlightedIndex(-1); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              )}
-              {locationDropdownOpen && !filtersLoading && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                  <button type="button"
-                    onMouseDown={() => { setSelectedLocation(''); setLocationSearchInput(''); setLocationDropdownOpen(false); setHighlightedIndex(-1); }}
-                    className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                      !selectedLocation && !locationSearchInput ? 'bg-blue-600 text-white font-medium' : 'text-gray-700 hover:bg-gray-50'
-                    }`}>All Locations</button>
-                  {(locationSearchInput ? filteredLocationSuggestions : locations).length === 0 && locationSearchInput ? (
-                    <div className="px-4 py-6 text-sm text-gray-400 text-center border-t border-gray-100">No locations found</div>
-                  ) : (
-                    (locationSearchInput ? filteredLocationSuggestions : locations).map((location, index) => (
-                      <button key={location} type="button"
-                        onMouseDown={() => { setSelectedLocation(location); setLocationSearchInput(''); setLocationDropdownOpen(false); setHighlightedIndex(-1); }}
-                        className={`w-full text-left px-4 py-2.5 text-sm border-t border-gray-100 transition-colors ${
-                          selectedLocation === location ? 'bg-blue-600 text-white font-medium' : highlightedIndex === index ? 'bg-blue-50 text-gray-900' : 'text-gray-700 hover:bg-gray-50'
-                        }`}>{location}</button>
-                    ))
-                  )}
-                </div>
-              )}
             </div>
 
             {/* Clear Filters */}

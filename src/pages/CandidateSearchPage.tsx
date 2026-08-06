@@ -22,6 +22,7 @@ import DirectMessage from '../components/DirectMessage';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import CandidateProfileView from './CandidateProfileView';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 // ─────────────────────────────────────────────────────────────
 // Types
@@ -987,29 +988,30 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                     <div className="flex flex-col gap-3">
                       {/* Boolean search bar */}
                       <div className="relative">
-                        <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400 w-4 h-4" />
-                        <input
-                          type="text"
-                          placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
+                        <Bot className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400 w-4 h-4 z-10" />
+                        <AutocompleteCombobox
                           value={booleanQuery}
-                          onChange={(e) => setBooleanQuery(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 border border-purple-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-purple-400 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm bg-purple-50/50"
+                          onChange={setBooleanQuery}
+                          options={[]}
+                          allowCustom
+                          placeholder='Boolean search: ("Backend" OR "Full Stack") AND NOT "Intern"'
+                          className="pl-8 border-purple-200 bg-purple-50/50"
                         />
                         {booleanQuery && (
-                          <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'
-                            }`}>
+                          <span className={`absolute right-10 top-1/2 -translate-y-1/2 text-xs font-medium px-1.5 py-0.5 rounded z-10 ${parseBooleanQuery(booleanQuery) ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
                             {parseBooleanQuery(booleanQuery) ? 'valid' : 'syntax'}
                           </span>
                         )}
                       </div>
                       <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <input
-                          type="text"
-                          placeholder="Search candidates by name, title, email…"
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4 z-10" />
+                        <AutocompleteCombobox
                           value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 placeholder-gray-400 text-sm"
+                          onChange={setSearchTerm}
+                          options={[]}
+                          allowCustom
+                          placeholder="Search candidates by name, title, email…"
+                          className="pl-8"
                         />
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1237,51 +1239,33 @@ const CandidateSearchPage: React.FC<CandidateSearchPageProps> = ({ onNavigate, u
                         </div>
 
                         {/* Designation */}
-                        <div className="relative">
+                        <div className="relative pt-2">
                           <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Designation</label>
-                          <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-400">
-                            <Briefcase className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
-                            <input
-                              type="text" placeholder="e.g. Engineer"
-                              value={designationInput}
-                              onChange={e => setDesignationInput(e.target.value)}
-                              onKeyDown={e => {
-                                if ((e.key === 'Enter' || e.key === ',') && designationInput.trim()) {
-                                  e.preventDefault();
-                                  if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]);
-                                  setDesignationInput('');
-                                }
-                              }}
-                              className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
-                            />
-                            {designationInput && (
-                              <button onMouseDown={() => { if (!designations.includes(designationInput.trim())) setDesignations((d: any) => [...d, designationInput.trim()]); setDesignationInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
-                            )}
-                          </div>
+                          <AutocompleteCombobox
+                            value={designationInput}
+                            onChange={v => {
+                              if (v && !designations.includes(v)) setDesignations((d: any) => [...d, v]);
+                              setDesignationInput('');
+                            }}
+                            options={[]}
+                            allowCustom
+                            placeholder="e.g. Engineer"
+                          />
                         </div>
 
                         {/* Ex-Company */}
-                        <div className="relative">
+                        <div className="relative pt-2">
                           <label className="absolute -top-1.5 left-3 bg-white px-1 text-[10px] font-semibold text-indigo-500 z-10">Ex-Company</label>
-                          <div className="flex items-center border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-indigo-400">
-                            <Building2 className="w-4 h-4 text-gray-400 ml-2 flex-shrink-0" />
-                            <input
-                              type="text" placeholder="e.g. Infosys"
-                              value={companyInput}
-                              onChange={e => setCompanyInput(e.target.value)}
-                              onKeyDown={e => {
-                                if ((e.key === 'Enter' || e.key === ',') && companyInput.trim()) {
-                                  e.preventDefault();
-                                  if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]);
-                                  setCompanyInput('');
-                                }
-                              }}
-                              className="flex-1 px-2 py-2.5 text-sm text-gray-900 outline-none bg-transparent"
-                            />
-                            {companyInput && (
-                              <button onMouseDown={() => { if (!targetCompanies.includes(companyInput.trim())) setTargetCompanies((c: any) => [...c, companyInput.trim()]); setCompanyInput(''); }} className="mr-2 text-indigo-600 text-xs font-bold">+</button>
-                            )}
-                          </div>
+                          <AutocompleteCombobox
+                            value={companyInput}
+                            onChange={v => {
+                              if (v && !targetCompanies.includes(v)) setTargetCompanies((c: any) => [...c, v]);
+                              setCompanyInput('');
+                            }}
+                            options={[]}
+                            allowCustom
+                            placeholder="e.g. Infosys"
+                          />
                         </div>
                       </div>
 

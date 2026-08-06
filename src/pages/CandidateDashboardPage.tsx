@@ -21,6 +21,7 @@ import { tokenStorage } from "../utils/tokenStorage";
 import { S3Service } from "../services/s3Service";
 import { updateUserInStorage } from "../utils/userStorage";
 import { useSavedJobsStore } from "../store/useSavedJobsStore";
+import { computeMatchBreakdown } from "../utils/matchScore";
 
 import LinkedInConnect, {
   type LinkedInProfile,
@@ -1724,24 +1725,8 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                       {recommendedJobs.length > 0 ? (
                         recommendedJobs.slice(0, 3).map((job, index) => {
                           const jobId = job._id || job.id;
-                          const userSkills: string[] = (
-                            Array.isArray(user?.skills) ? user.skills : []
-                          ).map((s: any) => String(s || "").toLowerCase());
-                          const jobSkills: string[] = (
-                            Array.isArray(job.skills) ? job.skills : []
-                          ).map((s: any) => String(s || "").toLowerCase());
-                          const matchCount = jobSkills.filter((js) =>
-                            userSkills.some(
-                              (us) => us.includes(js) || js.includes(us),
-                            ),
-                          ).length;
-                          const matchPct =
-                            job.matchScore ||
-                            (jobSkills.length > 0
-                              ? Math.round(
-                                  (matchCount / jobSkills.length) * 100,
-                                )
-                              : 0);
+                          const br = computeMatchBreakdown(job);
+                          const matchPct = br.overall;
                           const isSaved = savedJobIdsSet.has(jobId);
                           return (
                             <div
@@ -1827,14 +1812,11 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({
                                         <span
                                           key={idx}
                                           className={`text-xs px-2 py-0.5 rounded ${
-                                            userSkills.some(
-                                              (us) =>
-                                                us.includes(
-                                                  String(skill).toLowerCase(),
-                                                ) ||
-                                                String(skill)
-                                                  .toLowerCase()
-                                                  .includes(us),
+                                            br.matched.some(
+                                              (m) =>
+                                                String(m)
+                                                  .toLowerCase() ===
+                                                String(skill).toLowerCase(),
                                             )
                                               ? "bg-green-100 text-green-800"
                                               : "bg-blue-100 text-blue-800"

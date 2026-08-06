@@ -12,6 +12,7 @@ import BulkJobRefresh from '../components/BulkJobRefresh';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { getEffectiveEmployerEmail } from '../utils/employerIdUtils';
 import { useSavedJobsStore } from '../store/useSavedJobsStore';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 function useRefresh(fn: () => Promise<void>) {
   const [refreshing, setRefreshing] = React.useState(false);
@@ -807,21 +808,21 @@ const MyJobsPage: React.FC<MyJobsPageProps> = ({ onNavigate, user, onLogout }) =
             <div className="mb-8 p-6 bg-gray-50 rounded-lg">
               <div className="flex flex-col lg:flex-row gap-4 mb-4">
                 <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Job title, skill, company, keyword"
+                  <AutocompleteCombobox
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={setSearchQuery}
+                    options={allJobs.map((j: any) => ({ value: j.title || j.jobTitle || '', label: j.title || j.jobTitle || '' })).filter(o => o.value)}
+                    allowCustom
+                    placeholder="Job title, skill, company, keyword"
                   />
                 </div>
                 <div className="flex-1">
-                  <input
-                    type="text"
-                    placeholder="Location (ex. Denver, remote)"
+                  <AutocompleteCombobox
                     value={locationQuery}
-                    onChange={(e) => setLocationQuery(e.target.value)}
-                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onChange={setLocationQuery}
+                    options={[...new Set(allJobs.map((j: any) => j.location).filter(Boolean))].map((l: any) => ({ value: l, label: l }))}
+                    allowCustom
+                    placeholder="Location (ex. Denver, remote)"
                   />
                 </div>
                 <button

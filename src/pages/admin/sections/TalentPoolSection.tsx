@@ -788,13 +788,16 @@ function ExtractedPage({ lastUploadAt }: { lastUploadAt: number }) {
 
       {/* Controls */}
       <div className="flex items-center gap-3 flex-wrap">
-        <input
-          type="text"
-          placeholder="Search by name, email, skills..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="flex-1 min-w-[200px]">
+          <AutocompleteCombobox
+            value={search}
+            onChange={setSearch}
+            options={[]}
+            allowCustom
+            placeholder="Search by name, email, skills..."
+            className="bg-gray-800 border-gray-700 text-gray-200"
+          />
+        </div>
         <button
           onClick={() => setShowDuplicates(v => !v)}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -1026,13 +1029,16 @@ function InternalPage() {
 
       {/* Controls */}
       <div className="flex items-center gap-3 flex-wrap">
-        <input
-          type="text"
-          placeholder="Search by name, email, phone..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 min-w-[200px] bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="flex-1 min-w-[200px]">
+          <AutocompleteCombobox
+            value={search}
+            onChange={setSearch}
+            options={[]}
+            allowCustom
+            placeholder="Search by name, email, phone..."
+            className="bg-gray-800 border-gray-700 text-gray-200"
+          />
+        </div>
         {selected.size > 0 && (
           <button
             onClick={sendToEmailPage}
@@ -1484,13 +1490,16 @@ function BulkEmailPage() {
                 Select Next {Math.min(batchSize, unsentCandidates.length)} Unsent
               </button>
             </div>
-            <input
-              type="text"
-              placeholder="Search..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="bg-gray-800 border border-gray-700 text-gray-200 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
-            />
+            <div className="w-44">
+              <AutocompleteCombobox
+                value={search}
+                onChange={setSearch}
+                options={[]}
+                allowCustom
+                placeholder="Search..."
+                className="bg-gray-800 border-gray-700 text-gray-200"
+              />
+            </div>
           </div>
           <div className="overflow-x-auto max-h-96">
             <table className="w-full text-sm">

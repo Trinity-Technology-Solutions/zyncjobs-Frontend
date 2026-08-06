@@ -8,7 +8,7 @@ import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 import { formatSalary } from '../utils/textUtils';
 import { API_ENDPOINTS } from '../config/env';
-import { computeMatchBreakdown, normalizeSkill, getUserProfile, resolveUserSkills } from '../utils/matchScore';
+import { computeMatchBreakdown, normalizeSkill, getUserProfile, resolveUserSkills, getIncompleteProfileFields } from '../utils/matchScore';
 
 interface Props {
   onNavigate?: (page: string, data?: any) => void;
@@ -25,6 +25,7 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
   const [sortBy, setSortBy] = useState<'match' | 'recent'>('match');
   const [breakdownJob, setBreakdownJob] = useState<any | null>(null);
   const [companyLogos, setCompanyLogos] = useState<Record<string, string>>({});
+  const [profileBlocked, setProfileBlocked] = useState<string[] | null>(null);
 
   const userId = (() => {
     try {
@@ -60,6 +61,15 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
           }
         }
       } catch {}
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      const essentialMissing = getIncompleteProfileFields(stored).filter(f => f === 'skills' || f === 'jobTitle');
+      if (essentialMissing.length > 0) {
+        setProfileBlocked(essentialMissing);
+        setLoading(false);
+        setJobs([]);
+        return;
+      }
+      setProfileBlocked(null);
       loadRecommendations();
       fetchCompanyLogos();
     };
@@ -245,15 +255,12 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
         {!loading && !error && jobs.length > 0 && (
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6 flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search by title, company, skill..."
+              <AutocompleteCombobox
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={setSearch}
+                options={[]}
+                allowCustom
+                placeholder="Search by title, company, skill..."
               />
             </div>
             <div className="flex items-center gap-2">
@@ -303,8 +310,28 @@ export const JobRecommendationsPage: React.FC<Props> = ({ onNavigate, user, onLo
           </div>
         )}
 
+        {/* Profile incomplete gate */}
+        {!loading && profileBlocked && (
+          <div className="bg-white border border-amber-200 rounded-xl p-12 text-center shadow-sm">
+            <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              </svg>
+            </div>
+            <h3 className="text-gray-900 font-semibold text-lg mb-2">Complete your profile to unlock AI job matches</h3>
+            <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
+              Missing essential information: {profileBlocked.map(f => f === 'jobTitle' ? 'job title' : f).join(', ')}. Add these to get accurate match scores.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => onNavigate?.('dashboard')} className="bg-blue-600 text-white px-6 py-2.5 rounded-lg hover:bg-blue-700 font-medium text-sm transition-colors">
+                Complete Your Profile
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Empty */}
-        {!loading && !error && jobs.length === 0 && (
+        {!loading && !error && !profileBlocked && jobs.length === 0 && (
           <div className="bg-white border border-gray-200 rounded-xl p-12 text-center shadow-sm">
             <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

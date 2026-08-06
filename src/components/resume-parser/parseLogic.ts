@@ -101,7 +101,17 @@ function isResumeContent(text: string): boolean {
   const sectionKeywords = ['experience','education','skill','summary','objective','profile',
     'certification','project','internship','employment','qualification','achievement'];
   const sectionHits = sectionKeywords.filter(k => t.includes(k)).length;
-  return hasContact && sectionHits >= 2;
+  
+  // Additional checks for resume-specific content
+  const hasNamePattern = /\b[A-Z][a-z]+\s+[A-Z][a-z]+\b/.test(text); // Name-like pattern
+  const hasDatePattern = /\b(19|20)\d{2}\b/.test(text); // Years (education/experience dates)
+  const hasDegreePattern = /\b(b\.?tech|b\.?e|b\.?sc|m\.?tech|mba|ph\.?d|bachelor|master|diploma|b\.?sc|b\.?a|m\.?a|sslc|hsc)\b/i.test(text);
+  const hasCompanyPattern = /\b(company|inc|ltd|pvt|llc|corp|technologies|solutions|services)\b/i.test(text);
+  
+  // Must have contact + at least 2 sections + at least one resume-specific indicator
+  const hasResumeIndicator = hasNamePattern || hasDatePattern || hasDegreePattern || hasCompanyPattern;
+  
+  return hasContact && sectionHits >= 2 && hasResumeIndicator;
 }
 
 // ─── LOCAL PARSER ─────────────────────────────────────────────────────────────

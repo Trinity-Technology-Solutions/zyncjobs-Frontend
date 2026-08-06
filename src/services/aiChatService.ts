@@ -9,17 +9,26 @@ const AI_BASE = import.meta.env.VITE_AI_API_URL || '/recruitment-ai';
 
 let cachedToken: string | null = null;
 let tokenExpiry: number = 0;
+let cachedTokenKey: string = '';
 
-async function getToken(): Promise<string> {
-  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+async function getToken(role = 'candidate'): Promise<string> {
+  // Attach the logged-in user's email so the AI service can resolve real employer/candidate context
+  let email: string | null = null;
+  try {
+    const u = JSON.parse(localStorage.getItem('user') || '{}');
+    email = u.email || u.userEmail || u.username || null;
+  } catch { }
+  const key = `${role}:${email || ''}`;
+  if (cachedToken && cachedTokenKey === key && Date.now() < tokenExpiry) return cachedToken;
   const res = await fetch(`${AI_BASE}/auth/token`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ user_id: 'ai_user', role: 'candidate' }),
+    body: JSON.stringify({ user_id: email || 'ai_user', role, email }),
   });
   if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
   const data = await res.json();
   cachedToken = data.access_token;
+  cachedTokenKey = key;
   tokenExpiry = Date.now() + 55 * 60 * 1000;
   return cachedToken!;
 }
@@ -29,7 +38,7 @@ export async function executeAI(
   context?: Record<string, unknown>,
   userRole = 'candidate'
 ): Promise<Record<string, unknown>> {
-  const token = await getToken();
+  const token = await getToken(userRole === 'recruiter' ? 'employer' : userRole);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60000); // 60s — Ollama needs time
   try {
@@ -282,7 +291,7 @@ export async function generateCareerRoadmap(
       ? (s.estimated_months ? `${s.estimated_months} months` : '')
       : (s.duration_months ? `${s.duration_months} months` : ''),
     skills: Array.isArray(s.skills_to_learn) ? s.skills_to_learn : [],
-    skillDetails: Array.isArray(s.skill_details) ? s.skill_details.map(sd => ({
+    skillDetails: Array.isArray(s.skill_details) ? s.skill_details.map((sd: any) => ({
       name: sd.skill || sd.name || '',
       why: sd.why || '',
       resource: Array.isArray(sd.resource) ? sd.resource : (sd.resource_url ? [{ name: sd.resource || 'Resource', url: sd.resource_url, type: sd.platform || 'link' }] : []),

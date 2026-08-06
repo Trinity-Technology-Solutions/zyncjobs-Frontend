@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, Search, RefreshCw } from 'lucide-react';
+import { Calendar, Clock, Video, MapPin, Building, Phone, CheckCircle, XCircle, AlertCircle, RefreshCw } from 'lucide-react';
 import { API_ENDPOINTS } from '../config/env';
 import BackButton from '../components/BackButton';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 import { getSafeCompanyLogo } from '../utils/logoUtils';
 
 interface Interview {
@@ -200,14 +201,13 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
 
           {/* Search + Filter Bar */}
           <div className="bg-white border border-gray-200 rounded-xl p-3 flex flex-col sm:flex-row gap-3">
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 flex-1">
-              <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search by job title, company, round..."
+            <div className="flex-1">
+              <AutocompleteCombobox
                 value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="bg-transparent text-sm text-gray-700 outline-none w-full placeholder-gray-400"
+                onChange={setSearch}
+                options={[]}
+                allowCustom
+                placeholder="Search by job title, company, round..."
               />
             </div>
             <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">

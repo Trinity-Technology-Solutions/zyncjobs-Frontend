@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { API_ENDPOINTS } from '../../../config/env';
 import { Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import AutocompleteCombobox from '../../../components/AutocompleteCombobox';
 
 interface AllApplicationsSectionProps {
   onUnauthorized: () => void;
@@ -109,11 +110,14 @@ export default function AllApplicationsSection({ onUnauthorized }: AllApplicatio
 
       {/* Search / Filter bar */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 flex-1">
-          <Search className="w-4 h-4 text-gray-400" />
-          <input type="text" placeholder="Filter by company..." value={companyFilter}
-            onChange={e => { setCompanyFilter(e.target.value); setPage(1); }}
-            className="text-sm outline-none w-full placeholder-gray-400" />
+        <div className="flex-1">
+          <AutocompleteCombobox
+            value={companyFilter}
+            onChange={v => { setCompanyFilter(v); setPage(1); }}
+            options={Object.keys(counts.byCompany).map(c => ({ value: c, label: c }))}
+            allowCustom
+            placeholder="Filter by company..."
+          />
         </div>
         {(statusFilter || companyFilter) && (
           <button onClick={() => { setStatusFilter(''); setCompanyFilter(''); setPage(1); }}

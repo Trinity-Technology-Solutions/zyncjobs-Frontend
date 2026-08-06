@@ -10,6 +10,7 @@ import CandidateProfileView from './CandidateProfileView';
 import ConfirmDialog from '../components/ConfirmDialog';
 import BackButton from '../components/BackButton';
 import { executeAI } from '../services/aiChatService';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
 
 interface ApplicationManagementPageProps {
   onNavigate: (page: string, data?: any) => void;
@@ -505,12 +506,13 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             {/* Search */}
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2">
               <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <input
-                type="text"
-                placeholder="Search candidate..."
+              <AutocompleteCombobox
                 value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className="text-sm outline-none w-40 placeholder-gray-400"
+                onChange={setSearchQuery}
+                options={[]}
+                allowCustom
+                placeholder="Search candidate..."
+                className="w-40"
               />
             </div>
             {applications.length > 0 && (
@@ -555,7 +557,7 @@ const ApplicationManagementPage: React.FC<ApplicationManagementPageProps> = ({ o
             <div className="text-6xl mb-4">📋</div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Applications Yet</h3>
             <p className="text-gray-500 mb-4">Applications will appear here when candidates apply.</p>
-            <button onClick={fetchApplications} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
+            <button onClick={() => fetchApplications()} className="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">Refresh</button>
           </div>
         ) : (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import BackButton from '../components/BackButton';
-import { ChevronDown, Search } from 'lucide-react';
+import AutocompleteCombobox from '../components/AutocompleteCombobox';
+import { ChevronDown } from 'lucide-react';
 
 interface HelpCenterPageProps {
   onNavigate?: (page: string) => void;
@@ -103,16 +104,13 @@ const HelpCenterPage: React.FC<HelpCenterPageProps> = ({ onNavigate, user, onLog
 
           {/* Search */}
           <div className="max-w-2xl mx-auto">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search help articles..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none bg-white/80 backdrop-blur shadow-sm"
-              />
-            </div>
+            <AutocompleteCombobox
+              value={searchTerm}
+              onChange={setSearchTerm}
+              options={[]}
+              allowCustom
+              placeholder="Search help articles..."
+            />
           </div>
         </div>
       </div>
