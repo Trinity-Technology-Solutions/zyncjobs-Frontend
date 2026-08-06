@@ -370,7 +370,7 @@ const CandidateInterviewsPage: React.FC<CandidateInterviewsPageProps> = ({ onNav
                           </button>
                           {isUpcoming && interview.meetingLink ? (
                             <a
-                              href={interview.meetingLink.startsWith('http') ? interview.meetingLink : `https://${interview.meetingLink}`}
+                              href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg transition-all font-semibold shadow-sm hover:shadow-md active:scale-95"

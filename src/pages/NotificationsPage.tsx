@@ -96,6 +96,8 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
     switch (type) {
       case 'application': return <Briefcase className="w-5 h-5" />;
       case 'interview': return <Calendar className="w-5 h-5" />;
+      case 'interview_accepted':
+      case 'interview_declined': return <Calendar className="w-5 h-5" />;
       case 'job': return <Search className="w-5 h-5" />;
       case 'message': return <MessageSquare className="w-5 h-5" />;
       default: return <Bell className="w-5 h-5" />;
@@ -106,6 +108,8 @@ const NotificationsPage: React.FC<NotificationsPageProps> = ({ onNavigate, user,
     switch (type) {
       case 'application': return 'bg-blue-100 text-blue-600';
       case 'interview': return 'bg-green-100 text-green-600';
+      case 'interview_accepted':
+      case 'interview_declined': return 'bg-green-100 text-green-600';
       case 'job': return 'bg-purple-100 text-purple-600';
       case 'message': return 'bg-orange-100 text-orange-600';
       default: return 'bg-gray-100 text-gray-600';

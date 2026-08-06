@@ -6,6 +6,8 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { API_ENDPOINTS } from '../config/constants';
+import config from '../config/env';
+import { io } from 'socket.io-client';
 import BackButton from '../components/BackButton';
 import AutoRejectionSettings from '../components/AutoRejectionSettings';
 import { apiFetch } from '../api/apiFetch';
@@ -280,9 +282,29 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
     
     // Set up real-time updates - fetch every 30 seconds
     const notificationInterval = setInterval(fetchNotifications, 30000);
+
+    // Real-time: re-fetch when the backend pushes the existing notification event
+    let notificationSocket: any = null;
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const parsedUser = JSON.parse(userData);
+        const userId = parsedUser.id || parsedUser._id || parsedUser.userId;
+        if (userId) {
+          notificationSocket = io(config.SOCKET_URL, {
+            transports: ['websocket', 'polling'],
+            reconnection: false,
+            timeout: 3000,
+          });
+          notificationSocket.on(`notification_update:${userId}`, fetchNotifications);
+          notificationSocket.on('connect_error', () => { notificationSocket?.disconnect(); });
+        }
+      }
+    } catch { /* socket optional — refresh still works via polling */ }
     
     return () => {
       clearInterval(notificationInterval);
+      if (notificationSocket) notificationSocket.disconnect();
     };
   }, []); // Run once on mount only
 
@@ -2056,7 +2078,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                             {interview.meetingLink && (
                               <div className="mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-2">
                                 <a
-                                  href={interview.meetingLink}
+                                  href={`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm font-semibold inline-flex items-center space-x-1 bg-blue-100 px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-200 transition-colors"
@@ -2066,7 +2088,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                 </a>
                                 <button
                                   onClick={() => {
-                                    navigator.clipboard.writeText(interview.meetingLink);
+                                    navigator.clipboard.writeText(`${API_ENDPOINTS.BASE_URL}/meetings/interview/${interview._id}/join`);
                                     showToast('Meeting link copied!', 'success');
                                   }}
                                   className="text-gray-500 hover:text-gray-700 text-xs border border-gray-300 px-2 sm:px-3 py-2 rounded-lg hover:bg-gray-50 transition-colors"
@@ -2395,7 +2417,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                                   const candidateName = notification.data?.candidateName || notification.data?.candidateEmail || '';
                                   if (candidateName) setAppSearch(candidateName);
                                   setActiveMenu('applications');
-                                } else if (notification.type === 'interview') {
+                                } else if (notification.type === 'interview' || notification.type === 'interview_accepted' || notification.type === 'interview_declined') {
                                   setActiveMenu('interviews');
                                 } else if (notification.type === 'job') {
                                   onNavigate('my-jobs');
@@ -2573,7 +2595,7 @@ const EmployerDashboardPage: React.FC<EmployerDashboardPageProps> = ({ onNavigat
                       onClick={() => {
                         setShowNotifications(false);
                         if (notification.type === 'application') setActiveMenu('applications');
-                        else if (notification.type === 'interview') setActiveMenu('interviews');
+                        else if (notification.type === 'interview' || notification.type === 'interview_accepted' || notification.type === 'interview_declined') setActiveMenu('interviews');
                         else if (notification.type === 'job') onNavigate('my-jobs');
                       }}
                     >
