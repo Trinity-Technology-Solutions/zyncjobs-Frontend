@@ -2,11 +2,12 @@ import { API_ENDPOINTS } from '../config/constants';
 
 export interface Notification {
   id: string;
-  type: 'application' | 'interview' | 'job' | 'daily_summary' | 'job_status' | 'application_status';
+  type: 'application' | 'interview' | 'job' | 'daily_summary' | 'job_status' | 'application_status' | 'interview_accepted' | 'interview_declined';
   title: string;
   message: string;
   time: string;
   data?: any;
+  read?: boolean;
   createdAt: string;
 }
 
@@ -75,6 +76,9 @@ class NotificationService {
         return '📄';
       case 'interview':
         return '🤝';
+      case 'interview_accepted':
+      case 'interview_declined':
+        return '🤝';
       case 'job':
         return '💼';
       case 'daily_summary':
@@ -94,6 +98,9 @@ class NotificationService {
       case 'application':
         return 'bg-blue-500';
       case 'interview':
+        return 'bg-green-500';
+      case 'interview_accepted':
+      case 'interview_declined':
         return 'bg-green-500';
       case 'job':
         return 'bg-purple-500';
